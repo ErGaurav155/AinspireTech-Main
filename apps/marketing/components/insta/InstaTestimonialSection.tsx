@@ -1,0 +1,259 @@
+"use client";
+
+import { Card, CardContent } from "@ainspiretech/ui/components/radix/card";
+import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
+import { useMemo } from "react";
+
+const testimonials = [
+  {
+    name: "Raj Mehta",
+    company: "Fashion Boutique",
+    content:
+      "Our engagement increased by 300% after implementing InstaReply Pro. Never miss a customer comment again!",
+    rating: 5,
+  },
+  {
+    name: "Priya Desai",
+    company: "Tech Dropshipping",
+    content:
+      "The automation is so natural, our followers can't tell it's not us responding personally.",
+    rating: 5,
+  },
+  {
+    name: "Anil Kumar",
+    company: "Food Blog",
+    content:
+      "ROI was positive within the first week. The system pays for itself with increased engagement.",
+    rating: 5,
+  },
+];
+
+function InstaTestimonialsSection() {
+  const { theme, resolvedTheme } = useTheme();
+  const currentTheme = resolvedTheme || theme || "light";
+
+  // Theme-based styles
+  const themeStyles = useMemo(() => {
+    const isDark = currentTheme === "dark";
+    return {
+      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-50/50",
+      badgeBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
+      titleText: isDark ? "text-white" : "text-n-7",
+      descriptionText: isDark ? "text-gray-300" : "text-n-5",
+      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
+      cardBorder: isDark ? "border-white/10" : "border-gray-200",
+      cardHoverBorder: isDark
+        ? "hover:border-[#258b94]/40"
+        : "hover:border-[#258b94]/60",
+      testimonialText: isDark ? "text-gray-300" : "text-n-4",
+      companyText: isDark ? "text-gray-400" : "text-n-5",
+    };
+  }, [currentTheme]);
+  // EXACT same animation variants as FAQ component
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        duration: 0.8,
+        staggerChildren: 0.2,
+      },
+    },
+  };
+
+  const cardVariants = {
+    hidden: {
+      opacity: 0,
+      y: 60,
+      scale: 0.9,
+      rotateX: -10,
+    },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      rotateX: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut",
+      },
+    },
+    hover: {
+      y: -8,
+      scale: 1.02,
+      borderColor:
+        theme === "dark"
+          ? "rgba(37, 139, 148, 0.4)"
+          : "rgba(37, 139, 148, 0.2)",
+      transition: {
+        duration: 0.3,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const titleVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.6,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const textVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+        delay: 0.2,
+      },
+    },
+  };
+
+  const ratingVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const starVariants = {
+    hidden: { opacity: 0, scale: 0 },
+    visible: {
+      opacity: 1,
+      scale: 1,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  return (
+    <section className={`py-16 bg-transparent ${themeStyles.containerBg}`}>
+      <motion.div
+        className="text-center mb-12"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, margin: "-100px" }}
+      >
+        <motion.div
+          className="flex items-center justify-center text-blue-700 mb-4"
+          variants={titleVariants}
+          whileInView="visible"
+          viewport={{ once: false }}
+          initial="hidden"
+        >
+          <span
+            className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
+          >
+            CLIENT REVIEW
+          </span>
+        </motion.div>
+        <motion.h2
+          className={`text-3xl font-bold mb-4 gradient-text-main ${themeStyles.titleText}`}
+          variants={titleVariants}
+          whileInView="visible"
+          viewport={{ once: false }}
+          initial="hidden"
+        >
+          What Our Customers Say
+        </motion.h2>
+        <motion.p
+          className={`text-xl font-montserrat ${themeStyles.descriptionText}`}
+          variants={textVariants}
+          whileInView="visible"
+          viewport={{ once: false }}
+          initial="hidden"
+        >
+          Join thousands of creators who have transformed their Instagram
+          engagement
+        </motion.p>
+      </motion.div>
+
+      <motion.div
+        className={`grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 ${themeStyles.containerBg} backdrop-blur-sm`}
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: false, margin: "-50px" }}
+      >
+        {testimonials.map((testimonial, index) => (
+          <motion.div
+            key={index}
+            variants={cardVariants}
+            whileHover="hover"
+            whileInView="visible"
+            viewport={{ once: false, margin: "-50px" }}
+            initial="hidden"
+          >
+            <Card
+              className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} ${themeStyles.cardHoverBorder} transition-colors duration-300 backdrop-blur-sm h-full`}
+            >
+              <CardContent className="p-3 md:p-6">
+                <motion.div
+                  className="flex items-center gap-1 mb-4"
+                  variants={ratingVariants}
+                  whileInView="visible"
+                  viewport={{ once: false }}
+                  initial="hidden"
+                >
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <motion.div
+                      key={i}
+                      className="h-4 w-4 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]"
+                      variants={starVariants}
+                      whileInView="visible"
+                      viewport={{ once: false }}
+                      initial="hidden"
+                    />
+                  ))}
+                </motion.div>
+
+                <motion.p
+                  className={`mb-4 font-montserrat ${themeStyles.testimonialText}`}
+                  variants={textVariants}
+                  whileInView="visible"
+                  viewport={{ once: false }}
+                  initial="hidden"
+                >
+                  {testimonial.content}
+                </motion.p>
+
+                <motion.div
+                  variants={ratingVariants}
+                  whileInView="visible"
+                  viewport={{ once: false }}
+                  initial="hidden"
+                >
+                  <p className={`font-semibold ${themeStyles.titleText}`}>
+                    {testimonial.name}
+                  </p>
+                  <p className={`text-sm ${themeStyles.companyText}`}>
+                    {testimonial.company}
+                  </p>
+                </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ))}
+      </motion.div>
+    </section>
+  );
+}
+
+export default InstaTestimonialsSection;

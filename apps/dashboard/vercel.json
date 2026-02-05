@@ -1,0 +1,22 @@
+{
+  "headers": [
+    {
+      "source": "/chatbotembed.js",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors *;"
+        }
+      ]
+    },
+    {
+      "source": "/mcqchatbotembed.js",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "frame-ancestors *;"
+        }
+      ]
+    }
+  ]
+}
