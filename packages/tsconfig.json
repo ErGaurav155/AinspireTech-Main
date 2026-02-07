@@ -21,7 +21,7 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@ainspiretech/*": ["../../packages/*/src", "../../packages/*"]
+      "@ainspiretech/*": ["../packages/*/src", "../packages/*"]
     }
   },
   "include": [
@@ -29,8 +29,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../../packages/**/*.ts",
-    "../../packages/**/*.tsx",
+    "../packages/**/*.ts",
+    "../packages/**/*.tsx",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
