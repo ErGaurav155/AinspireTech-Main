@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import Logo from "@ainspiretech/public/assets/img/logo.png";
 import { Contact } from "lucide-react";
-import { ThemeToggle } from "@/ui/components/shared/theme-toggle";
+import { ThemeToggle } from "@ainspiretech/ui/components/shared/theme-toggle";
 import { useTheme } from "next-themes";
 import { Button } from "../radix/button";
 
