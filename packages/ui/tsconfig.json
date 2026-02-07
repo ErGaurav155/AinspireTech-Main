@@ -21,16 +21,16 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./*"],
-      "@ainspiretech/*": ["../packages/*/src", "../packages/*"]
+      "@ainspiretech/*": ["../../packages/*/src", "../../packages/*"]
     }
   },
   "include": [
-    "next-env.d.ts",
+    "ui/next-env.d.ts",
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../packages/**/*.ts",
-    "../packages/**/*.tsx",
+    "../../packages/**/*.ts",
+    "../../packages/**/*.tsx",
     ".next/dev/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
