@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import { getAuth } from "@clerk/express";
+import Chromium from "@sparticuz/chromium-min";
 
 interface ScrapedPage {
   url: string;
@@ -351,15 +352,13 @@ async function getChromiumPath(): Promise<string> {
       ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/chromium-pack.tar`
       : "/chromium-pack.tar";
 
-    const chromium = (await import("@sparticuz/chromium-min")).default;
-    downloadPromise = chromium
-      .executablePath(CHROMIUM_PACK_URL)
-      .then((path) => {
+    downloadPromise = Chromium.executablePath(CHROMIUM_PACK_URL)
+      .then((path: string) => {
         cachedExecutablePath = path;
         console.log("Chromium path resolved:", path);
         return path;
       })
-      .catch((error) => {
+      .catch((error: any) => {
         console.error("Failed to get Chromium path:", error);
         downloadPromise = null;
         throw error;

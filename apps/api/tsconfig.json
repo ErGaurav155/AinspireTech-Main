@@ -24,7 +24,8 @@
     "src/**/*",
     "../../packages/**/*.ts",
     "../dashboard/lib/utils.ts",
-    "src/services"
+    "src/services",
+    "../../packages/ui/components/radix/use-toast.tsx"
   ],
   "exclude": ["node_modules", "dist"]
 }
