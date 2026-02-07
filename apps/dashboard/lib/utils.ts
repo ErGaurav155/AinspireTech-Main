@@ -1,6 +1,6 @@
 /* eslint-disable prefer-const */
 /* eslint-disable no-prototype-builtins */
-import { type ClassValue, clsx } from "clsx";
+import clsx, { ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
 

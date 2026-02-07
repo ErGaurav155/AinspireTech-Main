@@ -1,4 +1,4 @@
-import { cn } from "@ainspiretech/shared";
+import { cn } from "@/shared/src";
 
 function Skeleton({
   className,
