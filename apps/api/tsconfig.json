@@ -20,12 +20,12 @@
       "@ainspiretech/*": ["../../packages/*/src", "../../packages/*"]
     }
   },
-  "include": [
-    "src/**/*",
-    "../../packages/**/*.ts",
-    "../dashboard/lib/utils.ts",
-    "src/services",
-    "../../packages/ui/components/radix/use-toast.tsx"
-  ],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "packages/ui/**/*",
+    "packages/ui"
+  ]
 }
