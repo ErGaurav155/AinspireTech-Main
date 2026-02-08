@@ -1,5 +1,3 @@
-import { Feature, PricingPlan } from "../types";
-
 export const testimonials = [
   {
     id: 5,
@@ -353,6 +351,27 @@ export const productDetails: Record<
   //   },
   // },
 };
+export type PricingPlan = {
+  id: string;
+  name: string;
+  description: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  account: number;
+  limit: number;
+  features: string[];
+  popular: boolean;
+};
+export interface Feature {
+  name: string;
+  comment2DM: string | boolean;
+  autoDM: string | boolean;
+  linkplease: string | boolean;
+  rapiddm: string | boolean;
+  zorcha: string | boolean;
+  instantDM: string | boolean;
+}
+
 export const instagramPricingPlans: PricingPlan[] = [
   {
     id: "Insta-Automation-Starter",

@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { formSchema } from "@ainspiretech/shared";
 import { toast } from "@ainspiretech/ui/components/radix/use-toast";
 
 import { Input } from "@ainspiretech/ui/components/radix/input";
@@ -19,6 +18,7 @@ import {
   FormMessage,
 } from "@ainspiretech/ui/components/radix/form";
 import { createAppointment } from "@/lib/utils";
+import { formSchema } from "@/lib/validator";
 
 const ContactForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Logo from "@ainspiretech/public/assets/img/logo.png";
 import { useTheme } from "next-themes";
+import { useAuth } from "@clerk/nextjs";
+
 import {
   Copy,
   Users,
@@ -59,6 +61,8 @@ export default function AffiliateDashboard() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "referrals" | "earnings" | "payouts"
   >("overview");
+  const { userId, isLoaded } = useAuth();
+
   const [copied, setCopied] = useState(false);
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
@@ -155,8 +159,15 @@ export default function AffiliateDashboard() {
   }, [router]);
 
   useEffect(() => {
+    if (!userId) {
+      router.push("/sign-in");
+      return;
+    }
+    if (!isLoaded) {
+      return;
+    }
     fetchDashboardData();
-  }, [fetchDashboardData]);
+  }, [fetchDashboardData, userId, router, isLoaded]);
 
   const copyAffiliateLink = async () => {
     if (data?.affiliateLink) {
@@ -215,7 +226,7 @@ export default function AffiliateDashboard() {
     },
   ];
 
-  if (loading) {
+  if (loading || !isLoaded) {
     return (
       <div className="min-h-screen bg-transparent  flex items-center justify-center h-full w-full">
         <div className="w-5 h-5 border-2 border-t-transparent border-blue-600 rounded-full animate-spin" />

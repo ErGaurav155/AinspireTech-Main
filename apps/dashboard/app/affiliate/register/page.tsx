@@ -27,9 +27,11 @@ import Link from "next/link";
 import { Button } from "@ainspiretech/ui/components/radix/button";
 import { toast } from "@ainspiretech/ui/components/radix/use-toast";
 import { createAffiliateLink } from "@/lib/services/affiliate-actions.api";
+import { useAuth } from "@clerk/nextjs";
 
 export default function AffiliateRegisterPage() {
   const router = useRouter();
+  const { userId, isLoaded } = useAuth();
   const [step, setStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"bank" | "upi" | "paypal">(
     "bank",
@@ -56,8 +58,15 @@ export default function AffiliateRegisterPage() {
 
   // Set mounted state after hydration
   useEffect(() => {
+    if (!userId) {
+      router.push("/sign-in");
+      return;
+    }
+    if (!isLoaded) {
+      return;
+    }
     setMounted(true);
-  }, []);
+  }, [router, userId, isLoaded]);
 
   // Memoize theme-based styles to prevent recalculation on every render
   const themeStyles = useMemo(() => {
@@ -216,7 +225,7 @@ export default function AffiliateRegisterPage() {
   ];
 
   // Don't render until mounted to avoid hydration mismatch
-  if (!mounted) {
+  if (!isLoaded || !mounted) {
     return (
       <div className="min-h-screen bg-transparent  flex items-center justify-center h-full w-full">
         <div className="w-5 h-5 border-2 border-t-transparent border-blue-600 rounded-full animate-spin" />
