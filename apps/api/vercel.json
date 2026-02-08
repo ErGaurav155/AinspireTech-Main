@@ -1,11 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "npm run build",
-  "installCommand": "npm install",
+  "builds": [
+    {
+      "src": "dist/index.js",
+      "use": "@vercel/node"
+    }
+  ],
   "routes": [
     {
       "src": "/api/embed/appointments",
-      "dest": "dist/index.js",
       "methods": ["POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "http://localhost:3000, https://app.ainspiretech.com",
@@ -13,34 +16,23 @@
         "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization",
         "Access-Control-Allow-Credentials": "true",
         "Access-Control-Max-Age": "86400"
-      }
+      },
+      "dest": "dist/index.js"
     },
     {
       "src": "/api/embed/(.*)",
-      "dest": "dist/index.js",
       "methods": ["GET", "POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
         "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
         "Access-Control-Allow-Headers": "Content-Type, x-api-key, Authorization, x-user-id",
         "Access-Control-Allow-Credentials": "true"
-      }
-    },
-    {
-      "src": "/api/(.*)",
+      },
       "dest": "dist/index.js"
     },
     {
       "src": "/(.*)",
       "dest": "dist/index.js"
     }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  },
-  "functions": {
-    "dist/index.js": {
-      "maxDuration": 300
-    }
-  }
+  ]
 }
