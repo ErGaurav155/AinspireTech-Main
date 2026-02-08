@@ -78,27 +78,11 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ========== CLERK MIDDLEWARE ==========
 app.use(clerkMiddleware());
-// console.log("Environment check:");
-// console.log("REDIS_URL exists:", !!process.env.REDIS_URL);
-// console.log("REDIS_URL:", process.env.REDIS_URL?.replace(/:[^:]*@/, ":****@")); // Hide token
-// // Add Redis and DB to request object with proper typing
-// declare module "express" {
-//   interface Request {
-//     redis: any;
-//     db: mongoose.Connection | null;
-//   }
-// }
-
-// app.use(
-//   (req: express.Request, res: express.Response, next: express.NextFunction) => {
-//     req.redis = getRedisClient();
-//     req.db = mongoose.connection.db ? mongoose.connection : null;
-//     next();
-//   },
-// );
 
 /* ========== ROUTES ========== */
-
+app.get("/favicon.ico", (req, res) => {
+  res.status(204).end(); // No content
+});
 // Root endpoint - Public
 app.get("/", (req, res) => {
   res.json({
