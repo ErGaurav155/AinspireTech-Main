@@ -14,9 +14,12 @@ import WebChatbot from "../models/web/WebChatbot.model";
 import { getCurrentWindow } from "./rate-limit.service";
 import { getRazorpay } from "@/utils/util";
 import User from "@/models/user.model";
-import { TIER_LIMITS } from "@ainspiretech/shared";
-import { getRedisClient, redisHelpers } from "@/config/redis.config";
+import { redisHelpers } from "@/config/redis.config";
 
+export const TIER_LIMITS = {
+  free: 100,
+  pro: 999999,
+};
 // Types
 export interface CreateUserParams {
   clerkId: string;
