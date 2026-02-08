@@ -20,12 +20,13 @@
       "@ainspiretech/*": ["../../packages/*/src", "../../packages/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "../../packages/shared/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",
     "**/*.test.ts",
-    "packages/ui/**/*",
-    "packages/ui"
+    "../dashboard/**/*",
+    "../marketing/**/*",
+    "../../packages/ui/**/*"
   ]
 }
