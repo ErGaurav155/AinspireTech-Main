@@ -1,9 +1,11 @@
 {
   "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
   "routes": [
     {
       "src": "/api/embed/appointments",
-      "dest": "src/index.ts",
+      "dest": "dist/index.js",
       "methods": ["POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "http://localhost:3000, https://app.ainspiretech.com",
@@ -15,7 +17,7 @@
     },
     {
       "src": "/api/embed/(.*)",
-      "dest": "src/index.ts",
+      "dest": "dist/index.js",
       "methods": ["GET", "POST", "OPTIONS"],
       "headers": {
         "Access-Control-Allow-Origin": "*",
@@ -26,18 +28,18 @@
     },
     {
       "src": "/api/(.*)",
-      "dest": "src/index.ts"
+      "dest": "dist/index.js"
     },
     {
       "src": "/(.*)",
-      "dest": "src/index.ts"
+      "dest": "dist/index.js"
     }
   ],
   "env": {
     "NODE_ENV": "production"
   },
   "functions": {
-    "src/index.ts": {
+    "dist/index.js": {
       "maxDuration": 300
     }
   }
