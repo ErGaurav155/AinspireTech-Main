@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node -r tsconfig-paths/register dist/index.js",
     "vercel-build": "npm run build",
     "lint": "eslint src --ext .ts",
     "test": "jest"
@@ -29,6 +29,7 @@
     "razorpay": "^2.9.5",
     "redis": "^4.6.10",
     "svix": "^1.17.0",
+    "tsconfig-paths": "^4.2.0",
     "twilio": "^5.7.0",
     "zod": "^3.22.4"
   },

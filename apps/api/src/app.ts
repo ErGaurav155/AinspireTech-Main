@@ -6,15 +6,12 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { clerkMiddleware } from "@clerk/express";
-import mongoose from "mongoose";
 
 // Load environment first
 import { loadEnvironment, isProduction } from "./config/env.config";
 loadEnvironment();
 
 import { checkDatabaseHealth } from "@/config/database.config";
-import { getRedisClient } from "@/config/redis.config";
-import { redisHelpers } from "@/config/redis.config";
 
 import routes from "@/routes";
 

@@ -7,7 +7,6 @@ import {
   processQueuedCalls,
   resetHourlyWindow,
 } from "./services/rate-limit.service";
-import { createWebhookWorkers } from "./workers/webhook.worker";
 import { connectToRedis, disconnectFromRedis } from "./config/redis.config";
 
 const PORT = parseInt(process.env.PORT || "3002");
