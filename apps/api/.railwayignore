@@ -1,0 +1,11 @@
+# In root directory (or apps/api/.railwayignore)
+apps/dashboard/
+apps/marketing/
+packages/
+node_modules/
+**/node_modules/
+*.log
+.env.local
+.DS_Store
+.next/
+dist/
