@@ -9,7 +9,11 @@ import { verifyOwnerController } from "@/controllers/admin/verify-owner.controll
 
 const router = Router();
 
-router.use(requireAuth({ signInUrl: "http://localhost:3002/sign-in" }));
+router.use(
+  requireAuth({
+    signInUrl: "https://ainspire-tech-main-dashboard.vercel.app/sign-in",
+  }),
+);
 
 // GET /api/admin/verify-owner - Verify if user is owner
 router.get("/verify-owner", verifyOwnerController);

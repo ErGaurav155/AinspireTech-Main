@@ -11,7 +11,11 @@ import { requireAuth } from "@clerk/express";
 
 const router = Router();
 
-router.use(requireAuth({ signInUrl: "http://localhost:3002/sign-in" }));
+router.use(
+  requireAuth({
+    signInUrl: "https://ainspire-tech-main-dashboard.vercel.app/sign-in",
+  }),
+);
 
 // GET /api/tokens/balance - Get user token balance
 router.get("/balance", getTokenBalanceControllerWeb);
