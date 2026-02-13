@@ -48,6 +48,8 @@ const limiter = rateLimit({
 app.use("/api", limiter);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
+  "https://app.rocketreplai.com",
+  "https://api.rocketreplai.com",
   "http://localhost:3000", // Marketing
   "http://localhost:3001", // Dashboard
   "http://localhost:3002", // API
