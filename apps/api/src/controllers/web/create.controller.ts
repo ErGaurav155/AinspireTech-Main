@@ -66,10 +66,7 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     // Generate embed code
     const chatbotId = new ObjectId();
-    const apiUrl =
-      process.env.API_URL ||
-      process.env.NEXT_PUBLIC_API_URL ||
-      "http://localhost:3002";
+    const apiUrl = process.env.API_URL || "http://localhost:3002";
 
     const embedCode = `<script>
   (function() {

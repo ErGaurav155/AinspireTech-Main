@@ -96,7 +96,7 @@ export const getAffiliateDashboardController = async (
         referrals,
         monthlyCommissions,
         payoutHistory,
-        affiliateLink: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL}?ref=${affiliate.affiliateCode}`,
+        affiliateLink: `${process.env.APP_URL}?ref=${affiliate.affiliateCode}`,
       },
       timestamp: new Date().toISOString(),
     });

@@ -118,7 +118,7 @@ export const createAffiliateController = async (
       data: {
         success: true,
         affiliate: affiliate,
-        affiliateLink: `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL}?ref=${affiliateCode}`,
+        affiliateLink: `${process.env.APP_URL}?ref=${affiliateCode}`,
       },
       timestamp: new Date().toISOString(),
     });
