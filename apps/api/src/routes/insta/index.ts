@@ -30,7 +30,7 @@ const router = Router();
 
 router.use(
   requireAuth({
-    signInUrl: "https://app.rocketreplai/sign-in",
+    signInUrl: "https://app.rocketreplai.com/sign-in",
   }),
 );
 
