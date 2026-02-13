@@ -21,7 +21,7 @@ router.post("/create", createUserController);
 
 router.use(
   requireAuth({
-    signInUrl: "https://ainspire-tech-main-dashboard.vercel.app/sign-in",
+    signInUrl: "https://app.rocketreplai/sign-in",
   }),
 );
 
