@@ -32,7 +32,7 @@ router.use(
     if (req.path.includes("/appointments")) {
       const allowedOrigins = [
         "http://localhost:3000",
-        "https://app.ainspiretech.com",
+        "https://app.rocketreplai.com",
       ];
       if (origin && allowedOrigins.includes(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);

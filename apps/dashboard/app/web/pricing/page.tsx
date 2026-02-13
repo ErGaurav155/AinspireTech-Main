@@ -24,24 +24,24 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
+} from "@rocketreplai/ui/components/radix/tabs";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+} from "@rocketreplai/ui/components/radix/card";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import { Checkout } from "@/components/web/Checkout";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   calculateCustomTokenPrice,
   productSubscriptionDetails,
   tokenPlans,
-} from "@ainspiretech/shared";
+} from "@rocketreplai/shared";
 import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
 
 // Types

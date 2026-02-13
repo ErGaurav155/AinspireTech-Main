@@ -5,18 +5,18 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 
-import { Input } from "@ainspiretech/ui/components/radix/input";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Input } from "@rocketreplai/ui/components/radix/input";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-} from "@ainspiretech/ui/components/radix/form";
+} from "@rocketreplai/ui/components/radix/form";
 import { createAppointment } from "@/lib/utils";
 import { formSchema } from "@/lib/validator";
 
@@ -114,7 +114,7 @@ const ContactForm = () => {
             >
               Got a burning AI idea, question, or just want to chat about what
               we do? We are all ears! Reach out, and our friendly team at
-              AinspireTech AI will be right there to guide, assist, or simply
+              RocketReplai AI will be right there to guide, assist, or simply
               share in your excitement. Lets make your AI journey memorable
               together!
             </p>

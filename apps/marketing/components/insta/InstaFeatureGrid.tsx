@@ -5,7 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import { motion } from "framer-motion";
 import { MessageSquare, Users, BarChart3, Shield, Zap } from "lucide-react";
 
@@ -203,7 +203,7 @@ export function InstaFeaturesGrid() {
           viewport={{ once: false }}
           initial="hidden"
         >
-          Why Choose AinspireTech Automation for Instagram
+          Why Choose RocketReplai Automation for Instagram
         </motion.h2>
         <motion.p
           className={`text-xl font-montserrat ${themeStyles.descriptionText}`}

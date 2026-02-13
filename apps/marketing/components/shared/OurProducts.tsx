@@ -2,17 +2,17 @@
 
 import { useMemo, useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import FeaImg1 from "@ainspiretech/public/assets/img/headingimg.png";
-import FeaImg3 from "@ainspiretech/public/assets/img/featureImg1.png";
-import FeaImg4 from "@ainspiretech/public/assets/img/featureImg4.png";
-import FeaBot1 from "@ainspiretech/public/assets/Feature/FeatChatbot1.png";
-import FeaBot2 from "@ainspiretech/public/assets/Feature/FeatChatbot2.png";
-import FeaBot3 from "@ainspiretech/public/assets/Feature/FeatChatbot3.png";
-import InstaFea5 from "@ainspiretech/public/assets/Feature/InstaFeature5.png";
-import InstaFea1 from "@ainspiretech/public/assets/Feature/InstaFeature1.png";
-import InstaFea2 from "@ainspiretech/public/assets/Feature/InstaFeature2.png";
-import InstaFea3 from "@ainspiretech/public/assets/Feature/InstaFeature3.png";
-import InstaFea4 from "@ainspiretech/public/assets/Feature/InstaFeature4.png";
+import FeaImg1 from "@rocketreplai/public/assets/img/headingimg.png";
+import FeaImg3 from "@rocketreplai/public/assets/img/featureImg1.png";
+import FeaImg4 from "@rocketreplai/public/assets/img/featureImg4.png";
+import FeaBot1 from "@rocketreplai/public/assets/Feature/FeatChatbot1.png";
+import FeaBot2 from "@rocketreplai/public/assets/Feature/FeatChatbot2.png";
+import FeaBot3 from "@rocketreplai/public/assets/Feature/FeatChatbot3.png";
+import InstaFea5 from "@rocketreplai/public/assets/Feature/InstaFeature5.png";
+import InstaFea1 from "@rocketreplai/public/assets/Feature/InstaFeature1.png";
+import InstaFea2 from "@rocketreplai/public/assets/Feature/InstaFeature2.png";
+import InstaFea3 from "@rocketreplai/public/assets/Feature/InstaFeature3.png";
+import InstaFea4 from "@rocketreplai/public/assets/Feature/InstaFeature4.png";
 import {
   MessageCircle,
   Instagram,

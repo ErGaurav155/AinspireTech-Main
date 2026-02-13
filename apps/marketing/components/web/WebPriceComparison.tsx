@@ -32,7 +32,7 @@ import { useTheme } from "next-themes";
 
 const comparisonData = [
   {
-    name: "AinSpireTech",
+    name: "RocketReplai",
     bestFor: "Best for No-Code AI Chatbots Trained on Your Content",
     pricing: "Starts at $29/month",
     rating: 5,
@@ -547,7 +547,7 @@ const FeatureComparisonTable = () => {
           </p>
         </motion.div>
 
-        {/* Featured Banner - AinSpireTech */}
+        {/* Featured Banner - RocketReplai */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           whileInView={{ opacity: 1, scale: 1 }}
@@ -567,7 +567,7 @@ const FeatureComparisonTable = () => {
                   <h3
                     className={`text-2xl font-bold ${themeStyles.textPrimary}`}
                   >
-                    AinSpireTech
+                    RocketReplai
                   </h3>
                   <p className={`${themeStyles.textSecondary} font-montserrat`}>
                     The only platform with all 14 essential features
@@ -587,7 +587,7 @@ const FeatureComparisonTable = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() =>
-                    router.push("https://app.ainspiretech.com/signin")
+                    router.push("https://app.rocketreplai.com/signin")
                   }
                   className="bg-gradient-to-r from-[#0ce05d] to-[#054e29] text-white font-semibold px-6 py-3 rounded-lg"
                 >

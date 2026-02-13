@@ -6,8 +6,8 @@ import { motion } from "framer-motion";
 
 import useEmblaCarousel from "embla-carousel-react";
 import Autoscroll from "embla-carousel-auto-scroll";
-import { testimonials } from "@ainspiretech/shared";
-import { Card, CardContent } from "@ainspiretech/ui/components/radix/card";
+import { testimonials } from "@rocketreplai/shared";
+import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
 
 export function TestimonialSection() {
   const themeStyles = React.useMemo(() => {

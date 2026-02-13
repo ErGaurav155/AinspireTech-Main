@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
-import Logo from "@ainspiretech/public/assets/img/logo.png";
+import Logo from "@rocketreplai/public/assets/img/logo.png";
 import {
   ChevronRight,
   Check,
@@ -21,11 +21,11 @@ import {
   Mail,
 } from "lucide-react";
 
-import { ThemeToggle } from "@ainspiretech/ui/components/shared/theme-toggle";
+import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
 import Image from "next/image";
 import Link from "next/link";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { createAffiliateLink } from "@/lib/services/affiliate-actions.api";
 import { useAuth } from "@clerk/nextjs";
 

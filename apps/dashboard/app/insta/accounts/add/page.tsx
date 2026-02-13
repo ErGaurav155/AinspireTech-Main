@@ -8,8 +8,8 @@ import { useEffect, useMemo, useState } from "react";
 
 import { useTheme } from "next-themes";
 
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import { getUserById } from "@/lib/services/user-actions.api";
 import AddAccount from "@/components/insta/AddAccount";
 import {
@@ -17,9 +17,9 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import { AlertCircle, Shield, Zap } from "lucide-react";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   getInstaAccount,
   getSubscriptioninfo,

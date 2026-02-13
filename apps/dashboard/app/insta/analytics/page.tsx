@@ -25,29 +25,29 @@ import {
 import Image from "next/image";
 import { AnalyticsDashboard } from "@/components/insta/Analytics-dashboard";
 import { useAuth } from "@clerk/nextjs";
-import defaultImg from "@ainspiretech/public/assets/img/default-img.jpg";
+import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@ainspiretech/ui/components/radix/select";
+} from "@rocketreplai/ui/components/radix/select";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Progress } from "@ainspiretech/ui/components/radix/progress";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Progress } from "@rocketreplai/ui/components/radix/progress";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
   getDashboardData,

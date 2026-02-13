@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Check,
   Star,
@@ -26,8 +26,8 @@ import {
 
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@ainspiretech/ui/components/radix/card";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 
 const stats = [
   {
@@ -369,7 +369,7 @@ export default function AffiliateLandingPage() {
               viewport={{ once: false }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Link href="https://app.ainspiretech.com/signin">
+              <Link href="https://app.rocketreplai.com/signin">
                 <Button
                   size="lg"
                   className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#00F0FF]/90 text-white px-8 rounded-full"
@@ -811,7 +811,7 @@ export default function AffiliateLandingPage() {
                 income with our program.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="https://app.ainspiretech.com/signin">
+                <Link href="https://app.rocketreplai.com/signin">
                   <Button
                     size="lg"
                     className="bg-white text-gray-900 hover:bg-gray-100 px-12 rounded-full font-semibold"
@@ -967,7 +967,7 @@ export default function AffiliateLandingPage() {
                   </div>
                 </div>
               </div>
-              <Link href="https://app.ainspiretech.com/signin">
+              <Link href="https://app.rocketreplai.com/signin">
                 <Button
                   size="lg"
                   className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#B026FF]/90 text-white px-8 rounded-full"

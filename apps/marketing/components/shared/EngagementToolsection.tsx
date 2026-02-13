@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { Instagram, Network } from "lucide-react";
-import { instagramFeatures, webChatFeatures } from "@ainspiretech/shared";
+import { instagramFeatures, webChatFeatures } from "@rocketreplai/shared";
 
 function StickyFeaturesSection() {
   const [activeTab, setActiveTab] = useState<"webchat" | "instagram">(
@@ -159,7 +159,7 @@ function StickyFeaturesSection() {
           viewport={{ once: false }}
           initial="hidden"
         >
-          Why Choose AinspireTech{" "}
+          Why Choose RocketReplai{" "}
         </motion.h2>
         <motion.p
           className={`text-lg ${themeStyles.featureText} max-w-2xl mx-auto font-montserrat `}

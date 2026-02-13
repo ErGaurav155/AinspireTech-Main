@@ -63,17 +63,17 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
-import { countryCodes } from "@ainspiretech/shared";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { countryCodes } from "@rocketreplai/shared";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -82,8 +82,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
-import { Input } from "@ainspiretech/ui/components/radix/input";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
+import { Input } from "@rocketreplai/ui/components/radix/input";
 import {
   Dialog,
   DialogContent,
@@ -91,17 +91,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@ainspiretech/ui/components/radix/dialog";
+} from "@rocketreplai/ui/components/radix/dialog";
 import { TokenPurchase } from "@/components/web/TokenPurchase";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+} from "@rocketreplai/ui/components/radix/tabs";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import OTPVerification from "@/components/web/OTPVerification";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import {
@@ -715,12 +715,12 @@ export default function DashboardPage() {
     const code =
       selectedChatbot === "chatbot-education"
         ? `<script 
-src="https://ainspiretech.com/mcqchatbotembed.js" 
+src="https://rocketreplai.com/mcqchatbotembed.js" 
 data-mcq-chatbot='{
   "userId":"${userId}",
   "isAuthorized":true,
   "chatbotType":"${selectedChatbot}",
-  "apiUrl":"https://ainspiretech.com",
+  "apiUrl":"https://rocketreplai.com",
   "primaryColor":"#00F0FF",
   "position":"bottom-right",
   "welcomeMessage":"${chatbotMessage || "Hi! How can I help you today?"}",
@@ -728,13 +728,13 @@ data-mcq-chatbot='{
 }'>
 </script>`
         : `<script 
-src="https://ainspiretech.com/chatbotembed.js" 
+src="https://rocketreplai.com/chatbotembed.js" 
 data-chatbot-config='{
   "userId":"${userId}",
   "isAuthorized":true,
   "filename":"${currentStatus.scrappedFile}",
   "chatbotType":"${selectedChatbot}",
-  "apiUrl":"https://ainspiretech.com",
+  "apiUrl":"https://rocketreplai.com",
   "primaryColor":"#00F0FF",
   "position":"bottom-right",
   "welcomeMessage":"${chatbotMessage || "Hi! How can I help you today?"}",
@@ -2219,12 +2219,12 @@ data-chatbot-config='{
                   <code className="block overflow-hidden text-wrap h-20">
                     {selectedChatbot === "chatbot-education"
                       ? `<script 
-src="https://ainspiretech.com/mcqchatbotembed.js" 
+src="https://rocketreplai.com/mcqchatbotembed.js" 
 data-mcq-chatbot='{
   "userId":"${userId}",
   "isAuthorized":${hasBuiltChatbot},
   "chatbotType":"${selectedChatbot}",
-  "apiUrl":"https://ainspiretech.com",
+  "apiUrl":"https://rocketreplai.com",
   "primaryColor":"#00F0FF",
   "position":"bottom-right",
   "welcomeMessage":"${chatbotMessage || "Hi! How can I help you today?"}",
@@ -2232,13 +2232,13 @@ data-mcq-chatbot='{
 }'>
 </script>`
                       : `<script 
-src="https://ainspiretech.com/chatbotembed.js" 
+src="https://rocketreplai.com/chatbotembed.js" 
 data-chatbot-config='{
   "userId":"${userId}",
   "isAuthorized":${hasBuiltChatbot},
   "filename":"${fileLink}",
   "chatbotType":"${selectedChatbot}",
-  "apiUrl":"https://ainspiretech.com",
+  "apiUrl":"https://rocketreplai.com",
   "primaryColor":"#00F0FF",
   "position":"bottom-right",
   "welcomeMessage":"${chatbotMessage || "Hi! How can I help you today?"}",

@@ -25,7 +25,7 @@ import {
   Server,
 } from "lucide-react";
 
-import defaultImg from "@ainspiretech/public/assets/img/default-img.jpg";
+import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
@@ -36,18 +36,18 @@ import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialo
 
 import { useTheme } from "next-themes";
 
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Progress } from "@ainspiretech/ui/components/radix/progress";
-import { formatResponseTimeSmart } from "@ainspiretech/shared";
+} from "@rocketreplai/ui/components/radix/card";
+import { Progress } from "@rocketreplai/ui/components/radix/progress";
+import { formatResponseTimeSmart } from "@rocketreplai/shared";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -57,8 +57,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
   cancelRazorPaySubscription,

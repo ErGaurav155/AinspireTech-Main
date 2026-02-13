@@ -7,8 +7,8 @@ import WebTestimonialsSection from "@/components/web/WebTestimonialSection";
 import WebFeaturesGrid from "@/components/web/WebFeatureGrid";
 import { WebCTASection } from "@/components/web/WebCta";
 import { useEffect, useState } from "react";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import Faq from "@ainspiretech/ui/components/shared/Faq";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import Faq from "@rocketreplai/ui/components/shared/Faq";
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 

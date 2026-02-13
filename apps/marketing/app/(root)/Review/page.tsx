@@ -1,5 +1,5 @@
 import TestimonialSection from "@/components/shared/Testimonial";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Client Review",

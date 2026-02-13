@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { Input } from "@ainspiretech/ui/components/radix/input";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { Input } from "@rocketreplai/ui/components/radix/input";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 
 interface TemplateFormProps {
   accountId: string;

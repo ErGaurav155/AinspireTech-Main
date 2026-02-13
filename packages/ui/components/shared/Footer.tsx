@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
-import Logo from "@ainspiretech/public/assets/img/logo.png";
+import Logo from "@rocketreplai/public/assets/img/logo.png";
 
 export function Footer() {
   const { theme, resolvedTheme } = useTheme();
@@ -159,7 +159,7 @@ export function Footer() {
           className={`mt-10 pt-6 border-t ${themeStyles.lightBorderColor} text-center font-montserrat`}
         >
           <p className={themeStyles.copyrightText}>
-            © {new Date().getFullYear()} AInspireTech. All rights reserved.
+            © {new Date().getFullYear()} RocketReplai. All rights reserved.
           </p>
         </div>
       </div>

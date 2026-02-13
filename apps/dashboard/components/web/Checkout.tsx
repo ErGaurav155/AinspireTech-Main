@@ -9,15 +9,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Loader2, Zap, CreditCard, Bot, Check, Upload } from "lucide-react";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 
 import {
   createRazorpaySubscription,

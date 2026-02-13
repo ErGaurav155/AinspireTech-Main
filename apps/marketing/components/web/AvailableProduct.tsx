@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import React, { useEffect, useMemo, useState } from "react";
 import { HeadsetIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { productDetails } from "@ainspiretech/shared";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { productDetails } from "@rocketreplai/shared";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
 interface Product {
   productId: string;

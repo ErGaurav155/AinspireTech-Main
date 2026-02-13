@@ -18,7 +18,7 @@ import {
   PlayCircle,
   PauseCircle,
 } from "lucide-react";
-import { TIER_INFO, TIER_LIMITS, TierType } from "@ainspiretech/shared";
+import { TIER_INFO, TIER_LIMITS, TierType } from "@rocketreplai/shared";
 import {
   getWindowStats,
   getUserRateLimitStats,

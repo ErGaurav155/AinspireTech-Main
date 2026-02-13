@@ -279,7 +279,7 @@ export function ClientShowcase() {
           >
             Who is Using{" "}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-              AinspireTech
+              RocketReplai
             </span>
             ?
           </motion.h2>
@@ -292,7 +292,7 @@ export function ClientShowcase() {
             initial="hidden"
           >
             Join thousands of creators, brands, and businesses that trust
-            AinspireTech to automate their engagement and grow their audience.
+            RocketReplai to automate their engagement and grow their audience.
           </motion.p>
 
           {/* Divider */}

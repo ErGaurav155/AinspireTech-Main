@@ -3,7 +3,7 @@ import * as React from "react";
 import {
   ToastActionElement,
   ToastProps,
-} from "@ainspiretech/ui/components/radix/toast";
+} from "@rocketreplai/ui/components/radix/toast";
 
 const TOAST_LIMIT = 1;
 const TOAST_REMOVE_DELAY = 1000000;

@@ -6,6 +6,6 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
     },
-    sitemap: "https://ainspiretech.com/sitemap.xml",
+    sitemap: "https://rocketreplai.com/sitemap.xml",
   };
 }

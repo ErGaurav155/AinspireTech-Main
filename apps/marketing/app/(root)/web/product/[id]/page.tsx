@@ -4,8 +4,8 @@ import { useRouter } from "next/navigation";
 import { use, useEffect, useMemo, useState } from "react";
 import { HeadsetIcon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { productDetails } from "@ainspiretech/shared";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { productDetails } from "@rocketreplai/shared";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 
 interface ProductParams {
   id: string;

@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
   ];
 
   if (dashboardPaths.some((path) => url.pathname.startsWith(path))) {
-    url.hostname = "app.ainspiretech.com";
+    url.hostname = "app.rocketreplai.com";
     return NextResponse.redirect(url);
   }
 

@@ -3,12 +3,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import Logo from "@ainspiretech/public/assets/img/logo.png";
+import Logo from "@rocketreplai/public/assets/img/logo.png";
 import { Contact } from "lucide-react";
 import { useTheme } from "next-themes";
-import { ThemeToggle } from "@ainspiretech/ui/components/shared/theme-toggle";
+import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
 
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
 export function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -54,7 +54,7 @@ export function NavBar() {
 
   const handleSignInClick = () => {
     // Push to external URL
-    window.location.href = "https://app.ainspiretech.com/signin";
+    window.location.href = "https://app.rocketreplai.com/signin";
   };
   if (!mounted) {
     return (

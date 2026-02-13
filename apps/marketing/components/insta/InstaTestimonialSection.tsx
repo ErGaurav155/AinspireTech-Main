@@ -1,6 +1,6 @@
 "use client";
 
-import { Card, CardContent } from "@ainspiretech/ui/components/radix/card";
+import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";

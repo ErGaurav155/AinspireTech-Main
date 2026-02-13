@@ -1,4 +1,4 @@
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import React from "react";
 
 const PrivacyPolicy = () => {
@@ -14,8 +14,8 @@ const PrivacyPolicy = () => {
           <div className="space-y-10">
             <section className="border-b border-gray-800 pb-8">
               <p className="text-gray-500 font-montserrat">
-                Welcome to AinspireTechAI. Your privacy is paramount to us, and
-                we are committed to protecting your personal data. This privacy
+                Welcome to RocketReplai. Your privacy is paramount to us, and we
+                are committed to protecting your personal data. This privacy
                 policy explains how we handle your personal information in
                 accordance with IND law when you visit our website and informs
                 you of your privacy rights.
@@ -27,7 +27,7 @@ const PrivacyPolicy = () => {
                 Important Information and Who We Are
               </h2>
               <p className="text-gray-500 font-montserrat">
-                AinspireTechAI operates in accordance with the INDs data
+                RocketReplai operates in accordance with the INDs data
                 protection regulations. We are the controller and are
                 responsible for your personal data.
               </p>

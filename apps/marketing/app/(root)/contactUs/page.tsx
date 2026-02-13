@@ -1,6 +1,6 @@
 "use client";
 
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import ContactForm from "@/components/shared/Contactus";
 
 const contactUs = () => {

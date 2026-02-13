@@ -11,22 +11,22 @@ import { useTheme } from "next-themes";
 import {
   Alert,
   AlertDescription,
-} from "@ainspiretech/ui/components/radix/alert";
+} from "@rocketreplai/ui/components/radix/alert";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@ainspiretech/ui/components/radix/dialog";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+} from "@rocketreplai/ui/components/radix/dialog";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -35,9 +35,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Progress } from "@ainspiretech/ui/components/radix/progress";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Progress } from "@rocketreplai/ui/components/radix/progress";
 
 interface AccountVerificationProps {
   totalAccounts: number;

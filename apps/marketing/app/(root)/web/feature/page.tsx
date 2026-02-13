@@ -1,15 +1,15 @@
 "use client";
 
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import Faq from "@ainspiretech/ui/components/shared/Faq";
+} from "@rocketreplai/ui/components/radix/card";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import Faq from "@rocketreplai/ui/components/shared/Faq";
 import {
   ArrowRight,
   Shield,

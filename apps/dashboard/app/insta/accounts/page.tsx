@@ -4,14 +4,14 @@ import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import defaultImg from "@ainspiretech/public/assets/img/default-img.jpg";
+import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
 
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import {
   AlertCircle,
   BarChart3,
@@ -29,8 +29,8 @@ import {
   CheckCircle,
   XCircle,
 } from "lucide-react";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -39,11 +39,11 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
 import Image from "next/image";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import Link from "next/link";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
@@ -57,7 +57,7 @@ import {
   AppLimitStatus,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
-import { Progress } from "@ainspiretech/ui/components/radix/progress";
+import { Progress } from "@rocketreplai/ui/components/radix/progress";
 
 // Types
 interface InstagramAccount {

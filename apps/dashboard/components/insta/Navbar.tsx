@@ -5,10 +5,10 @@ import Link from "next/link";
 import { Menu, X, Zap } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Image from "next/image";
-import Logo from "@ainspiretech/public/assets/img/logo.png";
+import Logo from "@rocketreplai/public/assets/img/logo.png";
 import { useTheme } from "next-themes";
-import { ThemeToggle } from "@ainspiretech/ui/components/shared/theme-toggle";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);

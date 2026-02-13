@@ -36,33 +36,33 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import defaultImg from "@ainspiretech/public/assets/img/default-img.jpg";
+import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
 
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { useAuth } from "@clerk/nextjs";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
-import { formatResponseTimeSmart, isCacheValid } from "@ainspiretech/shared";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { formatResponseTimeSmart, isCacheValid } from "@rocketreplai/shared";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
+} from "@rocketreplai/ui/components/radix/tabs";
 import {
   Dialog,
   DialogContent,
@@ -71,9 +71,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@ainspiretech/ui/components/radix/dialog";
-import { Input } from "@ainspiretech/ui/components/radix/input";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
+} from "@rocketreplai/ui/components/radix/dialog";
+import { Input } from "@rocketreplai/ui/components/radix/input";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,8 +84,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
-import { Progress } from "@ainspiretech/ui/components/radix/progress";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
+import { Progress } from "@rocketreplai/ui/components/radix/progress";
 import {
   createInstaTemplate,
   deleteInstaAccount,
@@ -104,7 +104,6 @@ import {
   AppLimitStatus,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
-import { getUserById } from "@/lib/services/user-actions.api";
 
 const ACCOUNTS_CACHE_KEY = "instagramAccountDetails";
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
@@ -802,7 +801,6 @@ export default function AccountPage({
         });
         return;
       }
-      const isFollow = canFollow ? newTemplate.isFollow : false;
 
       const result = await createInstaTemplate(
         account?.instagramId,
@@ -849,7 +847,7 @@ export default function AccountPage({
     } finally {
       setIsTemplateCreating(false);
     }
-  }, [userId, account, newTemplate, canFollow]);
+  }, [userId, account, newTemplate]);
 
   const handleEditClick = useCallback(
     async (template: any) => {
@@ -1610,7 +1608,7 @@ export default function AccountPage({
                             <p>No posts or reels found for this account</p>
                             <p className="text-sm mt-2">
                               Make sure your Instagram account is connected to a
-                              AinspireTech.
+                              RocketReplai.
                             </p>
                           </div>
                         )}

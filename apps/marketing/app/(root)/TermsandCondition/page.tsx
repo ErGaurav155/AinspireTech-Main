@@ -1,4 +1,4 @@
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import React from "react";
 
 const TermsOfService = async () => {
@@ -17,10 +17,9 @@ const TermsOfService = async () => {
                 1. Introduction
               </h3>
               <p className="text-gray-500 font-montserrat">
-                Welcome to AinspireTechAI. These Terms of Service (“Terms”)
-                govern your access to and use of our website and services. By
-                accessing or using the service, you agree to be bound by these
-                Terms.
+                Welcome to RocketReplai. These Terms of Service (“Terms”) govern
+                your access to and use of our website and services. By accessing
+                or using the service, you agree to be bound by these Terms.
               </p>
             </section>
 
@@ -29,7 +28,7 @@ const TermsOfService = async () => {
                 2. Services Provided
               </h3>
               <p className="text-gray-500 font-montserrat">
-                AinspireTechAI provides Instagram Comment Automation,Web Chatbot
+                RocketReplai provides Instagram Comment Automation,Web Chatbot
                 Services. These services are subject to the terms and conditions
                 outlined in this document.
               </p>
@@ -86,7 +85,7 @@ const TermsOfService = async () => {
               </h3>
               <p className="text-gray-500 font-montserrat">
                 All intellectual property rights in the service and its content
-                are the exclusive property of AinspireTechAI or its licensors.
+                are the exclusive property of RocketReplai or its licensors.
               </p>
             </section>
 
@@ -96,7 +95,7 @@ const TermsOfService = async () => {
               </h3>
               <p className="text-gray-500 font-montserrat">
                 Our service may contain links to third-party websites or
-                services that are not owned or controlled by AinspireTechAI. We
+                services that are not owned or controlled by RocketReplai. We
                 have no control over, and assume no responsibility for, the
                 content or practices of any third-party websites or services.
               </p>
@@ -141,7 +140,7 @@ const TermsOfService = async () => {
               </h3>
               <p className="text-gray-500 font-montserrat">
                 The service and its content are provided “as is” without
-                warranty of any kind. In no event will AinspireTechAI, nor its
+                warranty of any kind. In no event will RocketReplai, nor its
                 directors, employees, partners, agents, suppliers, or
                 affiliates, be liable for any indirect, incidental, special,
                 consequential, or punitive damages, including without

@@ -24,7 +24,7 @@ export default function LoginPage() {
   }
 
   const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
-    "https://ainspiretech.com/insta/pricing"
+    "https://rocketreplai.com/insta/pricing",
   )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
 
   return (

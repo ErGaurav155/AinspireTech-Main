@@ -9,12 +9,12 @@ import { useTheme } from "next-themes";
 import PaymentModal from "@/components/insta/PaymentModal";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
-import { PricingPlan } from "@ainspiretech/shared";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
+import { PricingPlan } from "@rocketreplai/shared";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
 
 import {
   cancelRazorPaySubscription,

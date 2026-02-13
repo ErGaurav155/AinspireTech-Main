@@ -5,7 +5,7 @@ import TestimonialSection from "@/components/shared/Testimonial";
 import HeroSection from "@/components/web/Hero";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import DiscountBanner from "@ainspiretech/ui/components/shared/DiscountBanner";
+import DiscountBanner from "@rocketreplai/ui/components/shared/DiscountBanner";
 import { BusinessMessagingTemplate } from "@/components/shared/BusinessMessagingTemplate";
 import StickyScrollFeatures from "@/components/shared/EngagementToolsection";
 import { AIVoiceAgentShowcase } from "@/components/shared/OurProducts";

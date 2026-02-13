@@ -12,8 +12,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
-import Rimg1 from "@ainspiretech/public/assets/img/chatbot.png";
-import Rimg2 from "@ainspiretech/public/assets/img/headingimg.png";
+import Rimg1 from "@rocketreplai/public/assets/img/chatbot.png";
+import Rimg2 from "@rocketreplai/public/assets/img/headingimg.png";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
@@ -318,7 +318,7 @@ function InstagramSection() {
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => router.push("https://app.ainspiretech.com/signin")}
+              onClick={() => router.push("https://app.rocketreplai.com/signin")}
               className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-2 md:px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
             >
               <Rocket className="h-5 w-5 mr-1 md:mr-2" />
@@ -639,7 +639,7 @@ function WebChatbotSection() {
             <motion.button
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => router.push("https://app.ainspiretech.com/signin")}
+              onClick={() => router.push("https://app.rocketreplai.com/signin")}
               className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-2 md:px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
             >
               <Rocket className="h-5 w-5 mr-1 md:mr-2" />

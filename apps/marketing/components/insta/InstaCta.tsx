@@ -6,8 +6,8 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import { Card, CardContent } from "@ainspiretech/ui/components/radix/card";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
 function InstaCTASection() {
   const { theme, resolvedTheme } = useTheme();
@@ -189,7 +189,7 @@ function InstaCTASection() {
                   className="btn-gradient-cyan text-lg px-8 hover:opacity-90 transition-opacity"
                   asChild
                 >
-                  <Link href="https://app.ainspiretech.com/signin">
+                  <Link href="https://app.rocketreplai.com/signin">
                     Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>

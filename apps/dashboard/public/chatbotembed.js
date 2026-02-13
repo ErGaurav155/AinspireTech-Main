@@ -86,7 +86,7 @@
               "Content-Type": "application/json",
               "X-API-KEY": "your_32byte_encryption_key_here_12345",
             },
-          }
+          },
         );
 
         if (response.ok) {
@@ -98,11 +98,11 @@
             // Show token alert if tokens are low
             if (this.availableTokens < 1000 && this.availableTokens > 0) {
               this.showTokenAlertMessage(
-                "Low tokens remaining. Please purchase more tokens to continue."
+                "Low tokens remaining. Please purchase more tokens to continue.",
               );
             } else if (this.availableTokens <= 0) {
               this.showTokenAlertMessage(
-                "Tokens exhausted. Please purchase more tokens to continue."
+                "Tokens exhausted. Please purchase more tokens to continue.",
               );
             } else {
               this.hideTokenAlert();
@@ -138,14 +138,14 @@
             `
                 : ""
             }
-            <a href="https://ainspiretech.com/web/TokenDashboard" target="_blank" class="subscription-link">
+            <a href="https://rocketreplai.com/web/TokenDashboard" target="_blank" class="subscription-link">
               Purchase Tokens
             </a>
             <p class="token-notice">If you're not the website owner, please inform them that chatbot tokens need to be replenished.</p>
           </div>
           <div class="chatbot-footer">
-            <a href="https://ainspiretech.com/" target="_blank" class="powered-by">
-              Powered by AinspireTech
+            <a href="https://rocketreplai.com/" target="_blank" class="powered-by">
+              Powered by RocketReplai
             </a>
           </div>
         `;
@@ -180,7 +180,7 @@
               tokensUsed: tokensUsed,
               conversationId: conversationId || this.conversationId,
             }),
-          }
+          },
         );
 
         if (response.ok) {
@@ -1123,8 +1123,8 @@
                       </button>
                     </div>
                     <div class="chatbot-footer">
-                      <a href="https://ainspiretech.com/" target="_blank" class="powered-by">
-                        Powered by AinspireTech
+                      <a href="https://rocketreplai.com/" target="_blank" class="powered-by">
+                        Powered by RocketReplai
                       </a>
                     </div>
                   </div>
@@ -1141,13 +1141,13 @@
             <div class="chatbot-unauthorized">
               <div class="unauthorized-message">
                 <p>Unauthorized access. Please check your monthly subscription. If you are a user, please notify the owner.</p>
-                <a href="https://ainspiretech.com/UserDashboard" class="subscription-link">
+                <a href="https://rocketreplai.com/UserDashboard" class="subscription-link">
                   Check Subscription
                 </a>
               </div>
               <div class="chatbot-footer">
-                <a href="https://ainspiretech.com/" target="_blank" class="powered-by">
-                  Powered by AinspireTech
+                <a href="https://rocketreplai.com/" target="_blank" class="powered-by">
+                  Powered by RocketReplai
                 </a>
               </div>
             </div>
@@ -1182,7 +1182,7 @@
                     ${faq.question}
                   </div>
                 </div>
-              `
+              `,
             )
             .join("");
 
@@ -1225,7 +1225,7 @@
       // Close currently active FAQ if different from clicked one
       if (this.activeFAQ !== null && this.activeFAQ !== index) {
         const currentActive = document.querySelector(
-          `.help-article[data-index="${this.activeFAQ}"]`
+          `.help-article[data-index="${this.activeFAQ}"]`,
         );
         if (currentActive) {
           currentActive.classList.remove("active");
@@ -1365,7 +1365,7 @@
       document.querySelectorAll(".chatbot-tab").forEach((tab) => {
         tab.classList.toggle(
           "active",
-          tab.getAttribute("data-tab") === tabName
+          tab.getAttribute("data-tab") === tabName,
         );
       });
 
@@ -1426,7 +1426,7 @@
       // Check token balance before sending
       if (this.availableTokens <= 0) {
         this.showTokenAlertMessage(
-          "No tokens remaining. Please purchase more tokens to continue."
+          "No tokens remaining. Please purchase more tokens to continue.",
         );
         return;
       }
@@ -1445,10 +1445,10 @@
       if (response.error === "insufficient_tokens") {
         this.addMessage(
           "I'm unable to process your request due to insufficient tokens. Please purchase more tokens to continue.",
-          "bot"
+          "bot",
         );
         this.showTokenAlertMessage(
-          "Tokens exhausted. Please purchase more tokens to continue."
+          "Tokens exhausted. Please purchase more tokens to continue.",
         );
       } else {
         this.addMessage(response.text, "bot");
@@ -1521,7 +1521,7 @@
               userInput: message,
               fileData: this.config.filename,
             }),
-          }
+          },
         );
 
         if (!response.ok) {
@@ -1567,7 +1567,7 @@
               userId: this.config.userId,
               chatbotType: this.config.chatbotType,
             }),
-          }
+          },
         );
         const data = await response.json();
         this.appointmentQuestions = data.appointmentQuestions?.questions || [
@@ -1661,7 +1661,7 @@
                       question.options
                         ?.map(
                           (option) =>
-                            `<option value="${option}">${option}</option>`
+                            `<option value="${option}">${option}</option>`,
                         )
                         .join("") || ""
                     }
@@ -1733,7 +1733,7 @@
         // Show success message
         this.addMessage(
           "Thank you! Your appointment request has been submitted. We'll contact you soon to confirm the details.",
-          "bot"
+          "bot",
         );
 
         // Remove form
@@ -1746,7 +1746,7 @@
         console.error("Failed to submit appointment form:", error);
         this.addMessage(
           "Sorry, there was an error submitting your appointment. Please try again.",
-          "bot"
+          "bot",
         );
       }
     }
@@ -1780,7 +1780,7 @@
               "X-API-KEY": "your_32byte_encryption_key_here_12345",
             },
             body: JSON.stringify(conversationData),
-          }
+          },
         );
 
         if (response.ok) {

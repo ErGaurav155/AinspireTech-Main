@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import Logo from "@ainspiretech/public/assets/img/logo.png";
+import Logo from "@rocketreplai/public/assets/img/logo.png";
 import { useTheme } from "next-themes";
 import { useAuth } from "@clerk/nextjs";
 
@@ -39,9 +39,9 @@ import {
 
 import Link from "next/link";
 import Image from "next/image";
-import { ThemeToggle } from "@ainspiretech/ui/components/shared/theme-toggle";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { CardContent } from "@ainspiretech/ui/components/radix/card";
+import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { CardContent } from "@rocketreplai/ui/components/radix/card";
 import { getAffiliateDashInfo } from "@/lib/services/affiliate-actions.api";
 
 interface DashboardData {

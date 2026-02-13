@@ -3,10 +3,10 @@
 import Image from "next/image";
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import cup from "@ainspiretech/public/assets/img/pricecup.png";
+import cup from "@rocketreplai/public/assets/img/pricecup.png";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { features } from "@ainspiretech/shared";
+import { features } from "@rocketreplai/shared";
 
 const Check = ({ className }: { className?: string }) => (
   <svg
@@ -300,7 +300,7 @@ const ComparisonTable: React.FC = () => {
             whileInView="visible"
             viewport={{ once: false }}
             onClick={() => {
-              router.push("https://app.ainspiretech.com/signin");
+              router.push("https://app.rocketreplai.com/signin");
             }}
             initial="hidden"
             whileHover={{ scale: 1.05 }}
@@ -345,7 +345,7 @@ const ComparisonTable: React.FC = () => {
                     viewport={{ once: false }}
                     initial="hidden"
                   >
-                    AinspireTech
+                    RocketReplai
                   </motion.span>
                   <motion.div
                     variants={iconVariants}

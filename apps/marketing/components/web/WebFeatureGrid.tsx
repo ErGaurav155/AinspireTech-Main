@@ -5,7 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import { motion } from "framer-motion";
 import { MessageSquare, Users, BarChart3, Shield, Zap } from "lucide-react";
 
@@ -208,7 +208,7 @@ function WebFeaturesGrid() {
           viewport={{ once: false }}
           initial="hidden"
         >
-          Why Choose AinspireTech AI Chatbot for Website
+          Why Choose RocketReplai AI Chatbot for Website
         </motion.h2>
         <motion.p
           className={`text-xl ${themeStyles.textSecondary} font-montserrat`}

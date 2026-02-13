@@ -9,8 +9,8 @@ import InstaTestimonialsSection from "@/components/insta/InstaTestimonialSection
 import InstaHowItWorksSection from "@/components/insta/InstaWorkFlow";
 import { ClientShowcase } from "@/components/insta/ClientShowcase";
 import { FeatureShowcase } from "@/components/insta/FeatureShowcase";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import Faq from "@ainspiretech/ui/components/shared/Faq";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import Faq from "@rocketreplai/ui/components/shared/Faq";
 import React, { useEffect, useState } from "react";
 
 export default function Home() {

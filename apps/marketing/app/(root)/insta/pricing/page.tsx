@@ -2,10 +2,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Check, Zap, BadgeCheck, X } from "lucide-react";
 import { useTheme } from "next-themes";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { PricingPlan } from "@ainspiretech/shared";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { PricingPlan } from "@rocketreplai/shared";
 import { useRouter } from "next/navigation";
 
 interface ThemeStyles {
@@ -261,7 +261,7 @@ export default function Pricing() {
               <Button
                 variant="outline"
                 onClick={() =>
-                  router.push("https://app.ainspiretech.com/signin")
+                  router.push("https://app.rocketreplai.com/signin")
                 }
                 className="flex-[20%] w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#FF2E9F]/80 to-[#FF2E9F] text-black"
               >
@@ -340,7 +340,7 @@ export default function Pricing() {
                     <Button
                       variant="outline"
                       onClick={() =>
-                        router.push("https://app.ainspiretech.com/signin")
+                        router.push("https://app.rocketreplai.com/signin")
                       }
                       className={`w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#00F0FF]/80 to-[#00F0FF] text-black`}
                     >

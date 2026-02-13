@@ -14,7 +14,7 @@ const EmbedCode: React.FC<EmbedCodeProps> = ({ userId, agentId }) => {
   const [isActive, setIsActive] = useState(false);
 
   const embedCode = `<div id="chatbot-widget-container"></div>
-<script strategy="afterInteractive" src="https://ainspiretech.com/widget-loader.js?userId=${userId}&agentId=${agentId}" ></script>`;
+<script strategy="afterInteractive" src="https://rocketreplai.com/widget-loader.js?userId=${userId}&agentId=${agentId}" ></script>`;
   const handleCopyButtonClick = () => {
     if (embedCode) {
       navigator.clipboard.writeText(embedCode);

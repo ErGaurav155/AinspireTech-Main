@@ -26,23 +26,23 @@ import {
   Crown,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
+} from "@rocketreplai/ui/components/radix/tabs";
 import {
   CartesianGrid,
   Cell,

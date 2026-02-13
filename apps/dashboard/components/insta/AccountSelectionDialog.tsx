@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 
 import { useTheme } from "next-themes";
-import { PricingPlan } from "@ainspiretech/shared";
+import { PricingPlan } from "@rocketreplai/shared";
 import {
   Dialog,
   DialogContent,
@@ -11,10 +11,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@ainspiretech/ui/components/radix/dialog";
-import { Checkbox } from "@ainspiretech/ui/components/radix/checkbox";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+} from "@rocketreplai/ui/components/radix/dialog";
+import { Checkbox } from "@rocketreplai/ui/components/radix/checkbox";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
 interface AccountSelectionDialogProps {
   isOpen: boolean;

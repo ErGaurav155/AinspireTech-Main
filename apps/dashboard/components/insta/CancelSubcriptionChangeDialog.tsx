@@ -1,7 +1,7 @@
 "use client";
 
-import { PricingPlan } from "@ainspiretech/shared";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+import { PricingPlan } from "@rocketreplai/shared";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@ainspiretech/ui/components/radix/dialog";
+} from "@rocketreplai/ui/components/radix/dialog";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
 

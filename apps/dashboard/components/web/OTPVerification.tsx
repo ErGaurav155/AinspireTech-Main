@@ -8,14 +8,14 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
 import { updateNumberByUserId } from "@/lib/services/user-actions.api";
 
 interface OTPVerificationProps {

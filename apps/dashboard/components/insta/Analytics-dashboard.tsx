@@ -26,20 +26,20 @@ import {
 } from "recharts";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { tailwindHexColors } from "@ainspiretech/shared";
+import { tailwindHexColors } from "@rocketreplai/shared";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
+} from "@rocketreplai/ui/components/radix/tabs";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
+} from "@rocketreplai/ui/components/radix/card";
 import {
   Activity,
   TrendingUp,
@@ -55,8 +55,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 
 export interface TemplateChartData {
   name: string;

@@ -16,7 +16,7 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
+} from "@rocketreplai/ui/components/radix/tabs";
 import { useRouter } from "next/navigation";
 
 export function SetupProcess() {
@@ -50,11 +50,11 @@ export function SetupProcess() {
       title: "Provide Your Website Domain",
       subtitle: "Setup",
       description:
-        "Simply input your website's domain or subdomain. Ainspiretech chatbot will crawl all publicly accessible pages to create a comprehensive knowledge base for your AI chatbot for website.",
+        "Simply input your website's domain or subdomain. RocketReplai chatbot will crawl all publicly accessible pages to create a comprehensive knowledge base for your AI chatbot for website.",
       details: {
         type: "WEB",
         website: "Enter the URL of the website you want to build a chatbot for",
-        url: "https://ainspiretech.com",
+        url: "https://rocketreplai.com",
         language: "English",
         languageDescription: "Select language of source website",
         button: "Build Item",
@@ -66,7 +66,7 @@ export function SetupProcess() {
       title: "Analyze & Index Content for AI Chatbot",
       subtitle: "Process",
       description:
-        "Ainspiretech chatbots learn from every page—understanding text, images, charts, and tables—ensuring your AI chatbot for website captures all key information. Once complete, your chatbot is ready to engage.",
+        "RocketReplai chatbots learn from every page—understanding text, images, charts, and tables—ensuring your AI chatbot for website captures all key information. Once complete, your chatbot is ready to engage.",
     },
     {
       number: 3,
@@ -75,7 +75,7 @@ export function SetupProcess() {
       subtitle: "Launch",
       description:
         "Deploy the AI chatbot for your website to answer questions in natural languages. From products to services and policies, it provides full customer support with instant, AI-powered responses and links to relevant pages.",
-      chatPreview: "Hello, I am Ainspiretech AI. How can I help you today?",
+      chatPreview: "Hello, I am RocketReplai AI. How can I help you today?",
     },
   ];
 
@@ -401,7 +401,7 @@ export function SetupProcess() {
                                 variants={buttonHoverVariants}
                                 onClick={() =>
                                   router.push(
-                                    "https://app.ainspiretech.com/signin",
+                                    "https://app.rocketreplai.com/signin",
                                   )
                                 }
                                 whileHover="hover"
@@ -514,7 +514,7 @@ export function SetupProcess() {
                                   <div
                                     className={`font-bold ${themeStyles.textPrimary}`}
                                   >
-                                    Ainspiretech
+                                    RocketReplai
                                   </div>
                                   <div
                                     className={`text-xs ${themeStyles.textMuted}`}

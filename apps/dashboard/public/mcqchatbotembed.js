@@ -112,14 +112,14 @@
             `
                 : ""
             }
-            <a href="https://ainspiretech.com/web/TokenDashboard" target="_blank" class="subscription-link">
+            <a href="https://rocketreplai.com/web/TokenDashboard" target="_blank" class="subscription-link">
               Purchase Tokens
             </a>
             <p class="token-notice">If you're not the website owner, please inform them that chatbot tokens need to be replenished.</p>
           </div>
           <div class="mcq-footer">
-            <a href="https://ainspiretech.com/" target="_blank" class="powered-by">
-              Powered by AinspireTech
+            <a href="https://rocketreplai.com/" target="_blank" class="powered-by">
+              Powered by RocketReplai
             </a>
           </div>
         `;
@@ -136,7 +136,7 @@
         if (unauthorizedDiv) {
           unauthorizedDiv.innerHTML = `
             <p>Unauthorized access. Please check your monthly subscription. If you are a user, please contact the owner.</p>
-            <a href="https://ainspiretech.com/UserDashboard" target="_blank">Check Subscription</a>
+            <a href="https://rocketreplai.com/UserDashboard" target="_blank">Check Subscription</a>
           `;
         }
       }
@@ -1263,7 +1263,7 @@
       return `
         <div class="mcq-unauthorized">
           <p>Unauthorized access. Please check your monthly subscription. If you are a user, please contact the owner.</p>
-          <a href="https://ainspiretech.com/UserDashboard" target="_blank">Check Subscription</a>
+          <a href="https://rocketreplai.com/UserDashboard" target="_blank">Check Subscription</a>
         </div>
       `;
     }
@@ -1271,8 +1271,8 @@
     renderFooter() {
       return `
         <div class="mcq-footer">
-          <a href="https://ainspiretech.com/" target="_blank" class="powered-by">
-            Powered by AinspireTech
+          <a href="https://rocketreplai.com/" target="_blank" class="powered-by">
+            Powered by RocketReplai
           </a>
         </div>
       `;

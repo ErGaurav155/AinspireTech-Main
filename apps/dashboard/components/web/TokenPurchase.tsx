@@ -21,8 +21,8 @@ import {
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import { calculateCustomTokenPrice, tokenPlans } from "@ainspiretech/shared";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
+import { calculateCustomTokenPrice, tokenPlans } from "@rocketreplai/shared";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import {
   Card,
   CardContent,
@@ -30,10 +30,10 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Slider } from "@ainspiretech/ui/components/radix/slider";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Slider } from "@rocketreplai/ui/components/radix/slider";
 import {
   purchaseTokens,
   verifyPurchaseTokens,

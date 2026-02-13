@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "@ainspiretech/ui/components/shared/theme-provider";
+import { ThemeProvider } from "@rocketreplai/ui/components/shared/theme-provider";
 import "./globals.css";
-import StarsBackground from "@ainspiretech/ui/components/shared/StarsBackground";
+import StarsBackground from "@rocketreplai/ui/components/shared/StarsBackground";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -16,7 +16,7 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "AinspireTech",
+  title: "RocketReplai",
   description: "Ai-Agent,Web-Dev and Chatbot Agency",
   keywords: ["a i", "a i chatbot"],
 };

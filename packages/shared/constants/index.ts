@@ -3,28 +3,28 @@ export const testimonials = [
     id: 5,
     name: "@thefitcoach",
     title: "Fitness Influencer",
-    text: "I started using AinspireTech about 6 weeks ago and honestly it has completely changed the way I manage my socials. The automation features save me HOURS every day. It feels like I have a full-time assistant running in the background!",
+    text: "I started using RocketReplai about 6 weeks ago and honestly it has completely changed the way I manage my socials. The automation features save me HOURS every day. It feels like I have a full-time assistant running in the background!",
     image: "/assets/Review/Rimg2.jpg",
   },
   {
     id: 6,
     name: "@craftycorner",
     title: "Lifestyle Blogger",
-    text: "AinspireTech has helped me scale my small business faster than I thought possible. I can finally focus on creating content while the tool handles engagement. My DMs and sales have never been this consistent!",
+    text: "RocketReplai has helped me scale my small business faster than I thought possible. I can finally focus on creating content while the tool handles engagement. My DMs and sales have never been this consistent!",
     image: "/assets/Review/Rimg3.jpg",
   },
   {
     id: 7,
     name: "@techwithsara",
     title: "Tech Creator",
-    text: "The analytics on AinspireTech are game-changing. I can see exactly what’s working and what’s not, which makes adjusting my strategy so much easier. Plus, their support team is always available when I need help. Highly recommend for any creator serious about growth.",
+    text: "The analytics on RocketReplai are game-changing. I can see exactly what’s working and what’s not, which makes adjusting my strategy so much easier. Plus, their support team is always available when I need help. Highly recommend for any creator serious about growth.",
     image: "/assets/Review/Rimg4.jpg",
   },
   {
     id: 8,
     name: "Adam Hamdan",
     title: "Founder, TechNova Inc.",
-    text: "AinspireTech is an outstanding AI chatbot with zero-effort setup. I was amazed at how much it knew about our company and answered support questions in depth, with no training needed. Highly effective for lead generation.",
+    text: "RocketReplai is an outstanding AI chatbot with zero-effort setup. I was amazed at how much it knew about our company and answered support questions in depth, with no training needed. Highly effective for lead generation.",
 
     image: "/assets/Review/Rimg7.jpg",
   },
@@ -32,21 +32,21 @@ export const testimonials = [
     id: 9,
     name: "Olivia Green",
     title: "PR Manager, ShopSmart",
-    text: "Working with AinspireTech has been a game-changer. Their chatbot provides seamless integration and perfectly tailored solutions. The expertise in AI and customer interaction is evident in every interaction.",
+    text: "Working with RocketReplai has been a game-changer. Their chatbot provides seamless integration and perfectly tailored solutions. The expertise in AI and customer interaction is evident in every interaction.",
     image: "/assets/Review/Rimg6.jpg",
   },
   {
     id: 10,
     name: "Sarah Mitchell",
     title: " CEO, Horizon Inc.",
-    text: "AinspireTech impressed us with its simplicity and power. It provided enterprise-grade RAG implementation without the complexity of building it ourselves. The AI's contextual understanding has significantly improved our customer engagement.",
+    text: "RocketReplai impressed us with its simplicity and power. It provided enterprise-grade RAG implementation without the complexity of building it ourselves. The AI's contextual understanding has significantly improved our customer engagement.",
     image: "/assets/Review/Rimg5.jpg",
   },
   {
     id: 11,
     name: "Priya Kapoor",
     title: "PR Head, BrandEcho",
-    text: "From AI-driven marketing chatbots to workflow automation, AinspireTech ai has been a key partner in our digital transformation journey. The solutions they provided are not only innovative but also seamlessly integrate into our existing systems.",
+    text: "From AI-driven marketing chatbots to workflow automation, RocketReplai ai has been a key partner in our digital transformation journey. The solutions they provided are not only innovative but also seamlessly integrate into our existing systems.",
 
     image: "/assets/Review/Rimg9.jpg",
   },
@@ -54,14 +54,14 @@ export const testimonials = [
     id: 12,
     name: "James Peterson",
     title: "Op Manager, LogisticsPro",
-    text: "AinspireTech transformed the way we handle customer queries. The setup was seamless and within hours, it was resolving 70% of support tickets automatically. Our team can now focus on complex issues instead of repetitive ones.",
+    text: "RocketReplai transformed the way we handle customer queries. The setup was seamless and within hours, it was resolving 70% of support tickets automatically. Our team can now focus on complex issues instead of repetitive ones.",
     image: "/assets/Review/Rimg10.jpg",
   },
   {
     id: 13,
     name: " Isabella Romero",
     title: "Founder, Bella Cor.",
-    text: "We needed a chatbot that could handle complex patient queries with empathy and precision. AinspireTech exceeded our expectations by delivering a secure, dynamic, and user-friendly chatbot that has enhanced our patient engagement.",
+    text: "We needed a chatbot that could handle complex patient queries with empathy and precision. RocketReplai exceeded our expectations by delivering a secure, dynamic, and user-friendly chatbot that has enhanced our patient engagement.",
 
     image: "/assets/Review/Rimg8.jpg",
   },
@@ -69,7 +69,7 @@ export const testimonials = [
     id: 14,
     name: "Liam Adams",
     title: "Head of IT, Apex Fin",
-    text: "The self-adaptive decision systems created by AinspireTech have brought a new level of efficiency to our risk analysis processes. Their AI expertise and hands-on support were instrumental in our project’s success.",
+    text: "The self-adaptive decision systems created by RocketReplai have brought a new level of efficiency to our risk analysis processes. Their AI expertise and hands-on support were instrumental in our project’s success.",
 
     image: "/assets/Review/Rimg11.jpg",
   },
@@ -77,7 +77,7 @@ export const testimonials = [
     id: 15,
     name: "Emily Turner",
     title: "Manager, GreenTech",
-    text: "We integrated AinspireTech into our e-commerce platform and saw immediate improvements. Cart abandonment follow-ups and personalized recommendations have boosted our sales conversion by 34% in just two months.",
+    text: "We integrated RocketReplai into our e-commerce platform and saw immediate improvements. Cart abandonment follow-ups and personalized recommendations have boosted our sales conversion by 34% in just two months.",
 
     image: "/assets/Review/Rimg12.jpg",
   },
@@ -85,7 +85,7 @@ export const testimonials = [
     id: 16,
     name: "Daniel Kim",
     title: "CTO, DataBridge Sol.",
-    text: "AinspireTech has been invaluable in the education sector. It answers student queries instantly, helps with enrollment FAQs, and even guides parents through the process. The efficiency gain has been massive.",
+    text: "RocketReplai has been invaluable in the education sector. It answers student queries instantly, helps with enrollment FAQs, and even guides parents through the process. The efficiency gain has been massive.",
 
     image: "/assets/Review/Rimg13.jpg",
   },
@@ -98,22 +98,22 @@ export const topics = [
       {
         name: "Workflow Automation",
         description:
-          "In today's digital era, efficiency is the backbone of any successful business. At AinspireTech AI, we harness the power of Autonomous Agents to revolutionize your workflow processes. Our Workflow Automation solution goes beyond traditional task automation; it incorporates intelligent agents that can make decisions, adapt to varying circumstances, and consistently optimize operations.Through our deep understanding of AI and its potential, we design agents that can predictively automate tasks, reducing manual intervention and the chances for human error. Whether you're looking to streamline administrative processes, enhance data operations, or elevate customer interactions, our bespoke autonomous agents are built to integrate seamlessly into your environment.",
+          "In today's digital era, efficiency is the backbone of any successful business. At RocketReplai AI, we harness the power of Autonomous Agents to revolutionize your workflow processes. Our Workflow Automation solution goes beyond traditional task automation; it incorporates intelligent agents that can make decisions, adapt to varying circumstances, and consistently optimize operations.Through our deep understanding of AI and its potential, we design agents that can predictively automate tasks, reducing manual intervention and the chances for human error. Whether you're looking to streamline administrative processes, enhance data operations, or elevate customer interactions, our bespoke autonomous agents are built to integrate seamlessly into your environment.",
       },
       {
         name: "Natural language to SQL",
         description:
-          "In an age where data drives decisions, accessing and querying databases should be as intuitive as asking a question in plain English. At AinspireTech AI, we pride ourselves on pushing the boundaries of what's possible. In a recent collaboration with a leading Silicon Valley company, we innovated in the NL to SQL domain, achieving results that were over 40% better than current state-of-the-art methods. This accomplishment underscores our commitment to pioneering advancements in AI technology.Our solution transforms natural language queries into precise SQL statements, allowing users to retrieve, manipulate, and analyze data without the need to understand intricate SQL syntax. Empowering both non-tech professionals and experienced developers alike, we bridge the gap between human language and database queries, making data-driven decisions accessible to all.",
+          "In an age where data drives decisions, accessing and querying databases should be as intuitive as asking a question in plain English. At RocketReplai AI, we pride ourselves on pushing the boundaries of what's possible. In a recent collaboration with a leading Silicon Valley company, we innovated in the NL to SQL domain, achieving results that were over 40% better than current state-of-the-art methods. This accomplishment underscores our commitment to pioneering advancements in AI technology.Our solution transforms natural language queries into precise SQL statements, allowing users to retrieve, manipulate, and analyze data without the need to understand intricate SQL syntax. Empowering both non-tech professionals and experienced developers alike, we bridge the gap between human language and database queries, making data-driven decisions accessible to all.",
       },
       {
         name: "Complex Data Pipelines",
         description:
-          "Data is the lifeblood of modern businesses, but its sheer volume and complexity can make it challenging to harness effectively. At AinspireTech AI, we're pioneering the development of intricate data pipelines, transforming raw, disparate data into actionable insights. With our autonomous agent-driven solutions, we navigate the complexities of big data, ensuring fluidity and efficiency in data transition, processing, and analytics.Our expertise lies in designing and deploying data pipelines that handle large-scale, multi-dimensional data. Whether you're dealing with real-time data streams, batch processing, or a hybrid, our autonomous agents optimize processes, ensuring data integrity, and timely delivery for advanced analytics and machine learning applications.",
+          "Data is the lifeblood of modern businesses, but its sheer volume and complexity can make it challenging to harness effectively. At RocketReplai AI, we're pioneering the development of intricate data pipelines, transforming raw, disparate data into actionable insights. With our autonomous agent-driven solutions, we navigate the complexities of big data, ensuring fluidity and efficiency in data transition, processing, and analytics.Our expertise lies in designing and deploying data pipelines that handle large-scale, multi-dimensional data. Whether you're dealing with real-time data streams, batch processing, or a hybrid, our autonomous agents optimize processes, ensuring data integrity, and timely delivery for advanced analytics and machine learning applications.",
       },
       {
         name: "Self-Adaptive Decision Systems",
         description:
-          "In the ever-evolving landscape of business, static decision-making models no longer suffice. At AinspireTech AI, we're at the forefront of developing Self-Adaptive Decision Systems, a groundbreaking approach that empowers businesses to make intelligent decisions dynamically. These systems are not just reactive but proactively adjust to changing environments, learning from new data and evolving patterns.Our self-adaptive solutions harness the full potential of autonomous agents, enabling them to make decisions based on real-time data, past experiences, and predictive analytics. This continuous loop of learning and adapting ensures that your business stays ahead of the curve, optimizing operations and strategizing for future scenarios.",
+          "In the ever-evolving landscape of business, static decision-making models no longer suffice. At RocketReplai AI, we're at the forefront of developing Self-Adaptive Decision Systems, a groundbreaking approach that empowers businesses to make intelligent decisions dynamically. These systems are not just reactive but proactively adjust to changing environments, learning from new data and evolving patterns.Our self-adaptive solutions harness the full potential of autonomous agents, enabling them to make decisions based on real-time data, past experiences, and predictive analytics. This continuous loop of learning and adapting ensures that your business stays ahead of the curve, optimizing operations and strategizing for future scenarios.",
       },
     ],
   },
@@ -123,22 +123,22 @@ export const topics = [
       {
         name: "UI/UX Userfriendly",
         description:
-          "In the rapidly evolving digital landscape, user experience is paramount. At AinspireTech AI, we specialize in designing UI/UX interfaces that are not only visually appealing but also intuitive and user-centric. Our solutions ensure seamless navigation, reducing friction and enhancing engagement. Through meticulous research and testing, we create interfaces that resonate with your audience, providing a user-friendly experience across all platforms. Whether you aim to simplify complex workflows or elevate customer satisfaction, our design ethos prioritizes accessibility, usability, and elegance to help your business shine.",
+          "In the rapidly evolving digital landscape, user experience is paramount. At RocketReplai AI, we specialize in designing UI/UX interfaces that are not only visually appealing but also intuitive and user-centric. Our solutions ensure seamless navigation, reducing friction and enhancing engagement. Through meticulous research and testing, we create interfaces that resonate with your audience, providing a user-friendly experience across all platforms. Whether you aim to simplify complex workflows or elevate customer satisfaction, our design ethos prioritizes accessibility, usability, and elegance to help your business shine.",
       },
       {
         name: "Media Responsive",
         description:
-          "In a world where users interact with content across diverse devices, responsiveness is no longer optional—it's essential. At AinspireTech AI, we design media-responsive solutions that adapt dynamically to any screen size, ensuring your platform delivers a consistent and engaging experience. From smartphones to desktops, our designs maintain visual integrity and functionality, offering users an optimized experience regardless of their device. By aligning aesthetics with practicality, we empower businesses to connect with their audience effortlessly in today's mobile-first environment.",
+          "In a world where users interact with content across diverse devices, responsiveness is no longer optional—it's essential. At RocketReplai AI, we design media-responsive solutions that adapt dynamically to any screen size, ensuring your platform delivers a consistent and engaging experience. From smartphones to desktops, our designs maintain visual integrity and functionality, offering users an optimized experience regardless of their device. By aligning aesthetics with practicality, we empower businesses to connect with their audience effortlessly in today's mobile-first environment.",
       },
       {
         name: "SEO Optimisation",
         description:
-          "Visibility is key in the crowded digital marketplace. At AinspireTech AI, we harness the power of advanced search engine optimization (SEO) techniques to enhance your online presence. Our approach is rooted in understanding search algorithms, user intent, and data analytics to craft strategies that rank your business higher. From keyword optimization to technical SEO, we ensure your website attracts organic traffic and converts visitors into loyal customers. By blending cutting-edge technology with proven tactics, we drive measurable results that amplify your digital reach.",
+          "Visibility is key in the crowded digital marketplace. At RocketReplai AI, we harness the power of advanced search engine optimization (SEO) techniques to enhance your online presence. Our approach is rooted in understanding search algorithms, user intent, and data analytics to craft strategies that rank your business higher. From keyword optimization to technical SEO, we ensure your website attracts organic traffic and converts visitors into loyal customers. By blending cutting-edge technology with proven tactics, we drive measurable results that amplify your digital reach.",
       },
       {
         name: "Online Marketing",
         description:
-          "In the age of digital connectivity, effective online marketing is the cornerstone of growth. At AinspireTech AI, we deliver tailored marketing strategies designed to capture your target audience's attention and drive engagement. By leveraging tools like social media, email campaigns, and performance analytics, we create campaigns that resonate with your brand's voice and objectives. Whether you're looking to expand your reach, boost sales, or strengthen customer relationships, our data-driven approach ensures every marketing effort is impactful and results-oriented.",
+          "In the age of digital connectivity, effective online marketing is the cornerstone of growth. At RocketReplai AI, we deliver tailored marketing strategies designed to capture your target audience's attention and drive engagement. By leveraging tools like social media, email campaigns, and performance analytics, we create campaigns that resonate with your brand's voice and objectives. Whether you're looking to expand your reach, boost sales, or strengthen customer relationships, our data-driven approach ensures every marketing effort is impactful and results-oriented.",
       },
     ],
   },
@@ -148,17 +148,17 @@ export const topics = [
       {
         name: "GPT Development",
         description:
-          "The conversational AI landscape has been revolutionized with the advent of models like GPT-3 and GPT-4. At AinspireTech AI, we harness the unmatched capabilities of these groundbreaking models to create state-of-the-art chatbots that deliver human-like interactions, rich contextual understanding, and seamless user experiences.Our expertise in GPT-3 and GPT-4 development places us at the forefront of chatbot innovation. By tapping into these models, we craft chatbots that are not just reactive but can also anticipate user needs, understand nuances, and offer solutions that feel genuinely intuitive.We are also pleased to announce the introduction of our OpenAI GPT development services. On the back of OpenAI's introduction of GPTs, AinspireTech AI is now developing GPTs for businesses around the globe.",
+          "The conversational AI landscape has been revolutionized with the advent of models like GPT-3 and GPT-4. At RocketReplai AI, we harness the unmatched capabilities of these groundbreaking models to create state-of-the-art chatbots that deliver human-like interactions, rich contextual understanding, and seamless user experiences.Our expertise in GPT-3 and GPT-4 development places us at the forefront of chatbot innovation. By tapping into these models, we craft chatbots that are not just reactive but can also anticipate user needs, understand nuances, and offer solutions that feel genuinely intuitive.We are also pleased to announce the introduction of our OpenAI GPT development services. On the back of OpenAI's introduction of GPTs, RocketReplai AI is now developing GPTs for businesses around the globe.",
       },
       {
         name: "Secure Solutions",
         description:
-          "We understand that security is not just an afterthought—it's a foundational requirement. At AinspireTech AI, we prioritize the protection of your data and your users' interactions, ensuring we are inline with your security and compliance requirements. We craft chatbots that are robust against vulnerabilities and threats, without compromising on functionality or user experience.With cyber risks ever-looming, our approach to chatbot development is underpinned by rigorous security protocols. From data encryption to intrusion detection, we incorporate cutting-edge security measures that safeguard both the chatbot and its users.",
+          "We understand that security is not just an afterthought—it's a foundational requirement. At RocketReplai AI, we prioritize the protection of your data and your users' interactions, ensuring we are inline with your security and compliance requirements. We craft chatbots that are robust against vulnerabilities and threats, without compromising on functionality or user experience.With cyber risks ever-looming, our approach to chatbot development is underpinned by rigorous security protocols. From data encryption to intrusion detection, we incorporate cutting-edge security measures that safeguard both the chatbot and its users.",
       },
       {
         name: "Knowledge Response",
         description:
-          "We all know that our data is vast and ever-evolving. AinspireTech AI can help you tap into your expansive information reservoir, allowing chatbots to provide accurate, up-to-date, and contextually relevant answers. We transcend traditional chatbot capabilities, moving beyond preset responses to offer insights drawn from a rich tapestry of data sources.Our chatbots, equipped with Knowledge Response, become dynamic information hubs. They sift through volumes of data, discerning context, intent, and nuance to deliver not just any answer, but the right answer.",
+          "We all know that our data is vast and ever-evolving. RocketReplai AI can help you tap into your expansive information reservoir, allowing chatbots to provide accurate, up-to-date, and contextually relevant answers. We transcend traditional chatbot capabilities, moving beyond preset responses to offer insights drawn from a rich tapestry of data sources.Our chatbots, equipped with Knowledge Response, become dynamic information hubs. They sift through volumes of data, discerning context, intent, and nuance to deliver not just any answer, but the right answer.",
       },
       {
         name: "Model Tuning",

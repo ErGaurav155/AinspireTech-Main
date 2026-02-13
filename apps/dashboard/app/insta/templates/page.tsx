@@ -29,8 +29,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { toast } from "@ainspiretech/ui/components/radix/use-toast";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import {
   Dialog,
   DialogContent,
@@ -39,27 +39,27 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@ainspiretech/ui/components/radix/dialog";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Label } from "@ainspiretech/ui/components/radix/label";
-import { Input } from "@ainspiretech/ui/components/radix/input";
+} from "@rocketreplai/ui/components/radix/dialog";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Label } from "@rocketreplai/ui/components/radix/label";
+import { Input } from "@rocketreplai/ui/components/radix/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@ainspiretech/ui/components/radix/select";
-import { Textarea } from "@ainspiretech/ui/components/radix/textarea";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
+} from "@rocketreplai/ui/components/radix/select";
+import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,7 +70,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
 import {
   createInstaTemplate,
   deleteTemplate,

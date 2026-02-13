@@ -12,7 +12,7 @@
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils",
-    "ui": "@ainspiretech/ui",
+    "ui": "@rocketreplai/ui",
     "lib": "@/lib"
   }
 }

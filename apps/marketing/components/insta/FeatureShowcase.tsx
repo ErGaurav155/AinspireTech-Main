@@ -190,14 +190,14 @@ export function FeatureShowcase() {
     {
       icon: <Shield className="h-6 w-6" />,
       title: "White Label",
-      description: "Remove AinspireTech branding from DMs sent",
+      description: "Remove RocketReplai branding from DMs sent",
       category: "branding",
     },
     {
       icon: <Users className="h-6 w-6" />,
       title: "Multiple Accounts",
       description:
-        "Connect up to 3 Instagram Accounts to your AinspireTech Profile",
+        "Connect up to 3 Instagram Accounts to your RocketReplai Profile",
       category: "management",
     },
     {
@@ -228,7 +228,7 @@ export function FeatureShowcase() {
       icon: <Users className="h-6 w-6" />,
       title: "Accounts+",
       description:
-        "Connect up to 5 Instagram accounts to your AinspireTech profile",
+        "Connect up to 5 Instagram accounts to your RocketReplai profile",
       category: "management",
     },
     // {
@@ -319,7 +319,7 @@ export function FeatureShowcase() {
             viewport={{ once: false }}
             initial="hidden"
           >
-            Dive deep into AinspireTech capabilities with these standout
+            Dive deep into RocketReplai capabilities with these standout
             features, each designed to enhance your experience and streamline
             your tasks. Discover what sets us apart.
           </motion.p>
@@ -434,7 +434,7 @@ export function FeatureShowcase() {
               <div className="w-full flex items-center justify-between relative z-10">
                 <motion.button
                   onClick={() => {
-                    router.push("https://app.ainspiretech.com/signin");
+                    router.push("https://app.rocketreplai.com/signin");
                   }}
                   className={`inline-flex items-center transition-colors duration-300 ${themeStyles.ctaText}`}
                   variants={textVariants}

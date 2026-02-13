@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 
 import { toast } from "sonner";
-import { PricingPlan } from "@ainspiretech/shared";
+import { PricingPlan } from "@rocketreplai/shared";
 
 import {
   Dialog,
@@ -15,10 +15,10 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@ainspiretech/ui/components/radix/dialog";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Separator } from "@ainspiretech/ui/components/radix/separator";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+} from "@rocketreplai/ui/components/radix/dialog";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Separator } from "@rocketreplai/ui/components/radix/separator";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import Script from "next/script";
 import { updateUserLimits } from "@/lib/services/user-actions.api";
 import {

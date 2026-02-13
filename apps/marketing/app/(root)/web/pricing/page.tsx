@@ -22,23 +22,23 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@ainspiretech/ui/components/radix/tabs";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
+} from "@rocketreplai/ui/components/radix/tabs";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Button } from "@ainspiretech/ui/components/radix/button";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
+} from "@rocketreplai/ui/components/radix/card";
+import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   calculateCustomTokenPrice,
   productSubscriptionDetails,
   tokenPlans,
-} from "@ainspiretech/shared";
-import { BreadcrumbsDefault } from "@ainspiretech/ui/components/shared/breadcrumbs";
+} from "@rocketreplai/shared";
+import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 
 // Components
 
@@ -234,7 +234,7 @@ const PricingContent = () => {
   // Handle Get Started/Start Automating click
   const handleStartAutomation = () => {
     // Redirect to external sign-in page
-    window.location.href = "https://app.ainspiretech.com/signin";
+    window.location.href = "https://app.rocketreplai.com/signin";
   };
 
   // Render functions

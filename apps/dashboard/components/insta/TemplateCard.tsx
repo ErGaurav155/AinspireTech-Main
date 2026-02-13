@@ -8,10 +8,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-} from "@ainspiretech/ui/components/radix/card";
-import { Badge } from "@ainspiretech/ui/components/radix/badge";
-import { Switch } from "@ainspiretech/ui/components/radix/switch";
-import { Button } from "@ainspiretech/ui/components/radix/button";
+} from "@rocketreplai/ui/components/radix/card";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Switch } from "@rocketreplai/ui/components/radix/switch";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@ainspiretech/ui/components/radix/alert-dialog";
+} from "@rocketreplai/ui/components/radix/alert-dialog";
 
 interface Template {
   _id: string;

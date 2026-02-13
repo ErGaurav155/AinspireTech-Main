@@ -354,7 +354,7 @@ const PricingPlansResponse = ({ onComplete }: { onComplete: () => void }) => {
       {showHeader && (
         <div>
           <h3 className="text-xl font-bold  mb-2">
-            <TypingAnimation text="ainspiretech Pricing Plans" speed={30} />
+            <TypingAnimation text="rocketreplai Pricing Plans" speed={30} />
           </h3>
           <p className=" text-sm">
             <TypingAnimation
@@ -512,7 +512,7 @@ const ChatDemoCarousel = () => {
           </div>
           <div>
             <div className={`font-bold ${themeStyles.textPrimary}`}>
-              Ainspiretech Agent
+              RocketReplai Agent
             </div>
             <div className={`text-sm ${themeStyles.textSecondary}`}>
               {demos[activeDemo].title} • AI-powered assistant
@@ -682,7 +682,7 @@ export function AIAgentHero() {
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() =>
-                  router.push("https://app.ainspiretech.com/signin")
+                  router.push("https://app.rocketreplai.com/signin")
                 }
                 className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
               >
