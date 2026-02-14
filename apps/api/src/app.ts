@@ -49,7 +49,7 @@ app.use("/api", limiter);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://app.rocketreplai.com",
-  "https://api.rocketreplai.com",
+  "https://rocketreplai.com", // Your marketing site
   "http://localhost:3000", // Marketing
   "http://localhost:3001", // Dashboard
   "http://localhost:3002", // API
@@ -67,6 +67,7 @@ app.use(
       "X-Requested-With",
       "Accept",
       "Origin",
+      "Cookie", // Add Cookie header
     ],
   }),
 );
@@ -79,8 +80,13 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ========== CLERK MIDDLEWARE ==========
-app.use(clerkMiddleware());
-
+app.use(
+  clerkMiddleware({
+    // Make sure this matches your Clerk dashboard
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+    secretKey: process.env.CLERK_SECRET_KEY,
+  }),
+);
 /* ========== ROUTES ========== */
 app.get("/favicon.ico", (req, res) => {
   res.status(204).end(); // No content
