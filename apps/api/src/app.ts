@@ -42,8 +42,7 @@ const limiter = rateLimit({
     timestamp: new Date().toISOString(),
   },
   standardHeaders: true,
-  skip: (req) =>
-    req.path === "/health" || req.path === "/" || req.path === "/api/public",
+  skip: (req) => req.path === "/health" || req.path === "/",
 });
 app.use("/api", limiter);
 
