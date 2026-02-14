@@ -63,6 +63,7 @@ app.use(
       "X-Requested-With",
       "Accept",
       "Origin",
+      "Cookie",
     ],
   }),
 );
@@ -75,7 +76,12 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ========== CLERK MIDDLEWARE ==========
-app.use(clerkMiddleware());
+app.use(
+  clerkMiddleware({
+    secretKey: process.env.CLERK_SECRET_KEY,
+    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
+  }),
+);
 /* ========== ROUTES ========== */
 app.get("/favicon.ico", (req, res) => {
   res.status(204).end(); // No content
