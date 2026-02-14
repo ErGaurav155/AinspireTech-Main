@@ -24,7 +24,6 @@ router.options("*", (req, res) => {
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
 router.use("/cron", cronRoutes);
-// router.use("/embed", embedRoutes);
 // CORS
 router.use(
   "/embed",

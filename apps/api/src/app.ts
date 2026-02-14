@@ -8,8 +8,7 @@ import compression from "compression";
 import { clerkMiddleware } from "@clerk/express";
 
 // Load environment first
-import { loadEnvironment, isProduction } from "./config/env.config";
-loadEnvironment();
+import { isProduction } from "./config/env.config";
 
 import { checkDatabaseHealth } from "@/config/database.config";
 
@@ -48,11 +47,8 @@ app.use("/api", limiter);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://app.rocketreplai.com",
-  "https://rocketreplai.com", // Your marketing site
-  "http://localhost:3000", // Marketing
-  "http://localhost:3001", // Dashboard
-  "http://localhost:3002", // API
-  "https://*.clerk.accounts.dev", // Clerk domains
+  "https://rocketreplai.com",
+  "https://*.clerk.accounts.dev",
 ];
 
 app.use(

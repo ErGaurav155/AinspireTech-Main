@@ -37,7 +37,6 @@ router.post(
   "/subscription/create",
   razorpaySubsCreateOrChargeWebhookController,
 );
-
 // POST /api/webhooks/subscription-cancel - Handle Razorpay subscription webhooks
 router.post("/subscription/cancel", razorpaySubsCancelWebhookController);
 
