@@ -1,81 +1,90 @@
 import { Worker, Job } from "bullmq";
-import { getRedisConnection } from "@/config/redis.config";
+import { redisHelpers } from "@/config/redis.config";
 import { processInstagramWebhook } from "@/services/webhook/instagram-processor.service";
 import { logWebhook } from "@/services/webhook/webhook-logger.service";
-
-const connection = getRedisConnection();
 
 // Create multiple workers for concurrency
 export const createWebhookWorkers = (count: number = 5) => {
   const workers: Worker[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const worker = new Worker(
-      "webhook-processing",
-      async (job: Job) => {
-        const { type, payload, webhookId, receivedAt } = job.data;
-
-        console.log(`🔄 [Worker ${i}] Processing ${webhookId}...`);
-
-        try {
-          let result;
-
-          if (type === "instagram") {
-            result = await processInstagramWebhook(payload);
-          } else {
-            throw new Error(`Unknown webhook type: ${type}`);
-          }
-
-          // Log success
-          await logWebhook({
-            webhookId,
-            type,
-            status: "success",
-            processingTime: Date.now() - new Date(receivedAt).getTime(),
-            result,
-          });
-
-          return result;
-        } catch (error) {
-          console.error(`❌ [Worker ${i}] Failed ${webhookId}:`, error);
-
-          await logWebhook({
-            webhookId,
-            type,
-            status: "failed",
-            processingTime: Date.now() - new Date(receivedAt).getTime(),
-            error: error instanceof Error ? error.message : "Unknown",
-          });
-
-          throw error; // Triggers retry
-        }
-      },
-      {
-        connection,
-        concurrency: 20, // Each worker handles 20 jobs concurrently
-        limiter: {
-          max: 200, // Max 200 jobs per second per worker
-          duration: 1000,
-        },
-      },
+  const connection = redisHelpers.getBullMQConnection();
+  if (!connection) {
+    console.log(
+      "⚠️ BullMQ connection not available - skipping worker creation",
     );
-
-    worker.on("completed", (job) => {
-      console.log(`✅ [Worker ${i}] Completed ${job.data.webhookId}`);
-    });
-
-    worker.on("failed", (job, err) => {
-      console.error(`❌ [Worker ${i}] Failed ${job?.data?.webhookId}:`, err);
-    });
-
-    worker.on("error", (err) => {
-      console.error(`❌ [Worker ${i}] Error:`, err);
-    });
-
-    workers.push(worker);
+    return [];
   }
+  try {
+    for (let i = 0; i < count; i++) {
+      const worker = new Worker(
+        "webhook-processing",
+        async (job: Job) => {
+          const { type, payload, webhookId, receivedAt } = job.data;
 
-  return workers;
+          console.log(`🔄 [Worker ${i}] Processing ${webhookId}...`);
+
+          try {
+            let result;
+
+            if (type === "instagram") {
+              result = await processInstagramWebhook(payload);
+            } else {
+              throw new Error(`Unknown webhook type: ${type}`);
+            }
+
+            // Log success
+            await logWebhook({
+              webhookId,
+              type,
+              status: "success",
+              processingTime: Date.now() - new Date(receivedAt).getTime(),
+              result,
+            });
+
+            return result;
+          } catch (error) {
+            console.error(`❌ [Worker ${i}] Failed ${webhookId}:`, error);
+
+            await logWebhook({
+              webhookId,
+              type,
+              status: "failed",
+              processingTime: Date.now() - new Date(receivedAt).getTime(),
+              error: error instanceof Error ? error.message : "Unknown",
+            });
+
+            throw error; // Triggers retry
+          }
+        },
+        {
+          connection,
+          concurrency: 20, // Each worker handles 20 jobs concurrently
+          limiter: {
+            max: 200, // Max 200 jobs per second per worker
+            duration: 1000,
+          },
+        },
+      );
+
+      worker.on("completed", (job) => {
+        console.log(`✅ [Worker ${i}] Completed ${job.data.webhookId}`);
+      });
+
+      worker.on("failed", (job, err) => {
+        console.error(`❌ [Worker ${i}] Failed ${job?.data?.webhookId}:`, err);
+      });
+
+      worker.on("error", (err) => {
+        console.error(`❌ [Worker ${i}] Error:`, err);
+      });
+
+      workers.push(worker);
+    }
+
+    return workers;
+  } catch (error: any) {
+    console.error("❌ Failed to create webhook workers:", error.message);
+    return [];
+  }
 };
 
 // Create a queue for webhook processing (non-BullMQ fallback)

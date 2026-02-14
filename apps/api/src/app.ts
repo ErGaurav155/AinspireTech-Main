@@ -63,7 +63,6 @@ app.use(
       "X-Requested-With",
       "Accept",
       "Origin",
-      "Cookie", // Add Cookie header
     ],
   }),
 );
@@ -76,13 +75,7 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ========== CLERK MIDDLEWARE ==========
-app.use(
-  clerkMiddleware({
-    // Make sure this matches your Clerk dashboard
-    publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-    secretKey: process.env.CLERK_SECRET_KEY,
-  }),
-);
+app.use(clerkMiddleware());
 /* ========== ROUTES ========== */
 app.get("/favicon.ico", (req, res) => {
   res.status(204).end(); // No content
@@ -121,10 +114,10 @@ app.get("/health", async (req, res) => {
   const redisHealth = req.redis?.status === "ready";
 
   // Check current window
-  // const { getCurrentWindow, isAppLimitReached } =
-  //   await import("@/services/rate-limit.service");
-  // const window = getCurrentWindow();
-  // const appLimit = await isAppLimitReached();
+  const { getCurrentWindow, isAppLimitReached } =
+    await import("@/services/rate-limit.service");
+  const window = getCurrentWindow();
+  const appLimit = await isAppLimitReached();
 
   const health = {
     status: dbHealth && redisHealth ? "healthy" : "degraded",
@@ -135,12 +128,12 @@ app.get("/health", async (req, res) => {
       redis: redisHealth,
       clerk: !!process.env.CLERK_SECRET_KEY,
     },
-    // rateLimits: {
-    //   currentWindow: window.label,
-    //   appCalls: appLimit.current,
-    //   appLimit: appLimit.limit,
-    //   percentage: appLimit.percentage.toFixed(1),
-    // },
+    rateLimits: {
+      currentWindow: window.label,
+      appCalls: appLimit.current,
+      appLimit: appLimit.limit,
+      percentage: appLimit.percentage.toFixed(1),
+    },
   };
 
   res.status(dbHealth && redisHealth ? 200 : 503).json(health);

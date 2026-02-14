@@ -3,190 +3,317 @@ import { loadEnvironment } from "./env.config";
 loadEnvironment();
 
 let redisClient: RedisClientType | null = null;
-let isConnected = false;
+let isRedisEnabled = true; // Flag to track if Redis should be used
 
-export const getRedisClient = (): RedisClientType => {
+// Parse Redis URL safely
+const getRedisConfig = () => {
+  const redisUrl = process.env.REDIS_URL;
+
+  if (!redisUrl) {
+    console.log("⚠️ REDIS_URL not set - running without Redis");
+    isRedisEnabled = false;
+    return null;
+  }
+
+  try {
+    const url = new URL(redisUrl);
+    return {
+      url: redisUrl,
+      host: url.hostname,
+      port: parseInt(url.port || "6379"),
+      username: url.username || undefined,
+      password: url.password || undefined,
+      tls: redisUrl.startsWith("rediss://") ? {} : undefined,
+    };
+  } catch (error: any) {
+    console.error("❌ Invalid REDIS_URL format:", error.message);
+    isRedisEnabled = false;
+    return null;
+  }
+};
+
+// Create Redis client safely - NEVER THROWS
+export const getRedisClient = (): RedisClientType | null => {
+  if (!isRedisEnabled) return null;
+
   if (redisClient?.isOpen) {
     return redisClient;
   }
 
-  const redisUrl = process.env.REDIS_URL;
-
-  if (!redisUrl) {
-    console.error("❌ REDIS_URL is not set in environment variables");
-    console.error("Please add REDIS_URL to your .env.local file");
-    throw new Error("REDIS_URL environment variable is required");
+  const config = getRedisConfig();
+  if (!config) {
+    isRedisEnabled = false;
+    return null;
   }
 
-  console.log(
-    `🔌 Creating Redis client for: ${redisUrl.split("@")[1] || redisUrl}`,
-  );
+  try {
+    console.log(`🔌 Creating Redis client for: ${config.host}`);
 
-  redisClient = createClient({
-    url: redisUrl,
-    socket: {
-      tls: redisUrl.startsWith("rediss://"), // Enable TLS for Upstash
-      rejectUnauthorized: false,
-      reconnectStrategy: (retries) => {
-        if (retries > 5) {
-          console.error("Max Redis reconnection attempts reached");
-          return false;
-        }
-        return Math.min(retries * 100, 3000);
+    redisClient = createClient({
+      url: config.url,
+      socket: {
+        tls: !!config.tls,
+        rejectUnauthorized: false,
+        reconnectStrategy: (retries) => {
+          // Don't retry forever - after 3 retries, disable Redis
+          if (retries > 3) {
+            console.error(
+              "❌ Max Redis reconnection attempts reached - disabling Redis",
+            );
+            isRedisEnabled = false;
+            return false; // Stop reconnecting
+          }
+          return Math.min(retries * 100, 1000);
+        },
+        connectTimeout: 5000, // 5 second timeout
       },
-    },
-  });
+    });
 
-  redisClient.on("error", (err) => {
-    console.error("❌ Redis client error:", err.message);
-    isConnected = false;
-  });
+    // Handle errors without crashing
+    redisClient.on("error", (err) => {
+      console.error("⚠️ Redis client error (non-fatal):", err.message);
+      isRedisEnabled = false; // Disable Redis on error
+    });
 
-  redisClient.on("connect", () => {
-    console.log("🔌 Redis connecting...");
-  });
+    redisClient.on("end", () => {
+      console.log("🔌 Redis connection closed");
+      isRedisEnabled = false;
+    });
 
-  redisClient.on("ready", () => {
-    console.log("✅ Redis connected and ready");
-    isConnected = true;
-  });
-
-  redisClient.on("end", () => {
-    console.log("🔌 Redis connection closed");
-    isConnected = false;
-  });
-
-  redisClient.on("reconnecting", () => {
-    console.log("🔄 Redis reconnecting...");
-  });
-
-  return redisClient;
+    return redisClient;
+  } catch (error: any) {
+    console.error("❌ Failed to create Redis client:", error.message);
+    isRedisEnabled = false;
+    redisClient = null;
+    return null;
+  }
 };
 
-export const connectToRedis = async (): Promise<void> => {
-  try {
-    const client = getRedisClient();
+// Safe connection - NEVER THROWS
+export const connectToRedis = async (): Promise<boolean> => {
+  if (!isRedisEnabled) {
+    console.log("⚠️ Redis is disabled - skipping connection");
+    return false;
+  }
 
+  const client = getRedisClient();
+  if (!client) {
+    isRedisEnabled = false;
+    return false;
+  }
+
+  try {
     if (!client.isOpen) {
       await client.connect();
-      console.log("✅ Redis connection established");
     }
 
-    // Test connection
-    const pingResult = await client.ping();
-    console.log(`✅ Redis ping: ${pingResult}`);
+    // Test connection with timeout
+    const pingPromise = client.ping();
+    const timeoutPromise = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error("Redis ping timeout")), 3000),
+    );
+
+    const pingResult = await Promise.race([pingPromise, timeoutPromise]);
+
+    if (pingResult === "PONG") {
+      console.log("✅ Redis connected successfully");
+      isRedisEnabled = true;
+      return true;
+    } else {
+      throw new Error("Invalid ping response");
+    }
   } catch (error: any) {
-    console.error("❌ Failed to connect to Redis:", error.message);
-    throw error;
+    console.error(
+      "⚠️ Redis connection failed (continuing without Redis):",
+      error.message,
+    );
+    isRedisEnabled = false;
+    redisClient = null;
+    return false;
   }
 };
 
-// BullMQ connection configuration - returns proper connection object
-export const getRedisConnection = () => {
-  const redisUrl = process.env.REDIS_URL;
-
-  if (!redisUrl) {
-    throw new Error("REDIS_URL is required for BullMQ");
-  }
-
-  // Parse the URL for BullMQ
-  const url = new URL(redisUrl);
-
-  return {
-    host: url.hostname,
-    port: parseInt(url.port || "6379"),
-    username: url.username || undefined,
-    password: url.password || undefined,
-    tls: redisUrl.startsWith("rediss://") ? {} : undefined,
-    maxRetriesPerRequest: null, // Important for BullMQ
-    enableReadyCheck: false,
-  };
-};
-
-// Helper functions for rate-limit service
+// Safe Redis helpers - NEVER THROW, always return null/default on failure
 export const redisHelpers = {
   get: async (key: string): Promise<string | null> => {
-    const client = getRedisClient();
-    return client.get(key);
+    if (!isRedisEnabled) return null;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return null;
+      return await client.get(key);
+    } catch (error: any) {
+      console.debug("Redis get error (non-fatal):", error.message);
+      return null;
+    }
   },
 
   set: async (
     key: string,
     value: string,
     expireSeconds?: number,
-  ): Promise<string | null> => {
-    const client = getRedisClient();
-    if (expireSeconds) {
-      return client.setEx(key, expireSeconds, value);
+  ): Promise<boolean> => {
+    if (!isRedisEnabled) return false;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return false;
+
+      if (expireSeconds) {
+        await client.setEx(key, expireSeconds, value);
+      } else {
+        await client.set(key, value);
+      }
+      return true;
+    } catch (error: any) {
+      console.debug("Redis set error (non-fatal):", error.message);
+      return false;
     }
-    return client.set(key, value);
   },
 
   incr: async (key: string): Promise<number> => {
-    const client = getRedisClient();
-    return client.incr(key);
+    if (!isRedisEnabled) return 0;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return 0;
+      return await client.incr(key);
+    } catch (error: any) {
+      console.debug("Redis incr error (non-fatal):", error.message);
+      return 0;
+    }
   },
 
   incrBy: async (key: string, increment: number): Promise<number> => {
-    const client = getRedisClient();
-    return client.incrBy(key, increment);
+    if (!isRedisEnabled) return 0;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return 0;
+      return await client.incrBy(key, increment);
+    } catch (error: any) {
+      console.debug("Redis incrBy error (non-fatal):", error.message);
+      return 0;
+    }
   },
 
   rpop: async (key: string): Promise<string | null> => {
-    const client = getRedisClient();
-    return client.rPop(key);
+    if (!isRedisEnabled) return null;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return null;
+      return await client.rPop(key);
+    } catch (error: any) {
+      console.debug("Redis rpop error (non-fatal):", error.message);
+      return null;
+    }
   },
 
   lpush: async (key: string, value: string): Promise<number> => {
-    const client = getRedisClient();
-    return client.lPush(key, value);
-  },
+    if (!isRedisEnabled) return 0;
 
-  llen: async (key: string): Promise<number> => {
-    const client = getRedisClient();
-    return client.lLen(key);
-  },
-
-  expire: async (key: string, seconds: number): Promise<boolean> => {
-    const client = getRedisClient();
-    return client.expire(key, seconds);
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return 0;
+      return await client.lPush(key, value);
+    } catch (error: any) {
+      console.debug("Redis lpush error (non-fatal):", error.message);
+      return 0;
+    }
   },
 
   del: async (...keys: string[]): Promise<number> => {
-    const client = getRedisClient();
-    return client.del(keys);
+    if (!isRedisEnabled) return 0;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return 0;
+      return await client.del(keys);
+    } catch (error: any) {
+      console.debug("Redis del error (non-fatal):", error.message);
+      return 0;
+    }
+  },
+  llen: async (key: string): Promise<number> => {
+    if (!isRedisEnabled) return 0;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return 0;
+      return await client.lLen(key);
+    } catch (error: any) {
+      console.debug("Redis del error (non-fatal):", error.message);
+      return 0;
+    }
+  },
+
+  expire: async (key: string, seconds: number): Promise<boolean> => {
+    if (!isRedisEnabled) return false;
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return false;
+
+      return await client.expire(key, seconds);
+    } catch (error: any) {
+      console.debug("Redis set error (non-fatal):", error.message);
+      return false;
+    }
   },
 
   keys: async (pattern: string): Promise<string[]> => {
-    const client = getRedisClient();
-    return client.keys(pattern);
+    if (!isRedisEnabled) return [];
+
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return [];
+      return await client.keys(pattern);
+    } catch (error: any) {
+      console.debug("Redis rpop error (non-fatal):", error.message);
+      return [];
+    }
   },
 
   setex: async (
     key: string,
     seconds: number,
     value: string,
-  ): Promise<string> => {
-    const client = getRedisClient();
-    return client.setEx(key, seconds, value);
-  },
-};
+  ): Promise<string | null> => {
+    if (!isRedisEnabled) return null;
 
-export const checkRedisHealth = async (): Promise<boolean> => {
-  try {
-    const client = getRedisClient();
-    const result = await client.ping();
-    return result === "PONG";
-  } catch (error) {
-    console.error("Redis health check failed:", error);
-    return false;
-  }
+    try {
+      const client = getRedisClient();
+      if (!client?.isOpen) return null;
+      return await client.setEx(key, seconds, value);
+    } catch (error: any) {
+      console.debug("Redis rpop error (non-fatal):", error.message);
+      return null;
+    }
+  },
+  // BullMQ connection config - returns null if Redis disabled
+  getBullMQConnection: () => {
+    if (!isRedisEnabled) return null;
+
+    const config = getRedisConfig();
+    if (!config) return null;
+
+    return {
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      tls: config.tls,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
+    };
+  },
 };
 
 export const disconnectFromRedis = async (): Promise<void> => {
   if (redisClient?.isOpen) {
     await redisClient.quit();
     console.log("🔌 Redis disconnected");
-    isConnected = false;
+    isRedisEnabled = false;
   }
 };

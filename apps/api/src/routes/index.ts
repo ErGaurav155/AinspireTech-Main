@@ -16,11 +16,7 @@ import miscRoutes from "@/routes/misc";
 
 const router = Router();
 
-// // Handle OPTIONS requests for all routes
-router.options("*", (req, res) => {
-  res.status(200).end();
-});
-// // Register all routes
+// Register all routes
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
 router.use("/cron", cronRoutes);

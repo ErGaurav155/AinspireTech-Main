@@ -144,7 +144,6 @@ export const apiRequest = async <T = any>(
       ...options,
       headers,
       credentials: "include",
-      mode: "cors", // Explicitly set CORS mode
     });
     if (!response.ok) {
       const errorText = await response.text();
