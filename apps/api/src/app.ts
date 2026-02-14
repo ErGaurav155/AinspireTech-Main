@@ -47,9 +47,10 @@ app.use("/api", limiter);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
   "https://app.rocketreplai.com",
-  "https://rocketreplai.com",
+  "https://www.rocketreplai.com",
   "https://*.clerk.accounts.dev",
 ];
+console.log("🔧 Allowed origins:", allowedOrigins);
 
 app.use(
   cors({

@@ -16,52 +16,15 @@ import miscRoutes from "@/routes/misc";
 
 const router = Router();
 
-// Handle OPTIONS requests for all routes
+// // Handle OPTIONS requests for all routes
 router.options("*", (req, res) => {
   res.status(200).end();
 });
-// Register all routes
+// // Register all routes
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
 router.use("/cron", cronRoutes);
-// CORS
-router.use(
-  "/embed",
-  (req, res, next) => {
-    // Set CORS headers for embed routes
-    const origin = req.headers.origin;
-
-    // Allow specific origins for appointments
-    if (req.path.includes("/appointments")) {
-      const allowedOrigins = [
-        "http://localhost:3000",
-        "https://app.rocketreplai.com",
-      ];
-      if (origin && allowedOrigins.includes(origin)) {
-        res.setHeader("Access-Control-Allow-Origin", origin);
-      }
-    } else {
-      // Allow all for other embed routes
-      res.setHeader("Access-Control-Allow-Origin", "*");
-    }
-
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, x-api-key, Authorization",
-    );
-    res.setHeader("Access-Control-Allow-Credentials", "false");
-
-    // Handle preflight
-    if (req.method === "OPTIONS") {
-      return res.status(200).end();
-    }
-
-    next();
-  },
-  embedRoutes,
-);
-
+router.use("/embed", embedRoutes);
 router.use("/health", healthRoutes);
 router.use("/insta", instaRoutes);
 router.use("/rate-limit", rateLimitRoutes);
