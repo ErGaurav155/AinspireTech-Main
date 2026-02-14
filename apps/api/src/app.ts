@@ -121,10 +121,10 @@ app.get("/health", async (req, res) => {
   const redisHealth = req.redis?.status === "ready";
 
   // Check current window
-  const { getCurrentWindow, isAppLimitReached } =
-    await import("@/services/rate-limit.service");
-  const window = getCurrentWindow();
-  const appLimit = await isAppLimitReached();
+  // const { getCurrentWindow, isAppLimitReached } =
+  //   await import("@/services/rate-limit.service");
+  // const window = getCurrentWindow();
+  // const appLimit = await isAppLimitReached();
 
   const health = {
     status: dbHealth && redisHealth ? "healthy" : "degraded",
@@ -135,12 +135,12 @@ app.get("/health", async (req, res) => {
       redis: redisHealth,
       clerk: !!process.env.CLERK_SECRET_KEY,
     },
-    rateLimits: {
-      currentWindow: window.label,
-      appCalls: appLimit.current,
-      appLimit: appLimit.limit,
-      percentage: appLimit.percentage.toFixed(1),
-    },
+    // rateLimits: {
+    //   currentWindow: window.label,
+    //   appCalls: appLimit.current,
+    //   appLimit: appLimit.limit,
+    //   percentage: appLimit.percentage.toFixed(1),
+    // },
   };
 
   res.status(dbHealth && redisHealth ? 200 : 503).json(health);

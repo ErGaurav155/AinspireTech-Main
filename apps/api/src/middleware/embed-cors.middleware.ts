@@ -10,7 +10,7 @@ export const embedCors = (req: Request, res: Response, next: NextFunction) => {
     // For appointment endpoint, allow localhost:3000 and your production domain
     const allowedOrigins = [
       "http://localhost:3000",
-      "https://app.rocketreplai.com",
+      "https://www.rocketreplai.com",
     ];
 
     if (allowedOrigins.includes(origin)) {
