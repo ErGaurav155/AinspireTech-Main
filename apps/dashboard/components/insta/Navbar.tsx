@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Menu, X, Zap } from "lucide-react";
 import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
 import Image from "next/image";
-import Logo from "@rocketreplai/public/assets/img/logo.png";
+import Logo from "public/assets/img/logo.png";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
 import { Button } from "@rocketreplai/ui/components/radix/button";

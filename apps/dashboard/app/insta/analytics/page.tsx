@@ -25,7 +25,7 @@ import {
 import Image from "next/image";
 import { AnalyticsDashboard } from "@/components/insta/Analytics-dashboard";
 import { useAuth } from "@clerk/nextjs";
-import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
+import defaultImg from "public/assets/img/default-img.jpg";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";

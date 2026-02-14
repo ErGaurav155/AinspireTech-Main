@@ -1,9 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import instadash from "@rocketreplai/public/assets/Feature/instadash.png";
-import instatemp from "@rocketreplai/public/assets/Feature/instatemp.png";
-import instalogin from "@rocketreplai/public/assets/Feature/lnstalogin.png";
+import instadash from "public/assets/Feature/instadash.png";
+import instatemp from "public/assets/Feature/instatemp.png";
+import instalogin from "public/assets/Feature/lnstalogin.png";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";

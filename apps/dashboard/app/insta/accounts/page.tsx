@@ -4,7 +4,7 @@ import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
-import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
+import defaultImg from "public/assets/img/default-img.jpg";
 
 import {
   Card,

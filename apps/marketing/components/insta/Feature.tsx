@@ -12,10 +12,10 @@ import {
   Instagram,
 } from "lucide-react";
 import Image from "next/image";
-import featureImg from "@rocketreplai/public/assets/img/featureImg4.png";
-import featureImg2 from "@rocketreplai/public/assets/img/featureImg2.png";
-import featureImg3 from "@rocketreplai/public/assets/img/headingimg.png";
-import featureImg4 from "@rocketreplai/public/assets/img/featureImg1.png";
+import featureImg from "public/assets/img/featureImg4.png";
+import featureImg2 from "public/assets/img/featureImg2.png";
+import featureImg3 from "public/assets/img/headingimg.png";
+import featureImg4 from "public/assets/img/featureImg1.png";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
 

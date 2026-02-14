@@ -36,7 +36,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-import defaultImg from "@rocketreplai/public/assets/img/default-img.jpg";
+import defaultImg from "public/assets/img/default-img.jpg";
 
 import Link from "next/link";
 import Image from "next/image";

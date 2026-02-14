@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useEffect, useMemo, useState } from "react";
-import Logo from "@rocketreplai/public/assets/img/logo.png";
+import Logo from "public/assets/img/logo.png";
 
 export function Footer() {
   const { theme, resolvedTheme } = useTheme();

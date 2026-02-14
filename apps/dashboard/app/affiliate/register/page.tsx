@@ -4,7 +4,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
-import Logo from "@rocketreplai/public/assets/img/logo.png";
+import Logo from "public/assets/img/logo.png";
 import {
   ChevronRight,
   Check,

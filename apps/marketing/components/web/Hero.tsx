@@ -12,8 +12,8 @@ import {
   ArrowRight,
 } from "lucide-react";
 import Image from "next/image";
-import Rimg1 from "@rocketreplai/public/assets/img/chatbot.png";
-import Rimg2 from "@rocketreplai/public/assets/img/headingimg.png";
+import Rimg1 from "public/assets/img/chatbot.png";
+import Rimg2 from "public/assets/img/headingimg.png";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 

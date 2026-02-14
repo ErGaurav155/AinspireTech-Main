@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import Logo from "@rocketreplai/public/assets/img/logo.png";
+import Logo from "public/assets/img/logo.png";
 import { useTheme } from "next-themes";
 import { useAuth } from "@clerk/nextjs";
 

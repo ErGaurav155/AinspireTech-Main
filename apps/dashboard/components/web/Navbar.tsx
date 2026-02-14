@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import Logo from "@rocketreplai/public/assets/img/logo.png";
+import Logo from "public/assets/img/logo.png";
 import { useTheme } from "next-themes";
 
 import { Instagram, Menu, Network, X, Zap } from "lucide-react";

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import cup from "@rocketreplai/public/assets/img/pricecup.png";
+import cup from "public/assets/img/pricecup.png";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { features } from "@rocketreplai/shared";
