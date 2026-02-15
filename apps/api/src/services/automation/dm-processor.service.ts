@@ -2,12 +2,16 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
-import { recordCall } from "@/services/rate-limit.service";
 import {
   sendInstagramDM,
   checkFollowStatus,
 } from "@/services/meta-api/meta-api.service";
 
+/**
+ * Handle postback automation - fire and forget
+ * NO rate limiting, NO queueing, NO retries
+ * These are responses to user actions, not incoming webhooks
+ */
 export async function handlePostbackAutomation(
   accountId: string,
   clerkId: string,
@@ -18,8 +22,6 @@ export async function handlePostbackAutomation(
   success: boolean;
   message: string;
   nextStage?: string;
-  queued?: boolean;
-  queueId?: string;
 }> {
   const startTime = Date.now();
 
@@ -76,7 +78,7 @@ export async function handlePostbackAutomation(
     const templateSettings =
       template.settingsByTier[userTier] || template.settingsByTier.free;
 
-    // Handle different actions
+    // Handle different actions - all fire and forget
     switch (action) {
       case "get_access":
         return await handleGetAccess(
@@ -128,6 +130,10 @@ export async function handlePostbackAutomation(
   }
 }
 
+/**
+ * Handle get access - free users get direct link
+ * Fire and forget - no rate limiting
+ */
 async function handleGetAccess(
   account: any,
   clerkId: string,
@@ -140,39 +146,7 @@ async function handleGetAccess(
   success: boolean;
   message: string;
   nextStage?: string;
-  queued?: boolean;
-  queueId?: string;
 }> {
-  // Free users get direct access
-  const rateLimitResult = await recordCall(
-    clerkId,
-    account.instagramId,
-    "dm_final_link",
-    1,
-    {
-      recipientId,
-      templateId: template._id,
-      stage: "final_link",
-      followRequired: false,
-      isFollowCheck: false,
-    },
-  );
-
-  if (!rateLimitResult.success) {
-    if (rateLimitResult.queued) {
-      return {
-        success: false,
-        queued: true,
-        queueId: rateLimitResult.queueId,
-        message: "Rate limited, queued for processing",
-      };
-    }
-    return {
-      success: false,
-      message: rateLimitResult.reason || "Rate limit check failed",
-    };
-  }
-
   try {
     // Select random content for final link
     const randomIndex = Math.floor(Math.random() * template.content.length);
@@ -182,7 +156,7 @@ async function handleGetAccess(
       buttonTitle = "Get Access",
     } = template.content[randomIndex];
 
-    // Send final link DM
+    // Send final link DM - fire and forget
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -217,7 +191,11 @@ async function handleGetAccess(
       accountId: account.instagramId,
       templateId: template._id.toString(),
       templateName: template.name,
+      commentId: `postback_${Date.now()}`,
+      commentText: "Postback action",
+      commenterUsername: "unknown",
       commenterUserId: recipientId,
+      mediaId: template.mediaId,
       dmFlowStage: "final_link",
       linkSent: dmSuccess,
       success: dmSuccess,
@@ -240,6 +218,10 @@ async function handleGetAccess(
   }
 }
 
+/**
+ * Handle check follow - pro users verify follow status
+ * Fire and forget - no rate limiting
+ */
 async function handleCheckFollow(
   account: any,
   clerkId: string,
@@ -252,41 +234,9 @@ async function handleCheckFollow(
   success: boolean;
   message: string;
   nextStage?: string;
-  queued?: boolean;
-  queueId?: string;
 }> {
-  // Check follow status
-  const rateLimitResult = await recordCall(
-    clerkId,
-    account.instagramId,
-    "dm_follow_check",
-    1,
-    {
-      recipientId,
-      templateId: template._id,
-      stage: "follow_check",
-      followRequired: template.isFollow,
-      isFollowCheck: true,
-    },
-  );
-
-  if (!rateLimitResult.success) {
-    if (rateLimitResult.queued) {
-      return {
-        success: false,
-        queued: true,
-        queueId: rateLimitResult.queueId,
-        message: "Rate limited, queued for processing",
-      };
-    }
-    return {
-      success: false,
-      message: rateLimitResult.reason || "Rate limit check failed",
-    };
-  }
-
   try {
-    // Check follow status via API
+    // Check follow status via API - fire and forget
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -296,38 +246,7 @@ async function handleCheckFollow(
     const userFollows = followStatus.is_user_follow_business === true;
 
     if (userFollows) {
-      // User follows - send final link
-      const finalResult = await recordCall(
-        clerkId,
-        account.instagramId,
-        "dm_final_link",
-        1,
-        {
-          recipientId,
-          templateId: template._id,
-          stage: "final_link",
-          followRequired: false,
-          isFollowCheck: false,
-        },
-      );
-
-      if (!finalResult.success) {
-        if (finalResult.queued) {
-          return {
-            success: false,
-            queued: true,
-            queueId: finalResult.queueId,
-            message: "Rate limited for final link",
-          };
-        }
-        return {
-          success: false,
-          message:
-            finalResult.reason || "Rate limit check failed for final link",
-        };
-      }
-
-      // Select random content for final link
+      // User follows - send final link immediately
       const randomIndex = Math.floor(Math.random() * template.content.length);
       const {
         text,
@@ -370,7 +289,11 @@ async function handleCheckFollow(
         accountId: account.instagramId,
         templateId: template._id.toString(),
         templateName: template.name,
+        commentId: `follow_check_${Date.now()}`,
+        commentText: "Follow check action",
+        commenterUsername: "unknown",
         commenterUserId: recipientId,
+        mediaId: template.mediaId,
         dmFlowStage: "final_link",
         followChecked: true,
         userFollows: true,
@@ -386,36 +309,6 @@ async function handleCheckFollow(
       };
     } else {
       // User doesn't follow - send follow reminder
-      const reminderResult = await recordCall(
-        clerkId,
-        account.instagramId,
-        "dm_follow_check",
-        1,
-        {
-          recipientId,
-          templateId: template._id,
-          stage: "follow_reminder",
-          followRequired: true,
-          isFollowCheck: true,
-        },
-      );
-
-      if (!reminderResult.success) {
-        if (reminderResult.queued) {
-          return {
-            success: false,
-            queued: true,
-            queueId: reminderResult.queueId,
-            message: "Rate limited for reminder",
-          };
-        }
-        return {
-          success: false,
-          message:
-            reminderResult.reason || "Rate limit check failed for reminder",
-        };
-      }
-
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -456,7 +349,11 @@ async function handleCheckFollow(
         accountId: account.instagramId,
         templateId: template._id.toString(),
         templateName: template.name,
+        commentId: `follow_reminder_${Date.now()}`,
+        commentText: "Follow reminder action",
+        commenterUsername: "unknown",
         commenterUserId: recipientId,
+        mediaId: template.mediaId,
         dmFlowStage: "follow_reminder",
         followChecked: true,
         userFollows: false,
@@ -480,6 +377,10 @@ async function handleCheckFollow(
   }
 }
 
+/**
+ * Handle verify follow - user claims they're following
+ * Fire and forget - no rate limiting
+ */
 async function handleVerifyFollow(
   account: any,
   clerkId: string,
@@ -492,41 +393,9 @@ async function handleVerifyFollow(
   success: boolean;
   message: string;
   nextStage?: string;
-  queued?: boolean;
-  queueId?: string;
 }> {
-  // Verify follow status again
-  const rateLimitResult = await recordCall(
-    clerkId,
-    account.instagramId,
-    "follow_verification",
-    1,
-    {
-      recipientId,
-      templateId: template._id,
-      stage: "follow_verification",
-      followRequired: true,
-      isFollowCheck: true,
-    },
-  );
-
-  if (!rateLimitResult.success) {
-    if (rateLimitResult.queued) {
-      return {
-        success: false,
-        queued: true,
-        queueId: rateLimitResult.queueId,
-        message: "Rate limited, queued for processing",
-      };
-    }
-    return {
-      success: false,
-      message: rateLimitResult.reason || "Rate limit check failed",
-    };
-  }
-
   try {
-    // Check follow status again
+    // Check follow status again - fire and forget
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -537,37 +406,6 @@ async function handleVerifyFollow(
 
     if (userFollows) {
       // User now follows - send final link
-      const finalResult = await recordCall(
-        clerkId,
-        account.instagramId,
-        "dm_final_link",
-        1,
-        {
-          recipientId,
-          templateId: template._id,
-          stage: "final_link",
-          followRequired: false,
-          isFollowCheck: false,
-        },
-      );
-
-      if (!finalResult.success) {
-        if (finalResult.queued) {
-          return {
-            success: false,
-            queued: true,
-            queueId: finalResult.queueId,
-            message: "Rate limited for final link",
-          };
-        }
-        return {
-          success: false,
-          message:
-            finalResult.reason || "Rate limit check failed for final link",
-        };
-      }
-
-      // Select random content for final link
       const randomIndex = Math.floor(Math.random() * template.content.length);
       const {
         text,
@@ -610,7 +448,11 @@ async function handleVerifyFollow(
         accountId: account.instagramId,
         templateId: template._id.toString(),
         templateName: template.name,
+        commentId: `verify_follow_${Date.now()}`,
+        commentText: "Verify follow action",
+        commenterUsername: "unknown",
         commenterUserId: recipientId,
+        mediaId: template.mediaId,
         dmFlowStage: "final_link",
         followChecked: true,
         userFollows: true,
@@ -628,35 +470,6 @@ async function handleVerifyFollow(
       };
     } else {
       // Still not following - send another reminder
-      const reminderResult = await recordCall(
-        clerkId,
-        account.instagramId,
-        "dm_follow_check",
-        1,
-        {
-          recipientId,
-          templateId: template._id,
-          stage: "follow_reminder_retry",
-          followRequired: true,
-          isFollowCheck: true,
-        },
-      );
-
-      if (!reminderResult.success) {
-        if (reminderResult.queued) {
-          return {
-            success: false,
-            queued: true,
-            queueId: reminderResult.queueId,
-            message: "Rate limited for retry",
-          };
-        }
-        return {
-          success: false,
-          message: reminderResult.reason || "Rate limit check failed for retry",
-        };
-      }
-
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -697,7 +510,11 @@ async function handleVerifyFollow(
         accountId: account.instagramId,
         templateId: template._id.toString(),
         templateName: template.name,
+        commentId: `verify_retry_${Date.now()}`,
+        commentText: "Verify follow retry action",
+        commenterUsername: "unknown",
         commenterUserId: recipientId,
+        mediaId: template.mediaId,
         dmFlowStage: "follow_reminder",
         followChecked: true,
         userFollows: false,

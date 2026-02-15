@@ -2,7 +2,6 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
-import { recordCall } from "@/services/rate-limit.service";
 import {
   sendInstagramCommentReply,
   sendInstagramDM,
@@ -19,6 +18,11 @@ interface InstagramComment {
   media_url?: string;
 }
 
+/**
+ * Process comment automation - Fire and forget approach
+ * NO rate limiting, NO queueing, NO retries
+ * Just attempt to send and log the result
+ */
 export async function processCommentAutomation(
   accountId: string,
   clerkId: string,
@@ -28,8 +32,6 @@ export async function processCommentAutomation(
   success: boolean;
   message: string;
   logId?: string;
-  queued?: boolean;
-  queueId?: string;
 }> {
   const startTime = Date.now();
 
@@ -107,63 +109,7 @@ export async function processCommentAutomation(
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
-    // Determine calls needed based on user tier and template settings
-    const templateSettings =
-      matchingTemplate.settingsByTier[userTier] ||
-      matchingTemplate.settingsByTier.free;
-
-    // Calculate calls needed
-    let metaCallsNeeded = 1; // For comment reply
-    let isFollowCheck = false;
-
-    if (userTier === "free") {
-      if (templateSettings.directLink) {
-        metaCallsNeeded += 1; // For direct link DM
-      } else if (!templateSettings.skipFollowCheck) {
-        metaCallsNeeded += 2; // For DM and follow check
-        isFollowCheck = true;
-      }
-    } else {
-      // Pro users
-      metaCallsNeeded += 1; // For initial DM
-      if (matchingTemplate.isFollow && templateSettings.requireFollow) {
-        metaCallsNeeded += 1; // For follow check
-        isFollowCheck = true;
-      }
-    }
-
-    // Record call with rate limiting
-    const rateLimitResult = await recordCall(
-      clerkId,
-      account.instagramId,
-      "comment_reply",
-      metaCallsNeeded,
-      {
-        commentId: comment.id,
-        commenterId: comment.user_id,
-        templateId: matchingTemplate._id,
-        stage: "initial",
-        followRequired: matchingTemplate.isFollow,
-        isFollowCheck,
-      },
-    );
-
-    if (!rateLimitResult.success) {
-      if (rateLimitResult.queued) {
-        return {
-          success: false,
-          queued: true,
-          queueId: rateLimitResult.queueId,
-          message: `Rate limited: ${rateLimitResult.reason}`,
-        };
-      }
-      return {
-        success: false,
-        message: rateLimitResult.reason || "Rate limit check failed",
-      };
-    }
-
-    // Process comment reply
+    // Process comment reply - fire and forget
     let commentReplySuccess = false;
     let commentReplyText = "";
 
@@ -174,7 +120,7 @@ export async function processCommentAutomation(
       );
       commentReplyText = matchingTemplate.reply[randomIndex];
 
-      // Send comment reply via Meta API
+      // Send comment reply via Meta API - NO rate limit check, just send
       commentReplySuccess = await sendInstagramCommentReply(
         account.instagramId,
         account.accessToken,
@@ -187,7 +133,7 @@ export async function processCommentAutomation(
       commentReplySuccess = false;
     }
 
-    // Process DM flow
+    // Process DM flow - fire and forget
     const dmResult = await processDMFlow(
       account,
       clerkId,
@@ -245,8 +191,7 @@ export async function processCommentAutomation(
         !commentReplySuccess && !dmResult.success
           ? "Failed to process comment"
           : undefined,
-      wasQueued: rateLimitResult.queued || false,
-      queueId: rateLimitResult.queueId,
+      wasQueued: false, // Never queued
       createdAt: new Date(),
     });
 
@@ -313,6 +258,9 @@ async function findMatchingTemplate(commentText: string, templates: any[]) {
   return null;
 }
 
+/**
+ * Process DM flow - fire and forget, no rate limiting
+ */
 async function processDMFlow(
   account: any,
   clerkId: string,
@@ -332,10 +280,9 @@ async function processDMFlow(
   const templateSettings =
     template.settingsByTier[userTier] || template.settingsByTier.free;
 
-  // For free users with direct link
+  // For free users with direct link - just send it
   if (userTier === "free" && templateSettings.directLink) {
     try {
-      // Select random content
       const randomIndex = Math.floor(Math.random() * template.content.length);
       const {
         text,
@@ -343,7 +290,7 @@ async function processDMFlow(
         buttonTitle = "Get Access",
       } = template.content[randomIndex];
 
-      // Send DM with direct link
+      // Send DM with direct link - fire and forget
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -386,7 +333,7 @@ async function processDMFlow(
     }
   }
 
-  // For free users without direct link or pro users
+  // For free users without direct link or pro users - send initial DM
   let initialButtonPayload = "";
   let initialButtonText = "";
 
@@ -399,7 +346,7 @@ async function processDMFlow(
   }
 
   try {
-    // Send initial DM with button
+    // Send initial DM with button - fire and forget
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,

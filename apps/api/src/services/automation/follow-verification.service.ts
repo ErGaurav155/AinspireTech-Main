@@ -1,8 +1,12 @@
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
-import { recordCall } from "@/services/rate-limit.service";
 
+/**
+ * Check follow status - Fire and Forget
+ * This is an automation helper function, NOT an incoming webhook
+ * No rate limiting needed - just check and return result
+ */
 export async function checkMainFollowStatus(
   accountId: string,
   recipientId: string,
@@ -26,29 +30,8 @@ export async function checkMainFollowStatus(
       };
     }
 
-    // Record API call
-    const rateLimitResult = await recordCall(
-      account.userId,
-      account.instagramId,
-      "follow_verification",
-      1,
-      {
-        recipientId,
-        templateId,
-        stage: "follow_check",
-        followRequired: true,
-        isFollowCheck: true,
-      },
-    );
-
-    if (!rateLimitResult.success) {
-      return {
-        success: false,
-        follows: false,
-        message: rateLimitResult.reason || "Rate limited",
-        error: "Rate limited",
-      };
-    }
+    // NO rate limit check - fire and forget
+    // This is part of automation flow, not an incoming webhook
 
     // Make API call to check follow status
     const response = await fetch(
@@ -63,6 +46,10 @@ export async function checkMainFollowStatus(
 
     if (!response.ok) {
       const error = await response.json();
+
+      // Log the error but don't fail hard
+      console.error("Follow check API error:", error);
+
       return {
         success: false,
         follows: false,

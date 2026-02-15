@@ -1,7 +1,6 @@
 import { Worker, Job } from "bullmq";
 import { redisHelpers } from "@/config/redis.config";
 import { processInstagramWebhook } from "@/services/webhook/instagram-processor.service";
-import { logWebhook } from "@/services/webhook/webhook-logger.service";
 
 // Create multiple workers for concurrency
 export const createWebhookWorkers = (count: number = 5) => {
@@ -31,26 +30,9 @@ export const createWebhookWorkers = (count: number = 5) => {
               throw new Error(`Unknown webhook type: ${type}`);
             }
 
-            // Log success
-            await logWebhook({
-              webhookId,
-              type,
-              status: "success",
-              processingTime: Date.now() - new Date(receivedAt).getTime(),
-              result,
-            });
-
             return result;
           } catch (error) {
             console.error(`❌ [Worker ${i}] Failed ${webhookId}:`, error);
-
-            await logWebhook({
-              webhookId,
-              type,
-              status: "failed",
-              processingTime: Date.now() - new Date(receivedAt).getTime(),
-              error: error instanceof Error ? error.message : "Unknown",
-            });
 
             throw error; // Triggers retry
           }

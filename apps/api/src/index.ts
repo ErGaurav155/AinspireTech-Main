@@ -39,7 +39,6 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
             await import("./workers/webhook.worker");
           const workerCount = parseInt(process.env.WEBHOOK_WORKERS || "5");
 
-          // Check if BullMQ connection is available
           const bullMQConnection = redisHelpers.getBullMQConnection();
           if (bullMQConnection) {
             const workers = createWebhookWorkers(workerCount);
@@ -68,46 +67,77 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
           `📊 Redis: ${redisConnected ? "✅ Connected" : "❌ Disabled"}`,
         );
         console.log(
-          `📊 App hourly limit: ${process.env.APP_HOURLY_GLOBAL_LIMIT || "1000"}`,
+          `📊 App hourly limit: ${process.env.APP_HOURLY_GLOBAL_LIMIT || "20000"}`,
         );
       });
 
-      // Start background tasks ONLY if Redis is available
+      // Background tasks ONLY if Redis is available
       if (redisConnected) {
-        // Queue processor (every 30 seconds)
+        // Track if there's been any activity
+        let hasRecentActivity = false;
+        let lastActivityCheck = Date.now();
+
+        // Queue processor - ONLY runs if there's activity
         setInterval(async () => {
           try {
-            const { processQueuedCalls } =
+            const { processQueuedCalls, getCurrentWindow } =
               await import("./services/rate-limit.service");
-            const result = await processQueuedCalls();
-            if (result.processed > 0) {
-              console.log(`🔄 Processed ${result.processed} queued calls`);
+
+            // Check if there are items in queue
+            const window = getCurrentWindow();
+            const queueKey = `queue:pending:${window.key}`;
+            const queueLength = await redisHelpers.llen(queueKey);
+
+            if (queueLength && queueLength > 0) {
+              hasRecentActivity = true;
+              lastActivityCheck = Date.now();
+
+              console.log(`🔄 Processing ${queueLength} queued webhooks...`);
+              const result = await processQueuedCalls();
+
+              if (result.processed > 0) {
+                console.log(
+                  `✅ Processed ${result.processed} webhooks, ${result.remaining} remaining`,
+                );
+              }
             }
           } catch (error: any) {
-            console.error("Queue processor error (non-fatal):", error.message);
+            console.error("Queue processor error:", error.message);
           }
-        }, 30000);
+        }, 30000); // Every 30 seconds
 
-        // Hourly window reset
+        // Hourly window reset - PRECISE timing
         setInterval(async () => {
           try {
             const now = new Date();
+            // Only trigger at the top of the hour (00:00-00:10 seconds)
             if (now.getUTCMinutes() === 0 && now.getUTCSeconds() < 10) {
               const { resetHourlyWindow } =
                 await import("./services/rate-limit.service");
               console.log("🕐 Hourly window reset triggered");
               const result = await resetHourlyWindow();
               console.log(`✅ Window reset: ${result.message}`);
+
+              // Reset activity tracking
+              hasRecentActivity = false;
+              lastActivityCheck = Date.now();
             }
           } catch (error: any) {
-            console.error("Window reset error (non-fatal):", error.message);
+            console.error("Window reset error:", error.message);
           }
-        }, 10000);
+        }, 10000); // Check every 10 seconds
 
-        // Periodic stats logging
+        // Periodic stats logging - ONLY if there's been recent activity
         setInterval(
           async () => {
             try {
+              // Only log stats if there's been activity in the last 15 minutes
+              const timeSinceLastActivity = Date.now() - lastActivityCheck;
+              if (timeSinceLastActivity > 15 * 60 * 1000) {
+                // No activity for 15 minutes, skip logging
+                return;
+              }
+
               const { getCurrentWindow, isAppLimitReached } =
                 await import("./services/rate-limit.service");
               const window = getCurrentWindow();
@@ -120,8 +150,17 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
               console.error("Stats logging error:", error.message);
             }
           },
-          15 * 60 * 1000,
+          15 * 60 * 1000, // Every 15 minutes
         );
+
+        // Activity monitor - Mark activity when webhooks are received
+        app.use((req, res, next) => {
+          if (req.path.includes("/webhooks/instagram")) {
+            hasRecentActivity = true;
+            lastActivityCheck = Date.now();
+          }
+          next();
+        });
       } else {
         console.log("⚠️ Redis disabled - background tasks skipped");
       }

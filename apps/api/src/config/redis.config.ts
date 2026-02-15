@@ -3,9 +3,8 @@ import { loadEnvironment } from "./env.config";
 loadEnvironment();
 
 let redisClient: RedisClientType | null = null;
-let isRedisEnabled = true; // Flag to track if Redis should be used
+let isRedisEnabled = true;
 
-// Parse Redis URL safely
 const getRedisConfig = () => {
   const redisUrl = process.env.REDIS_URL;
 
@@ -32,7 +31,6 @@ const getRedisConfig = () => {
   }
 };
 
-// Create Redis client safely - NEVER THROWS
 export const getRedisClient = (): RedisClientType | null => {
   if (!isRedisEnabled) return null;
 
@@ -55,24 +53,22 @@ export const getRedisClient = (): RedisClientType | null => {
         tls: !!config.tls,
         rejectUnauthorized: false,
         reconnectStrategy: (retries) => {
-          // Don't retry forever - after 3 retries, disable Redis
           if (retries > 3) {
             console.error(
               "❌ Max Redis reconnection attempts reached - disabling Redis",
             );
             isRedisEnabled = false;
-            return false; // Stop reconnecting
+            return false;
           }
           return Math.min(retries * 100, 1000);
         },
-        connectTimeout: 5000, // 5 second timeout
+        connectTimeout: 5000,
       },
     });
 
-    // Handle errors without crashing
     redisClient.on("error", (err) => {
       console.error("⚠️ Redis client error (non-fatal):", err.message);
-      isRedisEnabled = false; // Disable Redis on error
+      isRedisEnabled = false;
     });
 
     redisClient.on("end", () => {
@@ -89,7 +85,6 @@ export const getRedisClient = (): RedisClientType | null => {
   }
 };
 
-// Safe connection - NEVER THROWS
 export const connectToRedis = async (): Promise<boolean> => {
   if (!isRedisEnabled) {
     console.log("⚠️ Redis is disabled - skipping connection");
@@ -107,7 +102,6 @@ export const connectToRedis = async (): Promise<boolean> => {
       await client.connect();
     }
 
-    // Test connection with timeout
     const pingPromise = client.ping();
     const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Redis ping timeout")), 3000),
@@ -133,8 +127,14 @@ export const connectToRedis = async (): Promise<boolean> => {
   }
 };
 
-// Safe Redis helpers - NEVER THROW, always return null/default on failure
 export const redisHelpers = {
+  // Expose the client for pipeline operations
+  getRedisClient: () => {
+    if (!isRedisEnabled) return null;
+    const client = getRedisClient();
+    return client?.isOpen ? client : null;
+  },
+
   get: async (key: string): Promise<string | null> => {
     if (!isRedisEnabled) return null;
 
@@ -235,6 +235,7 @@ export const redisHelpers = {
       return 0;
     }
   },
+
   llen: async (key: string): Promise<number> => {
     if (!isRedisEnabled) return 0;
 
@@ -243,7 +244,7 @@ export const redisHelpers = {
       if (!client?.isOpen) return 0;
       return await client.lLen(key);
     } catch (error: any) {
-      console.debug("Redis del error (non-fatal):", error.message);
+      console.debug("Redis llen error (non-fatal):", error.message);
       return 0;
     }
   },
@@ -254,10 +255,9 @@ export const redisHelpers = {
     try {
       const client = getRedisClient();
       if (!client?.isOpen) return false;
-
       return await client.expire(key, seconds);
     } catch (error: any) {
-      console.debug("Redis set error (non-fatal):", error.message);
+      console.debug("Redis expire error (non-fatal):", error.message);
       return false;
     }
   },
@@ -270,7 +270,7 @@ export const redisHelpers = {
       if (!client?.isOpen) return [];
       return await client.keys(pattern);
     } catch (error: any) {
-      console.debug("Redis rpop error (non-fatal):", error.message);
+      console.debug("Redis keys error (non-fatal):", error.message);
       return [];
     }
   },
@@ -287,11 +287,11 @@ export const redisHelpers = {
       if (!client?.isOpen) return null;
       return await client.setEx(key, seconds, value);
     } catch (error: any) {
-      console.debug("Redis rpop error (non-fatal):", error.message);
+      console.debug("Redis setex error (non-fatal):", error.message);
       return null;
     }
   },
-  // BullMQ connection config - returns null if Redis disabled
+
   getBullMQConnection: () => {
     if (!isRedisEnabled) return null;
 
