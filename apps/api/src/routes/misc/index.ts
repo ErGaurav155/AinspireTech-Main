@@ -8,11 +8,7 @@ import {
 import { requireAuth } from "@clerk/express";
 
 const router = Router();
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // POST endpoints
 router.post(

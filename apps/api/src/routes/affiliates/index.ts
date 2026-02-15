@@ -4,11 +4,7 @@ import { createAffiliateController } from "@/controllers/affiliate/create.contro
 import { getAffiliateDashboardController } from "@/controllers/affiliate/dashboard.controller";
 
 const router = Router();
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // POST /api/affiliates/create - Create new affiliate
 router.post("/create", createAffiliateController);

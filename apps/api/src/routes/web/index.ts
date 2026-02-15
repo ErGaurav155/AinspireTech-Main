@@ -23,11 +23,7 @@ import { listSubscriptionsController } from "@/controllers/web/subscription/list
 import { requireAuth } from "@clerk/express";
 
 const router = Router();
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 //analytics
 // GET /api/web/analytics/:chatbotType - Get chatbot analytics

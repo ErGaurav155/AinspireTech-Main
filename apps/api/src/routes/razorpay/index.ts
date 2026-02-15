@@ -6,11 +6,7 @@ import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
 
 const router = Router();
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // GET /api/razorpay/plan/:productId - Get Razorpay planInfo
 router.get("/plan/:productId", getRazerpayPlanInfoController);

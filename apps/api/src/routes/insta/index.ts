@@ -28,11 +28,7 @@ import {
 
 const router = Router();
 
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // GET /api/insta/callback - Handle Instagram OAuth callback
 router.get("/callback", handleInstaCallbackController);

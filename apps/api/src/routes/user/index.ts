@@ -19,11 +19,7 @@ const router = Router();
 // POST /api/user/create - Create user
 router.post("/create", createUserController);
 
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // GET /api/user/:userId - Get user by ID
 router.get("/:userId", getUserByIdController);

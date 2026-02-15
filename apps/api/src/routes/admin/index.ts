@@ -9,11 +9,7 @@ import { verifyOwnerController } from "@/controllers/admin/verify-owner.controll
 
 const router = Router();
 
-router.use(
-  requireAuth({
-    signInUrl: "https://app.rocketreplai.com/sign-in",
-  }),
-);
+router.use(requireAuth());
 
 // GET /api/admin/verify-owner - Verify if user is owner
 router.get("/verify-owner", verifyOwnerController);

@@ -152,7 +152,9 @@ export const apiRequest = async <T = any>(
         statusText: response.statusText,
         error: errorText,
       });
-
+      // if (response.status === 401) {
+      //   window.location.href = "/sign-in";
+      // }
       throw new Error(errorText || response.statusText);
     }
 
