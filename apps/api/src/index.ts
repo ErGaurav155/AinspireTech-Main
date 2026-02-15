@@ -15,7 +15,7 @@ const PORT = parseInt(process.env.PORT || "3002");
 // For Vercel serverless
 export default app;
 
-// For local development
+// For local development and Railway
 if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
   async function startServer() {
     try {
@@ -59,8 +59,8 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
         console.log("⚠️ Redis not available - running without queue system");
       }
 
-      // Start server
-      const server = app.listen(PORT, () => {
+      // Start server - MUST happen before background tasks
+      const server = app.listen(PORT, "0.0.0.0", () => {
         console.log(`🚀 Server running on port ${PORT}`);
         console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
         console.log(
@@ -69,6 +69,18 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
         console.log(
           `📊 App hourly limit: ${process.env.APP_HOURLY_GLOBAL_LIMIT || "20000"}`,
         );
+        console.log("✅ Server is ready to accept connections");
+      });
+
+      // Handle server errors
+      server.on("error", (error: any) => {
+        if (error.code === "EADDRINUSE") {
+          console.error(`❌ Port ${PORT} is already in use`);
+          process.exit(1);
+        } else {
+          console.error("❌ Server error:", error);
+          process.exit(1);
+        }
       });
 
       // Background tasks ONLY if Redis is available
@@ -78,7 +90,7 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
         let lastActivityCheck = Date.now();
 
         // Queue processor - ONLY runs if there's activity
-        setInterval(async () => {
+        const queueProcessor = setInterval(async () => {
           try {
             const { processQueuedCalls, getCurrentWindow } =
               await import("./services/rate-limit.service");
@@ -102,12 +114,12 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
               }
             }
           } catch (error: any) {
-            console.error("Queue processor error:", error.message);
+            console.error("Queue processor error (non-fatal):", error.message);
           }
         }, 30000); // Every 30 seconds
 
         // Hourly window reset - PRECISE timing
-        setInterval(async () => {
+        const windowResetter = setInterval(async () => {
           try {
             const now = new Date();
             // Only trigger at the top of the hour (00:00-00:10 seconds)
@@ -123,12 +135,12 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
               lastActivityCheck = Date.now();
             }
           } catch (error: any) {
-            console.error("Window reset error:", error.message);
+            console.error("Window reset error (non-fatal):", error.message);
           }
         }, 10000); // Check every 10 seconds
 
         // Periodic stats logging - ONLY if there's been recent activity
-        setInterval(
+        const statsLogger = setInterval(
           async () => {
             try {
               // Only log stats if there's been activity in the last 15 minutes
@@ -147,47 +159,77 @@ if (process.env.NODE_ENV !== "production" || !process.env.VERCEL) {
                 `📈 Stats - Window: ${window.label}, App calls: ${appLimit.current}/${appLimit.limit} (${appLimit.percentage.toFixed(1)}%)`,
               );
             } catch (error: any) {
-              console.error("Stats logging error:", error.message);
+              console.error("Stats logging error (non-fatal):", error.message);
             }
           },
           15 * 60 * 1000, // Every 15 minutes
         );
 
-        // Activity monitor - Mark activity when webhooks are received
-        app.use((req, res, next) => {
-          if (req.path.includes("/webhooks/instagram")) {
-            hasRecentActivity = true;
-            lastActivityCheck = Date.now();
-          }
-          next();
+        console.log("✅ Background tasks started");
+
+        // Store interval IDs for cleanup
+        server.on("close", () => {
+          clearInterval(queueProcessor);
+          clearInterval(windowResetter);
+          clearInterval(statsLogger);
+          console.log("✅ Background tasks stopped");
         });
       } else {
         console.log("⚠️ Redis disabled - background tasks skipped");
       }
 
       // Graceful shutdown
-      const shutdown = async () => {
-        console.log("\n🛑 Shutting down server...");
+      const shutdown = async (signal: string) => {
+        console.log(`\n🛑 Received ${signal}, shutting down gracefully...`);
 
-        await disconnectFromRedis();
-
-        server.close(() => {
+        // Stop accepting new connections
+        server.close(async () => {
           console.log("✅ Server closed");
+
+          // Disconnect from Redis
+          await disconnectFromRedis();
+
+          console.log("✅ Shutdown complete");
           process.exit(0);
         });
+
+        // Force shutdown after 10 seconds
+        setTimeout(() => {
+          console.error("⚠️ Forced shutdown after timeout");
+          process.exit(1);
+        }, 10000);
       };
 
-      process.on("SIGINT", shutdown);
-      process.on("SIGTERM", shutdown);
+      // Handle shutdown signals
+      process.on("SIGINT", () => shutdown("SIGINT"));
+      process.on("SIGTERM", () => shutdown("SIGTERM"));
+
+      // Handle uncaught errors (but don't crash)
+      process.on("uncaughtException", (error) => {
+        console.error("❌ Uncaught Exception:", error);
+        // Don't exit - Railway needs the server to stay up
+      });
+
+      process.on("unhandledRejection", (reason, promise) => {
+        console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+        // Don't exit - Railway needs the server to stay up
+      });
+
+      console.log("✅ Server initialization complete");
     } catch (error: any) {
       console.error("❌ Failed to start server:", error);
-      // Don't crash on Redis errors, but do crash on DB errors
+
+      // Only crash on critical errors
       if (
         error.message?.includes("database") ||
-        error.message?.includes("Mongo")
+        error.message?.includes("Mongo") ||
+        error.message?.includes("EADDRINUSE")
       ) {
+        console.error("💥 Critical error - exiting");
         process.exit(1);
       }
+
+      // For non-critical errors, log but continue
       console.log("⚠️ Continuing despite non-critical error");
     }
   }
