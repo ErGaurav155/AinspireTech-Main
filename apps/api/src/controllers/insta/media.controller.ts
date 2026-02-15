@@ -3,9 +3,13 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import { getAuth } from "@clerk/express";
-import { recordCall } from "@/services/rate-limit.service";
 
-// GET /api/insta/media - Get Instagram media for account
+/**
+ * GET /api/insta/media - Get Instagram media for account
+ *
+ * This is a DASHBOARD operation (user-initiated)
+ * NO rate limiting, NO queueing - just fetch and return
+ */
 export const getInstaMediaController = async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
@@ -43,21 +47,15 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
       });
     }
 
-    // Record Meta API call for rate limiting
-    try {
-      await recordCall(userId, account.instagramId, "meta_api_media_fetch", 1, {
-        stage: "media_fetch",
-        isFollowCheck: false,
-      });
-    } catch (rateLimitError) {
-      console.log("Rate limit check for media fetch:", rateLimitError);
-    }
+    // NO rate limiting for dashboard operations
+    // This is a user-initiated request, not an incoming webhook
+    // Just fetch the data directly
 
     // Fetch media from Instagram Graph API
     const accessToken = account.accessToken;
     const igUserId = account.instagramId;
 
-    // First, get the user's media with extended fields
+    // Get the user's media with extended fields
     const mediaResponse = await fetch(
       `https://graph.instagram.com/v23.0/${igUserId}/media?fields=id,media_type,media_url,permalink,thumbnail_url,timestamp,caption,like_count,comments_count&limit=10&access_token=${accessToken}`,
     );
@@ -66,7 +64,7 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
       const errorData = await mediaResponse.json();
       console.error("Instagram API error:", errorData);
 
-      // Update account meta rate limit status if needed
+      // Update account meta rate limit status if Instagram's API says we're limited
       if (errorData.error?.code === 4 || errorData.error?.code === 32) {
         await InstagramAccount.updateOne(
           { instagramId: accountId },
@@ -114,7 +112,7 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
     // Get all existing templates for this account to filter out media that already has templates
     const existingTemplates = await ReplyTemplate.find({
       userId: userId,
-      accountId: account.instagramId, // Using instagramId as accountId (matching your ReplyTemplate model)
+      accountId: account.instagramId,
     }).select("mediaId");
 
     // Extract media IDs that already have templates

@@ -54,21 +54,21 @@ export const checkRateLimitController = async (req: Request, res: Response) => {
       });
     }
 
-    const { accountId, actionType, isFollowCheck } = req.body;
+    const { accountId, isIncomingWebhook } = req.body;
 
-    if (!accountId || !actionType) {
+    if (!accountId) {
       return res.status(400).json({
         success: false,
-        error: "accountId and actionType are required",
+        error: "accountId is required",
         timestamp: new Date().toISOString(),
       });
     }
 
+    // Updated signature: canMakeCall(clerkId, accountId, isIncomingWebhook)
     const result = await canMakeCall(
       userId,
       accountId,
-      actionType,
-      isFollowCheck || false,
+      isIncomingWebhook || false,
     );
 
     res.json({
@@ -100,21 +100,22 @@ export const recordRateLimitController = async (
         timestamp: new Date().toISOString(),
       });
     }
-    const { accountId, actionType, metaCalls, metadata } = req.body;
+    const { accountId, metaCalls, isIncomingWebhook, metadata } = req.body;
 
-    if (!accountId || !actionType) {
+    if (!accountId) {
       return res.status(400).json({
         success: false,
-        error: "accountId and actionType are required",
+        error: "accountId is required",
         timestamp: new Date().toISOString(),
       });
     }
 
+    // Updated signature: recordCall(clerkId, accountId, metaCalls, isIncomingWebhook, metadata)
     const result = await recordCall(
       userId,
       accountId,
-      actionType,
       metaCalls || 1,
+      isIncomingWebhook || false,
       metadata || {},
     );
 

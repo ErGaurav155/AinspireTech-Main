@@ -2,9 +2,13 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getAuth } from "@clerk/express";
-import { recordCall } from "@/services/rate-limit.service";
 
-// GET /api/insta/user-info - Get Instagram user info
+/**
+ * GET /api/insta/user-info - Get Instagram user info
+ *
+ * This is a DASHBOARD operation (user-initiated)
+ * NO rate limiting, NO queueing - just fetch and return
+ */
 export const getInstaUserInfoController = async (
   req: Request,
   res: Response,
@@ -53,20 +57,9 @@ export const getInstaUserInfoController = async (
       });
     }
 
-    // Record Meta API call for rate limiting
-    try {
-      await recordCall(userId, account.instagramId, "meta_api_user_info", 1, {
-        stage: "user_info_fetch",
-        isFollowCheck: false,
-      });
-    } catch (rateLimitError) {
-      console.log("Rate limit check for user info:", rateLimitError);
-      return res.status(429).json({
-        success: false,
-        error: "Rate limited, please try again later",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    // NO rate limiting for dashboard operations
+    // This is a user-initiated request, not an incoming webhook
+    // Just fetch the data directly
 
     const fieldsArray = Array.isArray(fields)
       ? fields
@@ -89,7 +82,7 @@ export const getInstaUserInfoController = async (
       const errorData = await response.json();
       console.error("Instagram API error:", errorData);
 
-      // Update account meta rate limit status if needed
+      // Update account meta rate limit status if Instagram's API says we're limited
       if (errorData.error?.code === 4 || errorData.error?.code === 32) {
         await InstagramAccount.updateOne(
           { instagramId: accountId },

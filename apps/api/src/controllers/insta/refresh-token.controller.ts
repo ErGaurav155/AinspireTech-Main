@@ -2,9 +2,13 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getAuth } from "@clerk/express";
-import { recordCall } from "@/services/rate-limit.service";
 
-// POST /api/insta/refresh-token - Refresh Instagram token
+/**
+ * POST /api/insta/refresh-token - Refresh Instagram token
+ *
+ * This is a DASHBOARD operation (user-initiated)
+ * NO rate limiting, NO queueing - just refresh and return
+ */
 export const refreshInstagramTokenController = async (
   req: Request,
   res: Response,
@@ -65,20 +69,24 @@ export const refreshInstagramTokenController = async (
       });
     }
 
-    // Record Meta API call for rate limiting
-    try {
-      await recordCall(
-        userId,
-        account.instagramId,
-        "meta_api_token_refresh",
-        1,
-        {
-          stage: "token_refresh",
-          isFollowCheck: false,
-        },
-      );
-    } catch (rateLimitError) {
-      console.log("Rate limit check for token refresh:", rateLimitError);
+    // NO rate limiting for dashboard operations
+    // This is a user-initiated request, not an incoming webhook
+    // Just refresh the token directly
+
+    // Optional: Simple throttling to prevent abuse (refresh max once per minute)
+    if (account.lastMetaCallAt) {
+      const timeSinceLastRefresh =
+        now.getTime() - account.lastMetaCallAt.getTime();
+      const oneMinute = 60 * 1000;
+
+      if (timeSinceLastRefresh < oneMinute) {
+        return res.status(429).json({
+          success: false,
+          error: "Please wait a moment before refreshing again",
+          retryAfter: Math.ceil((oneMinute - timeSinceLastRefresh) / 1000),
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
     const refreshUrl = new URL(
@@ -93,7 +101,7 @@ export const refreshInstagramTokenController = async (
       const errorData = await refreshRes.json();
       console.error("Instagram token refresh error:", errorData);
 
-      // Update account meta rate limit status if needed
+      // Update account meta rate limit status if Instagram's API says we're limited
       if (errorData.error?.code === 4 || errorData.error?.code === 32) {
         await InstagramAccount.updateOne(
           { instagramId: accountId },
@@ -104,15 +112,21 @@ export const refreshInstagramTokenController = async (
         );
       }
 
-      throw new Error(
-        `Failed to refresh token: ${errorData.error?.message || refreshRes.statusText}`,
-      );
+      return res.status(refreshRes.status).json({
+        success: false,
+        error: errorData.error?.message || "Failed to refresh token",
+        timestamp: new Date().toISOString(),
+      });
     }
 
     const refreshData = await refreshRes.json();
 
     if (!refreshData.access_token) {
-      throw new Error("Failed to refresh token - no access token in response");
+      return res.status(500).json({
+        success: false,
+        error: "Failed to refresh token - no access token in response",
+        timestamp: new Date().toISOString(),
+      });
     }
 
     const expiresIn = refreshData.expires_in || 5184000; // Default 60 days
@@ -131,7 +145,11 @@ export const refreshInstagramTokenController = async (
     );
 
     if (!updatedAccount) {
-      throw new Error("Failed to update account after token refresh");
+      return res.status(500).json({
+        success: false,
+        error: "Failed to update account after token refresh",
+        timestamp: new Date().toISOString(),
+      });
     }
 
     return res.status(200).json({
