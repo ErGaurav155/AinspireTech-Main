@@ -1,4 +1,3 @@
-// app.ts
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -7,14 +6,15 @@ import rateLimit from "express-rate-limit";
 import compression from "compression";
 import { clerkMiddleware } from "@clerk/express";
 
-// Load environment first
 import { isProduction } from "./config/env.config";
-
 import routes from "@/routes";
 
 const app = express();
 
-// ========== CLERK VERIFICATION ==========
+/* ============================================================
+   ENV VALIDATION
+============================================================ */
+
 console.log("🔐 Clerk initialization...");
 console.log(
   "Clerk Secret Key:",
@@ -25,34 +25,65 @@ console.log(
   process.env.CLERK_PUBLISHABLE_KEY ? "✅ Set" : "❌ Missing",
 );
 
-/* ========== MIDDLEWARE ========== */
+/* ============================================================
+   SECURITY MIDDLEWARE
+============================================================ */
 
-// Security headers
-app.use(helmet());
+// Secure HTTP headers
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
 
-// Rate limiting
+// Compression
+app.use(compression());
+
+// Body parsing
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+
+/* ============================================================
+   RATE LIMITING
+============================================================ */
+
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: isProduction() ? 100 : 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.path === "/health" || req.path === "/",
   message: {
+    success: false,
     error: "Too many requests",
     timestamp: new Date().toISOString(),
   },
-  standardHeaders: true,
-  skip: (req) => req.path === "/health" || req.path === "/",
 });
+
 app.use("/api", limiter);
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(",") || [
-  "https://app.rocketreplai.com",
-  "https://www.rocketreplai.com",
-  "https://*.clerk.accounts.dev",
-];
+/* ============================================================
+   CORS CONFIGURATION (Railway Production Ready)
+============================================================ */
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
 console.log("🔧 Allowed origins:", allowedOrigins);
 
 app.use(
   cors({
-    origin: allowedOrigins,
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true); // allow server-to-server
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      console.warn("⛔ Blocked CORS origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allowedHeaders: [
@@ -66,14 +97,10 @@ app.use(
   }),
 );
 
-// Compression
-app.use(compression());
+/* ============================================================
+   CLERK AUTHENTICATION
+============================================================ */
 
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
-
-// ========== CLERK MIDDLEWARE ==========
 app.use(
   clerkMiddleware({
     secretKey: process.env.CLERK_SECRET_KEY,
@@ -81,37 +108,40 @@ app.use(
   }),
 );
 
-/* ========== ROUTES ========== */
-app.get("/favicon.ico", (req, res) => {
+/* ============================================================
+   ROUTES
+============================================================ */
+
+// Favicon
+app.get("/favicon.ico", (_, res) => {
   res.status(204).end();
 });
 
-// Root endpoint - Public
-app.get("/", (req, res) => {
+// Root
+app.get("/", (_, res) => {
   res.json({
     success: true,
     message: "Instagram Automation API",
     version: "2.0.0",
-    timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Health check - INSTANT RESPONSE for Railway
-app.get("/health", (req, res) => {
-  // Railway just needs to know the server is up
-  // Don't check database or Redis here - too slow
+// Railway Health Check (FAST — DO NOT TOUCH)
+app.get("/health", (_, res) => {
   res.status(200).json({
     status: "healthy",
-    timestamp: new Date().toISOString(),
     uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
   });
 });
 
-// Detailed health check (for monitoring)
-app.get("/health/detailed", async (req, res) => {
+// Detailed health check
+app.get("/health/detailed", async (_, res) => {
   try {
     const { checkDatabaseHealth } = await import("@/config/database.config");
+
     const dbHealth = await checkDatabaseHealth();
 
     let redisHealth = false;
@@ -124,6 +154,7 @@ app.get("/health/detailed", async (req, res) => {
     try {
       const { getCurrentWindow, isAppLimitReached } =
         await import("@/services/rate-limit.service");
+
       const window = getCurrentWindow();
       const appLimit = await isAppLimitReached();
 
@@ -133,15 +164,16 @@ app.get("/health/detailed", async (req, res) => {
         appLimit: appLimit.limit,
         percentage: appLimit.percentage.toFixed(1),
       };
+
       redisHealth = true;
-    } catch (error) {
+    } catch {
       console.debug("Rate limit check skipped");
     }
 
     const health = {
       status: dbHealth ? "healthy" : "degraded",
-      timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      timestamp: new Date().toISOString(),
       services: {
         database: dbHealth,
         redis: redisHealth,
@@ -161,10 +193,13 @@ app.get("/health/detailed", async (req, res) => {
   }
 });
 
-// API routes - load synchronously (import is fine)
+// API Routes
 app.use("/api", routes);
 
-// 404 handler
+/* ============================================================
+   404 HANDLER
+============================================================ */
+
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
@@ -174,7 +209,10 @@ app.use("*", (req, res) => {
   });
 });
 
-// Error handler
+/* ============================================================
+   GLOBAL ERROR HANDLER
+============================================================ */
+
 app.use(
   (
     err: any,
@@ -182,9 +220,8 @@ app.use(
     res: express.Response,
     next: express.NextFunction,
   ) => {
-    console.error("Error:", err.message);
+    console.error("❌ Error:", err.message);
 
-    // Handle Clerk authentication errors
     if (
       err.status === 401 ||
       err.message?.toLowerCase().includes("unauthorized")
