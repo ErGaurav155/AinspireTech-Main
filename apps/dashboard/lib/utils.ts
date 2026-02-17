@@ -3,8 +3,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
-
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -117,56 +115,3 @@ export function verifyApiKey(apiKey: string): boolean {
   // Check against environment variable
   return validApiKeys.includes(apiKey.trim());
 }
-
-interface ApiResponse<T = any> {
-  success: boolean;
-  data: T;
-  timestamp: string;
-  error?: string;
-  message?: string;
-}
-
-// Core API request function - SIMPLIFIED
-export const apiRequest = async <T = any>(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<T> => {
-  try {
-    const url = `${API_BASE_URL}/api${endpoint}`;
-
-    // Create headers - No Authorization header needed!
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-      ...((options.headers as Record<string, string>) || {}),
-    };
-
-    const response = await fetch(url, {
-      ...options,
-      headers,
-      credentials: "include",
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`API request failed for ${endpoint}:`, {
-        status: response.status,
-        statusText: response.statusText,
-        error: errorText,
-      });
-      // if (response.status === 401) {
-      //   window.location.href = "/sign-in";
-      // }
-      throw new Error(errorText || response.statusText);
-    }
-
-    const result: ApiResponse<T> = await response.json();
-
-    if (!result.success) {
-      throw new Error(result.error || "API request failed");
-    }
-
-    return result.data;
-  } catch (error) {
-    console.error(`API request error for ${endpoint}:`, error);
-    throw error;
-  }
-};

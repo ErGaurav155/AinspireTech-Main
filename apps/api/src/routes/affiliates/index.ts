@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { requireAuth } from "@clerk/express";
 import { createAffiliateController } from "@/controllers/affiliate/create.controller";
 import { getAffiliateDashboardController } from "@/controllers/affiliate/dashboard.controller";
+import { requireAuth } from "@clerk/express";
 
 const router = Router();
+
 router.use(requireAuth());
 
 // POST /api/affiliates/create - Create new affiliate

@@ -23,7 +23,7 @@ import {
   Eye,
   EyeOff,
 } from "lucide-react";
-
+import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -194,6 +194,7 @@ export default function TemplatesPage() {
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
   const loadMoreCountRef = useRef(0);
+  const { apiRequest } = useApi();
 
   // Theme-based styles
   const themeStyles = useMemo(() => {
@@ -245,12 +246,12 @@ export default function TemplatesPage() {
     if (!userId) return;
 
     try {
-      const tierInfo = await getUserTierInfo();
+      const tierInfo = await getUserTierInfo(apiRequest);
       setUserTier(tierInfo);
     } catch (error) {
       console.error("Error fetching user tier:", error);
     }
-  }, [userId]);
+  }, [userId, apiRequest]);
 
   // Fetch accounts
   useEffect(() => {
@@ -261,7 +262,7 @@ export default function TemplatesPage() {
         return;
       }
       try {
-        const data = await getAllInstagramAccounts();
+        const data = await getAllInstagramAccounts(apiRequest);
 
         if (data?.accounts && Array.isArray(data.accounts)) {
           setAccounts(
@@ -287,7 +288,7 @@ export default function TemplatesPage() {
       }
     };
     fetchAccounts();
-  }, [router, userId, isLoaded]);
+  }, [router, userId, isLoaded, apiRequest]);
 
   // Fetch templates
   const fetchTemplates = useCallback(
@@ -301,7 +302,7 @@ export default function TemplatesPage() {
 
       setIsLoading(true);
       try {
-        const response = await getInstaTemplates({
+        const response = await getInstaTemplates(apiRequest, {
           filterAccount: filterAccount,
           filterStatus: filterStatus,
           loadMoreCount: loadMoreCountRef.current,
@@ -362,7 +363,7 @@ export default function TemplatesPage() {
         setIsLoading(false);
       }
     },
-    [filterAccount, filterStatus, userId],
+    [filterAccount, filterStatus, userId, apiRequest],
   );
 
   // Load initial templates and user tier info
@@ -428,7 +429,7 @@ export default function TemplatesPage() {
 
       setIsLoadingMedia(true);
       try {
-        const data = await getInstaMedia(accountId);
+        const data = await getInstaMedia(apiRequest, accountId);
 
         if (data.media && Array.isArray(data.media) && data.media.length > 0) {
           setSelectedAccountMedia(data.media);
@@ -455,7 +456,7 @@ export default function TemplatesPage() {
         setIsLoadingMedia(false);
       }
     },
-    [userId],
+    [userId, apiRequest],
   );
 
   // Handle account change
@@ -532,7 +533,7 @@ export default function TemplatesPage() {
       setIsUpdateTemplate(true);
       try {
         const templateId = template._id;
-        const updated = await updateTemplate(templateId, {
+        const updated = await updateTemplate(apiRequest, templateId, {
           ...template,
           isFollow: template.isFollow,
           settingsByTier: advancedSettings,
@@ -581,7 +582,7 @@ export default function TemplatesPage() {
         setIsUpdateTemplate(false);
       }
     },
-    [advancedSettings, newTemplate.delaySeconds],
+    [advancedSettings, newTemplate.delaySeconds, apiRequest],
   );
 
   // Handle toggle template
@@ -600,7 +601,7 @@ export default function TemplatesPage() {
       );
 
       try {
-        await updateTemplate(templateId, {
+        await updateTemplate(apiRequest, templateId, {
           ...template,
           isActive: newActiveState,
         });
@@ -626,35 +627,38 @@ export default function TemplatesPage() {
         });
       }
     },
-    [templates],
+    [templates, apiRequest],
   );
 
   // Handle delete template
-  const handleDeleteTemplate = useCallback(async (templateId: string) => {
-    try {
-      await deleteTemplate(templateId);
+  const handleDeleteTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        await deleteTemplate(apiRequest, templateId);
 
-      // Remove from state
-      setTemplates((prev) => prev.filter((t) => t._id !== templateId));
-      setTotalTemplates((prev) => prev - 1);
+        // Remove from state
+        setTemplates((prev) => prev.filter((t) => t._id !== templateId));
+        setTotalTemplates((prev) => prev - 1);
 
-      toast({
-        title: "Template deleted",
-        description: "Template has been removed",
-        duration: 3000,
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error deleting template:", error);
-      toast({
-        title: "Failed to delete template",
-        description:
-          error instanceof Error ? error.message : "Please try again",
-        duration: 3000,
-        variant: "destructive",
-      });
-    }
-  }, []);
+        toast({
+          title: "Template deleted",
+          description: "Template has been removed",
+          duration: 3000,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error deleting template:", error);
+        toast({
+          title: "Failed to delete template",
+          description:
+            error instanceof Error ? error.message : "Please try again",
+          duration: 3000,
+          variant: "destructive",
+        });
+      }
+    },
+    [apiRequest],
+  );
 
   // Handle create template
   const handleCreateTemplate = useCallback(async () => {
@@ -686,6 +690,7 @@ export default function TemplatesPage() {
       }
 
       const result = await createInstaTemplate(
+        apiRequest,
         selectedAccount.instagramId,
         selectedAccount.username,
         {
@@ -761,7 +766,7 @@ export default function TemplatesPage() {
     } finally {
       setIsTemplateCreating(false);
     }
-  }, [userId, accounts, newTemplate, advancedSettings]);
+  }, [userId, accounts, newTemplate, advancedSettings, apiRequest]);
 
   // Format last used time
   const formatLastUsed = useCallback((dateString?: string) => {

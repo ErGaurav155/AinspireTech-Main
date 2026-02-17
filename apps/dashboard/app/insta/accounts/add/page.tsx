@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useMemo, useState } from "react";
+import { useApi } from "@/lib/useApi";
 
 import { useTheme } from "next-themes";
 
@@ -34,6 +35,7 @@ export default function AddAccountPage() {
   const [rateLimit, setRateLimit] = useState({ free: 100, pro: 999999 });
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
 
   // Theme-based styles
   const themeStyles = useMemo(() => {
@@ -54,7 +56,7 @@ export default function AddAccountPage() {
       }
 
       try {
-        const user = await getUserById(userId);
+        const user = await getUserById(apiRequest, userId);
         if (!user) {
           router.push("/sign-in");
           return;
@@ -63,7 +65,7 @@ export default function AddAccountPage() {
         setAccountLimit(user.accountLimit || 1);
 
         // Determine user tier based on subscriptions
-        const { subscriptions } = await getSubscriptioninfo();
+        const { subscriptions } = await getSubscriptioninfo(apiRequest);
         const hasProSubscription = subscriptions?.some(
           (sub: any) =>
             sub.chatbotType === "Insta-Automation-Pro" &&
@@ -73,7 +75,7 @@ export default function AddAccountPage() {
 
         setUserTier(hasProSubscription ? "pro" : "free");
 
-        const totalAccounts = await getInstaAccount();
+        const totalAccounts = await getInstaAccount(apiRequest);
 
         if (totalAccounts.accounts.length === 0) {
           setTotalAccounts(0);
@@ -88,7 +90,7 @@ export default function AddAccountPage() {
       return;
     }
     fetchSubscriptions();
-  }, [userId, router, isLoaded]);
+  }, [userId, router, isLoaded, apiRequest]);
 
   if (!isLoaded) {
     return (

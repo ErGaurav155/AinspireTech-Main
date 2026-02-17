@@ -4,8 +4,8 @@ import { getInstaSubscriptionsController } from "@/controllers/admin/insta-subsc
 import { requireOwner } from "@/middleware/auth.middleware";
 import { getUsersController } from "@/controllers/admin/users.controller";
 import { getWebSubscriptionsController } from "@/controllers/admin/web-subscription.controller";
-import { requireAuth } from "@clerk/express";
 import { verifyOwnerController } from "@/controllers/admin/verify-owner.controller";
+import { requireAuth } from "@clerk/express";
 
 const router = Router();
 

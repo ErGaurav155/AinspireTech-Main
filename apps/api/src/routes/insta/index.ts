@@ -18,13 +18,13 @@ import {
 } from "@/controllers/insta/templates/templates.controller";
 import { bulkTemplateActionController } from "@/controllers/insta/templates/bulk.controller";
 
-import { requireAuth } from "@clerk/express";
 import { getInstaAccountsController } from "@/controllers/insta/get-account-controller";
 import { refreshInstagramTokenController } from "@/controllers/insta/refresh-token.controller";
 import {
   deleteInstaTemplateController,
   updateInstaTemplateController,
 } from "@/controllers/insta/templates/templates-id.controller";
+import { requireAuth } from "@clerk/express";
 
 const router = Router();
 

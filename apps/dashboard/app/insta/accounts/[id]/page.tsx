@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 
 import defaultImg from "public/assets/img/default-img.jpg";
+import { useApi } from "@/lib/useApi";
 
 import Link from "next/link";
 import Image from "next/image";
@@ -201,6 +202,7 @@ export default function AccountPage({
   const loadMoreCountRef = useRef(0);
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
 
   // Theme-based styles
   const themeStyles = useMemo(() => {
@@ -319,27 +321,27 @@ export default function AccountPage({
       if (!userId) return null;
 
       try {
-        const stats = await getRateLimitStats();
+        const stats = await getRateLimitStats(apiRequest);
         setRateLimitStats(stats);
         return stats;
       } catch (error) {
         console.error("Failed to fetch rate limit stats:", error);
         return null;
       }
-    }, [userId]);
+    }, [userId, apiRequest]);
 
   // Fetch app limit status
   const fetchAppLimitStatus =
     useCallback(async (): Promise<AppLimitStatus | null> => {
       try {
-        const status = await getAppLimitStatus();
+        const status = await getAppLimitStatus(apiRequest);
         setAppLimitStatus(status);
         return status;
       } catch (error) {
         console.error("Failed to fetch app limit status:", error);
         return null;
       }
-    }, []);
+    }, [apiRequest]);
 
   const fetchAccountMedia = useCallback(
     async (accountId: string, username: string) => {
@@ -347,7 +349,7 @@ export default function AccountPage({
 
       setIsLoadingMedia(true);
       try {
-        const data = await getInstaMedia(accountId);
+        const data = await getInstaMedia(apiRequest, accountId);
         if (data.media && Array.isArray(data.media) && data.media.length > 0) {
           setSelectedAccountMedia(data.media);
         } else {
@@ -372,7 +374,7 @@ export default function AccountPage({
         setIsLoadingMedia(false);
       }
     },
-    [userId],
+    [userId, apiRequest],
   );
 
   const handleToggleTemplate = useCallback(
@@ -383,7 +385,7 @@ export default function AccountPage({
       const newActiveState = !template.isActive;
 
       try {
-        const response = await updateTemplate(templateId, {
+        const response = await updateTemplate(apiRequest, templateId, {
           ...template,
           isActive: newActiveState,
         });
@@ -411,40 +413,43 @@ export default function AccountPage({
         });
       }
     },
-    [templates],
+    [templates, apiRequest],
   );
 
-  const handleDeleteTemplate = useCallback(async (templateId: string) => {
-    try {
-      const response = await deleteTemplate(templateId);
+  const handleDeleteTemplate = useCallback(
+    async (templateId: string) => {
+      try {
+        const response = await deleteTemplate(apiRequest, templateId);
 
-      // Just remove the deleted template without resetting
-      setTemplates((prev) =>
-        prev.filter((template: any) => template._id !== templateId),
-      );
-      toast({
-        title: "Template deleted",
-        description: "Template has been removed successfully",
-        duration: 3000,
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error deleting template:", error);
-      toast({
-        title: "Error deleting template",
-        description: "Please try again",
-        duration: 3000,
-        variant: "destructive",
-      });
-    }
-  }, []);
+        // Just remove the deleted template without resetting
+        setTemplates((prev) =>
+          prev.filter((template: any) => template._id !== templateId),
+        );
+        toast({
+          title: "Template deleted",
+          description: "Template has been removed successfully",
+          duration: 3000,
+          variant: "default",
+        });
+      } catch (error) {
+        console.error("Error deleting template:", error);
+        toast({
+          title: "Error deleting template",
+          description: "Please try again",
+          duration: 3000,
+          variant: "destructive",
+        });
+      }
+    },
+    [apiRequest],
+  );
 
   const handleDeleteAccount = useCallback(async () => {
     if (!id || !account) return;
 
     setIsDeleting(true);
     try {
-      const response = await deleteInstaAccount(id);
+      const response = await deleteInstaAccount(apiRequest, id);
 
       // Clear cache
       localStorage.removeItem(ACCOUNTS_CACHE_KEY);
@@ -467,7 +472,7 @@ export default function AccountPage({
       setIsDeleting(false);
       setShowDeleteDialog(false);
     }
-  }, [id, router, account]);
+  }, [id, router, account, apiRequest]);
 
   // Updated fetchTemplates function with loadMoreCount
   const fetchTemplates = useCallback(
@@ -480,7 +485,7 @@ export default function AccountPage({
       }
 
       try {
-        const response = await getInstaTemplates({
+        const response = await getInstaTemplates(apiRequest, {
           accountId: accountId,
           loadMoreCount: loadMoreCountRef.current,
         });
@@ -518,7 +523,7 @@ export default function AccountPage({
         setIsLoading(false);
       }
     },
-    [userId],
+    [userId, apiRequest],
   );
 
   // Load more templates function
@@ -571,7 +576,7 @@ export default function AccountPage({
         }
 
         // Fetch from API
-        const accountsResponse = await getDashboardData();
+        const accountsResponse = await getDashboardData(apiRequest);
 
         const {
           accounts: dbAccounts,
@@ -690,7 +695,7 @@ export default function AccountPage({
         setIsLoading(false);
       }
     },
-    [userId, router, fetchTemplates, fetchRateLimitStats],
+    [userId, router, fetchTemplates, fetchRateLimitStats, apiRequest],
   );
 
   const fetchAccountData = useCallback(async () => {
@@ -723,7 +728,7 @@ export default function AccountPage({
     const fetchData = async () => {
       if (userId) {
         try {
-          const subs = await getSubscriptioninfo();
+          const subs = await getSubscriptioninfo(apiRequest);
           if (subs.subscriptions && subs.subscriptions.length > 0) {
             setCanFollow(true);
           } else {
@@ -740,7 +745,7 @@ export default function AccountPage({
       }
     };
     fetchData();
-  }, [userId, fetchTemplates, account?.instagramId]);
+  }, [userId, fetchTemplates, account?.instagramId, apiRequest]);
 
   // Update search effect
   useEffect(() => {
@@ -755,7 +760,7 @@ export default function AccountPage({
     const newActiveState = !account.isActive;
 
     try {
-      await updateAccountSettings(account?.instagramId, {
+      await updateAccountSettings(apiRequest, account?.instagramId, {
         isActive: newActiveState,
       });
       // Optimistically update UI
@@ -785,7 +790,7 @@ export default function AccountPage({
         variant: "destructive",
       });
     }
-  }, [account]);
+  }, [account, apiRequest]);
 
   const handleCreateTemplate = useCallback(async () => {
     if (!userId || !account?.instagramId) return;
@@ -803,6 +808,7 @@ export default function AccountPage({
       }
 
       const result = await createInstaTemplate(
+        apiRequest,
         account?.instagramId,
         account?.username,
         {
@@ -847,7 +853,7 @@ export default function AccountPage({
     } finally {
       setIsTemplateCreating(false);
     }
-  }, [userId, account, newTemplate]);
+  }, [userId, account, newTemplate, apiRequest]);
 
   const handleEditClick = useCallback(
     async (template: any) => {
@@ -870,7 +876,7 @@ export default function AccountPage({
       try {
         setIsUpdateTemplate(true);
         const templateId = template._id;
-        const response = await updateTemplate(templateId, {
+        const response = await updateTemplate(apiRequest, templateId, {
           ...template,
           isFollow: canFollow ? template.isFollow : false,
         });
@@ -904,7 +910,7 @@ export default function AccountPage({
         setIsUpdateTemplate(false);
       }
     },
-    [canFollow],
+    [canFollow, apiRequest],
   );
 
   const formatLastActivity = useCallback((dateString: string) => {
@@ -1302,7 +1308,7 @@ export default function AccountPage({
                     {account.isTokenExpiring && userId && (
                       <Button
                         onClick={() =>
-                          refreshInstagramToken(account.instagramId)
+                          refreshInstagramToken(apiRequest, account.instagramId)
                         }
                         variant="outline"
                         size="sm"
@@ -2960,9 +2966,13 @@ export default function AccountPage({
                     checked={account.autoDMEnabled}
                     onCheckedChange={async () => {
                       try {
-                        await updateAccountSettings(account?.instagramId, {
-                          autoDMEnabled: !account.autoDMEnabled,
-                        });
+                        await updateAccountSettings(
+                          apiRequest,
+                          account?.instagramId,
+                          {
+                            autoDMEnabled: !account.autoDMEnabled,
+                          },
+                        );
                         setAccount({
                           ...account,
                           autoDMEnabled: !account.autoDMEnabled,
@@ -3006,9 +3016,13 @@ export default function AccountPage({
                         // await updateInstaAccount(account.instagramId, {
                         //   followCheckEnabled: !account.followCheckEnabled,
                         // });
-                        await updateAccountSettings(account.instagramId, {
-                          followCheckEnabled: !account.followCheckEnabled,
-                        });
+                        await updateAccountSettings(
+                          apiRequest,
+                          account.instagramId,
+                          {
+                            followCheckEnabled: !account.followCheckEnabled,
+                          },
+                        );
                         setAccount({
                           ...account,
                           followCheckEnabled: !account.followCheckEnabled,

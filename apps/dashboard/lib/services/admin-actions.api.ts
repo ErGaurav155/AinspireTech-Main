@@ -1,31 +1,35 @@
-import { apiRequest } from "../utils";
+import { ApiRequestFn } from "../useApi";
 
-// Admin API Functions
-export const getWebSubscriptions = async (): Promise<any> => {
-  return await apiRequest("/admin/web-subscriptions", {
+/* ==================== ADMIN API ==================== */
+
+export const getWebSubscriptions = (apiRequest: ApiRequestFn): Promise<any> => {
+  return apiRequest("/admin/web-subscriptions", {
     method: "GET",
   });
 };
 
-export const getInstaSubscriptions = async (): Promise<any> => {
-  return await apiRequest("/admin/insta-subscriptions", {
+export const getInstaSubscriptions = (
+  apiRequest: ApiRequestFn,
+): Promise<any> => {
+  return apiRequest("/admin/insta-subscriptions", {
     method: "GET",
   });
 };
 
-export const getUsers = async (): Promise<any> => {
-  return await apiRequest("/admin/users", {
+export const getUsers = (apiRequest: ApiRequestFn): Promise<any> => {
+  return apiRequest("/admin/users", {
     method: "GET",
   });
 };
 
-export const getAppointments = async (): Promise<any> => {
-  return await apiRequest("/admin/appointments", {
+export const getAppointments = (apiRequest: ApiRequestFn): Promise<any> => {
+  return apiRequest("/admin/appointments", {
     method: "GET",
   });
 };
-export const verifyOwner = async (): Promise<any> => {
-  return await apiRequest("/admin/verify-owner", {
+
+export const verifyOwner = (apiRequest: ApiRequestFn): Promise<any> => {
+  return apiRequest("/admin/verify-owner", {
     method: "GET",
   });
 };

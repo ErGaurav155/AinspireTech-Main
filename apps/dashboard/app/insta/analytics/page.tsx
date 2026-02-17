@@ -29,6 +29,7 @@ import defaultImg from "public/assets/img/default-img.jpg";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTheme } from "next-themes";
+import { useApi } from "@/lib/useApi";
 
 import { Button } from "@rocketreplai/ui/components/radix/button";
 import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
@@ -160,6 +161,7 @@ export default function AnalyticsPage() {
     null,
   );
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const { apiRequest } = useApi();
 
   // Theme styles
   const themeStyles = useMemo((): ThemeStyles => {
@@ -272,7 +274,7 @@ export default function AnalyticsPage() {
           return cached;
         }
 
-        const stats = await getRateLimitStats();
+        const stats = await getRateLimitStats(apiRequest);
 
         if (stats) {
           setCachedData(RATE_LIMIT_CACHE_KEY, stats);
@@ -285,7 +287,7 @@ export default function AnalyticsPage() {
         console.error("Failed to fetch rate limit stats:", error);
         return null;
       }
-    }, [userId]);
+    }, [userId, apiRequest]);
 
   // Fetch app limit status
   const fetchAppLimitStatus =
@@ -298,7 +300,7 @@ export default function AnalyticsPage() {
           return cached;
         }
 
-        const status = await getAppLimitStatus();
+        const status = await getAppLimitStatus(apiRequest);
 
         if (status) {
           setCachedData(APP_LIMIT_CACHE_KEY, status);
@@ -311,7 +313,7 @@ export default function AnalyticsPage() {
         console.error("Failed to fetch app limit status:", error);
         return null;
       }
-    }, []);
+    }, [apiRequest]);
 
   // Fetch Instagram accounts
   const fetchAccounts = useCallback(async (): Promise<AnalyticsData | null> => {
@@ -331,7 +333,7 @@ export default function AnalyticsPage() {
         return transformAccountsToAnalyticsData(cachedAccounts, null, null);
       }
 
-      const dashboardResponse = await getDashboardData();
+      const dashboardResponse = await getDashboardData(apiRequest);
 
       const {
         accounts: dbAccounts,
@@ -434,7 +436,7 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, router, fetchRateLimitStats, fetchAppLimitStatus]);
+  }, [userId, router, fetchRateLimitStats, fetchAppLimitStatus, apiRequest]);
 
   // Transform accounts to analytics data
   const transformAccountsToAnalyticsData = (
@@ -491,7 +493,7 @@ export default function AnalyticsPage() {
       if (!userId) return;
 
       try {
-        const response = await getInstaTemplates({
+        const response = await getInstaTemplates(apiRequest, {
           accountId: accountId !== "all" ? accountId : undefined,
         });
 
@@ -514,7 +516,7 @@ export default function AnalyticsPage() {
         setTemplates([]);
       }
     },
-    [userId],
+    [userId, apiRequest],
   );
 
   // Fetch analytics data
@@ -540,7 +542,7 @@ export default function AnalyticsPage() {
 
       // Fetch recent activity
       try {
-        const { logs: replyLogs } = await getReplyLogs(10);
+        const { logs: replyLogs } = await getReplyLogs(apiRequest, 10);
 
         if (replyLogs && replyLogs.length > 0) {
           accountsData.recentActivity = replyLogs
@@ -571,23 +573,23 @@ export default function AnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, fetchAccounts, fetchTemplates]);
+  }, [userId, fetchAccounts, fetchTemplates, apiRequest]);
 
   // Fetch subscriptions
   const fetchSubscriptions = useCallback(async (): Promise<void> => {
     if (!userId) return;
 
     try {
-      const userData = await getUserById(userId);
+      const userData = await getUserById(apiRequest, userId);
       if (userData) {
-        const { subscriptions } = await getSubscriptioninfo();
+        const { subscriptions } = await getSubscriptioninfo(apiRequest);
         setSubscriptions(subscriptions || []);
         setUserInfo(userData);
       }
     } catch (error) {
       console.error("Failed to fetch subscriptions:", error);
     }
-  }, [userId]);
+  }, [userId, apiRequest]);
 
   // Initial data fetch
   useEffect(() => {
@@ -1296,7 +1298,10 @@ export default function AnalyticsPage() {
                       {isTokenExpiring && userId && (
                         <Button
                           onClick={() =>
-                            refreshInstagramToken(account.instagramId)
+                            refreshInstagramToken(
+                              apiRequest,
+                              account.instagramId,
+                            )
                           }
                           variant="outline"
                           size="sm"

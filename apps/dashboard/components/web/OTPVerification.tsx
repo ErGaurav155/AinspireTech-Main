@@ -17,6 +17,7 @@ import {
   AlertDialogTitle,
 } from "@rocketreplai/ui/components/radix/alert-dialog";
 import { updateNumberByUserId } from "@/lib/services/user-actions.api";
+import { useApi } from "@/lib/useApi";
 
 interface OTPVerificationProps {
   phone: string;
@@ -43,6 +44,7 @@ export default function OTPVerification({
   const [otpValues, setOtpValues] = useState(["", "", "", "", "", ""]);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
+  const { apiRequest } = useApi();
 
   const {
     handleSubmit,
@@ -183,7 +185,7 @@ export default function OTPVerification({
           throw new Error("User database ID is not available.");
         }
 
-        const response = await updateNumberByUserId(userId, phone);
+        const response = await updateNumberByUserId(apiRequest, userId, phone);
         if (response) {
           toast({
             title: "Number successfully verified!",

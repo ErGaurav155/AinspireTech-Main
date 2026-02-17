@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Logo from "public/assets/img/logo.png";
 import { useTheme } from "next-themes";
 import { useAuth } from "@clerk/nextjs";
+import { useApi } from "@/lib/useApi";
 
 import {
   Copy,
@@ -62,6 +63,7 @@ export default function AffiliateDashboard() {
     "overview" | "referrals" | "earnings" | "payouts"
   >("overview");
   const { userId, isLoaded } = useAuth();
+  const { apiRequest } = useApi();
 
   const [copied, setCopied] = useState(false);
   const { theme, resolvedTheme } = useTheme();
@@ -144,7 +146,7 @@ export default function AffiliateDashboard() {
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const result = await getAffiliateDashInfo();
+      const result = await getAffiliateDashInfo(apiRequest);
       if (!result.isAffiliate) {
         setData(null);
         router.push("/affiliate/register");
@@ -156,7 +158,7 @@ export default function AffiliateDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, apiRequest]);
 
   useEffect(() => {
     if (!userId) {

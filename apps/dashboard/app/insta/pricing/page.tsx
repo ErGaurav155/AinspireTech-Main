@@ -5,6 +5,7 @@ import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
 
 import { useTheme } from "next-themes";
+import { useApi } from "@/lib/useApi";
 
 import PaymentModal from "@/components/insta/PaymentModal";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
@@ -131,6 +132,7 @@ function PricingWithSearchParams() {
   const activeProductId = searchParams.get("code");
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
@@ -202,9 +204,9 @@ function PricingWithSearchParams() {
   );
 
   // Helper: Fetch user accounts
-  const fetchUserAccounts = async (): Promise<any[]> => {
+  const fetchUserAccounts = useCallback(async (): Promise<any[]> => {
     try {
-      const accountsResponse = await getInstaAccount();
+      const accountsResponse = await getInstaAccount(apiRequest);
 
       if (accountsResponse.accounts.length === 0) {
         return [];
@@ -216,13 +218,13 @@ function PricingWithSearchParams() {
       console.error("Error fetching user accounts:", error);
       return [];
     }
-  };
+  }, [apiRequest]);
 
   // Helper: Connect Instagram account
   const connectInstagramAccount = useCallback(
     async (code: string): Promise<boolean> => {
       try {
-        const response = await connectInstaAccount(code);
+        const response = await connectInstaAccount(apiRequest, code);
 
         if (response.ok) {
           showToast(
@@ -245,7 +247,7 @@ function PricingWithSearchParams() {
         return false;
       }
     },
-    [showToast],
+    [showToast, apiRequest],
   );
 
   // Fetch user data and subscription info
@@ -261,7 +263,7 @@ function PricingWithSearchParams() {
       }
 
       try {
-        const buyer = await getUserById(userId);
+        const buyer = await getUserById(apiRequest, userId);
         if (!buyer) {
           router.push("/sign-in");
           return;
@@ -290,7 +292,7 @@ function PricingWithSearchParams() {
         }
 
         // Fetch subscription info
-        const subscription = await getSubscriptioninfo();
+        const subscription = await getSubscriptioninfo(apiRequest);
         if (
           subscription.subscriptions &&
           subscription.subscriptions.length > 0
@@ -317,6 +319,8 @@ function PricingWithSearchParams() {
     isLoaded,
     connectInstagramAccount,
     showToast,
+    apiRequest,
+    fetchUserAccounts,
   ]);
 
   // Handle cancel subscription
@@ -328,7 +332,7 @@ function PricingWithSearchParams() {
 
     setIsCancelling(true);
     try {
-      const cancelResult = await cancelRazorPaySubscription({
+      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
         subscriptionId: currentSubscription.subscriptionId!,
         subscriptionType: "insta",
         reason: cancellationReason || "User requested cancellation",
@@ -397,7 +401,7 @@ function PricingWithSearchParams() {
       }
 
       // First, cancel current subscription
-      const cancelResult = await cancelRazorPaySubscription({
+      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
         subscriptionId: currentSubscription?.subscriptionId!,
         subscriptionType: "insta",
         reason: "Changing to new plan",
@@ -430,7 +434,7 @@ function PricingWithSearchParams() {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
         console.log("accountId:", accountId);
-        const result = await deleteInstaAccount(accountId);
+        const result = await deleteInstaAccount(apiRequest, accountId);
         if (!result.success) {
           showToast(
             `Failed to delete account`,
@@ -484,7 +488,7 @@ function PricingWithSearchParams() {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
         console.log("accountId:", accountId);
-        const result = await deleteInstaAccount(accountId);
+        const result = await deleteInstaAccount(apiRequest, accountId);
         if (!result.success) {
           showToast(`Failed to delete account`, "error");
           setIsCancelling(false);
@@ -514,7 +518,7 @@ function PricingWithSearchParams() {
     if (!currentSubscription) return;
 
     try {
-      const cancelResult = await cancelRazorPaySubscription({
+      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
         subscriptionId: currentSubscription?.subscriptionId!,
         reason: CANCELLATION_REASON_PLACEHOLDER,
         subscriptionType: "insta",

@@ -29,6 +29,7 @@ import defaultImg from "public/assets/img/default-img.jpg";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
+import { useApi } from "@/lib/useApi";
 
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -162,6 +163,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
 
   // Refs to track initial load and prevent re-fetching
   const isInitialMount = useRef(true);
@@ -392,7 +394,7 @@ export default function Dashboard() {
           return cached;
         }
 
-        const stats = await getRateLimitStats();
+        const stats = await getRateLimitStats(apiRequest);
 
         if (stats) {
           setCachedData(RATE_LIMIT_CACHE_KEY, stats);
@@ -405,20 +407,20 @@ export default function Dashboard() {
         console.error("Failed to fetch rate limit stats:", error);
         return null;
       }
-    }, [userId]);
+    }, [userId, apiRequest]);
 
   // Fetch current rate limit window
   const fetchCurrentWindow =
     useCallback(async (): Promise<RateLimitWindow | null> => {
       try {
-        const window = await getCurrentWindow();
+        const window = await getCurrentWindow(apiRequest);
         setRateLimitWindow(window);
         return window;
       } catch (error) {
         console.error("Failed to fetch current window:", error);
         return null;
       }
-    }, []);
+    }, [apiRequest]);
 
   // Fetch app limit status with caching
   const fetchAppLimitStatus =
@@ -431,7 +433,7 @@ export default function Dashboard() {
           return cached;
         }
 
-        const status = await getAppLimitStatus();
+        const status = await getAppLimitStatus(apiRequest);
 
         if (status) {
           setCachedData(APP_LIMIT_CACHE_KEY, status);
@@ -444,7 +446,7 @@ export default function Dashboard() {
         console.error("Failed to fetch app limit status:", error);
         return null;
       }
-    }, []);
+    }, [apiRequest]);
 
   // Fetch Instagram accounts with caching
   const fetchAccounts = useCallback(async (): Promise<
@@ -469,7 +471,7 @@ export default function Dashboard() {
       }
 
       // Fetch from API
-      const dashboardResponse = await getDashboardData();
+      const dashboardResponse = await getDashboardData(apiRequest);
       const {
         accounts: dbAccounts,
         totalReplies,
@@ -561,7 +563,7 @@ export default function Dashboard() {
       showToast("Failed to load accounts", "error");
       return null;
     }
-  }, [userId, router, fetchRateLimitStats, showToast]);
+  }, [userId, router, fetchRateLimitStats, showToast, apiRequest]);
 
   // Fetch dashboard data
   const fetchDashboardData = useCallback(async () => {
@@ -596,7 +598,7 @@ export default function Dashboard() {
 
       // Fetch recent activity only if needed
       try {
-        const { logs: replyLogs } = await getReplyLogs(10);
+        const { logs: replyLogs } = await getReplyLogs(apiRequest, 10);
 
         if (replyLogs && replyLogs.length > 0) {
           dashboardStats.recentActivity = replyLogs
@@ -636,6 +638,7 @@ export default function Dashboard() {
     fetchCurrentWindow,
     transformAccountsToDashboardData,
     showToast,
+    apiRequest,
   ]);
 
   // Fetch user subscriptions
@@ -643,9 +646,9 @@ export default function Dashboard() {
     if (!userId) return;
 
     try {
-      const userData = await getUserById(userId);
+      const userData = await getUserById(apiRequest, userId);
       if (userData) {
-        const { subscriptions } = await getSubscriptioninfo();
+        const { subscriptions } = await getSubscriptioninfo(apiRequest);
         setSubscriptions(subscriptions || []);
         setUserInfo(userData);
       }
@@ -653,7 +656,7 @@ export default function Dashboard() {
       console.error("Failed to fetch subscriptions:", error);
       showToast("Failed to load subscription information", "error");
     }
-  }, [userId, showToast]);
+  }, [userId, showToast, apiRequest]);
 
   // Initialize dashboard - Run only once on mount
   useEffect(() => {
@@ -728,7 +731,7 @@ export default function Dashboard() {
   // Handle tier upgrade
   const handleTierUpgrade = async () => {
     try {
-      const result = await updateUserTier("pro");
+      const result = await updateUserTier(apiRequest, "pro");
 
       if (result.success) {
         showToast("Successfully upgraded to Pro tier!", "success");
@@ -778,7 +781,7 @@ export default function Dashboard() {
     try {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
-        const result = await deleteInstaAccount(accountId);
+        const result = await deleteInstaAccount(apiRequest, accountId);
         if (!result.success) {
           showToast(`Failed to delete account`, "error");
           setIsProcessingCancellation(false);
@@ -819,7 +822,7 @@ export default function Dashboard() {
 
     setIsCancelling(true);
     try {
-      const result = await cancelRazorPaySubscription({
+      const result = await cancelRazorPaySubscription(apiRequest, {
         subscriptionId: selectedSubscriptionId,
         subscriptionType: "insta",
         reason: cancellationReason || CANCELLATION_REASON_PLACEHOLDER,
@@ -831,7 +834,7 @@ export default function Dashboard() {
         setSubscriptions([]);
 
         // Update user tier to free
-        await updateUserTier("free");
+        await updateUserTier(apiRequest, "free");
 
         // Refresh rate limit stats and clear cache
         localStorage.removeItem(RATE_LIMIT_CACHE_KEY);
@@ -856,7 +859,7 @@ export default function Dashboard() {
   const handleProcessQueue = async () => {
     setIsQueueProcessing(true);
     try {
-      const result = await processQueue(50);
+      const result = await processQueue(apiRequest, 50);
       setQueueStatus(result);
       showToast(`Processed ${result.processed} queued items`, "success");
 
@@ -881,6 +884,7 @@ export default function Dashboard() {
     setIsTestingRateLimit(true);
     try {
       const result = await checkRateLimit(
+        apiRequest,
         testAccountId,
         testActionType,
         testActionType.includes("follow"),
@@ -903,7 +907,7 @@ export default function Dashboard() {
   // Handle rate limit window reset
   const handleResetRateLimitWindow = async () => {
     try {
-      const result = await resetRateLimitWindow();
+      const result = await resetRateLimitWindow(apiRequest);
       if (result.success) {
         showToast("Rate limit window reset successfully", "success");
 
@@ -1194,7 +1198,9 @@ export default function Dashboard() {
 
           {isTokenExpiring && userId && (
             <Button
-              onClick={() => refreshInstagramToken(account.instagramId)}
+              onClick={() =>
+                refreshInstagramToken(apiRequest, account.instagramId)
+              }
               variant="outline"
               size="sm"
               className={`${themeStyles.buttonOutlineBorder} p-2 bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] text-black hover:bg-white/10`}

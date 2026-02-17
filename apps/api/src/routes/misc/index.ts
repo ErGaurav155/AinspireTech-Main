@@ -8,6 +8,7 @@ import {
 import { requireAuth } from "@clerk/express";
 
 const router = Router();
+
 router.use(requireAuth());
 
 // POST endpoints

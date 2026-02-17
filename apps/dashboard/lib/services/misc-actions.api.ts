@@ -1,74 +1,89 @@
-import { apiRequest } from "../utils";
+import { ApiRequestFn } from "../useApi";
 
-// Misc Actions API Functions
-export const getRazerpayPlanInfo = async (productId: string): Promise<any> => {
-  return apiRequest(`/misc/razerpay-plan/${productId}`, {
+/* =========================
+   MISC ACTIONS
+========================= */
+
+export const getRazerpayPlanInfo = (
+  apiRequest: ApiRequestFn,
+  productId: string,
+) =>
+  apiRequest(`/misc/razerpay-plan/${productId}`, {
     method: "GET",
   });
-};
 
-export const sendSubscriptionEmailToOwner = async (data: {
-  email: string;
-  userId: string;
-  subscriptionId: string;
-}): Promise<{ message: string }> => {
-  return apiRequest("/misc/send-subscription-email-owner", {
+export const sendSubscriptionEmailToOwner = (
+  apiRequest: ApiRequestFn,
+  data: {
+    email: string;
+    userId: string;
+    subscriptionId: string;
+  },
+): Promise<{ message: string }> =>
+  apiRequest("/misc/send-subscription-email-owner", {
     method: "POST",
     body: JSON.stringify(data),
   });
-};
 
-export const sendSubscriptionEmailToUser = async (data: {
-  email: string;
-  userId: string;
-  agentId: string;
-  subscriptionId: string;
-}): Promise<{ message: string }> => {
-  return apiRequest("/misc/send-subscription-email-user", {
+export const sendSubscriptionEmailToUser = (
+  apiRequest: ApiRequestFn,
+  data: {
+    email: string;
+    userId: string;
+    agentId: string;
+    subscriptionId: string;
+  },
+): Promise<{ message: string }> =>
+  apiRequest("/misc/send-subscription-email-user", {
     method: "POST",
     body: JSON.stringify(data),
   });
-};
 
-export const sendAppointmentEmailToUser = async (data: {
-  email: string;
-  data: Array<{ answer: string }>;
-}): Promise<{ message: string }> => {
-  return apiRequest("/misc/send-appointment-email", {
+export const sendAppointmentEmailToUser = (
+  apiRequest: ApiRequestFn,
+  data: {
+    email: string;
+    data: Array<{ answer: string }>;
+  },
+): Promise<{ message: string }> =>
+  apiRequest("/misc/send-appointment-email", {
     method: "POST",
     body: JSON.stringify(data),
   });
-};
 
-export const sendWhatsAppInfo = async (data: {
-  data: Array<{ answer: string }>;
-  userId?: string;
-}): Promise<{ message: string; sid: string; to: string }> => {
-  return apiRequest("/misc/send-whatsapp-info", {
+export const sendWhatsAppInfo = (
+  apiRequest: ApiRequestFn,
+  data: {
+    data: Array<{ answer: string }>;
+    userId?: string;
+  },
+): Promise<{ message: string; sid: string; to: string }> =>
+  apiRequest("/misc/send-whatsapp-info", {
     method: "POST",
     body: JSON.stringify(data),
   });
-};
 
-// Helper functions
+/* =========================
+   HELPER FUNCTIONS
+========================= */
+
 export const sendNewSubscriptionNotification = async (
+  apiRequest: ApiRequestFn,
   ownerEmail: string,
   userEmail: string,
   userDbId: string,
   agentId: string,
   subscriptionId: string,
-  userId: string, // Added userId parameter
+  userId: string,
 ): Promise<void> => {
   try {
-    // Send to owner
-    await sendSubscriptionEmailToOwner({
+    await sendSubscriptionEmailToOwner(apiRequest, {
       email: ownerEmail,
       userId,
       subscriptionId,
     });
 
-    // Send to user
-    await sendSubscriptionEmailToUser({
+    await sendSubscriptionEmailToUser(apiRequest, {
       email: userEmail,
       userId,
       agentId,
@@ -81,20 +96,19 @@ export const sendNewSubscriptionNotification = async (
 };
 
 export const sendAppointmentNotification = async (
+  apiRequest: ApiRequestFn,
   ownerEmail: string,
   appointmentData: Array<{ answer: string }>,
   userId?: string,
 ): Promise<void> => {
   try {
-    // Send email to owner
-    await sendAppointmentEmailToUser({
+    await sendAppointmentEmailToUser(apiRequest, {
       email: ownerEmail,
       data: appointmentData,
     });
 
-    // Send WhatsApp if userId is provided
     if (userId) {
-      await sendWhatsAppInfo({
+      await sendWhatsAppInfo(apiRequest, {
         data: appointmentData,
         userId,
       });

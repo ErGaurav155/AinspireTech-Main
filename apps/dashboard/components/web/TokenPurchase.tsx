@@ -17,7 +17,7 @@ import {
   Crown,
   BadgeCheck,
 } from "lucide-react";
-
+import { useApi } from "@/lib/useApi";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
@@ -52,7 +52,7 @@ export const TokenPurchase = ({
   const { userId, isLoaded } = useAuth();
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
-
+  const { apiRequest } = useApi();
   const [selectedPlan, setSelectedPlan] = useState<string>("pro");
   const [customTokens, setCustomTokens] = useState<number>(100000);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -156,7 +156,7 @@ export const TokenPurchase = ({
     setIsProcessing(true);
 
     try {
-      const data = await purchaseTokens({ tokens, amount, planId });
+      const data = await purchaseTokens(apiRequest, { tokens, amount, planId });
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -174,7 +174,10 @@ export const TokenPurchase = ({
             amount,
             currency: data.currency,
           };
-          const verifyData = await verifyPurchaseTokens(verificationData);
+          const verifyData = await verifyPurchaseTokens(
+            apiRequest,
+            verificationData,
+          );
 
           if (verifyData.success) {
             toast({

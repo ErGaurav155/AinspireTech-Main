@@ -120,6 +120,7 @@ import {
   scrapeWebsite,
   sendOtp,
 } from "@/lib/services/web-actions.api";
+import { useApi } from "@/lib/useApi";
 
 // Components
 
@@ -295,6 +296,7 @@ export default function DashboardPage() {
   const { userId, isLoaded } = useAuth();
   const { theme, resolvedTheme } = useTheme();
   const hasLoadedRef = useRef(false);
+  const { apiRequest } = useApi();
 
   // State
   const [selectedChatbot, setSelectedChatbot] = useState<string>(
@@ -500,7 +502,7 @@ export default function DashboardPage() {
     async (chatbotType: string) => {
       try {
         // Load user chatbots from API
-        const data = await getChatbots();
+        const data = await getChatbots(apiRequest);
         const userChatbots = data.chatbots || [];
         // Find chatbot for the current type
         const chatbot = userChatbots.find((c: any) => c.type === chatbotType);
@@ -539,14 +541,20 @@ export default function DashboardPage() {
               chatbotType === "chatbot-customer-support"
             ) {
               try {
-                const analyticsData = await getAnalytics(chatbotType);
+                const analyticsData = await getAnalytics(
+                  apiRequest,
+                  chatbotType,
+                );
                 setAnalytics(analyticsData.analytics);
               } catch (analyticsError) {
                 console.warn("Failed to load analytics:", analyticsError);
               }
 
               try {
-                const conversationsData = await getConversations(chatbotType);
+                const conversationsData = await getConversations(
+                  apiRequest,
+                  chatbotType,
+                );
                 setConversations(conversationsData.conversations || []);
               } catch (conversationsError) {
                 console.warn(
@@ -561,7 +569,7 @@ export default function DashboardPage() {
         console.error(`Error loading chatbot data for ${chatbotType}:`, error);
       }
     },
-    [selectedChatbot],
+    [selectedChatbot, apiRequest],
   ); // Only depends on selectedChatbot
 
   // Data loading
@@ -579,7 +587,7 @@ export default function DashboardPage() {
 
       // Load token balance
 
-      const tokenData = await getTokenBalance();
+      const tokenData = await getTokenBalance(apiRequest);
       setTokenBalance(tokenData);
 
       // Check for low token alert
@@ -588,11 +596,11 @@ export default function DashboardPage() {
       }
 
       // Load token usage
-      const usageData = await getTokenUsage();
+      const usageData = await getTokenUsage(apiRequest);
       setTokenUsage(usageData);
 
       // Load subscriptions
-      const subscriptionsData = await getSubscriptions();
+      const subscriptionsData = await getSubscriptions(apiRequest);
 
       if (!Array.isArray(subscriptionsData)) {
         throw new Error("Invalid subscriptions data format");
@@ -630,7 +638,7 @@ export default function DashboardPage() {
 
       // Load FAQ questions for selected chatbot
       try {
-        const faqResponse = await getFAQ(selectedChatbot);
+        const faqResponse = await getFAQ(apiRequest, selectedChatbot);
         setFaqQuestions(faqResponse.faq?.questions || []);
       } catch (faqError) {
         console.warn("Failed to load FAQ:", faqError);
@@ -639,8 +647,10 @@ export default function DashboardPage() {
 
       // Load appointment questions for selected chatbot
       try {
-        const questionsResponse =
-          await getAppointmentQuestions(selectedChatbot);
+        const questionsResponse = await getAppointmentQuestions(
+          apiRequest,
+          selectedChatbot,
+        );
         if (questionsResponse?.appointmentQuestions?.questions) {
           setAppointmentQuestions(
             questionsResponse.appointmentQuestions.questions,
@@ -656,7 +666,14 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [userId, selectedChatbot, router, chatbotStatuses, loadChatbotData]);
+  }, [
+    userId,
+    selectedChatbot,
+    router,
+    chatbotStatuses,
+    loadChatbotData,
+    apiRequest,
+  ]);
 
   // Effects
   useEffect(() => {
@@ -675,20 +692,10 @@ export default function DashboardPage() {
     };
   }, [userId, isLoaded, router, loadDashboardData]);
 
-  useEffect(() => {
-    if (userId && hasLoadedRef.current) {
-      // When chatbot changes, load data for that specific chatbot
-      loadChatbotData(selectedChatbot);
-
-      // Also update token balance if needed
-      refreshTokenBalance();
-    }
-  }, [selectedChatbot, userId, loadChatbotData]); // Only reload when selectedChatbot changes
-
   // Token-related functions
-  const refreshTokenBalance = async () => {
+  const refreshTokenBalance = useCallback(async () => {
     try {
-      const tokenData = await getTokenBalance();
+      const tokenData = await getTokenBalance(apiRequest);
 
       setTokenBalance(tokenData);
 
@@ -700,7 +707,17 @@ export default function DashboardPage() {
     } catch (error) {
       console.error("Error refreshing token balance:", error);
     }
-  };
+  }, [apiRequest]);
+
+  useEffect(() => {
+    if (userId && hasLoadedRef.current) {
+      // When chatbot changes, load data for that specific chatbot
+      loadChatbotData(selectedChatbot);
+
+      // Also update token balance if needed
+      refreshTokenBalance();
+    }
+  }, [selectedChatbot, userId, loadChatbotData, refreshTokenBalance]); // Only reload when selectedChatbot changes
 
   // Event handlers
   const handleCopyCode = () => {
@@ -804,7 +821,7 @@ data-chatbot-config='{
       // Create chatbot first
       setBuildStep("chatbot-create");
 
-      const chatbotData = await createWebChatbot({
+      const chatbotData = await createWebChatbot(apiRequest, {
         name: buildChatbotName.trim(),
         type: selectedChatbot,
         websiteUrl: buildWebsiteUrl.trim(),
@@ -814,6 +831,7 @@ data-chatbot-config='{
       // Now scrape the website (only for non-education chatbots)
 
       const scrapeResult = await scrapeWebsite(
+        apiRequest,
         buildWebsiteUrl.trim(),
         chatbotId,
       );
@@ -824,7 +842,7 @@ data-chatbot-config='{
       if (scrapeResult.success) {
         // Process scraped data
 
-        const processResult = await processScrapedData({
+        const processResult = await processScrapedData(apiRequest, {
           ...scrapeResult.data,
           chatbotId,
         });
@@ -884,7 +902,7 @@ data-chatbot-config='{
     try {
       // For education chatbot, create without website scraping
 
-      const chatbotData = await createWebChatbot({
+      const chatbotData = await createWebChatbot(apiRequest, {
         name: buildChatbotName.trim(),
         type: selectedChatbot,
       });
@@ -984,7 +1002,7 @@ data-chatbot-config='{
     try {
       const fullPhoneNumber = `${countryCode}${data.MobileNumber}`;
 
-      const res = await sendOtp(fullPhoneNumber);
+      const res = await sendOtp(apiRequest, fullPhoneNumber);
       if (res.success) {
         setPhone(fullPhoneNumber);
         setOtpStep("otp");
@@ -1049,7 +1067,7 @@ data-chatbot-config='{
 
   const saveFAQs = async () => {
     try {
-      await saveFAQ(userId!, selectedChatbot, faqQuestions);
+      await saveFAQ(apiRequest, userId!, selectedChatbot, faqQuestions);
       showSuccessToast("FAQ Saved", "Your FAQ questions have been updated.");
     } catch (err: any) {
       showErrorToast("Save Error", err.message || "Failed to save FAQ");
@@ -1058,7 +1076,11 @@ data-chatbot-config='{
 
   const savingAppointmentQuestions = async () => {
     try {
-      await saveAppointmentQuestions(selectedChatbot, appointmentQuestions);
+      await saveAppointmentQuestions(
+        apiRequest,
+        selectedChatbot,
+        appointmentQuestions,
+      );
       showSuccessToast(
         "Questions Saved",
         "Appointment questions saved successfully!",

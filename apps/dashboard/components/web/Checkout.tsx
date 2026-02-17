@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useApi } from "@/lib/useApi";
 import { useRouter } from "next/navigation";
 import Script from "next/script";
 import { motion } from "framer-motion";
@@ -105,6 +106,7 @@ export const Checkout = ({
   const [scrapingComplete, setScrapingComplete] = useState(false);
   const [chatbotCreationComplete, setChatbotCreationComplete] = useState(false);
   const [createdChatbotId, setCreatedChatbotId] = useState<string | null>(null);
+  const { apiRequest } = useApi();
 
   const chatbotNameRef = useRef<string>("");
   const websiteUrlRef = useRef<string>("");
@@ -153,7 +155,7 @@ export const Checkout = ({
     try {
       // For chatbot subscriptions, fetch plan info
       if (planType === "chatbot") {
-        const planInfo = await getRazerpayPlanInfo(productId);
+        const planInfo = await getRazerpayPlanInfo(apiRequest, productId);
 
         if (!planInfo.razorpaymonthlyplanId || !planInfo.razorpayyearlyplanId) {
           router.push("/");
@@ -172,7 +174,7 @@ export const Checkout = ({
         return false;
       }
 
-      const user = await getUserById(userId);
+      const user = await getUserById(apiRequest, userId);
 
       if (!user) {
         redirectToSignIn();
@@ -195,7 +197,7 @@ export const Checkout = ({
     try {
       setScrapingStatus("Checking if website is already scraped...");
 
-      const checkWebsiteScraped = await checkAndPrepareScrape({
+      const checkWebsiteScraped = await checkAndPrepareScrape(apiRequest, {
         userId: userId,
         url: websiteUrl,
         chatbotId: chatbotId,
@@ -208,7 +210,11 @@ export const Checkout = ({
       if (checkWebsiteScraped.success) {
         setScrapingStatus("Scraping website...");
 
-        const scrapeResult = await scrapeWebsite(websiteUrl, chatbotId);
+        const scrapeResult = await scrapeWebsite(
+          apiRequest,
+          websiteUrl,
+          chatbotId,
+        );
         if (scrapeResult.alreadyScrapped) {
           setScrapingStatus("Website already scraped, skipping...");
           return true;
@@ -217,7 +223,10 @@ export const Checkout = ({
         if (scrapeResult.success) {
           setScrapingStatus("Processing scraped data...");
 
-          const processResult = await processScrapedData(scrapeResult.data);
+          const processResult = await processScrapedData(
+            apiRequest,
+            scrapeResult.data,
+          );
 
           if (processResult.success) {
             setScrapingStatus("Scraping complete!");
@@ -240,7 +249,7 @@ export const Checkout = ({
     try {
       setScrapingStatus("Creating chatbot...");
 
-      const result = await createWebChatbot({
+      const result = await createWebChatbot(apiRequest, {
         name: data.chatbotName,
         type: productId,
         websiteUrl: data.websiteUrl,
@@ -257,7 +266,7 @@ export const Checkout = ({
     subscriptionId: string,
   ) => {
     try {
-      const result = await updateWebChatbot(chatbotId, {
+      const result = await updateWebChatbot(apiRequest, chatbotId, {
         subscriptionId,
         isActive: true,
       });
@@ -381,7 +390,7 @@ export const Checkout = ({
         throw new Error("Razorpay plan ID not found");
       }
 
-      const result = await createRazorpaySubscription({
+      const result = await createRazorpaySubscription(apiRequest, {
         amount: amount,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
@@ -453,7 +462,10 @@ export const Checkout = ({
         currency: "INR",
       };
 
-      const verifyResponse = await verifyRazorpayPayment(verificationData);
+      const verifyResponse = await verifyRazorpayPayment(
+        apiRequest,
+        verificationData,
+      );
 
       if (verifyResponse.success) {
         const referralCode = localStorage.getItem("referral_code");
@@ -471,12 +483,12 @@ export const Checkout = ({
         setScrapingStatus("Activating your subscription...");
 
         // Send subscription email
-        await sendSubscriptionEmailToOwner({
+        await sendSubscriptionEmailToOwner(apiRequest, {
           email: userEmailRef.current,
           userId: userId,
           subscriptionId,
         });
-        await sendSubscriptionEmailToUser({
+        await sendSubscriptionEmailToUser(apiRequest, {
           email: userEmailRef.current,
           userId: userId,
           agentId: productId,
@@ -527,7 +539,7 @@ export const Checkout = ({
       // if (!orderData.success) {
       //   throw new Error("Failed to create token purchase order");
       // }
-      const orderData = await purchaseTokens({
+      const orderData = await purchaseTokens(apiRequest, {
         tokens,
         amount,
         planId: productId,
@@ -581,7 +593,10 @@ export const Checkout = ({
         currency: "INR",
       };
 
-      const verificationResult = await verifyPurchaseTokens(verificationData);
+      const verificationResult = await verifyPurchaseTokens(
+        apiRequest,
+        verificationData,
+      );
 
       if (verificationResult.success) {
         showSuccessToast(

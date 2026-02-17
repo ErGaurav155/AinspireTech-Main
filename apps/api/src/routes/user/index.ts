@@ -11,7 +11,6 @@ import {
   getAffiliateUserController,
   checkAndPrepareScrapeController,
 } from "@/controllers/user/user-actions.controller";
-import { verifyOwnerController } from "@/controllers/admin/verify-owner.controller";
 import { requireAuth } from "@clerk/express";
 
 const router = Router();

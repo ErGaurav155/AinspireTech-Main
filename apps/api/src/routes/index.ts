@@ -13,6 +13,7 @@ import razorpayRoutes from "@/routes/razorpay";
 import scrapeRoutes from "@/routes/scrape";
 import userRoutes from "@/routes/user";
 import miscRoutes from "@/routes/misc";
+import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
 
@@ -20,7 +21,7 @@ const router = Router();
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
 router.use("/cron", cronRoutes);
-router.use("/embed", embedRoutes);
+router.use("/embed", embedCors, embedRoutes);
 router.use("/health", healthRoutes);
 router.use("/insta", instaRoutes);
 router.use("/rate-limit", rateLimitRoutes);

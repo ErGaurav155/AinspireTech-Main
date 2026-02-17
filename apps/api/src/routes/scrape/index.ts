@@ -4,6 +4,7 @@ import { processScrapedDataController } from "@/controllers/web/scrape/process-d
 import { requireAuth } from "@clerk/express";
 
 const router = Router();
+
 router.use(requireAuth());
 
 // GET /api/scrape/scrape-anu - Scrape website with advanced level-by-level scraping

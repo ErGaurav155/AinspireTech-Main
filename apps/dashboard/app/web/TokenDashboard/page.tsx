@@ -63,6 +63,7 @@ import {
   getTokenUsage,
   resetFreeTokens,
 } from "@/lib/services/web-actions.api";
+import { useApi } from "@/lib/useApi";
 
 interface TokenStats {
   availableTokens: number;
@@ -97,6 +98,7 @@ export default function TokenDashboard() {
   const [tokenStats, setTokenStats] = useState<TokenStats | null>(null);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [activeTab, setActiveTab] = useState("overview");
+  const { apiRequest } = useApi();
 
   useEffect(() => {
     setMounted(true);
@@ -220,13 +222,13 @@ export default function TokenDashboard() {
       },
     },
   };
-  const fetchTokenData = async () => {
+  const fetchTokenData = useCallback(async () => {
     try {
       setLoading(true);
 
       const [balanceData, usageData] = await Promise.all([
-        getTokenBalance(),
-        getTokenUsage("month"),
+        getTokenBalance(apiRequest),
+        getTokenUsage(apiRequest, "month"),
       ]);
       setTokenStats(balanceData);
       setUsageData(usageData);
@@ -240,7 +242,7 @@ export default function TokenDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiRequest]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -251,7 +253,7 @@ export default function TokenDashboard() {
     }
 
     fetchTokenData();
-  }, [userId, isLoaded, router]);
+  }, [userId, isLoaded, router, fetchTokenData]);
 
   const handleRefresh = () => {
     fetchTokenData();
@@ -259,7 +261,7 @@ export default function TokenDashboard() {
 
   const handleResetFreeTokens = async () => {
     try {
-      await resetFreeTokens();
+      await resetFreeTokens(apiRequest);
       toast({
         title: "Success",
         description: "Free tokens have been reset",
@@ -1215,21 +1217,22 @@ function PurchaseHistory({
 }) {
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { apiRequest } = useApi();
 
-  useEffect(() => {
-    fetchPurchases();
-  }, [userId]);
-
-  const fetchPurchases = async () => {
+  const fetchPurchases = useCallback(async () => {
     try {
-      const result = await getPurchaseHistory();
+      const result = await getPurchaseHistory(apiRequest);
       setPurchases(result.purchase || []);
     } catch (error) {
       console.error("Error fetching purchases:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [apiRequest]);
+
+  useEffect(() => {
+    fetchPurchases();
+  }, [userId, fetchPurchases]);
 
   if (loading) {
     return (

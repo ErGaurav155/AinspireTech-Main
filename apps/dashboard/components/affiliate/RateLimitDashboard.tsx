@@ -23,6 +23,7 @@ import {
   getWindowStats,
   getUserRateLimitStats,
 } from "@/lib/services/hourlyRateLimiter.api";
+import { useApi } from "@/lib/useApi";
 
 interface ThemeStyles {
   containerBg: string;
@@ -76,6 +77,7 @@ export default function RateLimitDashboard({ clerkId }: { clerkId?: string }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"global" | "user">("global");
+  const { apiRequest } = useApi();
 
   // Theme-based styles
   const themeStyles = useMemo((): ThemeStyles => {
@@ -98,11 +100,11 @@ export default function RateLimitDashboard({ clerkId }: { clerkId?: string }) {
     try {
       setLoading(true);
       setError(null);
-      const data = await getWindowStats();
+      const data = await getWindowStats(apiRequest);
       setStats(data);
 
       if (clerkId) {
-        const userData = await getUserRateLimitStats(clerkId);
+        const userData = await getUserRateLimitStats(apiRequest, clerkId);
         setUserStats(userData);
       }
     } catch (error) {
@@ -111,7 +113,7 @@ export default function RateLimitDashboard({ clerkId }: { clerkId?: string }) {
     } finally {
       setLoading(false);
     }
-  }, [clerkId]);
+  }, [clerkId, apiRequest]);
 
   useEffect(() => {
     loadStats();

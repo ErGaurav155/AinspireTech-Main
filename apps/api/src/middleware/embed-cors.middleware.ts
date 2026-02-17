@@ -23,16 +23,19 @@ export const embedCors = (req: Request, res: Response, next: NextFunction) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
   }
 
-  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  // CRITICAL FIX: Always include x-api-key in allowed headers
   res.setHeader(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, x-api-key, x-user-id",
+    "Content-Type, Authorization, x-api-key, ",
   );
-  res.setHeader("Access-Control-Allow-Credentials", "false"); // Set to false for public endpoints
-  res.setHeader("Access-Control-Max-Age", "86400");
+
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST,OPTIONS, ");
+  res.setHeader("Access-Control-Allow-Credentials", "false");
+  res.setHeader("Access-Control-Max-Age", "86400"); // 24 hours
 
   // Handle OPTIONS (preflight) - This is CRITICAL
   if (req.method === "OPTIONS") {
+    // For OPTIONS requests, just send the headers and end
     return res.status(200).end();
   }
 

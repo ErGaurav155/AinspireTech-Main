@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import defaultImg from "public/assets/img/default-img.jpg";
+import { useApi } from "@/lib/useApi";
 
 import {
   Card,
@@ -150,6 +151,7 @@ export default function AccountsPage() {
   const [appLimitStatus, setAppLimitStatus] = useState<AppLimitStatus | null>(
     null,
   );
+  const { apiRequest } = useApi();
 
   // Theme-based styles
   const themeStyles = useMemo((): ThemeStyles => {
@@ -256,7 +258,7 @@ export default function AccountsPage() {
           return cached;
         }
 
-        const stats = await getRateLimitStats();
+        const stats = await getRateLimitStats(apiRequest);
 
         if (stats) {
           setCachedData(RATE_LIMIT_CACHE_KEY, stats);
@@ -269,7 +271,7 @@ export default function AccountsPage() {
         console.error("Failed to fetch rate limit stats:", error);
         return null;
       }
-    }, [userId]);
+    }, [userId, apiRequest]);
 
   // Fetch app limit status
   const fetchAppLimitStatus =
@@ -282,7 +284,7 @@ export default function AccountsPage() {
           return cached;
         }
 
-        const status = await getAppLimitStatus();
+        const status = await getAppLimitStatus(apiRequest);
 
         if (status) {
           setCachedData(APP_LIMIT_CACHE_KEY, status);
@@ -295,7 +297,7 @@ export default function AccountsPage() {
         console.error("Failed to fetch app limit status:", error);
         return null;
       }
-    }, []);
+    }, [apiRequest]);
 
   // Fetch Instagram accounts with caching
   const fetchAccounts = useCallback(async (): Promise<void> => {
@@ -316,7 +318,7 @@ export default function AccountsPage() {
         return;
       }
 
-      const dashboardResponse = await getDashboardData();
+      const dashboardResponse = await getDashboardData(apiRequest);
       const {
         accounts: dbAccounts,
         totalReplies,
@@ -446,23 +448,23 @@ export default function AccountsPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [userId, router, fetchRateLimitStats]);
+  }, [userId, router, fetchRateLimitStats, apiRequest]);
 
   // Fetch user subscriptions
   const fetchSubscriptions = useCallback(async (): Promise<void> => {
     if (!userId) return;
 
     try {
-      const userData = await getUserById(userId);
+      const userData = await getUserById(apiRequest, userId);
       if (userData) {
-        const subs = await getSubscriptioninfo();
+        const subs = await getSubscriptioninfo(apiRequest);
         setSubscriptions(subs.subscriptions);
         setUserInfo(userData);
       }
     } catch (error) {
       console.error("Failed to fetch subscriptions:", error);
     }
-  }, [userId]);
+  }, [userId, apiRequest]);
 
   // Initialize component
   useEffect(() => {
@@ -496,7 +498,7 @@ export default function AccountsPage() {
     setIsUpdatingAccount(accountId);
 
     try {
-      await updateAccountSettings(accountId, {
+      await updateAccountSettings(apiRequest, accountId, {
         isActive: newActiveState,
       });
       // Optimistic UI update
@@ -1076,6 +1078,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
   rateLimitStats,
 }) => {
   const isTokenExpiring = account.isTokenExpiring || false;
+  const { apiRequest } = useApi();
 
   // Calculate Meta API usage percentage
   const metaCallsPercentage = account.metaCallsThisHour
@@ -1201,7 +1204,9 @@ const AccountCard: React.FC<AccountCardProps> = ({
               <div className="flex items-center justify-center gap-2">
                 {isTokenExpiring && userId && (
                   <Button
-                    onClick={() => refreshInstagramToken(account.instagramId)}
+                    onClick={() =>
+                      refreshInstagramToken(apiRequest, account.instagramId)
+                    }
                     variant="outline"
                     size="sm"
                     className={`${themeStyles.buttonOutlineBorder} p-2 bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] text-black hover:bg-white/10`}

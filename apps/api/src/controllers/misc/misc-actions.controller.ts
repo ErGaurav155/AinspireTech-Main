@@ -344,6 +344,7 @@ export const createAppointmentController = async (
 ) => {
   try {
     const SECRET_KEY = process.env.API_KEY || "";
+
     const apiKey = req.headers["x-api-key"] as string;
 
     if (!apiKey) {

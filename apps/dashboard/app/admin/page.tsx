@@ -45,6 +45,7 @@ import {
   getWebSubscriptions,
   verifyOwner,
 } from "@/lib/services/admin-actions.api";
+import { useApi } from "@/lib/useApi";
 
 interface User {
   clerkId: string;
@@ -168,6 +169,7 @@ export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
 
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [subscriptions, setSubscriptions] = useState<CombinedSubscription[]>(
@@ -264,7 +266,7 @@ export default function AdminDashboard() {
       setError(null);
 
       // First verify if user is owner
-      const ownerVerification = await verifyOwner();
+      const ownerVerification = await verifyOwner(apiRequest);
       setIsOwner(ownerVerification.isOwner);
 
       if (!ownerVerification.isOwner) {
@@ -276,10 +278,10 @@ export default function AdminDashboard() {
       }
 
       const [webSubs, instaSubs, users, appointmentsData] = await Promise.all([
-        getWebSubscriptions(),
-        getInstaSubscriptions(),
-        getUsers(),
-        getAppointments(),
+        getWebSubscriptions(apiRequest),
+        getInstaSubscriptions(apiRequest),
+        getUsers(apiRequest),
+        getAppointments(apiRequest),
       ]);
       console.log("webSubs:", webSubs);
       console.log("instaSubs:", instaSubs);
@@ -330,7 +332,7 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [apiRequest]);
 
   // Calculate analytics from subscription data
   const calculateAnalytics = (

@@ -28,6 +28,7 @@ import { Button } from "@rocketreplai/ui/components/radix/button";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { createAffiliateLink } from "@/lib/services/affiliate-actions.api";
 import { useAuth } from "@clerk/nextjs";
+import { useApi } from "@/lib/useApi";
 
 export default function AffiliateRegisterPage() {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function AffiliateRegisterPage() {
   const [agreed, setAgreed] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { theme, resolvedTheme } = useTheme();
+  const { apiRequest } = useApi();
 
   // Use resolvedTheme to avoid theme switching flash
   const currentTheme = resolvedTheme || theme || "light";
@@ -160,7 +162,7 @@ export default function AffiliateRegisterPage() {
 
     setLoading(true);
     try {
-      const data = await createAffiliateLink({
+      const data = await createAffiliateLink(apiRequest, {
         paymentMethod,
         ...formData,
       });

@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 
 import { toast } from "sonner";
 import { PricingPlan } from "@rocketreplai/shared";
+import { useApi } from "@/lib/useApi";
 
 import {
   Dialog,
@@ -69,6 +70,8 @@ export default function PaymentModal({
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
+
   // Theme-based styles
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
@@ -98,7 +101,7 @@ export default function PaymentModal({
     try {
       // Get referral code from localStorage
       const referralCode = localStorage.getItem("referral_code");
-      const result = await createRazorpaySubscription({
+      const result = await createRazorpaySubscription(apiRequest, {
         amount: price,
         razorpayplanId: razorpayplanId.current!,
         buyerId: userId,
@@ -130,17 +133,17 @@ export default function PaymentModal({
             razorpay_signature: response.razorpay_signature,
           };
 
-          const verifyResponse = await verifyRazorpayPayment(data);
+          const verifyResponse = await verifyRazorpayPayment(apiRequest, data);
           if (verifyResponse.success) {
             toast.success("Payment Successful! Code added to your Dashboard");
 
-            await updateUserLimits(plan.limit, plan.account);
-            await sendSubscriptionEmailToOwner({
+            await updateUserLimits(apiRequest, plan.limit, plan.account);
+            await sendSubscriptionEmailToOwner(apiRequest, {
               email: email,
               userId: userId,
               subscriptionId: result.subscriptionId,
             });
-            await sendSubscriptionEmailToUser({
+            await sendSubscriptionEmailToUser(apiRequest, {
               email: email,
               userId: userId,
               agentId: plan.id,
@@ -180,7 +183,7 @@ export default function PaymentModal({
     try {
       setIsProcessing(true);
       // Fetch plan data
-      const info = await getRazerpayPlanInfo(plan.id);
+      const info = await getRazerpayPlanInfo(apiRequest, plan.id);
       if (!info.razorpaymonthlyplanId || !info.razorpayyearlyplanId) {
         router.push("/");
         throw new Error("Plan not found");

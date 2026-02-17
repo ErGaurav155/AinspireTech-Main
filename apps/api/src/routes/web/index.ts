@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireAuth } from "@clerk/express";
 import {
   getAppointmentQuestionsController,
   saveAppointmentQuestionsController,
@@ -20,9 +21,9 @@ import {
 import { sendOtpController } from "@/controllers/web/send-otp.controller";
 import { verifyOtpController } from "@/controllers/web/verify-otp.controller";
 import { listSubscriptionsController } from "@/controllers/web/subscription/list.controller";
-import { requireAuth } from "@clerk/express";
 
 const router = Router();
+
 router.use(requireAuth());
 
 //analytics

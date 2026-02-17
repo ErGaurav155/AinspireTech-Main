@@ -7,12 +7,8 @@ import { getTokenBalanceController } from "@/controllers/embed/token/balance.con
 import { postTokenUsageController } from "@/controllers/embed/token/usage.controller";
 import { getWebQuestionsController } from "@/controllers/embed/webquestion.controller";
 import { createAppointmentController } from "@/controllers/misc/misc-actions.controller";
-import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
-
-// Apply CORS middleware ONLY to embed routes
-router.use(embedCors);
 
 // POST /api/embed/chatbot - Handle chatbot requests
 router.post("/chatbot", handleChatbotRequest);

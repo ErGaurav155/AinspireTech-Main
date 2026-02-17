@@ -43,6 +43,7 @@ import {
   tokenPlans,
 } from "@rocketreplai/shared";
 import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
+import { useApi } from "@/lib/useApi";
 
 // Types
 interface Subscription {
@@ -116,6 +117,7 @@ const PricingContent = () => {
   const [customTokens, setCustomTokens] = useState<number>(100000);
   const [showCustom, setShowCustom] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { apiRequest } = useApi();
 
   // Add state for user chatbots to check if chatbot is already created
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
@@ -201,7 +203,7 @@ const PricingContent = () => {
         }
 
         // Fetch subscriptions
-        const subscriptionsResponse = await getSubscriptions();
+        const subscriptionsResponse = await getSubscriptions(apiRequest);
 
         if (!subscriptionsResponse || !Array.isArray(subscriptionsResponse)) {
           throw new Error("Invalid subscriptions response format");
@@ -219,7 +221,7 @@ const PricingContent = () => {
 
         // Fetch user chatbots to check if chatbot is already created
         try {
-          const chatbotsResponse = await getChatbots();
+          const chatbotsResponse = await getChatbots(apiRequest);
           setUserChatbots(chatbotsResponse.chatbots || []);
         } catch (chatbotError) {
           console.warn("Failed to fetch user chatbots:", chatbotError);
@@ -236,7 +238,7 @@ const PricingContent = () => {
     };
 
     fetchUserData();
-  }, [userId, isLoaded]);
+  }, [userId, isLoaded, apiRequest]);
 
   if (!mounted) {
     return (

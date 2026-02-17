@@ -1,12 +1,21 @@
-import { apiRequest } from "../utils";
+import { ApiRequestFn } from "../useApi";
 
-export const getAffiliateDashInfo = async (): Promise<any> => {
+/* ==================== AFFILIATE DASHBOARD ==================== */
+
+export const getAffiliateDashInfo = (
+  apiRequest: ApiRequestFn,
+): Promise<any> => {
   return apiRequest("/affiliates/dashboard", {
     method: "GET",
   });
 };
 
-export const createAffiliateLink = async (data: any): Promise<any> => {
+/* ==================== CREATE AFFILIATE LINK ==================== */
+
+export const createAffiliateLink = (
+  apiRequest: ApiRequestFn,
+  data: any,
+): Promise<any> => {
   return apiRequest("/affiliates/create", {
     method: "POST",
     body: JSON.stringify(data),

@@ -93,7 +93,11 @@ app.use(
       "Accept",
       "Origin",
       "Cookie",
+      "x-cron-key",
+      "x-api-key",
     ],
+    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+    preflightContinue: false, // Don't pass preflight to next handlers
   }),
 );
 
