@@ -1,9 +1,23 @@
 "use client";
+
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Zap, X, Loader2, BadgeCheck } from "lucide-react";
+import {
+  Check,
+  Zap,
+  X,
+  Loader2,
+  BadgeCheck,
+  Sparkles,
+  Crown,
+  Shield,
+  TrendingUp,
+  Calendar,
+  CreditCard,
+  Coins,
+} from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 
@@ -16,6 +30,7 @@ import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrum
 import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import { Button } from "@rocketreplai/ui/components/radix/button";
 import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +47,6 @@ import {
   connectInstaAccount,
   deleteInstaAccount,
   getInstaAccount,
-  getInstaAccounts,
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
 import { getUserById } from "@/lib/services/user-actions.api";
@@ -45,27 +59,9 @@ interface Subscription {
   chatbotType?: string;
 }
 
-interface ThemeStyles {
-  containerBg: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  cardBg: string;
-  cardBorder: string;
-  badgeBg: string;
-  alertBg: string;
-  buttonOutlineBorder: string;
-  buttonOutlineText: string;
-  dialogBg: string;
-  inputBg: string;
-  inputBorder: string;
-  inputText: string;
-}
-
 // Constants
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
-const CHANGE_TO_NEW_PLAN_REASON = "Changing to new plan";
 
 // Single Pro Plan Configuration
 const instagramPricingPlans: PricingPlan[] = [
@@ -95,7 +91,7 @@ const instagramPricingPlans: PricingPlan[] = [
 const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
-  "100 DMs / hour",
+  "2000 DMs / Month",
   "Ask Follow before DM",
   "Priority Support (WhatsApp and E-mail)",
 ];
@@ -105,16 +101,12 @@ const comparisonFeatures = [
   { feature: "Pricing", free: "₹0 / Month", pro: "₹500 / Month" },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
   { feature: "DM Send Limit", free: "2000 / Month", pro: "Unlimited" },
-  { feature: "Instagram Account", free: "1", pro: "3" },
-  {
-    feature: "Support",
-    free: "Priority(WA & E-mail)",
-    pro: "Priority(WA & E-mail)",
-  },
-  { feature: "Next post automation", free: "✗", pro: "✓" },
+  { feature: "Instagram Accounts", free: "1", pro: "3" },
+  { feature: "Priority Support", free: "✓", pro: "✓" },
+  { feature: "Next Post Automation", free: "✗", pro: "✓" },
   { feature: "Follow-Up Flow", free: "✗", pro: "✓" },
   { feature: "Email Collection", free: "✗", pro: "✓" },
-  { feature: "Replay Delay", free: "✗", pro: "✓" },
+  { feature: "Reply Delay", free: "✗", pro: "✓" },
   { feature: "Ask For Follow", free: "✓", pro: "✓" },
   { feature: "Post And Reel Automation", free: "✗", pro: "✓" },
   { feature: "Story Automations", free: "✗", pro: "✓" },
@@ -170,23 +162,31 @@ function PricingWithSearchParams() {
   const [isProcessingChange, setIsProcessingChange] = useState(false);
 
   // Theme-based styles
-  const themeStyles = useMemo((): ThemeStyles => {
+  const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-transparent" : "bg-gray-50",
-      textPrimary: isDark ? "text-white" : "text-n-7",
-      textSecondary: isDark ? "text-gray-300" : "text-n-5",
-      textMuted: isDark ? "text-gray-400" : "text-n-5",
-      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      cardBorder: isDark ? "border-white/10" : "border-gray-200",
-      badgeBg: isDark ? "bg-[#0a0a0a]" : "bg-white",
-      alertBg: isDark ? "bg-[#6d1717]/5" : "bg-red-50/80",
-      buttonOutlineBorder: isDark ? "border-white/20" : "border-gray-300",
-      buttonOutlineText: isDark ? "text-gray-300" : "text-n-6",
-      dialogBg: isDark ? "bg-[#0a0a0a]/95" : "bg-white/95",
-      inputBg: isDark ? "bg-white/5" : "bg-white",
-      inputBorder: isDark ? "border-white/20" : "border-gray-300",
-      inputText: isDark ? "text-white" : "text-n-7",
+      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
+      textPrimary: isDark ? "text-white" : "text-gray-900",
+      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
+      textMuted: isDark ? "text-gray-500" : "text-gray-400",
+      cardBg: isDark
+        ? "bg-[#1A1A1E] border-gray-800"
+        : "bg-white border-gray-100",
+      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
+      hoverBorder: isDark
+        ? "hover:border-pink-500/50"
+        : "hover:border-pink-300",
+      badgeBg: isDark ? "bg-gray-800" : "bg-gray-100",
+      alertBg: isDark ? "bg-red-900/20" : "bg-red-50",
+      buttonOutlineBorder: isDark ? "border-gray-700" : "border-gray-200",
+      buttonOutlineText: isDark ? "text-gray-300" : "text-gray-600",
+      dialogBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
+      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
+      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
+      inputText: isDark ? "text-white" : "text-gray-900",
+      gradientPrimary: "from-pink-500 to-rose-500",
+      gradientSecondary: "from-purple-500 to-pink-500",
+      gradientGold: "from-amber-500 to-orange-500",
     };
   }, [currentTheme]);
 
@@ -207,13 +207,7 @@ function PricingWithSearchParams() {
   const fetchUserAccounts = useCallback(async (): Promise<any[]> => {
     try {
       const accountsResponse = await getInstaAccount(apiRequest);
-
-      if (accountsResponse.accounts.length === 0) {
-        return [];
-      } else {
-        Array.isArray(accountsResponse.accounts);
-        return accountsResponse.accounts;
-      }
+      return accountsResponse.accounts || [];
     } catch (error) {
       console.error("Error fetching user accounts:", error);
       return [];
@@ -225,11 +219,10 @@ function PricingWithSearchParams() {
     async (code: string): Promise<boolean> => {
       try {
         const response = await connectInstaAccount(apiRequest, code);
-
         if (response.ok) {
           showToast(
             "Success!",
-            "Affiliate account created successfully",
+            "Instagram account connected successfully",
             false,
           );
           return true;
@@ -254,7 +247,6 @@ function PricingWithSearchParams() {
   useEffect(() => {
     const fetchUserData = async () => {
       if (!isLoaded) return;
-
       setIsLoading(true);
 
       if (!userId) {
@@ -297,8 +289,21 @@ function PricingWithSearchParams() {
           subscription.subscriptions &&
           subscription.subscriptions.length > 0
         ) {
-          setIsSubscribed(true);
-          setCurrentSubscription(subscription.subscriptions);
+          const activeSub = subscription.subscriptions.find(
+            (sub: any) => sub.status === "active",
+          );
+          if (activeSub) {
+            setIsSubscribed(true);
+            setCurrentSubscription({
+              productId: activeSub.chatbotType,
+              billingCycle: activeSub.billingCycle,
+              subscriptionId: activeSub.subscriptionId,
+              chatbotType: activeSub.chatbotType,
+            });
+          } else {
+            setIsSubscribed(false);
+            setCurrentSubscription(null);
+          }
         } else {
           setIsSubscribed(false);
           setCurrentSubscription(null);
@@ -325,7 +330,7 @@ function PricingWithSearchParams() {
 
   // Handle cancel subscription
   const handleCancelSubscription = async () => {
-    if (!currentSubscription) {
+    if (!currentSubscription?.subscriptionId) {
       showToast("Failed!", "No subscription selected for cancellation", true);
       return;
     }
@@ -333,25 +338,31 @@ function PricingWithSearchParams() {
     setIsCancelling(true);
     try {
       const cancelResult = await cancelRazorPaySubscription(apiRequest, {
-        subscriptionId: currentSubscription.subscriptionId!,
+        subscriptionId: currentSubscription.subscriptionId,
         subscriptionType: "insta",
-        reason: cancellationReason || "User requested cancellation",
+        reason: cancellationReason || CANCELLATION_REASON_PLACEHOLDER,
         mode: cancellationMode,
       });
+
       if (!cancelResult.success) {
-        showToast("Failed to cancel subscription", "error");
+        showToast(
+          "Failed!",
+          cancelResult.message || "Failed to cancel subscription",
+          true,
+        );
         return;
       }
 
       showToast("Success!", "Subscription cancelled successfully", false);
       setCurrentSubscription(null);
+      setIsSubscribed(false);
+      setShowCancelDialog(false);
+      setCancellationReason("");
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       showToast("Failed!", "Failed to cancel subscription", true);
     } finally {
       setIsCancelling(false);
-      setShowCancelDialog(false);
-      setCancellationReason("");
     }
   };
 
@@ -389,38 +400,32 @@ function PricingWithSearchParams() {
     setShowConfirmDialog(false);
 
     try {
-      const accountLimit = pendingPlan.account;
-      if (userAccounts.length > accountLimit) {
-        // Show account selection dialog
-        setPendingPlan(pendingPlan);
-        setShowAccountDialog(true);
-      } else {
-        // No need to delete accounts, show cancel dialog
-        setSelectedPlan(pendingPlan);
-        setShowCancelDialog(true);
+      // First, cancel current subscription
+      if (currentSubscription?.subscriptionId) {
+        const cancelResult = await cancelRazorPaySubscription(apiRequest, {
+          subscriptionId: currentSubscription.subscriptionId,
+          subscriptionType: "insta",
+          reason: "Changing to new plan",
+          mode: "Immediate",
+        });
+
+        if (!cancelResult.success) {
+          showToast("Failed!", "Failed to cancel current subscription", true);
+          setIsProcessingChange(false);
+          return;
+        }
       }
 
-      // First, cancel current subscription
-      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
-        subscriptionId: currentSubscription?.subscriptionId!,
-        subscriptionType: "insta",
-        reason: "Changing to new plan",
-        mode: "Immediate",
-      });
-      if (!cancelResult.success) {
-        showToast(
-          "Failed to cancel current subscription",
-          cancelResult.message,
-          true,
-        );
-
-        setIsProcessingChange(false);
-        return;
+      // Check account limit for new plan
+      if (userAccounts.length > pendingPlan.account) {
+        setShowAccountDialog(true);
+      } else {
+        setSelectedPlan(pendingPlan);
+        setIsPaymentModalOpen(true);
       }
     } catch (error) {
       console.error("Error changing subscription:", error);
       showToast("Failed!", "Failed to change subscription", true);
-    } finally {
       setIsProcessingChange(false);
     }
   };
@@ -433,15 +438,9 @@ function PricingWithSearchParams() {
     try {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
-        console.log("accountId:", accountId);
         const result = await deleteInstaAccount(apiRequest, accountId);
         if (!result.success) {
-          showToast(
-            `Failed to delete account`,
-            "Failed to delete accounts",
-            true,
-          );
-
+          showToast("Failed!", "Failed to delete accounts", true);
           setIsProcessingChange(false);
           return;
         }
@@ -457,7 +456,7 @@ function PricingWithSearchParams() {
 
       // Proceed to payment
       setSelectedPlan(pendingPlan);
-      setShowCancelDialog(true);
+      setIsPaymentModalOpen(true);
     } catch (error) {
       console.error("Error deleting accounts:", error);
       showToast("Failed!", "Failed to delete accounts", true);
@@ -479,6 +478,35 @@ function PricingWithSearchParams() {
     }
   };
 
+  // Process the actual cancellation
+  const processCancellation = async () => {
+    if (!currentSubscription?.subscriptionId) return;
+
+    setIsCancelling(true);
+    try {
+      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
+        subscriptionId: currentSubscription.subscriptionId,
+        subscriptionType: "insta",
+        reason: CANCELLATION_REASON_PLACEHOLDER,
+        mode: "Immediate",
+      });
+
+      if (!cancelResult.success) {
+        showToast("Failed!", "Failed to cancel subscription", true);
+        return;
+      }
+
+      showToast("Success!", "Subscription cancelled successfully", false);
+      setCurrentSubscription(null);
+      setIsSubscribed(false);
+    } catch (error) {
+      console.error("Error cancelling subscription:", error);
+      showToast("Failed!", "Failed to cancel subscription", true);
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   // Handle account deletion for cancellation
   const handleCancelAccountDeletion = async (selectedAccountIds: string[]) => {
     setIsCancelling(true);
@@ -487,10 +515,9 @@ function PricingWithSearchParams() {
     try {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
-        console.log("accountId:", accountId);
         const result = await deleteInstaAccount(apiRequest, accountId);
         if (!result.success) {
-          showToast(`Failed to delete account`, "error");
+          showToast("Failed!", "Failed to delete accounts", true);
           setIsCancelling(false);
           return;
         }
@@ -513,109 +540,44 @@ function PricingWithSearchParams() {
     }
   };
 
-  // Process the actual cancellation
-  const processCancellation = async () => {
-    if (!currentSubscription) return;
-
-    try {
-      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
-        subscriptionId: currentSubscription?.subscriptionId!,
-        reason: CANCELLATION_REASON_PLACEHOLDER,
-        subscriptionType: "insta",
-        mode: "Immediate",
-      });
-      if (!cancelResult.success) {
-        showToast("Failed!", "Failed to cancel subscription", true);
-        return;
-      }
-
-      showToast("Success!", "Subscription cancelled successfully", false);
-      setCurrentSubscription(null);
-      setIsSubscribed(false);
-    } catch (error) {
-      console.error("Error cancelling subscription:", error);
-      showToast("Failed!", "Failed to cancel subscription", true);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
-
   // Loading state
   if (isLoading || !isLoaded) {
     return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center h-full w-full">
-        <div className="w-5 h-5 border-2 border-t-transparent border-blue-600 rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">
+            Loading pricing information...
+          </p>
+        </div>
       </div>
     );
   }
 
-  // Render feature comparison row
-  const renderFeatureRow = (
-    feature: string,
-    freeValue: string,
-    proValue: string,
-  ) => {
-    const renderCell = (value: string) => {
-      if (value === "✓") {
-        return <Check className="h-5 w-5 text-green-500 mx-auto" />;
-      } else if (value === "✗") {
-        return <X className="h-5 w-5 text-red-500 mx-auto" />;
-      }
-      return (
-        <span className={`${themeStyles.textSecondary} font-medium`}>
-          {value}
-        </span>
-      );
-    };
-
-    return (
-      <tr
-        className={`hover:${
-          theme === "dark" ? "bg-[#1a1a1a]/50" : "bg-gray-100/50"
-        } font-montserrat text-base`}
-      >
-        <td className={`py-4 px-6 font-medium ${themeStyles.textSecondary}`}>
-          {feature}
-        </td>
-        <td className="py-4 px-6 text-center">{renderCell(freeValue)}</td>
-        <td className="py-4 px-6 text-center">{renderCell(proValue)}</td>
-      </tr>
-    );
-  };
-
   return (
-    <div className={`min-h-screen ${themeStyles.textPrimary} bg-transparent`}>
-      <BreadcrumbsDefault />
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
+    <div className={`min-h-screen ${themeStyles.containerBg}`}>
+      {/* Hero Section */}
+      <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <div
-            className={`inline-flex items-center ${
-              theme === "dark"
-                ? "bg-blue-100/10 text-blue-400 border-blue-400/30"
-                : "bg-blue-100 text-blue-600 border-blue-300"
-            } border rounded-full px-4 py-1 mb-4`}
-          >
-            <Zap className="h-4 w-4 mr-1" />
-            <span className="text-sm font-medium">
+          <div className="inline-flex items-center bg-pink-50 border border-pink-200 rounded-full px-4 py-1 mb-4">
+            <Zap className="h-4 w-4 text-pink-500 mr-1" />
+            <span className="text-sm font-medium text-pink-600">
               Never Miss a Customer Comment
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-pink-100 bg-clip-text text-transparent">
             Instagram Comment Automation
           </h1>
           <p
-            className={`text-xl ${themeStyles.textSecondary} mb-8 max-w-2xl mx-auto font-montserrat`}
+            className={`text-lg ${themeStyles.textSecondary} mb-6 max-w-2xl mx-auto`}
           >
             Reply instantly to every comment. No setup fees. Cancel anytime.
           </p>
 
-          <div className="flex items-center justify-center gap-4 mb-12">
+          {/* Billing Toggle */}
+          <div className="flex items-center justify-center gap-4">
             <span
-              className={`text-sm font-medium ${
-                billingCycle === "monthly"
-                  ? themeStyles.textPrimary
-                  : themeStyles.textMuted
-              }`}
+              className={`text-sm font-medium ${billingCycle === "monthly" ? themeStyles.textPrimary : themeStyles.textMuted}`}
             >
               Monthly
             </span>
@@ -624,358 +586,347 @@ function PricingWithSearchParams() {
               onCheckedChange={(checked) =>
                 setBillingCycle(checked ? "yearly" : "monthly")
               }
-              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-[#00F0FF] data-[state=checked]:to-[#FF2E9F]"
+              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-pink-500 data-[state=checked]:to-rose-500"
             />
             <span
-              className={`text-sm font-medium ${
-                billingCycle === "yearly"
-                  ? themeStyles.textPrimary
-                  : themeStyles.textMuted
-              }`}
+              className={`text-sm font-medium ${billingCycle === "yearly" ? themeStyles.textPrimary : themeStyles.textMuted}`}
             >
               Yearly
             </span>
-            <div
-              className={`${
-                theme === "dark"
-                  ? "bg-green-900/20 text-green-400 border-green-400/30"
-                  : "bg-green-100 text-green-600 border-green-300"
-              } text-xs border rounded-full px-3 py-1 md:ml-2`}
-            >
+            <Badge className="bg-green-100 text-green-600 border-green-200 ml-2">
               Save 16%
-            </div>
+            </Badge>
           </div>
         </div>
       </section>
-
+      {/* Pricing Cards */}
       <section className="px-4 sm:px-6 lg:px-8 pb-16">
-        <div className=" flex flex-wrap items-center justify-center gap-5 w-full max-w-6xl mx-auto">
+        <div className="flex flex-col lg:flex-row items-center justify-center gap-6 max-w-6xl mx-auto">
           {/* Free Plan Card */}
           <div
-            className={` relative mb-10 group rounded-lg backdrop-blur-sm border transition-all duration-300 ${themeStyles.cardBorder} ${themeStyles.cardBg} hover:border-[#FF2E9F] bg-transparent`}
+            className={`relative group rounded-2xl border transition-all duration-300 ${themeStyles.cardBg} ${themeStyles.cardBorder} hover:border-pink-300 p-6 w-full lg:w-96`}
           >
-            <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity from-[#FF2E9F]/10 to-transparent"></div>
-            <div className="relative z-10 h-full flex flex-col items-center justify-between p-6">
-              <div className=" flex flex-col justify-between items-center md:items-start">
-                <h3
-                  className={`text-xl font-bold mb-2 ${themeStyles.textPrimary}`}
-                >
+            <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
+
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className={`text-xl font-bold ${themeStyles.textPrimary}`}>
                   Free
                 </h3>
-                <p
-                  className={`text-center md:text-start ${themeStyles.textMuted} mb-6 font-montserrat text-lg`}
+                <Badge
+                  variant="outline"
+                  className="text-gray-500 border-gray-200"
                 >
-                  Default plan for new users
+                  Default
+                </Badge>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-3xl font-bold text-gray-800">₹0</p>
+                <p className={`text-sm ${themeStyles.textSecondary}`}>
+                  forever
                 </p>
               </div>
 
-              <div className="flex-[20%] flex items-center justify-center text-center mb-6 text-3xl font-bold text-[#FF2E9F]">
-                ₹ 0
-              </div>
-
-              <ul className="flex-[30%] space-y-3 mb-8 font-montserrat text-base">
+              <ul className="space-y-3 mb-6">
                 {freePlanFeatures.map((feature, idx) => (
-                  <li key={idx} className="flex items-start">
-                    <Check className="h-5 w-5 mt-1 mr-3 text-[#FF2E9F]" />
-                    <span className={themeStyles.textSecondary}>{feature}</span>
+                  <li key={idx} className="flex items-start gap-3">
+                    <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="h-3 w-3 text-pink-600" />
+                    </div>
+                    <span className={`text-sm ${themeStyles.textSecondary}`}>
+                      {feature}
+                    </span>
                   </li>
                 ))}
               </ul>
+
               <SignedOut>
                 <Button
-                  variant="outline"
                   onClick={() => router.push("/sign-in")}
-                  className="flex-[20%] w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#FF2E9F]/80 to-[#FF2E9F] text-black"
+                  className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
                 >
                   Get Started
                 </Button>
               </SignedOut>
               <SignedIn>
                 <Button
-                  variant="outline"
-                  className={`flex-[20%] w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap ${
+                  disabled={!currentSubscription}
+                  className={`w-full rounded-xl ${
                     currentSubscription
-                      ? "bg-gradient-to-r from-[#FF2E9F]/80 to-[#FF2E9F]"
-                      : "bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] cursor-not-allowed"
-                  } text-black disabled:opacity-70 disabled:cursor-not-allowed`}
+                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
+                      : "bg-gray-300 text-gray-800 cursor-not-allowed"
+                  }`}
                 >
-                  {currentSubscription ? "Start Automating" : "Current Plan"}
+                  {currentSubscription ? "Current Plan" : "Your Current Plan"}
                 </Button>
               </SignedIn>
             </div>
           </div>
 
-          {/* Single Pro Plan Card */}
-          <div className=" ">
-            {instagramPricingPlans.map((plan) => {
-              const isCurrentPlan =
-                currentSubscription &&
-                currentSubscription.chatbotType === plan.id &&
-                currentSubscription.billingCycle === billingCycle;
+          {/* Pro Plan Card */}
+          {instagramPricingPlans.map((plan) => {
+            const isCurrentPlan = currentSubscription?.productId === plan.id;
+            const price =
+              billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
 
-              return (
-                <div
-                  key={plan.id}
-                  className={`relative group rounded-lg backdrop-blur-sm border transition-all duration-300 ${
-                    themeStyles.cardBg
-                  } ${
-                    plan.popular
-                      ? "scale-105 z-10 border-[#00F0FF]/30 hover:border-[#00F0FF]"
-                      : "border-[#00F0FF]/20 hover:border-[#00F0FF]"
-                  } bg-transparent ${
-                    isCurrentPlan ? "ring-2 ring-[#00F0FF] ring-opacity-80" : ""
-                  }`}
-                >
-                  {plan.popular && (
-                    <div className="absolute -top-3 left-0 right-0 text-center">
-                      <span className="bg-gradient-to-r from-[#00F0FF] to-[#00F0FF]/70 text-black text-sm font-bold py-1 px-4 rounded-full">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
-                  {isCurrentPlan && (
-                    <div className="absolute -top-3 left-0 right-0 text-center">
-                      <span className="bg-gradient-to-r from-[#00F0FF] to-[#00F0FF]/70 text-black text-sm font-bold py-1 px-4 rounded-full">
-                        Your Current Plan
-                      </span>
-                    </div>
-                  )}
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity from-[#00F0FF]/10 to-transparent`}
-                  ></div>
-                  <div className="relative z-10 h-full flex flex-col items-center justify-between p-6">
-                    <div className="flex justify-between items-start">
+            return (
+              <div
+                key={plan.id}
+                className={`relative group rounded-2xl border-2 transition-all duration-300 ${
+                  isCurrentPlan
+                    ? "border-pink-500 ring-2 ring-pink-200"
+                    : themeStyles.cardBorder
+                } ${themeStyles.cardBg} ${plan.popular && " ring-2 ring-pink-200"} hover:border-pink-400 p-6 w-full lg:w-96 transform lg:scale-105 z-10`}
+              >
+                {plan.popular && !isCurrentPlan && (
+                  <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                    <Badge className="bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white border-0 px-4 py-1">
+                      <Sparkles className="h-3 w-3 mr-1" />
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
+
+                {isCurrentPlan && (
+                  <div className="absolute -top-3 left-0 right-0 flex justify-center">
+                    <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-4 py-1">
+                      <BadgeCheck className="h-3 w-3 mr-1" />
+                      Current Plan
+                    </Badge>
+                  </div>
+                )}
+
+                <div className="relative z-10">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-6 w-6 text-pink-500" />
                       <h3
-                        className={`text-xl font-bold mb-2 ${themeStyles.textPrimary}`}
+                        className={`text-xl font-bold ${themeStyles.textPrimary}`}
                       >
                         {plan.name}
                       </h3>
-                      {isCurrentPlan && (
-                        <BadgeCheck className="ml-1 h-6 w-6 text-[#00F0FF]" />
-                      )}
                     </div>
-                    <p
-                      className={`${themeStyles.textMuted} mb-6 font-montserrat text-lg`}
-                    >
-                      {plan.description}
-                    </p>
-                    <div className="flex items-end mb-6">
-                      <span className={`text-3xl font-bold text-[#00F0FF]`}>
-                        ₹{" "}
-                        {billingCycle === "monthly"
-                          ? plan.monthlyPrice.toFixed(0)
-                          : plan.yearlyPrice.toFixed(0)}
-                      </span>
-                      <span className={themeStyles.textMuted}>
-                        /{billingCycle === "monthly" ? "month" : "year"}
-                      </span>
-                    </div>
+                  </div>
 
-                    <p className="text-center text-wrap text-green-400 my-2 font-medium font-montserrat text-base">
-                      Two Months Free On Yearly Plan.
+                  <div className="mb-4">
+                    <p className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
+                      ₹{price}
                     </p>
-                    <ul className="space-y-3 mb-8">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start">
-                          <Check
-                            className={`h-5 w-5 mt-1 mr-3 text-[#00F0FF]`}
-                          />
-                          <span
-                            className={`${themeStyles.textSecondary} font-montserrat text-base`}
-                          >
-                            {feature}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                    <SignedOut>
+                    <p className={`text-sm ${themeStyles.textSecondary}`}>
+                      per {billingCycle === "monthly" ? "month" : "year"}
+                    </p>
+                  </div>
+
+                  <p className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4">
+                    <Calendar className="h-4 w-4 inline mr-1" />
+                    Two months free on yearly plan
+                  </p>
+
+                  <ul className="space-y-3 mb-6">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-3">
+                        <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Check className="h-3 w-3 text-pink-600" />
+                        </div>
+                        <span
+                          className={`text-sm ${themeStyles.textSecondary}`}
+                        >
+                          {feature}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <SignedOut>
+                    <Button
+                      onClick={() => router.push("/sign-in")}
+                      className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+                    >
+                      Get Started
+                    </Button>
+                  </SignedOut>
+                  <SignedIn>
+                    {isCurrentPlan ? (
+                      <div className="space-y-2">
+                        <Button
+                          disabled
+                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
+                        >
+                          <BadgeCheck className="h-4 w-4 mr-2" />
+                          Current Plan
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setShowCancelConfirmDialog(true)}
+                          disabled={isCancelling}
+                          className="w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
+                        >
+                          Cancel Subscription
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
-                        variant="outline"
-                        onClick={() => router.push("/sign-in")}
-                        className={`w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#00F0FF]/80 to-[#00F0FF] text-black`}
-                      >
-                        Get Started
-                      </Button>
-                    </SignedOut>
-                    <SignedIn>
-                      <Button
-                        variant="outline"
                         onClick={() => handleSubscribe(plan, billingCycle)}
-                        disabled={isCurrentPlan || isUpgrading || isCancelling}
-                        className={`w-full py-3 mb-1 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap ${
-                          isCurrentPlan
-                            ? "bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] cursor-not-allowed"
-                            : "bg-gradient-to-r from-[#00F0FF]/80 to-[#00F0FF]"
-                        } text-black disabled:opacity-70 disabled:cursor-not-allowed`}
+                        disabled={isUpgrading || isProcessingChange}
+                        className="w-full bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
                       >
-                        {isUpgrading && selectedPlan?.id === plan.id ? (
-                          <div className="flex items-center justify-center gap-2">
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                        {isUpgrading || isProcessingChange ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             Processing...
-                          </div>
-                        ) : isCurrentPlan ? (
-                          "Current Plan"
+                          </>
                         ) : currentSubscription ? (
                           "Change Plan"
                         ) : (
                           "Start Automating"
                         )}
                       </Button>
-                      {currentSubscription && isCurrentPlan && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setShowCancelConfirmDialog(true)}
-                          disabled={isCancelling}
-                          className="w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#962626]/80 to-[#8b0808] text-black disabled:opacity-70 disabled:cursor-not-allowed"
-                        >
-                          Cancel Subscription
-                        </Button>
-                      )}
-                    </SignedIn>
-                  </div>
+                    )}
+                  </SignedIn>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
       </section>
-
       {/* Feature Comparison Section */}
-      <section className="py-16 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] mb-4">
+      <section className=" relative py-12 px-4 sm:px-4 lg:px-8 border-t border-gray-100">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent mb-2">
               Free vs Pro Comparison
             </h2>
-            <p
-              className={`text-xl ${themeStyles.textSecondary} font-montserrat`}
-            >
+            <p className={`text-base ${themeStyles.textSecondary}`}>
               Everything you get with each plan
             </p>
           </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr
-                  className={`border-b-2 ${themeStyles.cardBg} ${
-                    theme === "dark" ? "border-[#333]" : "border-gray-300"
-                  }`}
-                >
-                  <th
-                    className={`text-left py-4 px-6 font-semibold ${themeStyles.textPrimary}`}
-                  >
-                    Features
-                  </th>
-                  <th className="text-center py-4 px-6 font-semibold text-[#FF2E9F]">
-                    Free
-                  </th>
-                  <th className="text-center py-4 px-6 font-semibold text-[#00F0FF]">
-                    Pro Unlimited
-                  </th>
-                </tr>
-              </thead>
-              <tbody
-                className={`divide-y ${themeStyles.cardBg} ${
-                  theme === "dark" ? "divide-[#333]" : "divide-gray-300"
-                }`}
-              >
-                {comparisonFeatures.map((row, index) => (
-                  <tr
-                    key={index}
-                    className={`hover:${
-                      theme === "dark" ? "bg-[#1a1a1a]/50" : "bg-gray-100/50"
-                    } font-montserrat text-base`}
-                  >
-                    <td
-                      className={`py-4 px-6 font-medium ${themeStyles.textSecondary}`}
-                    >
-                      {row.feature}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      {row.free === "✓" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : row.free === "✗" ? (
-                        <X className="h-5 w-5 text-red-500 mx-auto" />
-                      ) : (
-                        <span
-                          className={`${themeStyles.textSecondary} font-medium`}
-                        >
-                          {row.free}
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 text-center">
-                      {row.pro === "✓" ? (
-                        <Check className="h-5 w-5 text-green-500 mx-auto" />
-                      ) : row.pro === "✗" ? (
-                        <X className="h-5 w-5 text-red-500 mx-auto" />
-                      ) : (
-                        <span
-                          className={`${themeStyles.textSecondary} font-medium`}
-                        >
-                          {row.pro}
-                        </span>
-                      )}
-                    </td>
+          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+            <div className="w-full overflow-x-auto">
+              <table className="min-w-[700px] w-full table-fixed border-collapse">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-1/3 text-left py-4 px-6 font-semibold text-gray-700">
+                      Features
+                    </th>
+                    <th className="w-1/3 text-center py-4 px-6 font-semibold text-pink-600">
+                      Free
+                    </th>
+                    <th className="w-1/3 text-center py-4 px-6 font-semibold text-pink-600">
+                      Pro Unlimited
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {comparisonFeatures.map((row, index) => (
+                    <tr
+                      key={index}
+                      className="hover:bg-gray-50 transition-colors"
+                    >
+                      <td className="py-4 px-6 font-medium text-gray-700">
+                        {row.feature}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        {row.free === "✓" ? (
+                          <Check className="h-5 w-5 text-green-500 mx-auto" />
+                        ) : row.free === "✗" ? (
+                          <X className="h-5 w-5 text-red-500 mx-auto" />
+                        ) : (
+                          <span className="text-gray-600">{row.free}</span>
+                        )}
+                      </td>
+                      <td className="py-4 px-6 text-center">
+                        {row.pro === "✓" ? (
+                          <Check className="h-5 w-5 text-green-500 mx-auto" />
+                        ) : row.pro === "✗" ? (
+                          <X className="h-5 w-5 text-red-500 mx-auto" />
+                        ) : (
+                          <span className="text-gray-600">{row.pro}</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {/* Trust Badges */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
+            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+              <Shield className="h-8 w-8 text-pink-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-800 mb-1">
+                Secure Payments
+              </h4>
+              <p className="text-xs text-gray-400">
+                256-bit encrypted transactions
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+              <TrendingUp className="h-8 w-8 text-pink-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-800 mb-1">
+                No Hidden Fees
+              </h4>
+              <p className="text-xs text-gray-400">
+                Cancel anytime, no questions asked
+              </p>
+            </div>
+            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
+              <CreditCard className="h-8 w-8 text-pink-500 mx-auto mb-2" />
+              <h4 className="font-semibold text-gray-800 mb-1">
+                Multiple Payment Modes
+              </h4>
+              <p className="text-xs text-gray-400">
+                Cards, UPI, NetBanking, Wallets
+              </p>
+            </div>
           </div>
         </div>
       </section>
-
       {/* Cancel Subscription Dialog */}
       {showCancelDialog && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div
-            className={`p-3 md:p-8 rounded-xl max-w-md w-full ${themeStyles.dialogBg} backdrop-blur-lg border ${themeStyles.cardBorder}`}
+            className={`${themeStyles.dialogBg} border ${themeStyles.cardBorder} rounded-2xl p-6 max-w-md w-full shadow-xl`}
           >
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#FF2E9F] to-[#B026FF]">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
                 Cancel Subscription
               </h2>
-              <Button
-                variant="ghost"
-                size="icon"
+              <button
                 onClick={() => setShowCancelDialog(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <X
-                  className={`${themeStyles.textMuted} h-5 w-5 hover:${themeStyles.textPrimary}`}
-                />
-              </Button>
+                <X className="h-5 w-5 text-gray-400" />
+              </button>
             </div>
-            <div className="space-y-6">
+
+            <div className="space-y-4">
               <div>
                 <label
-                  className={`block text-lg font-semibold ${themeStyles.textSecondary} mb-2`}
+                  className={`block text-sm font-medium ${themeStyles.textSecondary} mb-2`}
                 >
-                  Please Provide Reason
+                  Please tell us why you are leaving
                 </label>
-                <Textarea
+                <textarea
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
-                  className={`w-full ${themeStyles.inputBg} ${themeStyles.inputBorder} rounded-lg p-3 ${themeStyles.inputText} focus:outline-none focus:ring-2 focus:ring-[#B026FF] font-montserrat`}
-                  placeholder="Cancellation reason"
-                  required
+                  className={`w-full px-4 py-3 ${themeStyles.inputBg} border ${themeStyles.inputBorder} rounded-xl text-sm ${themeStyles.inputText} focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none`}
+                  placeholder="Cancellation reason..."
+                  rows={3}
                 />
               </div>
 
-              <div
-                className={`text-xs ${themeStyles.textMuted} font-montserrat`}
-              >
-                <p className="mb-2">
-                  <strong>Immediate Cancellation:</strong> Service ends
-                  immediately
+              <div className={`bg-gray-50 rounded-xl p-4 space-y-1.5`}>
+                <p className="text-xs text-gray-600">
+                  <strong>Immediate:</strong> Service ends immediately
                 </p>
-                <p>
-                  <strong>End-of-term Cancellation:</strong> Service continues
-                  until the end of billing period
+                <p className="text-xs text-gray-600">
+                  <strong>End-of-term:</strong> Service continues until billing
+                  period ends
                 </p>
               </div>
 
-              <div className="flex flex-wrap justify-center gap-4">
+              <div className="flex gap-3">
                 <Button
                   variant="destructive"
                   onClick={() => {
@@ -983,26 +934,25 @@ function PricingWithSearchParams() {
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
-                  className="px-6 py-2"
+                  className="flex-1 rounded-xl"
                 >
-                  {isCancelling ? "Cancelling..." : "Cancel Immediately"}
+                  {isCancelling ? "Cancelling..." : "Cancel Now"}
                 </Button>
                 <Button
-                  className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF]"
                   onClick={() => {
                     setCancellationMode("End-of-term");
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
+                  className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-pink-600 text-white rounded-xl"
                 >
-                  {isCancelling ? "Cancelling..." : "Cancel at End of Term"}
+                  {isCancelling ? "Cancelling..." : "End of Term"}
                 </Button>
               </div>
             </div>
           </div>
         </div>
       )}
-
       {/* Payment Modal */}
       {userId && (
         <PaymentModal
@@ -1015,14 +965,14 @@ function PricingWithSearchParams() {
           isSubscribed={isSubscribed}
           isInstaAccount={isInstaAccount}
           isgettingAcc={isGettingAcc}
-          onSuccess={(newSubscription) => {
-            setCurrentSubscription(newSubscription);
+          onSuccess={() => {
             setIsSubscribed(true);
             setIsUpgrading(false);
+            setIsPaymentModalOpen(false);
+            router.push("/insta/dashboard");
           }}
         />
       )}
-
       {/* Confirm Subscription Change Dialog */}
       <ConfirmSubscriptionChangeDialog
         isOpen={showConfirmDialog}
@@ -1036,7 +986,6 @@ function PricingWithSearchParams() {
         newPlan={pendingPlan}
         isLoading={isProcessingChange}
       />
-
       {/* Account Selection Dialog */}
       <AccountSelectionDialog
         isOpen={showAccountDialog}
@@ -1046,36 +995,25 @@ function PricingWithSearchParams() {
         newPlan={pendingPlan}
         isLoading={isProcessingChange}
       />
-
       {/* Confirm Cancellation Dialog */}
       <AlertDialog
         open={showCancelConfirmDialog}
         onOpenChange={setShowCancelConfirmDialog}
       >
-        <AlertDialogContent
-          className={`${themeStyles.alertBg} backdrop-blur-md`}
-        >
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className={themeStyles.textPrimary}>
-              Confirm Cancellation
-            </AlertDialogTitle>
-            <AlertDialogDescription
-              className={`font-montserrat ${themeStyles.textSecondary}`}
-            >
+            <AlertDialogTitle>Confirm Cancellation</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500">
               Are you sure you want to cancel your subscription? Your plan will
               revert to the Free plan which only allows 1 Instagram account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel
-              className={`${themeStyles.buttonOutlineBorder} ${themeStyles.buttonOutlineText}`}
-            >
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmedCancellation}
               disabled={isCancelling}
-              className="bg-destructive hover:bg-destructive/90 text-white"
+              className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
             >
               {isCancelling ? (
                 <>
@@ -1089,7 +1027,6 @@ function PricingWithSearchParams() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
       {/* Account Selection Dialog for Cancellation */}
       <AccountSelectionDialog
         isOpen={showCancelAccountDialog}
@@ -1117,10 +1054,12 @@ export default function Pricing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-gray-500">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading pricing information...</p>
+        <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+            <p className="text-sm text-gray-400">
+              Loading pricing information...
+            </p>
           </div>
         </div>
       }

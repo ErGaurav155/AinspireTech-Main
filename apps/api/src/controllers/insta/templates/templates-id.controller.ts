@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import { getAuth } from "@clerk/express";
+import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 
 // GET /api/insta/templates/:templateId - Get single template by ID
 export const getInstaTemplateByIdController = async (
@@ -22,7 +22,7 @@ export const getInstaTemplateByIdController = async (
       });
     }
 
-    const template = await ReplyTemplate.findOne({
+    const template = await InstaReplyTemplate.findOne({
       _id: templateId,
       userId: userId,
     });
@@ -70,7 +70,7 @@ export const updateInstaTemplateController = async (
     }
 
     // Check if template exists and user owns it
-    const existingTemplate = await ReplyTemplate.findOne({
+    const existingTemplate = await InstaReplyTemplate.findOne({
       _id: templateId,
       userId: userId,
     });
@@ -88,7 +88,8 @@ export const updateInstaTemplateController = async (
       updatedAt: new Date(),
     };
 
-    // Update allowed fields
+    // ── Basic Fields ────────────────────────────────────────────────────────────
+
     if (updateData.name !== undefined)
       updateFields.name = updateData.name.trim();
     if (updateData.description !== undefined)
@@ -103,14 +104,37 @@ export const updateInstaTemplateController = async (
         Math.max(0, updateData.replyProbability),
       );
 
+    // ── Media Fields ────────────────────────────────────────────────────────────
+
+    if (updateData.mediaId !== undefined)
+      updateFields.mediaId = updateData.mediaId;
+    if (updateData.mediaUrl !== undefined)
+      updateFields.mediaUrl = updateData.mediaUrl;
+    if (updateData.mediaType !== undefined)
+      updateFields.mediaType = updateData.mediaType;
+
+    // ── Content & Replies ───────────────────────────────────────────────────────
+
+    if (updateData.content !== undefined && Array.isArray(updateData.content)) {
+      updateFields.content = updateData.content.map((item: any) => ({
+        text: item.text?.trim() || "",
+        link: item.link?.trim() || "",
+        buttonTitle: item.buttonTitle?.trim() || "Get Access",
+      }));
+    }
+
     if (
       updateData.replyTexts !== undefined &&
       Array.isArray(updateData.replyTexts)
     ) {
-      updateFields.replyTexts = updateData.replyTexts.map((r: string) =>
-        r.trim(),
-      );
+      updateFields.reply = updateData.replyTexts.map((r: string) => r.trim());
     }
+
+    if (updateData.reply !== undefined && Array.isArray(updateData.reply)) {
+      updateFields.reply = updateData.reply.map((r: string) => r.trim());
+    }
+
+    // ── Triggers & Keywords ─────────────────────────────────────────────────────
 
     if (updateData.triggers !== undefined) {
       if (Array.isArray(updateData.triggers)) {
@@ -124,6 +148,8 @@ export const updateInstaTemplateController = async (
       }
     }
 
+    if (updateData.anyKeyword !== undefined)
+      updateFields.anyKeyword = updateData.anyKeyword;
     if (updateData.triggerType !== undefined)
       updateFields.triggerType = updateData.triggerType;
     if (updateData.caseSensitive !== undefined)
@@ -133,17 +159,118 @@ export const updateInstaTemplateController = async (
     if (updateData.excludeRepliedUsers !== undefined)
       updateFields.excludeRepliedUsers = updateData.excludeRepliedUsers;
 
-    if (
-      updateData.excludeKeywords !== undefined &&
-      Array.isArray(updateData.excludeKeywords)
-    ) {
-      updateFields.excludeKeywords = updateData.excludeKeywords.map(
-        (k: string) => k.trim().toLowerCase(),
-      );
+    // ── Automation Type & Post Selection ────────────────────────────────────────
+
+    if (updateData.automationType !== undefined)
+      updateFields.automationType = updateData.automationType;
+    if (updateData.anyPostOrReel !== undefined)
+      updateFields.anyPostOrReel = updateData.anyPostOrReel;
+
+    // ── Timing ──────────────────────────────────────────────────────────────────
+
+    if (updateData.delaySeconds !== undefined)
+      updateFields.delaySeconds = updateData.delaySeconds;
+    if (updateData.delayOption !== undefined)
+      updateFields.delayOption = updateData.delayOption;
+
+    // ── Welcome Message ─────────────────────────────────────────────────────────
+
+    if (updateData.welcomeMessage !== undefined) {
+      updateFields.welcomeMessage = {
+        enabled: updateData.welcomeMessage.enabled ?? false,
+        text:
+          updateData.welcomeMessage.text?.trim() ||
+          "Hi {{username}}! So glad you're interested 🎉",
+        buttonTitle:
+          updateData.welcomeMessage.buttonTitle?.trim() || "Send me the link",
+      };
+    }
+
+    // ── Public Reply ────────────────────────────────────────────────────────────
+
+    if (updateData.publicReply !== undefined) {
+      updateFields.publicReply = {
+        enabled: updateData.publicReply.enabled ?? false,
+        replies: Array.isArray(updateData.publicReply.replies)
+          ? updateData.publicReply.replies.filter(Boolean)
+          : [],
+        tagType: updateData.publicReply.tagType || "none",
+      };
+    }
+
+    // ── Ask Follow ──────────────────────────────────────────────────────────────
+
+    if (updateData.askFollow !== undefined) {
+      updateFields.askFollow = {
+        enabled: updateData.askFollow.enabled ?? false,
+        message:
+          updateData.askFollow.message?.trim() ||
+          "Hey! It seems you haven't followed me yet",
+        visitProfileBtn:
+          updateData.askFollow.visitProfileBtn?.trim() || "Visit Profile",
+        followingBtn:
+          updateData.askFollow.followingBtn?.trim() || "I'm following ✅",
+      };
+    }
+
+    // Legacy isFollow field
+    if (updateData.isFollow !== undefined)
+      updateFields.isFollow = updateData.isFollow;
+
+    // ── Ask Email ───────────────────────────────────────────────────────────────
+
+    if (updateData.askEmail !== undefined) {
+      updateFields.askEmail = {
+        enabled: updateData.askEmail.enabled ?? false,
+        openingMessage:
+          updateData.askEmail.openingMessage?.trim() ||
+          "I'll need your email address first.",
+        retryMessage:
+          updateData.askEmail.retryMessage?.trim() ||
+          "Please enter a correct email address",
+        sendDmIfNoEmail: updateData.askEmail.sendDmIfNoEmail ?? true,
+      };
+    }
+
+    // ── Ask Phone (NEW) ─────────────────────────────────────────────────────────
+
+    if (updateData.askPhone !== undefined) {
+      updateFields.askPhone = {
+        enabled: updateData.askPhone.enabled ?? false,
+        openingMessage:
+          updateData.askPhone.openingMessage?.trim() ||
+          "I'll need your phone number first.",
+        retryMessage:
+          updateData.askPhone.retryMessage?.trim() ||
+          "Please enter a correct phone number",
+        sendDmIfNoPhone: updateData.askPhone.sendDmIfNoPhone ?? true,
+      };
+    }
+
+    // ── Follow-Up DMs ───────────────────────────────────────────────────────────
+
+    if (updateData.followUpDMs !== undefined) {
+      updateFields.followUpDMs = {
+        enabled: updateData.followUpDMs.enabled ?? false,
+        messages: Array.isArray(updateData.followUpDMs.messages)
+          ? updateData.followUpDMs.messages.map((msg: any) => ({
+              condition: msg.condition || "",
+              waitTime: msg.waitTime || 60,
+              waitUnit: msg.waitUnit || "minutes",
+              message: msg.message?.trim() || "",
+              links: Array.isArray(msg.links)
+                ? msg.links.map((link: any) => ({
+                    url: link.url?.trim() || "",
+                    buttonTitle: link.buttonTitle?.trim() || "Get Access",
+                  }))
+                : [],
+            }))
+          : [],
+      };
     }
 
     // Update the template
-    const updatedTemplate = await ReplyTemplate.findByIdAndUpdate(
+    const updatedTemplate = await InstaReplyTemplate.findByIdAndUpdate(
       templateId,
       updateFields,
       { new: true, runValidators: true },
@@ -167,7 +294,6 @@ export const updateInstaTemplateController = async (
     });
   }
 };
-
 // DELETE /api/insta/templates/:templateId - Delete Instagram template
 export const deleteInstaTemplateController = async (
   req: Request,
@@ -187,7 +313,7 @@ export const deleteInstaTemplateController = async (
     }
 
     // Check if template exists and user owns it
-    const template = await ReplyTemplate.findOne({
+    const template = await InstaReplyTemplate.findOne({
       _id: templateId,
       userId: userId,
     });
@@ -201,7 +327,7 @@ export const deleteInstaTemplateController = async (
     }
 
     // Delete the template
-    await ReplyTemplate.findByIdAndDelete(templateId);
+    await InstaReplyTemplate.findByIdAndDelete(templateId);
 
     return res.status(200).json({
       success: true,

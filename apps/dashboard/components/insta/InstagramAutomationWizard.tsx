@@ -1,49 +1,60 @@
 "use client";
 
-import { useTheme } from "next-themes";
-import Link from "next/link";
-import { useMemo } from "react";
+import { X } from "lucide-react";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 
-export default function LoginPage() {
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0a0a0a]" : "bg-gray-50",
-      textPrimary: isDark ? "text-white" : "text-n-7",
-    };
-  }, [currentTheme]);
-  // Theme-based styles
+interface LoginPageProps {
+  onClose?: () => void;
+}
 
+export default function LoginPage({ onClose }: LoginPageProps) {
   const instaId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
 
   if (!instaId) {
     console.error("Instagram App ID is not defined");
-    return <div>Error: Missing configuration</div>;
+    return (
+      <div className="p-6 text-center">
+        <p className="text-red-600">Error: Missing Instagram configuration</p>
+        {onClose && (
+          <Button onClick={onClose} className="mt-4">
+            Close
+          </Button>
+        )}
+      </div>
+    );
   }
 
-  const authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
-    "https://rocketreplai.com/insta/pricing",
+  const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
+    "https://ainspiretech.com/insta/pricing",
   )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
 
   return (
-    <div
-      className={` ${themeStyles.textPrimary} flex items-center justify-center `}
-    >
-      <div className="max-w-md w-full p-0 md:p-6 backdrop-blur-md rounded-lg shadow-md">
-        <h1
-          className={`text-xl md:text-2xl font-bold mb-6 text-center  ${themeStyles.textPrimary}`}
-        >
-          Instagram Business Login
-        </h1>
-        <Link
-          href={authUrl}
-          className="w-full flex items-center justify-center p-2 md:px-4 md:py-3 border border-transparent rounded-md shadow-sm text-base font-medium bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#B026FF] text-white hover:to-[#00F0FF] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-        >
-          Connect Instagram Account
-        </Link>
+    <div className="p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+          Connect Instagram
+        </h2>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-400" />
+          </button>
+        )}
       </div>
+
+      <p className="text-sm text-gray-500 mb-6">
+        You will be redirected to Instagram to authorize access to your Business
+        account.
+      </p>
+
+      <a
+        href={authUrl}
+        className="w-full flex items-center justify-center px-4 py-3 rounded-xl text-sm font-medium bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white transition-colors"
+      >
+        Continue with Instagram
+      </a>
     </div>
   );
 }

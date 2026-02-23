@@ -3,57 +3,73 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRightIcon } from "@heroicons/react/24/solid";
-import { useMemo } from "react";
+import { LayoutDashboard } from "lucide-react";
 
 export function BreadcrumbsDefault() {
   const pathname = usePathname();
-  const pathSegments = pathname.split("/").filter((segment) => segment);
+  const pathSegments = pathname.split("/").filter(Boolean);
 
-  // Theme-based styles
-
-  const themeStyles = useMemo(() => {
-    return {
-      containerBg: "bg-card",
-      containerBorder: "border-[#B026FF]/30 hover:border-[#B026FF]",
-      textPrimary: "text-foreground",
-      gradientText:
-        "gradientText: bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF]",
-    };
-  }, []);
+  const lastSegment = pathSegments[pathSegments.length - 1];
 
   return (
-    <div className="w-full flex items-center justify-center py-4 px-4 relative z-10">
-      <div
-        className={`flex flex-wrap items-center gap-2 ${themeStyles.containerBg} backdrop-blur-md border ${themeStyles.containerBorder} rounded-full px-4 md:px-6 py-1 md:py-3`}
-      >
-        <Link
-          href="/"
-          className={`opacity-80 hover:opacity-100 text-sm md:text-base transition-opacity ${themeStyles.gradientText}`}
-        >
+    <div className="w-full  px-4">
+      {/* ✅ FULL Breadcrumb (Large Screens Only) */}
+      <div className="hidden lg:flex items-center gap-1 xl:gap-2 backdrop-blur-md rounded-full px-3 xl:px-6 py-2 text-sm whitespace-nowrap">
+        <LayoutDashboard className=" h-4 w-4 text-pink-400 shrink-0" />
+        <Link href="/" className="text-gray-700 font-medium">
+          Home
+        </Link>
+        {pathSegments.length > 2 ? (
+          <>
+            <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+            <span className="text-gray-500 shrink-0">...</span>
+            <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+            <span className="text-gray-900 font-medium truncate max-w-[140px]">
+              {lastSegment?.replace(/-/g, " ")}
+            </span>
+          </>
+        ) : (
+          pathSegments.map((segment, index) => {
+            const href = "/" + pathSegments.slice(0, index + 1).join("/");
+            const isLast = index === pathSegments.length - 1;
+
+            return (
+              <div key={href} className="flex items-center gap-1 xl:gap-2">
+                <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+                <Link
+                  href={href}
+                  className={`capitalize ${
+                    isLast
+                      ? "text-gray-900 font-medium"
+                      : "text-gray-700 opacity-80 hover:opacity-100"
+                  }`}
+                >
+                  {segment.replace(/-/g, " ")}
+                </Link>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* ✅ COLLAPSED Breadcrumb (Mobile & Medium Screens) */}
+      <div className="flex lg:hidden items-center gap-2 backdrop-blur-md rounded-full py-2 text-sm overflow-hidden whitespace-nowrap">
+        <LayoutDashboard className="hidden lg:inline-flex h-4 w-4 text-pink-400 shrink-0" />
+
+        <Link href="/" className="text-gray-700 font-medium shrink-0">
           Home
         </Link>
 
-        {pathSegments.map((segment, index) => {
-          const href = "/" + pathSegments.slice(0, index + 1).join("/");
-          const segmentName = segment.replace(/-/g, " ");
-          const isLast = index === pathSegments.length - 1;
-
-          return (
-            <div key={href} className="flex items-center gap-2">
-              <ChevronRightIcon className={`h-4 w-4 text-[#B026FF]`} />
-              <Link
-                href={href}
-                className={`text-sm md:text-base transition-all text-wrap ${
-                  isLast
-                    ? `${themeStyles.textPrimary} font-medium`
-                    : `opacity-80 hover:opacity-100 ${themeStyles.gradientText}`
-                }`}
-              >
-                {segmentName}
-              </Link>
-            </div>
-          );
-        })}
+        {pathSegments.length > 0 && (
+          <>
+            <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+            <span className="text-gray-500 shrink-0">...</span>
+            <ChevronRightIcon className="h-4 w-4 text-gray-300 shrink-0" />
+            <span className="text-gray-900 font-medium truncate max-w-[140px]">
+              {lastSegment?.replace(/-/g, " ")}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

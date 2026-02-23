@@ -5,7 +5,6 @@ import "./globals.css";
 import StarsBackground from "@/components/insta/StarsBackground";
 import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@rocketreplai/shared";
-import Navbar from "@/components/insta/Navbar";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -19,8 +18,8 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: "RocketReplai",
-  description: "Ai-Agent,Web-Dev and Chatbot Agency",
-  keywords: ["a i", "a i chatbot"],
+  description: "AI-Agent, Web-Dev and Chatbot Agency",
+  keywords: ["ai", "ai chatbot", "instagram automation"],
 };
 
 export default async function RootLayout({
@@ -32,7 +31,7 @@ export default async function RootLayout({
     <ClerkProvider
       appearance={{
         variables: {
-          colorPrimary: "#624cf5",
+          colorPrimary: "#ec4899",
           fontFamily: "Montserrat, sans-serif",
         },
       }}
@@ -42,15 +41,12 @@ export default async function RootLayout({
           className={cn(
             orbitron.variable,
             montserrat.variable,
-            "font-orbitron min-h-screen bg-background  text-foreground transition-colors duration-300",
+            "font-montserrat  min-h-screen bg-[#F8F9FA]  text-foreground transition-colors duration-300",
           )}
         >
           <ThemeProvider>
-            <StarsBackground />
-            <div className="relative z-10">
-              <Navbar />
-              {children}
-            </div>
+            {/* <StarsBackground /> */}
+            <div className="relative z-10">{children}</div>
           </ThemeProvider>
         </body>
       </html>

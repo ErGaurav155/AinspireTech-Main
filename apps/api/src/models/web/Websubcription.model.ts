@@ -75,7 +75,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes for optimized queries

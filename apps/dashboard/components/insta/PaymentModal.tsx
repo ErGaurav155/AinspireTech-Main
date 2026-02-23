@@ -1,11 +1,21 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { CreditCard } from "lucide-react";
+import {
+  CreditCard,
+  X,
+  Check,
+  Loader2,
+  Shield,
+  Zap,
+  Calendar,
+  Crown,
+  Sparkles,
+} from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-
+import Script from "next/script";
 import { toast } from "sonner";
 import { PricingPlan } from "@rocketreplai/shared";
 import { useApi } from "@/lib/useApi";
@@ -20,7 +30,7 @@ import {
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import { Separator } from "@rocketreplai/ui/components/radix/separator";
 import { Button } from "@rocketreplai/ui/components/radix/button";
-import Script from "next/script";
+
 import { updateUserLimits } from "@/lib/services/user-actions.api";
 import {
   createRazorpaySubscription,
@@ -36,7 +46,7 @@ import {
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newSubscription: any) => void;
+  onSuccess: () => void;
   plan: PricingPlan | null;
   billingCycle: "monthly" | "yearly";
   email: string;
@@ -76,31 +86,32 @@ export default function PaymentModal({
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      dialogBg: isDark ? "bg-[#0a0a0a]/95" : "bg-white/95",
-      dialogBorder: isDark ? "border-white/10" : "border-gray-200",
+      dialogBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
+      dialogBorder: isDark ? "border-gray-800" : "border-gray-100",
       textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-300" : "text-gray-600",
-      textMuted: isDark ? "text-gray-400" : "text-gray-500",
-      cardBg: isDark ? "bg-[#1a1a1a]/50" : "bg-gray-100/50",
-      cardBorder: isDark ? "border-[#333]" : "border-gray-300",
-      separatorBg: isDark ? "bg-[#333]" : "bg-gray-300",
+      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
+      textMuted: isDark ? "text-gray-500" : "text-gray-400",
+      cardBg: isDark ? "bg-[#252529]" : "bg-gray-50",
+      cardBorder: isDark ? "border-gray-700" : "border-gray-200",
+      separatorBg: isDark ? "bg-gray-800" : "bg-gray-200",
       hoverBorder: isDark
-        ? "hover:border-[#00F0FF]/50"
-        : "hover:border-[#00F0FF]",
+        ? "hover:border-pink-500/50"
+        : "hover:border-pink-300",
     };
   }, [currentTheme]);
+
   if (!plan) return null;
 
   const price =
     billingCycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
   const inrPrice = Math.round(price * 87);
 
-  // Add this function to your existing PaymentModal component
   const handleRazorpayPayment = async () => {
     setIsProcessing(true);
     try {
       // Get referral code from localStorage
       const referralCode = localStorage.getItem("referral_code");
+
       const result = await createRazorpaySubscription(apiRequest, {
         amount: price,
         razorpayplanId: razorpayplanId.current!,
@@ -112,11 +123,12 @@ export default function PaymentModal({
           billingCycle,
         },
       });
+
       const options = {
-        key_id: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: price * 100,
         currency: "INR",
-        name: "GK Services",
+        name: "AinpireTech",
         description: `${plan.name} Plan - ${billingCycle}`,
         subscription_id: result.subscriptionId,
         notes: {
@@ -124,7 +136,7 @@ export default function PaymentModal({
           razorpayplanId: razorpayplanId.current,
           buyerId: userId,
           amount: price,
-          referralCode: referralCode || "", // Add to notes
+          referralCode: referralCode || "",
         },
         handler: async (response: any) => {
           const data = {
@@ -134,8 +146,9 @@ export default function PaymentModal({
           };
 
           const verifyResponse = await verifyRazorpayPayment(apiRequest, data);
+
           if (verifyResponse.success) {
-            toast.success("Payment Successful! Code added to your Dashboard");
+            toast.success("Payment Successful! Subscription activated");
 
             await updateUserLimits(apiRequest, plan.limit, plan.account);
             await sendSubscriptionEmailToOwner(apiRequest, {
@@ -149,26 +162,27 @@ export default function PaymentModal({
               agentId: plan.id,
               subscriptionId: result.subscriptionId,
             });
-            onSuccess(plan.id);
 
             // Clear referral code after successful purchase
             if (referralCode) {
               localStorage.removeItem("referral_code");
             }
 
-            router.push("/insta/dashboard");
+            onSuccess();
           } else {
-            toast.error("Order canceled! " + verifyResponse.message);
+            toast.error(
+              "Payment verification failed: " + verifyResponse.message,
+            );
           }
         },
         theme: {
-          color: "#2563eb",
+          color: "#EC4899",
         },
       };
 
       const razorpay = new window.Razorpay(options);
       razorpay.on("payment.failed", function (response: any) {
-        toast.error("Order failed! " + response.error.description);
+        toast.error("Payment failed: " + response.error.description);
       });
       razorpay.open();
     } catch (error: any) {
@@ -182,6 +196,7 @@ export default function PaymentModal({
   const onCheckout = async () => {
     try {
       setIsProcessing(true);
+
       // Fetch plan data
       const info = await getRazerpayPlanInfo(apiRequest, plan.id);
       if (!info.razorpaymonthlyplanId || !info.razorpayyearlyplanId) {
@@ -195,15 +210,16 @@ export default function PaymentModal({
         razorpayplanId.current = info.razorpayyearlyplanId;
       } else {
         router.push("/");
-        return false;
+        return;
       }
-    } catch (error) {
-      console.error("Error fetching plan info:", error);
-      return false;
-    } finally {
-      setIsProcessing(false);
+
       onClose();
       await handleRazorpayPayment();
+    } catch (error) {
+      console.error("Error fetching plan info:", error);
+      toast.error("Failed to initialize payment");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -211,183 +227,215 @@ export default function PaymentModal({
     <>
       <Dialog open={isOpen} onOpenChange={onClose}>
         <DialogContent
-          className={`max-w-md ${themeStyles.dialogBg} backdrop-blur-lg border ${themeStyles.dialogBorder} rounded-xl`}
+          className={`max-w-md ${themeStyles.dialogBg} border ${themeStyles.dialogBorder} rounded-2xl p-0 overflow-hidden`}
         >
-          <DialogHeader>
-            <DialogTitle
-              className={`text-center font-bold text-2xl bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF] ${themeStyles.textPrimary}`}
-            >
-              {isInstaAccount ? "Step-2: Payment" : "Step-1: Connect Instagram"}
-            </DialogTitle>
-          </DialogHeader>
-          <DialogDescription className={themeStyles.textSecondary}>
-            {isInstaAccount
-              ? "Make an instant payment to activate your subscription and elevate your Instagram engagement!"
-              : "Please connect your Instagram Business account to proceed with the payment."}
-          </DialogDescription>
+          {/* Header with gradient */}
+          <div className="bg-gradient-to-r from-pink-500 to-rose-500 p-6">
+            <DialogHeader>
+              <DialogTitle className="text-white text-xl font-bold flex items-center gap-2">
+                <Crown className="h-5 w-5" />
+                {isInstaAccount
+                  ? "Complete Your Purchase"
+                  : "Connect Instagram First"}
+              </DialogTitle>
+              <DialogDescription className="text-pink-100 text-sm">
+                {isInstaAccount
+                  ? "Make a payment to activate your subscription"
+                  : "Connect your Instagram account to proceed"}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
           {isInstaAccount ? (
-            <div className="space-y-6">
+            <div className="p-6 space-y-6">
               {/* Plan Summary */}
               <div
-                className={`${themeStyles.cardBg} backdrop-blur-sm p-4 rounded-xl border ${themeStyles.cardBorder}`}
+                className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-xl p-4`}
               >
-                <div className="flex justify-between items-center mb-2">
-                  <span className={`font-medium ${themeStyles.textSecondary}`}>
-                    {plan.name} Plan
-                  </span>
-                  <Badge className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
+                      <Sparkles className="h-4 w-4 text-pink-600" />
+                    </div>
+                    <div>
+                      <h3
+                        className={`font-semibold ${themeStyles.textPrimary}`}
+                      >
+                        {plan.name} Plan
+                      </h3>
+                      <p className={`text-xs ${themeStyles.textSecondary}`}>
+                        {billingCycle} billing
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0">
                     {billingCycle}
                   </Badge>
                 </div>
-                <div className="flex justify-between items-center text-xl font-bold mt-4">
-                  <span className={themeStyles.textSecondary}>Total</span>
-                  <span className={themeStyles.textPrimary}>${price}</span>
+
+                <Separator className={themeStyles.separatorBg} />
+
+                <div className="flex items-center justify-between mt-3">
+                  <span className={themeStyles.textSecondary}>Subtotal</span>
+                  <span className={`font-semibold ${themeStyles.textPrimary}`}>
+                    ${price}
+                  </span>
                 </div>
+
                 {billingCycle === "yearly" && (
-                  <p className="text-sm text-green-400 mt-3 font-medium">
-                    Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} with
-                    yearly billing
-                  </p>
+                  <div className="mt-2 bg-green-50 border border-green-200 rounded-lg p-2">
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Save ${plan.monthlyPrice * 12 - plan.yearlyPrice} with
+                      yearly billing
+                    </p>
+                  </div>
                 )}
               </div>
 
-              <Separator className={themeStyles.separatorBg} />
-
               {/* Payment Method Selection */}
-              <div className="space-y-4">
-                <h3
-                  className={`font-medium ${themeStyles.textSecondary} text-center`}
+              <div className="space-y-3">
+                <h4
+                  className={`text-sm font-medium ${themeStyles.textSecondary}`}
                 >
-                  Price in <span className="text-[#00F0FF]">USD</span> and{" "}
-                  <span className="text-[#B026FF]">INR</span>
-                </h3>
+                  Select Payment Method
+                </h4>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* International */}
                   <div
-                    className={`rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 border ${
+                    className={`rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer transition-all border-2 ${
                       paymentMethod === "razorpay"
-                        ? "border-[#00F0FF] bg-[#00F0FF]/10"
+                        ? "border-pink-500 bg-pink-50"
                         : `${themeStyles.cardBorder} ${themeStyles.hoverBorder}`
                     }`}
                     onClick={() => setPaymentMethod("razorpay")}
                   >
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-medium ${themeStyles.textSecondary}`}
-                      >
+                      <span className="text-xs font-medium text-gray-500">
                         International
                       </span>
                     </div>
-                    <span
-                      className={`text-md font-medium ${themeStyles.textPrimary} mt-2`}
-                    >
-                      Razorpay
-                    </span>
-                    <span className={`font-bold ${themeStyles.textPrimary}`}>
+                    <span className="text-lg font-bold text-gray-800">
                       ${price}
                     </span>
+                    <span className="text-xs text-gray-400">USD</span>
                   </div>
 
+                  {/* India */}
                   <div
-                    className={`rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer transition-all duration-300 border ${
+                    className={`rounded-xl p-4 flex flex-col items-center gap-2 cursor-pointer transition-all border-2 ${
                       paymentMethod === "razorpay"
-                        ? "border-[#00F0FF] bg-[#00F0FF]/10"
+                        ? "border-pink-500 bg-pink-50"
                         : `${themeStyles.cardBorder} ${themeStyles.hoverBorder}`
                     }`}
                     onClick={() => setPaymentMethod("razorpay")}
                   >
                     <div className="flex items-center gap-2">
-                      <span
-                        className={`text-xs font-medium ${themeStyles.textSecondary}`}
-                      >
+                      <span className="text-xs font-medium text-gray-500">
                         India
                       </span>
                     </div>
-                    <span
-                      className={`text-md font-medium ${themeStyles.textPrimary} mt-2`}
-                    >
-                      Razorpay
-                    </span>
-                    <span className={`font-bold ${themeStyles.textPrimary}`}>
+                    <span className="text-lg font-bold text-gray-800">
                       ₹{inrPrice}
                     </span>
+                    <span className="text-xs text-gray-400">INR</span>
                   </div>
                 </div>
+              </div>
+
+              {/* Security Badge */}
+              <div className="flex items-center justify-center gap-2">
+                <Shield className="h-4 w-4 text-green-500" />
+                <span className="text-xs text-gray-400">
+                  256-bit secure payment
+                </span>
               </div>
 
               {/* Payment Button */}
               <SignedIn>
                 {isSubscribed ? (
-                  <Button className="w-full py-6 rounded-full font-bold text-lg bg-gradient-to-r from-[#33e49d] to-[#044624] hover:from-[#79b59b]/90 hover:to-[#30d472]/90">
-                    Subscribed
+                  <Button
+                    disabled
+                    className="w-full py-6 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
+                  >
+                    <Badge className="mr-2">✓</Badge>
+                    Already Subscribed
                   </Button>
                 ) : (
                   <Button
-                    className="w-full py-6 rounded-full font-bold text-lg bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF]/90 hover:to-[#B026FF]/90"
-                    onClick={() => {
-                      onCheckout();
-                    }}
+                    className="w-full py-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-semibold"
+                    onClick={onCheckout}
                     disabled={isProcessing}
                   >
-                    <CreditCard className="mr-2 h-5 w-5" />
-                    {isProcessing
-                      ? "Processing..."
-                      : isInstaAccount
-                        ? `Pay with Razorpay`
-                        : "Connect Instagram "}
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="mr-2 h-5 w-5" />
+                        Pay with Razorpay
+                      </>
+                    )}
                   </Button>
                 )}
               </SignedIn>
               <SignedOut>
                 <Button
-                  className="w-full min-w- py-6 rounded-full font-bold text-lg bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF]/90 hover:to-[#B026FF]/90"
-                  onClick={() => {
-                    router.push("/sign-in?redirect_to=/pricing");
-                  }}
+                  className="w-full py-6 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-semibold"
+                  onClick={() =>
+                    router.push("/sign-in?redirect_to=/insta/pricing")
+                  }
                 >
-                  Sign-in
+                  Sign in to Continue
                 </Button>
               </SignedOut>
-              {isSubscribed ? (
-                <p
-                  className={`text-xs ${themeStyles.textMuted} text-center px-4`}
-                >
-                  Your subscription will be activated immediately after
-                  successful payment. You can cancel anytime from your
-                  dashboard.
-                </p>
-              ) : (
-                <p
-                  className={`text-xs ${themeStyles.textMuted} text-center px-4`}
-                >
-                  You had already take one of those subscription.
-                </p>
-              )}
+
+              <p className={`text-xs ${themeStyles.textMuted} text-center`}>
+                Your subscription will be activated immediately after successful
+                payment. You can cancel anytime from your dashboard.
+              </p>
             </div>
           ) : (
-            <div className="p-4">
-              <p className={`${themeStyles.textSecondary} mb-4`}>
-                You need to connect an Instagram account before purchasing a
-                subscription.
-              </p>
+            <div className="p-6 space-y-4">
+              <div className="text-center py-4">
+                <div className="w-16 h-16 rounded-full bg-pink-100 flex items-center justify-center mx-auto mb-3">
+                  <Zap className="h-8 w-8 text-pink-600" />
+                </div>
+                <h3 className={`font-semibold ${themeStyles.textPrimary} mb-2`}>
+                  Connect Instagram Account
+                </h3>
+                <p className={`text-sm ${themeStyles.textSecondary} mb-4`}>
+                  You need to connect an Instagram Business account before
+                  purchasing a subscription.
+                </p>
+              </div>
+
               <Button
-                className="w-full bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white"
+                className="w-full py-4 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl font-semibold"
                 onClick={() => router.push("/insta/accounts/add")}
               >
                 Connect Instagram Account
               </Button>
+
+              <button
+                onClick={onClose}
+                className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Maybe later
+              </button>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      <div>
-        <Script
-          id="razorpay-checkout-js"
-          src="https://checkout.razorpay.com/v1/checkout.js"
-        />
-      </div>
+      <Script
+        id="razorpay-checkout-js"
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+      />
     </>
   );
 }

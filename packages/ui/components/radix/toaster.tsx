@@ -21,24 +21,24 @@ import {
 export function Toaster() {
   const { toasts } = useToast();
 
-  const getToastStyle = (className?: string): string => {
+  const getToastStyle = (variant?: string): string => {
     const styles: Record<string, string> = {
-      "success-toast":
+      success:
         "linear-gradient(135deg, rgba(34, 197, 94, 0.9) 0%, rgba(21, 128, 61, 0.9) 100%)",
-      "error-toast":
+      destructive:
         "linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(185, 28, 28, 0.9) 100%)",
+      default:
+        "linear-gradient(135deg, rgba(59, 92, 163, 0.9) 0%, rgba(36, 22, 158, 0.9) 100%)",
     };
-    return (
-      styles[className || ""] ||
-      "linear-gradient(135deg, rgba(102, 126, 234, 0.9) 0%, rgba(118, 75, 162, 0.9) 100%)"
-    );
+
+    return styles[variant || "default"];
   };
 
-  const getIcon = (className?: string): ReactNode => {
-    if (className === "success-toast") {
+  const getIcon = (variant?: string) => {
+    if (variant === "success") {
       return <CheckCircle className="h-5 w-5 text-white/90" />;
     }
-    if (className === "error-toast") {
+    if (variant === "destructive") {
       return <XCircle className="h-5 w-5 text-white/90" />;
     }
     return <Info className="h-5 w-5 text-white/90" />;
@@ -76,7 +76,7 @@ export function Toaster() {
               ${getRingClass(className)} 
             `}
             style={{
-              background: getToastStyle(className),
+              background: getToastStyle(props?.variant!),
               backdropFilter: "blur(10px)",
               position: "relative" as const,
             }}
@@ -87,7 +87,9 @@ export function Toaster() {
             </div>
 
             <div className="relative z-10 flex items-start gap-3">
-              <div className="flex-shrink-0 mt-0.5">{getIcon(className)}</div>
+              <div className="flex-shrink-0 mt-0.5">
+                {getIcon(props.variant!)}
+              </div>
               <div className="grid gap-1 flex-1">
                 {title && (
                   <ToastTitle className="text-white font-light md:font-semibold text-sm md:text-base">
@@ -101,7 +103,7 @@ export function Toaster() {
                 )}
               </div>
               {action && <div className="flex-shrink-0">{action}</div>}
-              <ToastClose className="absolute -top-2 -right-2 bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-full border border-white/30 backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100" />
+              <ToastClose className="absolute -top-4 -right-6 bg-white/20 hover:bg-white/30 text-white p-1.5 rounded-full border border-white/30 backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100" />
             </div>
 
             {/* Progress bar */}
@@ -111,7 +113,7 @@ export function Toaster() {
           </Toast>
         );
       })}
-      <ToastViewport className="top-6 left-6 gap-0 md:gap-3 max-w-max w-auto " />
+      <ToastViewport className="top-0 right-0 gap-0 md:gap-3 max-w-max w-auto " />
     </ToastProvider>
   );
 }

@@ -157,6 +157,8 @@ export const updateInstaAccountController = async (
       autoDMEnabled,
       followCheckEnabled,
       requireFollowForFreeUsers,
+      storyAutomationsEnabled, // New field
+      trackDmUrlEnabled, // New field
     } = req.body;
 
     await connectToDatabase();
@@ -175,6 +177,12 @@ export const updateInstaAccountController = async (
       updateFields.followCheckEnabled = followCheckEnabled;
     if (requireFollowForFreeUsers !== undefined)
       updateFields.requireFollowForFreeUsers = requireFollowForFreeUsers;
+
+    // New settings fields
+    if (storyAutomationsEnabled !== undefined)
+      updateFields.storyAutomationsEnabled = storyAutomationsEnabled;
+    if (trackDmUrlEnabled !== undefined)
+      updateFields.trackDmUrlEnabled = trackDmUrlEnabled;
 
     const account = await InstagramAccount.findByIdAndUpdate(
       accountId,
@@ -208,6 +216,7 @@ export const updateInstaAccountController = async (
     });
   }
 };
+
 // DELETE /api/insta/accounts/:accountId - Delete Instagram account
 export const deleteInstaAccountController = async (
   req: Request,

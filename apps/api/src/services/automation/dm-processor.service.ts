@@ -1,3 +1,4 @@
+// services/automation/dm-processor.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
@@ -8,9 +9,9 @@ import {
 } from "@/services/meta-api/meta-api.service";
 
 /**
- * Handle postback automation - fire and forget
+ * Handle postback automation - FIRE AND FORGET
  * NO rate limiting, NO queueing, NO retries
- * These are responses to user actions, not incoming webhooks
+ * These are user responses to our buttons, not incoming webhooks
  */
 export async function handlePostbackAutomation(
   accountId: string,
@@ -37,27 +38,21 @@ export async function handlePostbackAutomation(
       };
     }
 
-    // Parse payload
-    let templateMediaId = "";
-    let action = "";
+    // Parse payload to determine action
+    const payloadParts = payload.split("_");
+    const action = payloadParts[0];
+    const subAction = payloadParts[1];
 
-    if (payload.startsWith("GET_ACCESS_")) {
-      action = "get_access";
-      templateMediaId = payload.replace("GET_ACCESS_", "");
-    } else if (payload.startsWith("CHECK_FOLLOW_")) {
-      action = "check_follow";
-      templateMediaId = payload.replace("CHECK_FOLLOW_", "");
-    } else if (payload.startsWith("VERIFY_FOLLOW_")) {
-      action = "verify_follow";
-      templateMediaId = payload.replace("VERIFY_FOLLOW_", "");
-    } else {
-      return {
-        success: false,
-        message: "Invalid payload",
-      };
+    // Extract template media ID and recipient ID from payload
+    let templateMediaId = "";
+    let recipientIdFromPayload = "";
+
+    if (payloadParts.length >= 3) {
+      templateMediaId = payloadParts[2];
+      recipientIdFromPayload = payloadParts[3] || recipientId;
     }
 
-    // Get template
+    // Find template
     const template = await InstaReplyTemplate.findOne({
       userId: clerkId,
       accountId: accountId,
@@ -75,43 +70,79 @@ export async function handlePostbackAutomation(
     // Get user tier
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
-    const templateSettings =
-      template.settingsByTier[userTier] || template.settingsByTier.free;
 
-    // Handle different actions - all fire and forget
+    // Handle different actions - all FIRE AND FORGET
     switch (action) {
-      case "get_access":
-        return await handleGetAccess(
+      case "WELCOME":
+        return await handleWelcomeAction(
           account,
           clerkId,
           userTier,
           template,
-          recipientId,
-          templateSettings,
+          recipientIdFromPayload || recipientId,
           startTime,
         );
 
-      case "check_follow":
-        return await handleCheckFollow(
-          account,
-          clerkId,
-          userTier,
-          template,
-          recipientId,
-          templateSettings,
-          startTime,
-        );
+      case "GET":
+        if (subAction === "ACCESS") {
+          return await handleGetAccessAction(
+            account,
+            clerkId,
+            userTier,
+            template,
+            recipientIdFromPayload || recipientId,
+            startTime,
+          );
+        }
+        break;
 
-      case "verify_follow":
-        return await handleVerifyFollow(
-          account,
-          clerkId,
-          userTier,
-          template,
-          recipientId,
-          templateSettings,
-          startTime,
-        );
+      case "CHECK":
+        if (subAction === "FOLLOW") {
+          return await handleCheckFollowAction(
+            account,
+            clerkId,
+            userTier,
+            template,
+            recipientIdFromPayload || recipientId,
+            startTime,
+          );
+        }
+        break;
+
+      case "VERIFY":
+        if (subAction === "FOLLOW") {
+          return await handleVerifyFollowAction(
+            account,
+            clerkId,
+            userTier,
+            template,
+            recipientIdFromPayload || recipientId,
+            startTime,
+          );
+        }
+        break;
+
+      case "ASK":
+        if (subAction === "EMAIL") {
+          return await handleAskEmailAction(
+            account,
+            clerkId,
+            userTier,
+            template,
+            recipientIdFromPayload || recipientId,
+            startTime,
+          );
+        } else if (subAction === "PHONE") {
+          return await handleAskPhoneAction(
+            account,
+            clerkId,
+            userTier,
+            template,
+            recipientIdFromPayload || recipientId,
+            startTime,
+          );
+        }
+        break;
 
       default:
         return {
@@ -119,6 +150,11 @@ export async function handlePostbackAutomation(
           message: "Unknown action",
         };
     }
+
+    return {
+      success: false,
+      message: "Invalid payload format",
+    };
   } catch (error) {
     console.error("Error handling postback automation:", error);
 
@@ -131,16 +167,101 @@ export async function handlePostbackAutomation(
 }
 
 /**
- * Handle get access - free users get direct link
- * Fire and forget - no rate limiting
+ * Handle welcome action
  */
-async function handleGetAccess(
+async function handleWelcomeAction(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
   recipientId: string,
-  templateSettings: any,
+  startTime: number,
+): Promise<{
+  success: boolean;
+  message: string;
+  nextStage?: string;
+}> {
+  try {
+    // After welcome, move to next step in flow
+    let nextButtonPayload = "";
+    let nextButtonText = "";
+    let nextMessage = "";
+
+    if (template.askFollow?.enabled) {
+      nextButtonPayload = `CHECK_FOLLOW_${template.mediaId}_${recipientId}`;
+      nextButtonText = "Send me the link";
+      nextMessage =
+        "Great! Now tap below and I will check if you're following us!";
+    } else if (template.askEmail?.enabled) {
+      nextButtonPayload = `ASK_EMAIL_${template.mediaId}_${recipientId}`;
+      nextButtonText = "Continue";
+      nextMessage = template.askEmail.openingMessage;
+    } else if (template.askPhone?.enabled) {
+      nextButtonPayload = `ASK_PHONE_${template.mediaId}_${recipientId}`;
+      nextButtonText = "Continue";
+      nextMessage = template.askPhone.openingMessage;
+    } else {
+      nextButtonPayload = `GET_ACCESS_${template.mediaId}_${recipientId}`;
+      nextButtonText = template.content[0]?.buttonTitle || "Get Access";
+      nextMessage = "Tap below to get instant access!";
+    }
+
+    const dmSuccess = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      recipientId,
+      {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: nextMessage,
+            buttons: [
+              {
+                type: "postback",
+                title: nextButtonText,
+                payload: nextButtonPayload,
+              },
+            ],
+          },
+        },
+      },
+    );
+
+    // Update account statistics
+    account.accountDMSent = (account.accountDMSent || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
+    return {
+      success: dmSuccess,
+      message: dmSuccess ? "Welcome processed" : "Failed to send next step",
+      nextStage: template.askFollow?.enabled
+        ? "check_follow"
+        : template.askEmail?.enabled
+          ? "ask_email"
+          : template.askPhone?.enabled
+            ? "ask_phone"
+            : "get_access",
+    };
+  } catch (error) {
+    console.error("Error handling welcome action:", error);
+    return {
+      success: false,
+      message: "Failed to process welcome",
+    };
+  }
+}
+
+/**
+ * Handle get access - send final link
+ */
+async function handleGetAccessAction(
+  account: any,
+  clerkId: string,
+  userTier: string,
+  template: any,
+  recipientId: string,
   startTime: number,
 ): Promise<{
   success: boolean;
@@ -156,7 +277,7 @@ async function handleGetAccess(
       buttonTitle = "Get Access",
     } = template.content[randomIndex];
 
-    // Send final link DM - fire and forget
+    // Send final link DM - FIRE AND FORGET
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -166,7 +287,7 @@ async function handleGetAccess(
           type: "template",
           payload: {
             template_type: "button",
-            text: `Thanks for your comment! ${text}`,
+            text: `Here you go! ${text}`,
             buttons: [
               {
                 type: "web_url",
@@ -219,16 +340,14 @@ async function handleGetAccess(
 }
 
 /**
- * Handle check follow - pro users verify follow status
- * Fire and forget - no rate limiting
+ * Handle check follow
  */
-async function handleCheckFollow(
+async function handleCheckFollowAction(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
   recipientId: string,
-  templateSettings: any,
   startTime: number,
 ): Promise<{
   success: boolean;
@@ -236,7 +355,7 @@ async function handleCheckFollow(
   nextStage?: string;
 }> {
   try {
-    // Check follow status via API - fire and forget
+    // Check follow status via API - FIRE AND FORGET
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -246,7 +365,7 @@ async function handleCheckFollow(
     const userFollows = followStatus.is_user_follow_business === true;
 
     if (userFollows) {
-      // User follows - send final link immediately
+      // User follows - send final link
       const randomIndex = Math.floor(Math.random() * template.content.length);
       const {
         text,
@@ -277,31 +396,11 @@ async function handleCheckFollow(
         },
       );
 
-      // Update account statistics
+      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
       account.lastActivity = new Date();
       await account.save();
-
-      // Create log
-      await InstaReplyLog.create({
-        userId: clerkId,
-        accountId: account.instagramId,
-        templateId: template._id.toString(),
-        templateName: template.name,
-        commentId: `follow_check_${Date.now()}`,
-        commentText: "Follow check action",
-        commenterUsername: "unknown",
-        commenterUserId: recipientId,
-        mediaId: template.mediaId,
-        dmFlowStage: "final_link",
-        followChecked: true,
-        userFollows: true,
-        linkSent: dmSuccess,
-        success: dmSuccess,
-        responseTime: Date.now() - startTime,
-        createdAt: new Date(),
-      });
 
       return {
         success: dmSuccess,
@@ -318,18 +417,20 @@ async function handleCheckFollow(
             type: "template",
             payload: {
               template_type: "button",
-              text: `I noticed you have not followed us yet. It would mean a lot if you visit our profile and hit follow, then tap "I am following" to unlock your link!`,
+              text:
+                template.askFollow?.message ||
+                "I noticed you haven't followed us yet. Please follow to get your link!",
               buttons: [
                 {
                   type: "web_url",
-                  title: "Visit Profile",
+                  title: template.askFollow?.visitProfileBtn || "Visit Profile",
                   url: `https://www.instagram.com/${account.username}/`,
                   webview_height_ratio: "full",
                 },
                 {
                   type: "postback",
-                  title: "I am following",
-                  payload: `VERIFY_FOLLOW_${template.mediaId}`,
+                  title: template.askFollow?.followingBtn || "I'm following",
+                  payload: `VERIFY_FOLLOW_${template.mediaId}_${recipientId}`,
                 },
               ],
             },
@@ -337,30 +438,11 @@ async function handleCheckFollow(
         },
       );
 
-      // Update account statistics
+      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
       account.lastActivity = new Date();
       await account.save();
-
-      // Create log
-      await InstaReplyLog.create({
-        userId: clerkId,
-        accountId: account.instagramId,
-        templateId: template._id.toString(),
-        templateName: template.name,
-        commentId: `follow_reminder_${Date.now()}`,
-        commentText: "Follow reminder action",
-        commenterUsername: "unknown",
-        commenterUserId: recipientId,
-        mediaId: template.mediaId,
-        dmFlowStage: "follow_reminder",
-        followChecked: true,
-        userFollows: false,
-        success: dmSuccess,
-        responseTime: Date.now() - startTime,
-        createdAt: new Date(),
-      });
 
       return {
         success: dmSuccess,
@@ -378,16 +460,14 @@ async function handleCheckFollow(
 }
 
 /**
- * Handle verify follow - user claims they're following
- * Fire and forget - no rate limiting
+ * Handle verify follow
  */
-async function handleVerifyFollow(
+async function handleVerifyFollowAction(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
   recipientId: string,
-  templateSettings: any,
   startTime: number,
 ): Promise<{
   success: boolean;
@@ -395,7 +475,7 @@ async function handleVerifyFollow(
   nextStage?: string;
 }> {
   try {
-    // Check follow status again - fire and forget
+    // Check follow status again
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -422,7 +502,7 @@ async function handleVerifyFollow(
             type: "template",
             payload: {
               template_type: "button",
-              text: `Awesome! Thanks for following! ${text}`,
+              text: `Perfect! Thanks for following! ${text}`,
               buttons: [
                 {
                   type: "web_url",
@@ -436,31 +516,11 @@ async function handleVerifyFollow(
         },
       );
 
-      // Update account statistics
+      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
       account.lastActivity = new Date();
       await account.save();
-
-      // Create log
-      await InstaReplyLog.create({
-        userId: clerkId,
-        accountId: account.instagramId,
-        templateId: template._id.toString(),
-        templateName: template.name,
-        commentId: `verify_follow_${Date.now()}`,
-        commentText: "Verify follow action",
-        commenterUsername: "unknown",
-        commenterUserId: recipientId,
-        mediaId: template.mediaId,
-        dmFlowStage: "final_link",
-        followChecked: true,
-        userFollows: true,
-        linkSent: dmSuccess,
-        success: dmSuccess,
-        responseTime: Date.now() - startTime,
-        createdAt: new Date(),
-      });
 
       return {
         success: dmSuccess,
@@ -490,7 +550,7 @@ async function handleVerifyFollow(
                 {
                   type: "postback",
                   title: "I am following now",
-                  payload: `VERIFY_FOLLOW_${template.mediaId}`,
+                  payload: `VERIFY_FOLLOW_${template.mediaId}_${recipientId}`,
                 },
               ],
             },
@@ -498,30 +558,11 @@ async function handleVerifyFollow(
         },
       );
 
-      // Update account statistics
+      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
       account.lastActivity = new Date();
       await account.save();
-
-      // Create log
-      await InstaReplyLog.create({
-        userId: clerkId,
-        accountId: account.instagramId,
-        templateId: template._id.toString(),
-        templateName: template.name,
-        commentId: `verify_retry_${Date.now()}`,
-        commentText: "Verify follow retry action",
-        commenterUsername: "unknown",
-        commenterUserId: recipientId,
-        mediaId: template.mediaId,
-        dmFlowStage: "follow_reminder",
-        followChecked: true,
-        userFollows: false,
-        success: dmSuccess,
-        responseTime: Date.now() - startTime,
-        createdAt: new Date(),
-      });
 
       return {
         success: dmSuccess,
@@ -536,6 +577,98 @@ async function handleVerifyFollow(
     return {
       success: false,
       message: "Failed to verify follow status",
+    };
+  }
+}
+
+/**
+ * Handle ask email
+ */
+async function handleAskEmailAction(
+  account: any,
+  clerkId: string,
+  userTier: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{
+  success: boolean;
+  message: string;
+  nextStage?: string;
+}> {
+  try {
+    const dmSuccess = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      recipientId,
+      {
+        text:
+          template.askEmail?.openingMessage ||
+          "Please share your email address to continue.",
+      },
+    );
+
+    // Update statistics
+    account.accountDMSent = (account.accountDMSent || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
+    return {
+      success: dmSuccess,
+      message: dmSuccess ? "Email request sent" : "Failed to ask for email",
+      nextStage: "waiting_for_email",
+    };
+  } catch (error) {
+    console.error("Error asking for email:", error);
+    return {
+      success: false,
+      message: "Failed to ask for email",
+    };
+  }
+}
+
+/**
+ * Handle ask phone
+ */
+async function handleAskPhoneAction(
+  account: any,
+  clerkId: string,
+  userTier: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{
+  success: boolean;
+  message: string;
+  nextStage?: string;
+}> {
+  try {
+    const dmSuccess = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      recipientId,
+      {
+        text:
+          template.askPhone?.openingMessage ||
+          "Please share your phone number to continue.",
+      },
+    );
+
+    // Update statistics
+    account.accountDMSent = (account.accountDMSent || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
+    return {
+      success: dmSuccess,
+      message: dmSuccess ? "Phone request sent" : "Failed to ask for phone",
+      nextStage: "waiting_for_phone",
+    };
+  } catch (error) {
+    console.error("Error asking for phone:", error);
+    return {
+      success: false,
+      message: "Failed to ask for phone",
     };
   }
 }

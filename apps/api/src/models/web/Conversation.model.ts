@@ -57,7 +57,7 @@ const MessageMetadataSchema = new Schema(
       max: 1,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const MessageSchema = new Schema<IMessage>(
@@ -84,7 +84,7 @@ const MessageSchema = new Schema<IMessage>(
       type: MessageMetadataSchema,
     },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const FormFieldSchema = new Schema<IFormField>(
@@ -92,7 +92,7 @@ const FormFieldSchema = new Schema<IFormField>(
     question: { type: String },
     answer: { type: String },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const ConversationSchema = new Schema<IConversation>(
@@ -143,7 +143,7 @@ const ConversationSchema = new Schema<IConversation>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes for optimized queries

@@ -415,37 +415,6 @@ export const productSubscriptionDetails: Record<
     inclusions: { label: string; isIncluded: boolean }[]; // List of inclusions (features)
   }
 > = {
-  // Chatbots
-  "chatbot-customer-support": {
-    productId: "chatbot-customer-support",
-    name: "Customer Support Chatbot",
-    video: "/assets/congratulation.webm",
-    icon: "HeadsetIcon",
-    mprice: 69,
-    yprice: 760,
-    original: 1788,
-    credits: 500,
-    tier: "Pro",
-    description: {
-      bgcolor: "bg-green-800",
-      heading: "Simplify customer queries with advanced AI.",
-      subheading:
-        "Deliver instant, intelligent, and in-app support with AI-powered support chatbots.",
-    },
-    inclusions: [
-      { label: "24/7 Availability", isIncluded: true },
-      { label: "Live Chat Interface", isIncluded: true },
-      { label: "Multi-language support", isIncluded: true },
-      { label: "Dashboard Availability", isIncluded: true },
-      { label: "Lead qualification", isIncluded: false },
-      { label: "Email Notifications", isIncluded: false },
-      { label: "Advanced Analytics", isIncluded: false },
-      { label: "Priority support", isIncluded: true },
-      { label: "Automated Responses", isIncluded: true },
-      { label: "CRM Integration", isIncluded: false },
-      { label: "User Data Collection", isIncluded: false },
-    ],
-  },
   // "chatbot-e-commerce": {
   //   productId: "chatbot-e-commerce",
   //   name: "E-Commerce Chatbot",
@@ -1034,8 +1003,8 @@ export const instagramFeatures = [
 ];
 
 export const TIER_LIMITS = {
-  free: 100,
-  pro: 999999,
+  free: 200,
+  pro: 3000,
 };
 
 export type TierType = keyof typeof TIER_LIMITS;
@@ -1058,7 +1027,7 @@ export const TIER_INFO: Record<TierType, TierInfo> = {
   },
   pro: {
     name: "Starter",
-    limit: 999999,
+    limit: 3000,
     color: "bg-green-500",
     bgColor: "bg-green-500/10",
     textColor: "text-green-500",

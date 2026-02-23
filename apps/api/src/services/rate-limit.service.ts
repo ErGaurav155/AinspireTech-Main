@@ -1,3 +1,4 @@
+// services/rate-limit.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
@@ -81,8 +82,12 @@ export async function getUserTier(clerkId: string): Promise<TierType> {
 }
 
 /**
- * Check if a call can be made (for incoming Meta webhooks)
- * This is ONLY for checking if we should queue incoming webhooks
+ * NEW INTELLIGENT QUEUEING LOGIC:
+ * 1. Check user tier limit first
+ * 2. If user limit NOT exceeded → process directly (no queue)
+ * 3. If user limit exceeded → check app limit
+ * 4. If app limit NOT exceeded → still process directly (no queue)
+ * 5. Only queue if BOTH app limit reached
  */
 export async function canMakeCall(
   clerkId: string,
@@ -113,42 +118,27 @@ export async function canMakeCall(
         shouldQueue: isIncomingWebhook, // Only queue if it's an incoming webhook
       };
     }
-
-    // Check user tier limit
     const userKey = `user:calls:${clerkId}:${window.key}`;
     const userCallsStr = await redisHelpers.get(userKey);
     const userCalls = parseInt(userCallsStr || "0");
 
-    if (userCalls >= tierLimit) {
+    // ✅ NEW LOGIC: If user limit NOT exceeded, allow immediately
+    if (userCalls < tierLimit) {
       return {
-        allowed: false,
-        reason: "user_tier_limit_reached",
-        remaining: 0,
-        tier,
-        shouldQueue: isIncomingWebhook, // Only queue if it's an incoming webhook
-      };
-    }
-
-    // Check Meta API rate limit for account
-    const accountMetaKey = `account:meta_calls:${accountId}:${window.key}`;
-    const metaCallsStr = await redisHelpers.get(accountMetaKey);
-    const metaCalls = parseInt(metaCallsStr || "0");
-
-    if (metaCalls >= META_API_LIMIT_PER_ACCOUNT) {
-      return {
-        allowed: false,
-        reason: "meta_rate_limit_reached",
+        allowed: true,
         remaining: tierLimit - userCalls,
         tier,
-        shouldQueue: isIncomingWebhook, // Only queue if it's an incoming webhook
+        shouldQueue: false,
       };
     }
 
+    // ❌ Both limits exceeded - queue if incoming webhook
     return {
-      allowed: true,
-      remaining: tierLimit - userCalls,
+      allowed: false,
+      reason: "app_global_limit_reached",
       tier,
-      shouldQueue: false,
+      shouldQueue: isIncomingWebhook,
+      remaining: 0,
     };
   } catch (error) {
     console.error("Error in canMakeCall:", error);
@@ -162,8 +152,9 @@ export async function canMakeCall(
 }
 
 /**
- * Record a call - for incoming Meta webhooks only
- * Automation responses are fire-and-forget (not tracked)
+ * Record a call - ONLY for incoming webhooks
+ * Returns immediately if can process
+ * Queues only if app limit reached
  */
 export async function recordCall(
   clerkId: string,
@@ -177,21 +168,111 @@ export async function recordCall(
   queueId?: string;
   reason?: string;
   callsRecorded?: number;
+  processImmediately?: boolean;
 }> {
-  // If this is NOT an incoming webhook, we don't check limits - fire and forget
+  // If NOT an incoming webhook, fire and forget (automation responses)
   if (!isIncomingWebhook) {
     return {
       success: true,
-      callsRecorded: 0, // Not counted
+      callsRecorded: 0,
+      processImmediately: true,
     };
   }
 
   const window = getCurrentWindow();
-
   const canMake = await canMakeCall(clerkId, accountId, true);
 
-  if (!canMake.allowed && canMake.shouldQueue) {
-    // Queue the webhook for later processing
+  // ✅ NEW: If allowed, process immediately without queueing
+  if (canMake.allowed) {
+    try {
+      // Update counters in Redis
+      const userKey = `user:calls:${clerkId}:${window.key}`;
+      const globalKey = `global:calls:${window.key}`;
+      const accountMetaKey = `account:meta_calls:${accountId}:${window.key}`;
+
+      const client = redisHelpers.getRedisClient?.();
+
+      if (client?.isOpen) {
+        const pipeline = client.multi();
+        pipeline.incrBy(userKey, 1);
+        pipeline.incrBy(globalKey, 1);
+        if (metaCalls > 0) {
+          pipeline.incrBy(accountMetaKey, metaCalls);
+        }
+        pipeline.expire(userKey, 7200);
+        pipeline.expire(globalKey, 7200);
+        if (metaCalls > 0) {
+          pipeline.expire(accountMetaKey, 7200);
+        }
+        await pipeline.exec();
+      } else {
+        await Promise.all([
+          redisHelpers.incrBy(userKey, 1),
+          redisHelpers.incrBy(globalKey, 1),
+          metaCalls > 0
+            ? redisHelpers.incrBy(accountMetaKey, metaCalls)
+            : Promise.resolve(),
+        ]);
+
+        await Promise.all([
+          redisHelpers.expire(userKey, 7200),
+          redisHelpers.expire(globalKey, 7200),
+          metaCalls > 0
+            ? redisHelpers.expire(accountMetaKey, 7200)
+            : Promise.resolve(),
+        ]);
+      }
+
+      // Check Meta limit reached
+      if (metaCalls > 0) {
+        const currentMetaStr = await redisHelpers.get(accountMetaKey);
+        const currentMeta = parseInt(currentMetaStr || "0");
+        if (currentMeta >= META_API_LIMIT_PER_ACCOUNT) {
+          await redisHelpers.set(
+            `account:meta_limited:${accountId}`,
+            "true",
+            3600,
+          );
+        }
+      }
+
+      // Update database asynchronously (don't wait)
+      updateDatabaseRecords(
+        clerkId,
+        accountId,
+        metaCalls,
+        window.start,
+        canMake.tier || "free",
+      ).catch((err) => console.error("DB update error:", err));
+
+      return {
+        success: true,
+        callsRecorded: 1 + metaCalls,
+        processImmediately: true,
+      };
+    } catch (error) {
+      console.error("Error recording call:", error);
+
+      // If Redis fails, queue the webhook
+      const queueId = await queueWebhook({
+        clerkId,
+        accountId,
+        metadata,
+        reason: "redis_error",
+      });
+
+      return {
+        success: false,
+        queued: true,
+        queueId,
+        reason: "system_error",
+        processImmediately: false,
+      };
+    }
+  }
+
+  // ❌ Not allowed and should queue
+  if (canMake.shouldQueue) {
     const queueId = await queueWebhook({
       clerkId,
       accountId,
@@ -204,105 +285,16 @@ export async function recordCall(
       queued: true,
       queueId,
       reason: canMake.reason,
+      processImmediately: false,
     };
   }
 
-  if (!canMake.allowed) {
-    // Can't process and shouldn't queue (shouldn't happen)
-    return {
-      success: false,
-      reason: canMake.reason,
-    };
-  }
-
-  try {
-    // Update counters in Redis - BATCH operations to reduce calls
-    const userKey = `user:calls:${clerkId}:${window.key}`;
-    const globalKey = `global:calls:${window.key}`;
-    const accountMetaKey = `account:meta_calls:${accountId}:${window.key}`;
-
-    // Use pipeline if available, otherwise individual calls
-    const client = redisHelpers.getRedisClient?.();
-
-    if (client?.isOpen) {
-      // Use Redis pipeline to batch operations
-      const pipeline = client.multi();
-      pipeline.incrBy(userKey, 1);
-      pipeline.incrBy(globalKey, 1);
-      if (metaCalls > 0) {
-        pipeline.incrBy(accountMetaKey, metaCalls);
-      }
-      // Set expiry only once per key (2 hours)
-      pipeline.expire(userKey, 7200);
-      pipeline.expire(globalKey, 7200);
-      if (metaCalls > 0) {
-        pipeline.expire(accountMetaKey, 7200);
-      }
-      await pipeline.exec();
-    } else {
-      // Fallback to individual operations
-      await Promise.all([
-        redisHelpers.incrBy(userKey, 1),
-        redisHelpers.incrBy(globalKey, 1),
-        metaCalls > 0
-          ? redisHelpers.incrBy(accountMetaKey, metaCalls)
-          : Promise.resolve(),
-      ]);
-
-      // Set expiry
-      await Promise.all([
-        redisHelpers.expire(userKey, 7200),
-        redisHelpers.expire(globalKey, 7200),
-        metaCalls > 0
-          ? redisHelpers.expire(accountMetaKey, 7200)
-          : Promise.resolve(),
-      ]);
-    }
-
-    // Check if Meta limit reached
-    if (metaCalls > 0) {
-      const currentMetaStr = await redisHelpers.get(accountMetaKey);
-      const currentMeta = parseInt(currentMetaStr || "0");
-      if (currentMeta >= META_API_LIMIT_PER_ACCOUNT) {
-        await redisHelpers.set(
-          `account:meta_limited:${accountId}`,
-          "true",
-          3600,
-        );
-      }
-    }
-
-    // Update database records asynchronously (don't wait)
-    updateDatabaseRecords(
-      clerkId,
-      accountId,
-      metaCalls,
-      window.start,
-      canMake.tier || "free",
-    ).catch((err) => console.error("DB update error:", err));
-
-    return {
-      success: true,
-      callsRecorded: 1 + metaCalls,
-    };
-  } catch (error) {
-    console.error("Error in recordCall:", error);
-
-    // If Redis fails, still try to queue the webhook
-    const queueId = await queueWebhook({
-      clerkId,
-      accountId,
-      metadata,
-      reason: "redis_error",
-    });
-
-    return {
-      success: false,
-      queued: true,
-      queueId,
-      reason: "system_error",
-    };
-  }
+  // ❌ Not allowed and shouldn't queue
+  return {
+    success: false,
+    reason: canMake.reason,
+    processImmediately: false,
+  };
 }
 
 async function updateDatabaseRecords(
@@ -317,7 +309,6 @@ async function updateDatabaseRecords(
 
     const tierLimit = TIER_LIMITS[tier];
 
-    // Update user rate limit
     await UserRateLimit.findOneAndUpdate(
       { clerkId, windowStart },
       {
@@ -334,7 +325,6 @@ async function updateDatabaseRecords(
       { upsert: true, new: true },
     );
 
-    // Update account statistics
     if (metaCalls > 0) {
       await InstagramAccount.updateOne(
         { instagramId: accountId },
@@ -350,7 +340,7 @@ async function updateDatabaseRecords(
 }
 
 /**
- * Queue an incoming webhook for later processing
+ * Queue a webhook for later processing
  */
 export async function queueWebhook(data: {
   clerkId: string;
@@ -367,9 +357,9 @@ export async function queueWebhook(data: {
     const queueItem = new RateLimitQueue({
       clerkId: data.clerkId,
       instagramAccountId: data.accountId,
-      actionType: "webhook_incoming", // Mark as incoming webhook
+      actionType: "webhook_incoming",
       actionPayload: data.metadata,
-      priority: 5, // All webhooks same priority
+      priority: 5,
       status: "pending",
       windowStart: window.start,
       retryCount: 0,
@@ -387,7 +377,6 @@ export async function queueWebhook(data: {
     await queueItem.save();
 
     try {
-      // Also add to Redis queue for faster processing
       await redisHelpers.lpush(
         `queue:pending:${window.key}`,
         JSON.stringify({
@@ -397,7 +386,6 @@ export async function queueWebhook(data: {
           queuedAt: new Date(),
         }),
       );
-      // Set expiry on the queue list itself (not individual items)
       await redisHelpers.expire(`queue:pending:${window.key}`, 7200);
     } catch (redisError) {
       console.warn("Could not add to Redis queue:", redisError);
@@ -411,7 +399,7 @@ export async function queueWebhook(data: {
 }
 
 /**
- * Process queued webhooks (FIFO) when capacity is available
+ * Process queued webhooks ONE BY ONE when new window starts
  */
 export async function processQueuedCalls(limit: number = 50): Promise<{
   processed: number;
@@ -427,35 +415,25 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
   let skipped = 0;
 
   try {
-    // Get queue length first
     let remaining = (await redisHelpers.llen(queueKey)) || 0;
 
-    // If Redis queue is empty, try database
     if (remaining === 0) {
       return await processQueuedCallsFromDatabase(limit);
     }
 
     for (let i = 0; i < limit && remaining > 0; i++) {
-      // Get from end of list (FIFO - first in, first out)
       const item = await redisHelpers.rpop(queueKey);
       if (!item) break;
 
       try {
         const job = JSON.parse(item);
 
-        // Check if we can process now
-        const canMake = await canMakeCall(
-          job.clerkId,
-          job.accountId,
-          true, // It's a webhook
-        );
+        const canMake = await canMakeCall(job.clerkId, job.accountId, true);
 
         if (canMake.allowed) {
-          // Process the webhook
           const result = await processQueuedWebhook(job);
 
           if (result.success) {
-            // Update queue status in MongoDB
             await RateLimitQueue.findOneAndUpdate(
               { jobId: job.jobId },
               {
@@ -466,34 +444,29 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
             );
             processed++;
           } else {
-            // Handle failed webhook
             await handleFailedWebhook(job, result.error);
             failed++;
           }
         } else {
-          // Can't process yet - put back at the front of queue
           await redisHelpers.lpush(queueKey, item);
           skipped++;
-          break; // Stop processing if we hit rate limit
+          break;
         }
       } catch (error) {
         console.error("Error processing queued webhook:", error);
         failed++;
       }
 
-      // Update remaining count
       remaining = (await redisHelpers.llen(queueKey)) || 0;
     }
 
     return { processed, failed, skipped, remaining };
   } catch (error) {
     console.error("Error in processQueuedCalls:", error);
-    // Fallback to database processing if Redis fails
     return await processQueuedCallsFromDatabase(limit);
   }
 }
 
-// Fallback function for database-only processing
 async function processQueuedCallsFromDatabase(limit: number = 50) {
   let processed = 0;
   let failed = 0;
@@ -506,7 +479,7 @@ async function processQueuedCallsFromDatabase(limit: number = 50) {
       status: "pending",
     })
       .limit(limit)
-      .sort({ createdAt: 1 }); // FIFO - oldest first
+      .sort({ createdAt: 1 });
 
     for (const job of pendingJobs) {
       try {
@@ -543,7 +516,7 @@ async function processQueuedCallsFromDatabase(limit: number = 50) {
           }
         } else {
           skipped++;
-          break; // Stop if we hit rate limit
+          break;
         }
       } catch (jobError) {
         console.error("Error processing database job:", jobError);
@@ -573,11 +546,9 @@ async function processQueuedWebhook(
   job: any,
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Import the webhook processor
     const { processInstagramWebhook } =
       await import("@/services/webhook/instagram-processor.service");
 
-    // Process the webhook with the original payload
     const result = await processInstagramWebhook(job.metadata.originalPayload);
 
     return { success: result.success };
@@ -624,7 +595,6 @@ export async function resetHourlyWindow(): Promise<{
   try {
     await connectToDatabase();
 
-    // Mark previous window as completed
     await RateLimitWindow.findOneAndUpdate(
       { windowStart: previousWindow.start },
       {
@@ -635,22 +605,19 @@ export async function resetHourlyWindow(): Promise<{
       { upsert: true },
     );
 
-    // Process any remaining queued items
+    // Process queued items ONE BY ONE
     const queueResult = await processQueuedCalls(100);
 
-    // Reset Meta API limits for all accounts
     const accounts = await InstagramAccount.find({});
     let resetAccounts = 0;
 
     for (const account of accounts) {
       try {
-        // Clear rate limit flags from Redis
         await redisHelpers.del(`account:meta_limited:${account.instagramId}`);
       } catch (redisError) {
-        // Ignore Redis errors
+        // Ignore
       }
 
-      // Reset account statistics in MongoDB
       account.metaCallsThisHour = 0;
       account.isMetaRateLimited = false;
       account.metaRateLimitResetAt = undefined;
@@ -659,7 +626,6 @@ export async function resetHourlyWindow(): Promise<{
       resetAccounts++;
     }
 
-    // Create new window
     const activeAccounts = await InstagramAccount.countDocuments({
       isActive: true,
     });
@@ -682,7 +648,6 @@ export async function resetHourlyWindow(): Promise<{
     await newWindow.save();
 
     try {
-      // Clear Redis counters for previous window - minimal cleanup
       const keys = await redisHelpers.keys(`*:${previousWindow.key}`);
       if (keys.length > 0) await redisHelpers.del(...keys);
     } catch (redisError) {
@@ -709,6 +674,180 @@ export async function resetHourlyWindow(): Promise<{
   }
 }
 
+export async function getWindowStats(windowStart?: Date) {
+  await connectToDatabase();
+
+  const { start: currentWindowStart, label: currentLabel } = getCurrentWindow();
+  const targetWindowStart = windowStart || currentWindowStart;
+
+  const window = await RateLimitWindow.findOne({
+    windowStart: targetWindowStart,
+  });
+
+  const totalInstagramAccounts = await InstagramAccount.countDocuments({
+    isActive: true,
+  });
+  const appLimit = totalInstagramAccounts * META_API_LIMIT_PER_ACCOUNT;
+
+  if (!window) {
+    return {
+      window: currentLabel,
+      isCurrentWindow: true,
+      global: {
+        totalCalls: 0,
+        appLimit,
+        accountsProcessed: 0,
+        isAutomationPaused: false,
+      },
+      queue: {
+        queuedItems: 0,
+        byType: [],
+        byReason: [],
+        processing: 0,
+        pending: 0,
+        failed: 0,
+      },
+      users: {
+        totalUsers: 0,
+        totalCalls: 0,
+        averageCallsPerUser: 0,
+        byTier: {
+          free: { count: 0, totalCalls: 0 },
+          pro: { count: 0, totalCalls: 0 },
+        },
+      },
+      accounts: {
+        totalActive: totalInstagramAccounts,
+        appLimitPerAccount: META_API_LIMIT_PER_ACCOUNT,
+      },
+    };
+  }
+
+  const userLimits = await UserRateLimit.find({
+    windowStart: targetWindowStart,
+  });
+
+  const totalUserCalls = userLimits.reduce(
+    (sum, ul) => sum + ul.totalCallsMade,
+    0,
+  );
+  const activeUsers = userLimits.length;
+
+  const freeUsers = userLimits.filter((ul) => ul.tier === "free");
+  const proUsers = userLimits.filter((ul) => ul.tier === "pro");
+
+  const freeUserCalls = freeUsers.reduce(
+    (sum, ul) => sum + ul.totalCallsMade,
+    0,
+  );
+  const proUserCalls = proUsers.reduce((sum, ul) => sum + ul.totalCallsMade, 0);
+
+  const queueStatsByType = await RateLimitQueue.aggregate([
+    {
+      $match: {
+        windowStart: targetWindowStart,
+        status: { $in: ["pending", "processing"] },
+      },
+    },
+    {
+      $group: {
+        _id: "$actionType",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const queueStatsByReason = await RateLimitQueue.aggregate([
+    {
+      $match: {
+        windowStart: targetWindowStart,
+        status: { $in: ["pending", "processing"] },
+        "metadata.reason": { $exists: true },
+      },
+    },
+    {
+      $group: {
+        _id: "$metadata.reason",
+        count: { $sum: 1 },
+      },
+    },
+  ]);
+
+  const totalQueued = await RateLimitQueue.countDocuments({
+    windowStart: targetWindowStart,
+    status: { $in: ["pending", "processing"] },
+  });
+
+  const processingCount = await RateLimitQueue.countDocuments({
+    windowStart: targetWindowStart,
+    status: "processing",
+  });
+
+  const pendingCount = await RateLimitQueue.countDocuments({
+    windowStart: targetWindowStart,
+    status: "pending",
+  });
+
+  const failedCount = await RateLimitQueue.countDocuments({
+    windowStart: targetWindowStart,
+    status: "failed",
+  });
+
+  const completedCount = await RateLimitQueue.countDocuments({
+    windowStart: targetWindowStart,
+    status: "completed",
+  });
+
+  return {
+    window: currentLabel,
+    isCurrentWindow:
+      targetWindowStart.getTime() === currentWindowStart.getTime(),
+    global: {
+      totalCalls: window.globalCalls,
+      appLimit: window.appLimit,
+      accountsProcessed: window.accountsProcessed,
+      isAutomationPaused: window.isAutomationPaused,
+      usagePercentage:
+        window.appLimit > 0 ? (window.globalCalls / window.appLimit) * 100 : 0,
+    },
+    queue: {
+      queuedItems: totalQueued,
+      byType: queueStatsByType,
+      byReason: queueStatsByReason,
+      processing: processingCount,
+      pending: pendingCount,
+      failed: failedCount,
+      completed: completedCount,
+    },
+    users: {
+      totalUsers: activeUsers,
+      totalCalls: totalUserCalls,
+      averageCallsPerUser: activeUsers > 0 ? totalUserCalls / activeUsers : 0,
+      byTier: {
+        free: {
+          count: freeUsers.length,
+          totalCalls: freeUserCalls,
+          averageCallsPerUser:
+            freeUsers.length > 0 ? freeUserCalls / freeUsers.length : 0,
+          limit: 100,
+        },
+        pro: {
+          count: proUsers.length,
+          totalCalls: proUserCalls,
+          averageCallsPerUser:
+            proUsers.length > 0 ? proUserCalls / proUsers.length : 0,
+          limit: 2000,
+        },
+      },
+    },
+    accounts: {
+      totalActive: totalInstagramAccounts,
+      appLimitPerAccount: META_API_LIMIT_PER_ACCOUNT,
+      totalAppLimit: totalInstagramAccounts * META_API_LIMIT_PER_ACCOUNT,
+    },
+  };
+}
+
 export async function getUserRateLimitStats(clerkId: string): Promise<{
   tier: TierType;
   tierLimit: number;
@@ -722,7 +861,6 @@ export async function getUserRateLimitStats(clerkId: string): Promise<{
   const tier = await getUserTier(clerkId);
   const tierLimit = TIER_LIMITS[tier];
 
-  // Get calls from Redis
   let callsMade = 0;
   try {
     const userKey = `user:calls:${clerkId}:${window.key}`;
@@ -732,7 +870,6 @@ export async function getUserRateLimitStats(clerkId: string): Promise<{
     console.warn("Could not get calls from Redis");
   }
 
-  // Get queued items
   let queuedItems = 0;
   try {
     await connectToDatabase();

@@ -25,6 +25,8 @@ export interface IInstagramAccount extends Document {
   autoDMEnabled: boolean;
   followCheckEnabled: boolean;
   requireFollowForFreeUsers: boolean;
+  storyAutomationsEnabled: boolean;
+  trackDmUrlEnabled: boolean;
 
   // Rate limiting
   metaCallsThisHour: number;
@@ -56,6 +58,8 @@ const InstagramAccountSchema = new Schema<IInstagramAccount>(
     autoDMEnabled: { type: Boolean, default: true },
     followCheckEnabled: { type: Boolean, default: true },
     requireFollowForFreeUsers: { type: Boolean, default: false },
+    storyAutomationsEnabled: { type: Boolean, default: true },
+    trackDmUrlEnabled: { type: Boolean, default: true },
 
     metaCallsThisHour: { type: Number, default: 0 },
     lastMetaCallAt: { type: Date, default: Date.now },

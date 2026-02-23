@@ -16,6 +16,15 @@ export const connectInstaAccount = (
     method: "GET",
   });
 };
+// Get single Instagram account by ID
+export const getInstaAccountById = (
+  apiRequest: ApiRequestFn,
+  accountId: string,
+): Promise<any> => {
+  return apiRequest(`/insta/accounts/${accountId}`, {
+    method: "GET",
+  });
+};
 
 // ==================== TEMPLATE FUNCTIONS ====================
 
@@ -170,7 +179,10 @@ export const refreshInstagramToken = (
     method: "POST",
   });
 };
-
+export function reconnectInstagramAccount() {
+  // This should redirect to your Instagram OAuth flow
+  window.location.href = "/api/instagram/connect";
+}
 // ==================== DASHBOARD FUNCTIONS ====================
 
 export const getDashboardData = (apiRequest: ApiRequestFn): Promise<any> => {
@@ -193,14 +205,6 @@ export const getUserTierInfo = (
   apiRequest: ApiRequestFn,
 ): Promise<UserTierInfo> => {
   return apiRequest("/rate-limit/stats", {
-    method: "GET",
-  });
-};
-
-export const getAppLimitStatus = (
-  apiRequest: ApiRequestFn,
-): Promise<AppLimitStatus> => {
-  return apiRequest("/rate-limit/app-limit", {
     method: "GET",
   });
 };
@@ -378,6 +382,8 @@ export const updateAccountSettings = (
     autoDMEnabled?: boolean;
     followCheckEnabled?: boolean;
     requireFollowForFreeUsers?: boolean;
+    storyAutomationsEnabled?: boolean;
+    trackDmUrlEnabled?: boolean;
   },
 ): Promise<{ success: boolean; account: InstagramAccount }> => {
   return apiRequest(`/insta/accounts/${accountId}`, {
@@ -530,27 +536,136 @@ export interface TemplateSettingsByTier {
     maxRetries: number;
   };
 }
+// ─── Content Item ─────────────────────────────────────────────────────────────
+
+export interface ContentItem {
+  text: string;
+  link: string;
+  buttonTitle?: string;
+}
+
+// ─── Settings By Tier ─────────────────────────────────────────────────────────
+
+export interface TemplateSettingsByTier {
+  free: {
+    requireFollow: boolean;
+    skipFollowCheck: boolean;
+    directLink: boolean;
+  };
+  pro: {
+    requireFollow: boolean;
+    useAdvancedFlow: boolean;
+    maxRetries: number;
+  };
+}
+
+// ─── Automation Sub-Types ────────────────────────────────────────────────────
+
+export type AutomationType = "comments" | "stories" | "dms" | "live";
+
+export type DelayOption = "immediate" | "3min" | "5min" | "10min";
+
+export type TagType = "none" | "user" | "account";
+
+export interface WelcomeMessageConfig {
+  enabled: boolean;
+  text: string;
+  buttonTitle: string;
+}
+
+export interface PublicReplyConfig {
+  enabled: boolean;
+  replies: string[];
+  tagType: TagType;
+}
+
+export interface AskFollowConfig {
+  enabled: boolean;
+  message: string;
+  visitProfileBtn: string;
+  followingBtn: string;
+}
+
+export interface AskEmailConfig {
+  enabled: boolean;
+  openingMessage: string;
+  retryMessage: string;
+  sendDmIfNoEmail: boolean;
+}
+
+export interface FollowUpDMsConfig {
+  enabled: boolean;
+}
+
+// ─── Main TemplateType ────────────────────────────────────────────────────────
 
 export interface TemplateType {
   _id: string;
   name: string;
   userId: string;
   accountId: string;
-  content: ContentItem[];
-  reply: string[];
-  triggers: string[];
-  isFollow: boolean;
-  priority: number;
   accountUsername: string;
+
+  // Media
   mediaId: string;
   mediaUrl?: string;
   mediaType?: string;
+
+  // Core DM content (multiple options, randomly chosen)
+  content: ContentItem[];
+
+  // Comment replies (multiple options, randomly chosen)
+  reply: string[];
+
+  // Trigger keywords (empty = any keyword)
+  triggers: string[];
+
+  // Legacy follow flag (kept for backwards compat)
+  isFollow: boolean;
+
+  // Timing
+  delaySeconds?: number;
+  delayOption?: DelayOption;
+
+  // Status & ordering
   isActive: boolean;
+  priority: number;
+
+  // Statistics
   usageCount?: number;
   lastUsed?: string;
   successRate?: number;
-  delaySeconds?: number;
+
+  // Legacy tier settings (kept for backwards compat)
   settingsByTier?: TemplateSettingsByTier;
+
+  // ── New automation fields ──────────────────────────────────────────────────
+
+  /** Which type of automation this is */
+  automationType: AutomationType;
+
+  /** Whether "any post or reel" is selected (mediaId will be empty) */
+  anyPostOrReel?: boolean;
+
+  /** Whether "any keyword" is selected (triggers will be empty) */
+  anyKeyword?: boolean;
+
+  /** Welcome message shown before the main DM */
+  welcomeMessage?: WelcomeMessageConfig;
+
+  /** Public comment reply settings */
+  publicReply?: PublicReplyConfig;
+
+  /** Ask user to follow before sending DM */
+  askFollow?: AskFollowConfig;
+
+  /** Ask user for email (Pro feature) */
+  askEmail?: AskEmailConfig;
+
+  /** Send follow-up DMs (Pro feature) */
+  followUpDMs?: FollowUpDMsConfig;
+
+  // Timestamps
   createdAt: string;
   updatedAt: string;
 }
@@ -578,6 +693,8 @@ export interface InstagramAccount {
   isMetaRateLimited: boolean;
   metaRateLimitResetAt?: string;
   tokenExpiresAt: Date;
+  storyAutomationsEnabled: boolean;
+  trackDmUrlEnabled: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -1,12 +1,24 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
-import { useRouter } from "next/navigation";
-import { useState, useEffect, useCallback, useMemo } from "react";
-import defaultImg from "public/assets/img/default-img.jpg";
-import { useApi } from "@/lib/useApi";
-
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import {
+  Plus,
+  Instagram,
+  Settings,
+  Users,
+  BarChart3,
+  Zap,
+  RefreshCw,
+  AlertCircle,
+  ChevronRight,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Sparkles,
+  Crown,
+} from "lucide-react";
+import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   Card,
   CardContent,
@@ -14,26 +26,8 @@ import {
   CardTitle,
 } from "@rocketreplai/ui/components/radix/card";
 import {
-  AlertCircle,
-  BarChart3,
-  Instagram,
-  Plus,
-  RefreshCw,
-  Settings,
-  Users,
-  Zap,
-  Shield,
-  Activity,
-  Cpu,
-  Clock,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-} from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import {
   AlertDialog,
+  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -41,67 +35,46 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@rocketreplai/ui/components/radix/alert-dialog";
-import Image from "next/image";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Label } from "@rocketreplai/ui/components/radix/label";
 import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import Link from "next/link";
+import Image from "next/image";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import defaultImg from "public/assets/img/default-img.jpg";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
-  getDashboardData,
-  getInstagramUser,
-  getSubscriptioninfo,
+  getInstaAccount,
   refreshInstagramToken,
-  getRateLimitStats,
-  getAppLimitStatus,
-  UserTierInfo,
-  AppLimitStatus,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
-import { Progress } from "@rocketreplai/ui/components/radix/progress";
+import { useTheme } from "next-themes";
+import { useApi } from "@/lib/useApi";
+import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 
 // Types
 interface InstagramAccount {
   id: string;
   instagramId: string;
-  userId: string;
   username: string;
-  accessToken: string;
+  profilePicture: string;
+  followersCount: number;
+  mediaCount: number;
   isActive: boolean;
   autoReplyEnabled: boolean;
   autoDMEnabled: boolean;
   followCheckEnabled: boolean;
-  requireFollowForFreeUsers: boolean;
-  accountReply: number;
-  accountFollowCheck: number;
-  accountDMSent: number;
-  lastActivity: string;
-  profilePicture: string;
-  followersCount: number;
-  followingCount: number;
-  mediaCount: number;
-  metaCallsThisHour: number;
-  lastMetaCallAt: string;
-  isMetaRateLimited: boolean;
-  metaRateLimitResetAt?: string;
-  createdAt: string;
-  updatedAt: string;
-
-  // Additional fields for display
-  displayName: string;
   templatesCount: number;
-  replyLimit: number;
-  accountLimit: number;
-  totalAccounts: number;
-  engagementRate: number;
-  successRate: number;
-  avgResponseTime: number;
-  tier?: "free" | "pro";
-  callsMade?: number;
-  callsRemaining?: number;
-  isTokenExpiring?: boolean;
+  accountReply: number;
+  accountDMSent: number;
+  accountFollowCheck: number;
+  lastActivity: string;
+  tokenExpiresAt?: string;
+  isMetaRateLimited: boolean;
+  createdAt: string;
 }
 
+// Theme styles interface
 interface ThemeStyles {
   containerBg: string;
   textPrimary: string;
@@ -116,14 +89,8 @@ interface ThemeStyles {
 }
 
 // Constants
-const ACCOUNTS_CACHE_KEY = "instagramAccounts";
-const RATE_LIMIT_CACHE_KEY = "rateLimitStatsAccounts";
-const APP_LIMIT_CACHE_KEY = "appLimitStatusAccounts";
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-const TIER_LIMITS = {
-  free: 100,
-  pro: 999999,
-} as const;
+const FREE_PLAN_REPLY_LIMIT = 500;
+const FREE_PLAN_ACCOUNT_LIMIT = 1;
 
 export default function AccountsPage() {
   // Hooks
@@ -131,6 +98,8 @@ export default function AccountsPage() {
   const router = useRouter();
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
+  const { apiRequest } = useApi();
+  const isMounted = useRef(true);
 
   // State
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
@@ -145,67 +114,35 @@ export default function AccountsPage() {
   const [isUpdatingAccount, setIsUpdatingAccount] = useState<string | null>(
     null,
   );
-  const [rateLimitStats, setRateLimitStats] = useState<UserTierInfo | null>(
-    null,
-  );
-  const [appLimitStatus, setAppLimitStatus] = useState<AppLimitStatus | null>(
-    null,
-  );
-  const { apiRequest } = useApi();
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   // Theme-based styles
   const themeStyles = useMemo((): ThemeStyles => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-transparent" : "bg-gray-50",
-      textPrimary: isDark ? "text-white" : "text-n-7",
-      textSecondary: isDark ? "text-gray-300" : "text-n-5",
-      textMuted: isDark ? "text-gray-400" : "text-n-5",
-      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      cardBorder: isDark ? "border-white/10" : "border-gray-200",
-      badgeBg: isDark ? "bg-[#0a0a0a]" : "bg-white",
-      alertBg: isDark ? "bg-[#6d1717]/5" : "bg-red-50/80",
-      buttonOutlineBorder: isDark ? "border-white/20" : "border-gray-300",
-      buttonOutlineText: isDark ? "text-gray-300" : "text-n-5",
+      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
+      textPrimary: isDark ? "text-white" : "text-gray-900",
+      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
+      textMuted: isDark ? "text-gray-500" : "text-gray-400",
+      cardBg: isDark
+        ? "bg-[#1A1A1E] border-gray-800"
+        : "bg-white border-gray-100",
+      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
+      badgeBg: isDark ? "bg-gray-800" : "bg-gray-100",
+      alertBg: isDark ? "bg-red-900/20" : "bg-red-50",
+      buttonOutlineBorder: isDark ? "border-gray-700" : "border-gray-200",
+      buttonOutlineText: isDark ? "text-gray-300" : "text-gray-600",
     };
   }, [currentTheme]);
 
-  // Helper: Get cached data
-  const getCachedData = <T,>(key: string): T | null => {
-    try {
-      const cached = localStorage.getItem(key);
-      if (!cached) return null;
-
-      const { data, timestamp } = JSON.parse(cached);
-      if (Date.now() - timestamp > CACHE_DURATION) {
-        localStorage.removeItem(key);
-        return null;
-      }
-
-      return data;
-    } catch {
-      localStorage.removeItem(key);
-      return null;
-    }
-  };
-
-  // Helper: Set cached data
-  const setCachedData = <T,>(key: string, data: T): void => {
-    try {
-      localStorage.setItem(
-        key,
-        JSON.stringify({
-          data,
-          timestamp: Date.now(),
-        }),
-      );
-    } catch (error) {
-      console.error("Failed to cache data:", error);
-    }
-  };
-
   // Helper: Format last activity
-  const formatLastActivity = (dateString: string): string => {
+  const formatLastActivity = useCallback((dateString: string): string => {
     try {
       const date = new Date(dateString);
       const now = new Date();
@@ -219,87 +156,14 @@ export default function AccountsPage() {
     } catch {
       return "N/A";
     }
-  };
-
-  // Helper: Format time
-  const formatDate = (date: Date): string => {
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-  };
-
-  // Helper: Check if token is expiring
-  const checkTokenExpiry = (account: any): boolean => {
-    if (!account.tokenExpiresAt) return false;
-    const expiryDate = new Date(account.tokenExpiresAt);
-    const now = new Date();
-    const hoursUntilExpiry =
-      (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    return hoursUntilExpiry < 24; // Expiring in less than 24 hours
-  };
+  }, []);
 
   // Helper: Handle image error
-  const handleImageError = (id: string): void => {
+  const handleImageError = useCallback((id: string): void => {
     setHasError((prev) => [...prev, id]);
-  };
+  }, []);
 
-  // Fetch rate limit statistics
-  const fetchRateLimitStats =
-    useCallback(async (): Promise<UserTierInfo | null> => {
-      if (!userId) return null;
-
-      try {
-        // Check cache first
-        const cached = getCachedData<UserTierInfo>(RATE_LIMIT_CACHE_KEY);
-        if (cached) {
-          setRateLimitStats(cached);
-          return cached;
-        }
-
-        const stats = await getRateLimitStats(apiRequest);
-
-        if (stats) {
-          setCachedData(RATE_LIMIT_CACHE_KEY, stats);
-          setRateLimitStats(stats);
-          return stats;
-        }
-
-        return null;
-      } catch (error) {
-        console.error("Failed to fetch rate limit stats:", error);
-        return null;
-      }
-    }, [userId, apiRequest]);
-
-  // Fetch app limit status
-  const fetchAppLimitStatus =
-    useCallback(async (): Promise<AppLimitStatus | null> => {
-      try {
-        // Check cache first
-        const cached = getCachedData<AppLimitStatus>(APP_LIMIT_CACHE_KEY);
-        if (cached) {
-          setAppLimitStatus(cached);
-          return cached;
-        }
-
-        const status = await getAppLimitStatus(apiRequest);
-
-        if (status) {
-          setCachedData(APP_LIMIT_CACHE_KEY, status);
-          setAppLimitStatus(status);
-          return status;
-        }
-
-        return null;
-      } catch (error) {
-        console.error("Failed to fetch app limit status:", error);
-        return null;
-      }
-    }, [apiRequest]);
-
-  // Fetch Instagram accounts with caching
+  // Fetch Instagram accounts
   const fetchAccounts = useCallback(async (): Promise<void> => {
     if (!userId) {
       router.push("/sign-in");
@@ -310,145 +174,51 @@ export default function AccountsPage() {
       setIsLoading(true);
       setError(null);
 
-      // Check cache first
-      const cachedAccounts =
-        getCachedData<InstagramAccount[]>(ACCOUNTS_CACHE_KEY);
-      if (cachedAccounts) {
-        setAccounts(cachedAccounts);
-        return;
-      }
+      const response = await getInstaAccount(apiRequest);
 
-      const dashboardResponse = await getDashboardData(apiRequest);
-      const {
-        accounts: dbAccounts,
-        totalReplies,
-        accountLimit,
-        replyLimit,
-        totalAccounts,
-        totalTemplates,
-        activeAccounts,
-        successRate,
-        engagementRate,
-        overallAvgResponseTime,
-      } = dashboardResponse;
+      if (!isMounted.current) return;
 
-      if (!dbAccounts?.length) {
+      if (response?.accounts) {
+        const formattedAccounts: InstagramAccount[] = response.accounts.map(
+          (acc: any) => ({
+            id: acc._id,
+            instagramId: acc.instagramId,
+            username: acc.username,
+            profilePicture: acc.profilePicture || defaultImg.src,
+            followersCount: acc.followersCount || 0,
+            mediaCount: acc.mediaCount || 0,
+            isActive: acc.isActive || false,
+            autoReplyEnabled: acc.autoReplyEnabled || false,
+            autoDMEnabled: acc.autoDMEnabled || false,
+            followCheckEnabled: acc.followCheckEnabled || false,
+            templatesCount: acc.templatesCount || 0,
+            accountReply: acc.accountReply || 0,
+            accountDMSent: acc.accountDMSent || 0,
+            accountFollowCheck: acc.accountFollowCheck || 0,
+            lastActivity: acc.lastActivity || new Date().toISOString(),
+            tokenExpiresAt: acc.tokenExpiresAt,
+            isMetaRateLimited: acc.isMetaRateLimited || false,
+            createdAt: acc.createdAt,
+          }),
+        );
+
+        setAccounts(formattedAccounts);
+      } else {
         setAccounts([]);
-        return;
-      }
-
-      // Get rate limit stats
-      const rateStats = await fetchRateLimitStats();
-
-      // Transform accounts
-      const completeAccounts: InstagramAccount[] = await Promise.all(
-        dbAccounts.map(async (dbAccount: any) => {
-          try {
-            // Fetch Instagram data for display
-            let instaData = null;
-            try {
-              instaData = await getInstagramUser(dbAccount.accessToken, [
-                "username",
-                "user_id",
-                "followers_count",
-                "media_count",
-                "profile_picture_url",
-              ]);
-            } catch (instaError) {
-              console.warn(
-                `Could not fetch Instagram data for ${dbAccount.username}:`,
-                instaError,
-              );
-            }
-
-            // Find account usage from rate limit stats
-            const accountUsage = rateStats?.accountUsage?.find(
-              (usage) => usage.instagramAccountId === dbAccount.instagramId,
-            );
-
-            // Check token expiry
-            const isTokenExpiring = checkTokenExpiry(dbAccount);
-
-            return {
-              id: dbAccount._id,
-              instagramId: dbAccount.instagramId,
-              userId: dbAccount.userId,
-              username: dbAccount.username,
-              accessToken: dbAccount.accessToken,
-              isActive: dbAccount.isActive || false,
-              autoReplyEnabled: dbAccount.autoReplyEnabled || false,
-              autoDMEnabled: dbAccount.autoDMEnabled || false,
-              followCheckEnabled: dbAccount.followCheckEnabled || false,
-              requireFollowForFreeUsers:
-                dbAccount.requireFollowForFreeUsers || false,
-              accountReply: dbAccount.accountReply || 0,
-              accountFollowCheck: dbAccount.accountFollowCheck || 0,
-              accountDMSent: dbAccount.accountDMSent || 0,
-              lastActivity: dbAccount.lastActivity || new Date().toISOString(),
-              profilePicture:
-                instaData?.profile_picture_url ||
-                dbAccount.profilePicture ||
-                defaultImg.src,
-              followersCount:
-                instaData?.followers_count || dbAccount.followersCount || 0,
-              followingCount: dbAccount.followingCount || 0,
-              mediaCount: instaData?.media_count || dbAccount.mediaCount || 0,
-              metaCallsThisHour: dbAccount.metaCallsThisHour || 0,
-              lastMetaCallAt:
-                dbAccount.lastMetaCallAt || new Date().toISOString(),
-              isMetaRateLimited: dbAccount.isMetaRateLimited || false,
-              metaRateLimitResetAt: dbAccount.metaRateLimitResetAt,
-              createdAt: dbAccount.createdAt,
-              updatedAt: dbAccount.updatedAt,
-
-              // Additional fields for display
-              displayName:
-                dbAccount.displayName ||
-                dbAccount.username ||
-                "Instagram Account",
-              templatesCount: dbAccount.templatesCount || 0,
-              replyLimit: replyLimit || 500,
-              accountLimit: accountLimit || 1,
-              totalAccounts: totalAccounts || 0,
-              engagementRate: engagementRate || 0,
-              successRate: successRate || 0,
-              avgResponseTime: overallAvgResponseTime || 0,
-              tier: rateStats?.tier || "free",
-              callsMade: accountUsage?.callsMade || 0,
-              callsRemaining: rateStats
-                ? Math.max(
-                    0,
-                    rateStats.tierLimit - (accountUsage?.callsMade || 0),
-                  )
-                : TIER_LIMITS.free,
-              isTokenExpiring,
-            };
-          } catch (error) {
-            console.error(`Error processing account ${dbAccount._id}:`, error);
-            return null;
-          }
-        }),
-      );
-
-      const validAccounts = completeAccounts.filter(
-        (account): account is InstagramAccount => account !== null,
-      );
-
-      setAccounts(validAccounts);
-
-      if (validAccounts.length > 0) {
-        setCachedData(ACCOUNTS_CACHE_KEY, validAccounts);
       }
     } catch (error) {
+      if (!isMounted.current) return;
       console.error("Failed to fetch accounts:", error);
       setError(
         error instanceof Error ? error.message : "Failed to load accounts",
       );
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (isMounted.current) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
-  }, [userId, router, fetchRateLimitStats, apiRequest]);
+  }, [userId, router, apiRequest]);
 
   // Fetch user subscriptions
   const fetchSubscriptions = useCallback(async (): Promise<void> => {
@@ -456,9 +226,7 @@ export default function AccountsPage() {
 
     try {
       const userData = await getUserById(apiRequest, userId);
-      if (userData) {
-        const subs = await getSubscriptioninfo(apiRequest);
-        setSubscriptions(subs.subscriptions);
+      if (userData && isMounted.current) {
         setUserInfo(userData);
       }
     } catch (error) {
@@ -468,71 +236,85 @@ export default function AccountsPage() {
 
   // Initialize component
   useEffect(() => {
-    if (!isLoaded) return;
+    if (!isLoaded || !userId) return;
 
     const initializeData = async () => {
-      await Promise.all([
-        fetchSubscriptions(),
-        fetchAccounts(),
-        fetchRateLimitStats(),
-        fetchAppLimitStatus(),
-      ]);
+      await Promise.all([fetchSubscriptions(), fetchAccounts()]);
     };
 
     initializeData();
-  }, [
-    userId,
-    isLoaded,
-    fetchSubscriptions,
-    fetchAccounts,
-    fetchRateLimitStats,
-    fetchAppLimitStatus,
-  ]);
+  }, [userId, isLoaded, fetchSubscriptions, fetchAccounts]);
 
   // Handle toggle account status
-  const handleToggleAccount = async (accountId: string) => {
+  const handleToggleAccount = async (
+    accountId: string,
+    field: string,
+    value: boolean,
+  ) => {
     const account = accounts.find((acc) => acc.id === accountId);
     if (!account) return;
 
-    const newActiveState = !account.isActive;
     setIsUpdatingAccount(accountId);
 
+    // Optimistic UI update
+    setAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId ? { ...acc, [field]: value } : acc,
+      ),
+    );
+
     try {
-      await updateAccountSettings(apiRequest, accountId, {
-        isActive: newActiveState,
+      const settings: any = {};
+      settings[field] = value;
+
+      await updateAccountSettings(apiRequest, account.instagramId, settings);
+
+      toast({
+        title: "Success",
+        description: `Account ${field === "isActive" ? "status" : "setting"} updated successfully`,
+        duration: 3000,
       });
-      // Optimistic UI update
+    } catch (error) {
+      // Revert on error
       setAccounts((prev) =>
         prev.map((acc) =>
-          acc.id === accountId ? { ...acc, isActive: newActiveState } : acc,
+          acc.id === accountId ? { ...acc, [field]: !value } : acc,
         ),
       );
 
-      // Update cache
-      const cachedAccounts =
-        getCachedData<InstagramAccount[]>(ACCOUNTS_CACHE_KEY);
-      if (cachedAccounts) {
-        const updatedCache = cachedAccounts.map((acc) =>
-          acc.id === accountId ? { ...acc, isActive: newActiveState } : acc,
-        );
-        setCachedData(ACCOUNTS_CACHE_KEY, updatedCache);
-      }
-    } catch (error) {
-      console.error("Error updating account:", error);
-      // Revert optimistic update
-      setAccounts((prev) =>
-        prev.map((acc) =>
-          acc.id === accountId ? { ...acc, isActive: !newActiveState } : acc,
-        ),
-      );
+      toast({
+        title: "Error",
+        description: "Failed to update account settings",
+        variant: "destructive",
+        duration: 3000,
+      });
     } finally {
       setIsUpdatingAccount(null);
     }
   };
 
+  // Handle refresh token
+  const handleRefreshToken = async (instagramId: string) => {
+    try {
+      await refreshInstagramToken(apiRequest, instagramId);
+      toast({
+        title: "Success",
+        description: "Token refreshed successfully",
+        duration: 3000,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to refresh token",
+        variant: "destructive",
+        duration: 3000,
+      });
+    }
+  };
+
   // Handle add account click
   const handleAddAccountClick = () => {
-    const accountLimit = accounts[0]?.accountLimit || 1;
+    const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
 
     if (accounts.length >= accountLimit) {
       setShowAccountLimitDialog(true);
@@ -544,14 +326,7 @@ export default function AccountsPage() {
   // Handle refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    localStorage.removeItem(ACCOUNTS_CACHE_KEY);
-    localStorage.removeItem(RATE_LIMIT_CACHE_KEY);
-    localStorage.removeItem(APP_LIMIT_CACHE_KEY);
-    await Promise.all([
-      fetchAccounts(),
-      fetchRateLimitStats(),
-      fetchAppLimitStatus(),
-    ]);
+    await fetchAccounts();
   };
 
   // Calculate statistics
@@ -567,187 +342,33 @@ export default function AccountsPage() {
       (sum, acc) => sum + acc.accountReply,
       0,
     );
-    const totalMetaCalls = accounts.reduce(
-      (sum, acc) => sum + acc.metaCallsThisHour,
-      0,
-    );
+    const totalDMs = accounts.reduce((sum, acc) => sum + acc.accountDMSent, 0);
     const avgEngagement =
       accounts.length > 0
-        ? (
-            accounts.reduce((sum, acc) => sum + acc.engagementRate, 0) /
-            accounts.length
-          ).toFixed(1)
+        ? ((totalReplies + totalDMs) / accounts.length / 100).toFixed(1)
         : "0";
 
     return {
       activeAccounts,
       totalFollowers,
       totalReplies,
-      totalMetaCalls,
+      totalDMs,
       avgEngagement,
     };
   }, [accounts]);
 
   // Get account limits
-  const accountLimit = accounts[0]?.accountLimit || 1;
-  const replyLimit = accounts[0]?.replyLimit || 500;
-
-  // Render rate limit status badge
-  const renderRateLimitStatus = () => {
-    if (!rateLimitStats) return null;
-
-    const { tier, callsMade, tierLimit, usagePercentage, remainingCalls } =
-      rateLimitStats;
-
-    if (tier === "pro") {
-      return (
-        <Badge className="bg-gradient-to-r from-purple-900/20 to-pink-900/20 text-purple-300 border-purple-500/30">
-          <Shield className="mr-1 h-3 w-3" />
-          Pro Unlimited
-        </Badge>
-      );
-    }
-
-    if (usagePercentage >= 90) {
-      return (
-        <Badge className="bg-red-900/20 text-red-300 border-red-500/30">
-          <AlertTriangle className="mr-1 h-3 w-3" />
-          {remainingCalls} calls left
-        </Badge>
-      );
-    } else if (usagePercentage >= 70) {
-      return (
-        <Badge className="bg-yellow-900/20 text-yellow-300 border-yellow-500/30">
-          <AlertTriangle className="mr-1 h-3 w-3" />
-          {remainingCalls} calls left
-        </Badge>
-      );
-    }
-
-    return (
-      <Badge className="bg-green-900/20 text-green-300 border-green-500/30">
-        <CheckCircle className="mr-1 h-3 w-3" />
-        {remainingCalls} calls left
-      </Badge>
-    );
-  };
-
-  // Render app limit status
-  const renderAppLimitStatus = () => {
-    if (!appLimitStatus) return null;
-
-    const { reached, current, limit, percentage } = appLimitStatus;
-
-    if (reached) {
-      return (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-red-900/10 border border-red-500/30 mb-4">
-          <XCircle className="h-5 w-5 text-red-500" />
-          <div>
-            <p className="text-sm font-medium text-red-300">
-              App Limit Reached
-            </p>
-            <p className="text-xs text-red-400">
-              Global limit: {current.toLocaleString()}/{limit.toLocaleString()}
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    if (percentage >= 80) {
-      return (
-        <div className="flex items-center gap-2 p-3 rounded-lg bg-yellow-900/10 border border-yellow-500/30 mb-4">
-          <AlertTriangle className="h-5 w-5 text-yellow-500" />
-          <div>
-            <p className="text-sm font-medium text-yellow-300">High Usage</p>
-            <p className="text-xs text-yellow-400">
-              {percentage.toFixed(1)}% of app limit used
-            </p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-green-900/10 border border-green-500/30 mb-4">
-        <CheckCircle className="h-5 w-5 text-green-500" />
-        <div>
-          <p className="text-sm font-medium text-green-300">System Normal</p>
-          <p className="text-xs text-green-400">
-            {percentage.toFixed(1)}% of app limit used
-          </p>
-        </div>
-      </div>
-    );
-  };
-
-  // Render rate limit progress
-  const renderRateLimitProgress = () => {
-    if (!rateLimitStats) return null;
-
-    const { tier, callsMade, tierLimit, usagePercentage, nextReset } =
-      rateLimitStats;
-
-    if (tier === "pro") {
-      return (
-        <div className="space-y-2">
-          <div className="flex justify-between items-center">
-            <span
-              className={`text-sm font-medium ${themeStyles.textSecondary}`}
-            >
-              <Zap className="inline mr-1 h-3 w-3" />
-              Pro Unlimited
-            </span>
-            <span className={`text-sm ${themeStyles.textMuted}`}>
-              No limits
-            </span>
-          </div>
-          <Progress value={0} className="h-2 bg-green-900/20" />
-          <p className={`text-xs ${themeStyles.textMuted}`}>
-            You have unlimited API calls with Pro tier
-          </p>
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-2">
-        <div className="flex justify-between items-center">
-          <span className={`text-sm font-medium ${themeStyles.textSecondary}`}>
-            <Clock className="inline mr-1 h-3 w-3" />
-            Rate Limit Usage ({callsMade}/{tierLimit})
-          </span>
-          <span className={`text-sm ${themeStyles.textMuted}`}>
-            {usagePercentage.toFixed(1)}%
-          </span>
-        </div>
-        <Progress
-          value={usagePercentage}
-          className={`h-2 ${
-            usagePercentage >= 90
-              ? "bg-red-900/20"
-              : usagePercentage >= 70
-                ? "bg-yellow-900/20"
-                : "bg-green-900/20"
-          }`}
-        />
-        <div className="flex justify-between text-xs">
-          <span className={themeStyles.textMuted}>
-            Resets: {formatDate(new Date(nextReset))}
-          </span>
-          <span className={themeStyles.textMuted}>
-            {rateLimitStats.remainingCalls} calls remaining
-          </span>
-        </div>
-      </div>
-    );
-  };
+  const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
+  const replyLimit = userInfo?.replyLimit || FREE_PLAN_REPLY_LIMIT;
 
   // Loading state
   if (!isLoaded || isLoading) {
     return (
-      <div className="min-h-screen bg-transparent flex items-center justify-center h-full w-full">
-        <div className="w-5 h-5 border-2 border-t-transparent border-blue-600 rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
+          <p className="text-sm text-gray-400">Loading accounts...</p>
+        </div>
       </div>
     );
   }
@@ -756,16 +377,21 @@ export default function AccountsPage() {
   if (error) {
     return (
       <div
-        className={`min-h-screen ${themeStyles.textPrimary} flex items-center justify-center ${themeStyles.containerBg}`}
+        className={`min-h-screen ${themeStyles.containerBg} flex items-center justify-center`}
       >
         <Card
           className={`max-w-md ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
         >
           <CardContent className="pt-6 text-center">
             <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Error Loading Accounts</h2>
-            <p className={`mb-6 ${themeStyles.textSecondary}`}>{error}</p>
-            <Button onClick={fetchAccounts} className="btn-gradient-cyan">
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+              Error Loading Accounts
+            </h2>
+            <p className="text-gray-500 mb-6">{error}</p>
+            <Button
+              onClick={fetchAccounts}
+              className="bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl"
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
@@ -776,244 +402,125 @@ export default function AccountsPage() {
   }
 
   return (
-    <div
-      className={`min-h-screen ${themeStyles.textPrimary} ${themeStyles.containerBg}`}
-    >
-      <BreadcrumbsDefault />
+    <div className={`min-h-screen ${themeStyles.containerBg}`}>
+      {/* Top bar */}
+      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
+        <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
+          <Link
+            href="/insta/dashboard"
+            className="text-gray-400 hover:text-gray-600"
+          >
+            Dashboard
+          </Link>
+          <span className="text-gray-300">›</span>
+          <span className="font-medium text-gray-800">Accounts</span>
+        </div>
+      </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex flex-wrap gap-3 md:gap-0 justify-between items-center mb-8">
-          <div>
-            <div
-              className={`inline-flex items-center ${
-                currentTheme === "dark"
-                  ? "bg-blue-100/10 text-blue-400 border-blue-400/30"
-                  : "bg-blue-100 text-blue-600 border-blue-300"
-              } border rounded-full px-4 py-1 mb-4`}
-            >
-              <Instagram className="h-4 w-4 mr-1" />
-              <span className="text-sm font-medium">Account Management</span>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200/50">
+              <Instagram className="h-6 w-6 text-white" />
             </div>
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-2 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
-              Instagram Accounts
-            </h1>
-            <p
-              className={`${themeStyles.textSecondary} font-montserrat text-xl`}
-            >
-              Manage all your connected Instagram accounts and their auto-reply
-              settings
-            </p>
-            <div className="flex items-center gap-2 mt-2">
-              {renderRateLimitStatus()}
-              {rateLimitStats?.queuedItems &&
-                rateLimitStats.queuedItems > 0 && (
-                  <Badge className="bg-blue-900/20 text-blue-300 border-blue-500/30">
-                    <Clock className="mr-1 h-3 w-3" />
-                    {rateLimitStats.queuedItems} queued
-                  </Badge>
-                )}
+            <div>
+              <h1 className="text-2xl font-bold text-gray-800">
+                Instagram Accounts
+              </h1>
+              <p className="text-sm text-gray-500">
+                Manage all your connected Instagram accounts
+              </p>
             </div>
           </div>
-          <div className="flex gap-3 mt-1 md:mt-3">
-            <Button
+          <div className="flex items-center gap-2">
+            <button
               onClick={handleRefresh}
-              variant="outline"
               disabled={isRefreshing}
-              className={`${themeStyles.buttonOutlineBorder} p-2 bg-gradient-to-r from-[#0ce05d]/80 to-[#05a957]/80 hover:bg-white/10`}
+              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
             >
               <RefreshCw
-                className={`mr-2 h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-            <Button
-              className="btn-gradient-cyan hover:opacity-90 transition-opacity"
+            </button>
+            <button
               onClick={handleAddAccountClick}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors"
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Add Account
-            </Button>
+            </button>
           </div>
         </div>
 
-        {/* System Status Alert */}
-        {appLimitStatus && renderAppLimitStatus()}
-
-        {/* Rate Limit Overview */}
-        {rateLimitStats && (
-          <Card
-            className={`${themeStyles.cardBg} ${themeStyles.cardBorder} mb-8`}
-          >
-            <CardHeader>
-              <CardTitle
-                className={`flex items-center gap-2 ${themeStyles.textPrimary}`}
-              >
-                <Activity className="h-5 w-5 text-[#B026FF]" />
-                Rate Limit Analytics
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-2">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>{renderRateLimitProgress()}</div>
-                <div>
-                  {/* Meta API usage per account */}
-                  {accounts.length > 0 && (
-                    <div>
-                      <h4
-                        className={`font-semibold mb-3 ${themeStyles.textPrimary}`}
-                      >
-                        Meta API Usage (This Hour)
-                      </h4>
-                      <div className="space-y-3">
-                        {accounts.slice(0, 3).map((account) => {
-                          const metaCallsPercentage = account.metaCallsThisHour
-                            ? Math.min(
-                                (account.metaCallsThisHour / 200) * 100,
-                                100,
-                              )
-                            : 0;
-
-                          return (
-                            <div key={account.id} className="space-y-1">
-                              <div className="flex justify-between text-sm">
-                                <span className={themeStyles.textSecondary}>
-                                  @{account.username}
-                                </span>
-                                <span className={themeStyles.textMuted}>
-                                  {account.metaCallsThisHour || 0}/200
-                                </span>
-                              </div>
-                              <Progress
-                                value={metaCallsPercentage}
-                                className={`h-2 ${
-                                  metaCallsPercentage >= 90
-                                    ? "bg-red-900/20"
-                                    : metaCallsPercentage >= 70
-                                      ? "bg-yellow-900/20"
-                                      : "bg-green-900/20"
-                                }`}
-                              />
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card
-            className={`card-hover ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={`text-sm font-medium ${themeStyles.textSecondary}`}
-              >
-                Total Accounts
-              </CardTitle>
-              <Instagram className="h-4 w-4 text-[#00F0FF]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#00F0FF]">
-                {accounts.length} / {accountLimit}
-              </div>
-              <p className={`text-xs ${themeStyles.textMuted} font-montserrat`}>
-                {stats.activeAccounts} active
-              </p>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-400">Total Accounts</p>
+              <Instagram className="h-4 w-4 text-pink-500" />
+            </div>
+            <p className="text-2xl font-bold text-gray-800">
+              {accounts.length} / {accountLimit}
+            </p>
+            <p className="text-xs text-green-600 mt-1">
+              {stats.activeAccounts} active
+            </p>
+          </div>
 
-          <Card
-            className={`card-hover ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={`text-sm font-medium ${themeStyles.textSecondary}`}
-              >
-                Total Followers
-              </CardTitle>
-              <Users className="h-4 w-4 text-[#B026FF]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#B026FF]">
-                {stats.totalFollowers.toLocaleString()}
-              </div>
-              <p className={`text-xs ${themeStyles.textMuted} font-montserrat`}>
-                Across all accounts
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-400">Total Followers</p>
+              <Users className="h-4 w-4 text-blue-500" />
+            </div>
+            <p className="text-2xl font-bold text-gray-800">
+              {stats.totalFollowers.toLocaleString()}
+            </p>
+          </div>
 
-          <Card
-            className={`card-hover ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={`text-sm font-medium ${themeStyles.textSecondary}`}
-              >
-                Auto Replies
-              </CardTitle>
-              <Zap className="h-4 w-4 text-[#FF2E9F]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#FF2E9F]">
-                {stats.totalReplies} / {replyLimit}
-              </div>
-              <p className={`text-xs ${themeStyles.textMuted} font-montserrat`}>
-                Total sent
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-400">Auto Replies</p>
+              <Zap className="h-4 w-4 text-purple-500" />
+            </div>
+            <p className="text-2xl font-bold text-purple-600">
+              {stats.totalReplies} / {replyLimit}
+            </p>
+          </div>
 
-          <Card
-            className={`card-hover ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
-          >
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle
-                className={`text-sm font-medium ${themeStyles.textSecondary}`}
-              >
-                Meta API Calls
-              </CardTitle>
-              <Cpu className="h-4 w-4 text-[#00F0FF]" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-[#00F0FF]">
-                {stats.totalMetaCalls}
-              </div>
-              <p className={`text-xs ${themeStyles.textMuted} font-montserrat`}>
-                This hour
-              </p>
-            </CardContent>
-          </Card>
+          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs text-gray-400">Avg Engagement</p>
+              <BarChart3 className="h-4 w-4 text-green-500" />
+            </div>
+            <p className="text-2xl font-bold text-green-600">
+              {stats.avgEngagement}%
+            </p>
+          </div>
         </div>
 
         {/* Accounts Grid */}
-        <div className="grid gap-6">
+        <div className="space-y-4">
           {accounts.length > 0 ? (
             accounts.map((account) => (
               <AccountCard
                 key={account.id}
                 account={account}
-                theme={currentTheme}
                 themeStyles={themeStyles}
                 isUpdating={isUpdatingAccount === account.id}
                 hasError={hasError.includes(account.id)}
                 onToggleAccount={handleToggleAccount}
+                onRefreshToken={handleRefreshToken}
                 onImageError={handleImageError}
-                userId={userId}
-                rateLimitStats={rateLimitStats}
+                formatLastActivity={formatLastActivity}
               />
             ))
           ) : (
             <EmptyAccountsCard
               themeStyles={themeStyles}
               currentTheme={currentTheme}
+              onAddAccount={handleAddAccountClick}
             />
           )}
         </div>
@@ -1024,26 +531,22 @@ export default function AccountsPage() {
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
       >
-        <AlertDialogContent
-          className={`${themeStyles.alertBg} backdrop-blur-md`}
-        >
+        <AlertDialogContent className="rounded-2xl">
           <AlertDialogHeader>
-            <AlertDialogTitle className={themeStyles.textPrimary}>
-              Account Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className={themeStyles.textSecondary}>
+            <AlertDialogTitle>Account Limit Reached</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-500">
               You have reached the maximum number of accounts for your current
-              plan. To add more accounts, please upgrade your subscription.
+              plan ({accounts.length}/{accountLimit}). To add more accounts,
+              please upgrade your subscription.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className={themeStyles.buttonOutlineBorder}>
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
             <Button
               onClick={() => router.push("/insta/pricing")}
-              className="bg-gradient-to-r from-purple-600 to-pink-600"
+              className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
             >
+              <Crown className="h-4 w-4 mr-2" />
               Upgrade Now
             </Button>
           </AlertDialogFooter>
@@ -1056,277 +559,141 @@ export default function AccountsPage() {
 // Account Card Component
 interface AccountCardProps {
   account: InstagramAccount;
-  theme: string;
   themeStyles: ThemeStyles;
   isUpdating: boolean;
   hasError: boolean;
-  onToggleAccount: (accountId: string) => void;
+  onToggleAccount: (accountId: string, field: string, value: boolean) => void;
+  onRefreshToken: (instagramId: string) => void;
   onImageError: (accountId: string) => void;
-  userId: string | null;
-  rateLimitStats: UserTierInfo | null;
+  formatLastActivity: (dateString: string) => string;
 }
 
 const AccountCard: React.FC<AccountCardProps> = ({
   account,
-  theme,
   themeStyles,
   isUpdating,
   hasError,
   onToggleAccount,
+  onRefreshToken,
   onImageError,
-  userId,
-  rateLimitStats,
+  formatLastActivity,
 }) => {
-  const isTokenExpiring = account.isTokenExpiring || false;
-  const { apiRequest } = useApi();
-
-  // Calculate Meta API usage percentage
-  const metaCallsPercentage = account.metaCallsThisHour
-    ? Math.min((account.metaCallsThisHour / 200) * 100, 100)
-    : 0;
-
-  // Get account usage from rate limit stats
-  const accountUsage = rateLimitStats?.accountUsage?.find(
-    (usage) => usage.instagramAccountId === account.instagramId,
-  );
-
-  // Format response time
-  const formatResponseTime = (ms: number): string => {
-    if (ms < 1000) return `${ms}ms`;
-    if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-    return `${(ms / 60000).toFixed(1)}min`;
-  };
+  const isTokenExpiring =
+    account.tokenExpiresAt &&
+    new Date(account.tokenExpiresAt) <
+      new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   return (
-    <Card
-      className={`card-hover transition-all duration-300 ${
-        themeStyles.cardBg
-      } ${themeStyles.cardBorder} ${
-        account.isActive
-          ? "border-[#00F0FF]/30 bg-gradient-to-r from-[#00F0FF]/5 to-transparent"
-          : ""
-      }`}
+    <div
+      className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl p-5 hover:border-pink-200 transition-all`}
     >
-      <CardContent className="pt-6 p-2 md:p-4">
-        <div className="flex flex-col md:flex-row gap-4 justify-between">
-          <div className="flex flex-col items-center justify-center gap-4">
-            <div className="relative">
-              <Image
-                src={hasError ? defaultImg.src : account.profilePicture}
-                alt={account.displayName}
-                onError={() => onImageError(account.id)}
-                width={64}
-                height={64}
-                className="h-16 w-16 rounded-full object-cover"
-              />
-              <div
-                className={`absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 ${
-                  account.isActive ? "bg-[#00F0FF]" : "bg-gray-400"
-                }`}
-              />
-            </div>
-            <div className="flex flex-col items-center text-center">
-              <div className="flex items-center gap-2">
-                <h3 className={`text-lg font-bold ${themeStyles.textPrimary}`}>
-                  @{account.username}
-                </h3>
-                <Badge
-                  variant={account.isActive ? "default" : "secondary"}
-                  className={
-                    account.isActive
-                      ? "bg-[#00F0FF]/20 text-[#00F0FF] border-[#00F0FF]/30"
-                      : `${
-                          theme === "dark"
-                            ? "bg-gray-800 text-gray-400"
-                            : "bg-gray-200 text-gray-600"
-                        }`
-                  }
-                >
-                  {account.isActive ? "Active" : "Inactive"}
-                </Badge>
-              </div>
-              <p className={themeStyles.textMuted}>{account.displayName}</p>
-              <div className="flex flex-wrap items-center justify-center gap-3 mt-2">
-                <span className={`text-sm ${themeStyles.textMuted}`}>
-                  {account.followersCount.toLocaleString()} followers
-                </span>
-                <span className={`text-sm ${themeStyles.textMuted}`}>
-                  {account.mediaCount} posts
-                </span>
-                <span className={`text-sm ${themeStyles.textMuted}`}>
-                  {account.engagementRate}% engagement
-                </span>
-              </div>
-            </div>
+      <div className="flex flex-col md:flex-row gap-4">
+        {/* Account Info */}
+        <div className="flex items-center gap-4 flex-1">
+          <div className="relative">
+            <Image
+              src={hasError ? defaultImg.src : account.profilePicture}
+              alt={account.username}
+              width={56}
+              height={56}
+              onError={() => onImageError(account.id)}
+              className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"
+            />
+            <span
+              className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${
+                account.isActive ? "bg-emerald-400" : "bg-gray-300"
+              }`}
+            />
           </div>
-
-          <div className="flex flex-col md:flex-row items-center gap-4 mt-4 md:mt-0">
-            <div className="flex items-center gap-4">
-              <div className="flex flex-col items-center">
-                <span className={`font-bold ${themeStyles.textPrimary}`}>
-                  {account.templatesCount}
-                </span>
-                <span className={`text-xs ${themeStyles.textMuted}`}>
-                  Templates
-                </span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className={`font-bold ${themeStyles.textPrimary}`}>
-                  {account.accountReply}
-                </span>
-                <span className={`text-xs ${themeStyles.textMuted}`}>
-                  Replies
-                </span>
-              </div>
-              <div className="flex flex-col items-center">
-                <span className={`font-bold ${themeStyles.textPrimary}`}>
-                  {account.lastActivity}
-                </span>
-                <span className={`text-xs ${themeStyles.textMuted}`}>
-                  Active
-                </span>
-              </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-gray-800">
+                @{account.username}
+              </h3>
+              <Badge
+                className={
+                  account.isActive
+                    ? "bg-green-100 text-green-600 border-green-200"
+                    : "bg-gray-100 text-gray-600 border-gray-200"
+                }
+              >
+                {account.isActive ? "Active" : "Inactive"}
+              </Badge>
             </div>
-
-            <div className="flex flex-col lg:flex-row items-center gap-3 w-full">
-              <div className="flex items-center justify-center gap-2">
-                <Label className={`text-sm ${themeStyles.textSecondary} mr-2`}>
-                  Auto-replies
-                </Label>
-                <Switch
-                  checked={account.isActive}
-                  onCheckedChange={() => onToggleAccount(account.id)}
-                  disabled={isUpdating}
-                  className="data-[state=checked]:bg-[#00F0FF]"
-                />
-              </div>
-
-              <div className="flex items-center justify-center gap-2">
-                {isTokenExpiring && userId && (
-                  <Button
-                    onClick={() =>
-                      refreshInstagramToken(apiRequest, account.instagramId)
-                    }
-                    variant="outline"
-                    size="sm"
-                    className={`${themeStyles.buttonOutlineBorder} p-2 bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] text-black hover:bg-white/10`}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Refresh Token
-                  </Button>
-                )}
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`${themeStyles.buttonOutlineBorder} ${themeStyles.buttonOutlineText} p-2 bg-[#B026FF]/10 hover:bg-[#B026FF]/15 transition-colors`}
-                  asChild
-                >
-                  <Link href={`/insta/accounts/${account.id}`}>
-                    <Settings className="h-4 w-4 mr-1" /> Manage
-                  </Link>
-                </Button>
-              </div>
+            <div className="flex items-center gap-3 text-xs text-gray-400">
+              <span>{account.followersCount.toLocaleString()} followers</span>
+              <span className="w-1 h-1 bg-gray-300 rounded-full" />
+              <span>{account.mediaCount} posts</span>
             </div>
           </div>
         </div>
 
-        {/* Additional Metrics Section */}
-        <div className="mt-4 pt-4 border-t border-white/10">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Meta API Usage */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span
-                  className={`flex items-center gap-1 ${themeStyles.textSecondary}`}
-                >
-                  <Cpu className="h-3 w-3" />
-                  Meta API
-                </span>
-                <span className={themeStyles.textMuted}>
-                  {account.metaCallsThisHour || 0}/200
-                </span>
-              </div>
-              <Progress
-                value={metaCallsPercentage}
-                className={`h-2 ${
-                  metaCallsPercentage >= 90
-                    ? "bg-red-900/20"
-                    : metaCallsPercentage >= 70
-                      ? "bg-yellow-900/20"
-                      : "bg-green-900/20"
-                }`}
-              />
-              {account.isMetaRateLimited && (
-                <p className="text-xs text-red-500 flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Rate limited
-                  {account.metaRateLimitResetAt && (
-                    <span className="text-gray-500">
-                      (resets {account.metaRateLimitResetAt})
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-
-            {/* Rate Limit Usage */}
-            {accountUsage && (
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span
-                    className={`flex items-center gap-1 ${themeStyles.textSecondary}`}
-                  >
-                    <Zap className="h-3 w-3" />
-                    Rate Limit
-                  </span>
-                  <span className={themeStyles.textMuted}>
-                    {accountUsage.callsMade || 0}/
-                    {account.tier === "pro" ? "∞" : TIER_LIMITS.free}
-                  </span>
-                </div>
-                <Progress
-                  value={
-                    account.tier === "pro"
-                      ? 0
-                      : ((accountUsage.callsMade || 0) / TIER_LIMITS.free) * 100
-                  }
-                  className={`h-2 ${
-                    account.tier === "pro"
-                      ? "bg-green-900/20"
-                      : ((accountUsage.callsMade || 0) / TIER_LIMITS.free) *
-                            100 >=
-                          90
-                        ? "bg-red-900/20"
-                        : ((accountUsage.callsMade || 0) / TIER_LIMITS.free) *
-                              100 >=
-                            70
-                          ? "bg-yellow-900/20"
-                          : "bg-green-900/20"
-                  }`}
-                />
-              </div>
-            )}
-
-            {/* Performance Metrics */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className={themeStyles.textSecondary}>Success Rate</span>
-                <span className={themeStyles.textMuted}>
-                  {account.successRate || 0}%
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className={themeStyles.textSecondary}>Avg Response</span>
-                <span className={themeStyles.textMuted}>
-                  {formatResponseTime(account.avgResponseTime || 0)}
-                </span>
-              </div>
-            </div>
+        {/* Stats */}
+        <div className="flex items-center gap-4">
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              {account.templatesCount}
+            </p>
+            <p className="text-xs text-gray-400">Templates</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              {account.accountReply}
+            </p>
+            <p className="text-xs text-gray-400">Replies</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              {account.accountDMSent}
+            </p>
+            <p className="text-xs text-gray-400">DMs</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-semibold text-gray-800">
+              {formatLastActivity(account.lastActivity)}
+            </p>
+            <p className="text-xs text-gray-400">Active</p>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Actions */}
+        <div className="flex items-center gap-2">
+          {/* Auto-reply Toggle */}
+          <div className="flex items-center gap-2">
+            <Switch
+              checked={account.autoReplyEnabled}
+              onCheckedChange={(checked) =>
+                onToggleAccount(account.id, "autoReplyEnabled", checked)
+              }
+              disabled={isUpdating}
+              className="data-[state=checked]:bg-pink-500"
+            />
+            <span className="text-xs text-gray-500 hidden lg:inline">
+              Auto-reply
+            </span>
+          </div>
+
+          {/* Refresh Token Button */}
+          {isTokenExpiring && (
+            <button
+              onClick={() => onRefreshToken(account.instagramId)}
+              className="p-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+              title="Refresh token"
+            >
+              <RefreshCw className="h-4 w-4" />
+            </button>
+          )}
+
+          {/* Manage Button */}
+          <Link
+            href={`/insta/accounts/${account.id}`}
+            className="p-2 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors"
+          >
+            <Settings className="h-4 w-4" />
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1334,35 +701,32 @@ const AccountCard: React.FC<AccountCardProps> = ({
 interface EmptyAccountsCardProps {
   themeStyles: ThemeStyles;
   currentTheme: string;
+  onAddAccount: () => void;
 }
 
 const EmptyAccountsCard: React.FC<EmptyAccountsCardProps> = ({
   themeStyles,
   currentTheme,
+  onAddAccount,
 }) => (
-  <Card
-    className={`card-hover ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
+  <div
+    className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl p-12 text-center`}
   >
-    <CardContent className="text-center py-12">
-      <div
-        className={`mx-auto w-24 h-24 ${
-          currentTheme === "dark" ? "bg-white/5" : "bg-gray-100"
-        } rounded-full flex items-center justify-center mb-4`}
-      >
-        <Instagram className="h-8 w-8 text-gray-500" />
-      </div>
-      <h3 className={`text-lg font-semibold mb-2 ${themeStyles.textPrimary}`}>
-        No accounts connected
-      </h3>
-      <p className={`${themeStyles.textMuted} mb-4 font-mono`}>
-        Connect your first Instagram account to start automating replies
-      </p>
-      <Button className="btn-gradient-cyan" asChild>
-        <Link href="/insta/accounts/add">
-          <Plus className="mr-2 h-4 w-4" />
-          Connect Account
-        </Link>
-      </Button>
-    </CardContent>
-  </Card>
+    <div className="w-20 h-20 rounded-full bg-pink-50 flex items-center justify-center mx-auto mb-4">
+      <Instagram className="h-10 w-10 text-pink-400" />
+    </div>
+    <h3 className="text-xl font-bold text-gray-800 mb-2">
+      No accounts connected
+    </h3>
+    <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+      Connect your first Instagram Business account to start automating replies
+    </p>
+    <button
+      onClick={onAddAccount}
+      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors"
+    >
+      <Plus className="h-4 w-4" />
+      Connect Your First Account
+    </button>
+  </div>
 );

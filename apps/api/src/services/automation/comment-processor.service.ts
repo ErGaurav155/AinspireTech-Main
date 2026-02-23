@@ -1,3 +1,4 @@
+// services/automation/comment-processor.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
@@ -5,7 +6,6 @@ import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import {
   sendInstagramCommentReply,
   sendInstagramDM,
-  checkFollowStatus,
 } from "@/services/meta-api/meta-api.service";
 
 interface InstagramComment {
@@ -19,9 +19,9 @@ interface InstagramComment {
 }
 
 /**
- * Process comment automation - Fire and forget approach
+ * Process comment automation - FIRE AND FORGET
  * NO rate limiting, NO queueing, NO retries
- * Just attempt to send and log the result
+ * Automation responses are NOT counted against rate limits
  */
 export async function processCommentAutomation(
   accountId: string,
@@ -57,7 +57,7 @@ export async function processCommentAutomation(
     }
 
     // Skip if comment is from owner
-    if (account.instagramId === comment.user_id) {
+    if (account.userInstaId === comment.user_id) {
       return {
         success: false,
         message: "Comment from account owner",
@@ -92,11 +92,16 @@ export async function processCommentAutomation(
       const templates = await InstaReplyTemplate.find({
         userId: clerkId,
         accountId: accountId,
-        mediaId: comment.media_id,
         isActive: true,
+        automationType: "comments",
       }).sort({ priority: 1 });
 
-      matchingTemplate = await findMatchingTemplate(comment.text, templates);
+      matchingTemplate = await findMatchingTemplate(
+        comment.text,
+        comment.media_id,
+        templates,
+      );
+
       if (!matchingTemplate) {
         return {
           success: false,
@@ -109,31 +114,38 @@ export async function processCommentAutomation(
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
-    // Process comment reply - fire and forget
-    let commentReplySuccess = false;
-    let commentReplyText = "";
+    // Process public reply if enabled
+    let publicReplySuccess = false;
+    let publicReplyText = "";
 
-    try {
-      // Select random reply from template
-      const randomIndex = Math.floor(
-        Math.random() * matchingTemplate.reply.length,
-      );
-      commentReplyText = matchingTemplate.reply[randomIndex];
+    if (matchingTemplate.publicReply?.enabled) {
+      try {
+        publicReplyText = selectRandomItem(
+          matchingTemplate.publicReply.replies,
+        );
 
-      // Send comment reply via Meta API - NO rate limit check, just send
-      commentReplySuccess = await sendInstagramCommentReply(
-        account.instagramId,
-        account.accessToken,
-        comment.id,
-        comment.media_id,
-        commentReplyText,
-      );
-    } catch (error) {
-      console.error("Failed to send comment reply:", error);
-      commentReplySuccess = false;
+        // Add tag if specified
+        if (matchingTemplate.publicReply.tagType === "user") {
+          publicReplyText = `@${comment.username} ${publicReplyText}`;
+        } else if (matchingTemplate.publicReply.tagType === "account") {
+          publicReplyText = `@${account.username} ${publicReplyText}`;
+        }
+
+        // Send public comment reply - FIRE AND FORGET (no rate limit)
+        publicReplySuccess = await sendInstagramCommentReply(
+          account.instagramId,
+          account.accessToken,
+          comment.id,
+          comment.media_id,
+          publicReplyText,
+        );
+      } catch (error) {
+        console.error("Failed to send public reply:", error);
+        publicReplySuccess = false;
+      }
     }
 
-    // Process DM flow - fire and forget
+    // Process DM flow - FIRE AND FORGET (no rate limit)
     const dmResult = await processDMFlow(
       account,
       clerkId,
@@ -171,11 +183,11 @@ export async function processCommentAutomation(
       commenterUsername: comment.username,
       commenterUserId: comment.user_id,
       mediaId: comment.media_id,
-      replyText: commentReplyText,
+      replyText: publicReplyText,
       replyType:
-        commentReplySuccess && dmResult.dmSent
+        publicReplySuccess && dmResult.dmSent
           ? "both"
-          : commentReplySuccess
+          : publicReplySuccess
             ? "comment"
             : dmResult.dmSent
               ? "dm"
@@ -185,22 +197,22 @@ export async function processCommentAutomation(
       followChecked: dmResult.followChecked,
       userFollows: dmResult.userFollows,
       linkSent: dmResult.linkSent,
-      success: commentReplySuccess || dmResult.success,
+      success: publicReplySuccess || dmResult.success,
       responseTime: Date.now() - startTime,
       errorMessage:
-        !commentReplySuccess && !dmResult.success
+        !publicReplySuccess && !dmResult.success
           ? "Failed to process comment"
           : undefined,
-      wasQueued: false, // Never queued
+      wasQueued: false, // Never queued - always fire and forget
       createdAt: new Date(),
     });
 
     return {
-      success: commentReplySuccess || dmResult.success,
+      success: publicReplySuccess || dmResult.success,
       message:
-        commentReplySuccess && dmResult.success
+        publicReplySuccess && dmResult.success
           ? "Comment and DM processed successfully"
-          : commentReplySuccess
+          : publicReplySuccess
             ? "Comment replied, DM failed"
             : dmResult.success
               ? "DM sent, comment failed"
@@ -233,25 +245,57 @@ export async function processCommentAutomation(
   }
 }
 
-async function findMatchingTemplate(commentText: string, templates: any[]) {
+/**
+ * Find matching template based on media ID and triggers
+ */
+async function findMatchingTemplate(
+  commentText: string,
+  mediaId: string,
+  templates: any[],
+) {
   const lowerComment = commentText.toLowerCase();
 
   for (const template of templates) {
     if (!template.isActive) continue;
 
-    // Check triggers
-    if (template.triggers && template.triggers.length > 0) {
-      const hasMatch = template.triggers.some((trigger: string) => {
-        if (!trigger) return false;
-        return lowerComment.includes(trigger.toLowerCase().replace(/\s+/g, ""));
-      });
+    // Check if template is for "any post or reel"
+    if (template.anyPostOrReel) {
+      // Check triggers if "any keyword" is NOT enabled
+      if (!template.anyKeyword && template.triggers?.length > 0) {
+        const hasMatch = template.triggers.some((trigger: string) => {
+          if (!trigger) return false;
+          return lowerComment.includes(
+            trigger.toLowerCase().replace(/\s+/g, ""),
+          );
+        });
 
-      if (hasMatch) {
+        if (hasMatch) {
+          return template;
+        }
+      } else if (template.anyKeyword) {
+        // Any keyword enabled - match any comment
         return template;
       }
     } else {
-      // If no triggers, match all comments
-      return template;
+      // Template is for specific media
+      if (template.mediaId !== mediaId) continue;
+
+      // Check triggers
+      if (template.triggers && template.triggers.length > 0) {
+        const hasMatch = template.triggers.some((trigger: string) => {
+          if (!trigger) return false;
+          return lowerComment.includes(
+            trigger.toLowerCase().replace(/\s+/g, ""),
+          );
+        });
+
+        if (hasMatch) {
+          return template;
+        }
+      } else {
+        // If no triggers, match all comments on this media
+        return template;
+      }
     }
   }
 
@@ -259,7 +303,7 @@ async function findMatchingTemplate(commentText: string, templates: any[]) {
 }
 
 /**
- * Process DM flow - fire and forget, no rate limiting
+ * Process DM flow - FIRE AND FORGET (no rate limiting)
  */
 async function processDMFlow(
   account: any,
@@ -277,21 +321,15 @@ async function processDMFlow(
   linkSent: boolean;
   stage: string;
 }> {
-  const templateSettings =
-    template.settingsByTier[userTier] || template.settingsByTier.free;
+  try {
+    // Send welcome message if enabled
+    if (template.welcomeMessage?.enabled) {
+      const welcomeText = template.welcomeMessage.text.replace(
+        /\{\{username\}\}/g,
+        recipientUsername,
+      );
 
-  // For free users with direct link - just send it
-  if (userTier === "free" && templateSettings.directLink) {
-    try {
-      const randomIndex = Math.floor(Math.random() * template.content.length);
-      const {
-        text,
-        link,
-        buttonTitle = "Get Access",
-      } = template.content[randomIndex];
-
-      // Send DM with direct link - fire and forget
-      const dmSuccess = await sendInstagramDM(
+      const welcomeSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
         recipientId,
@@ -300,13 +338,12 @@ async function processDMFlow(
             type: "template",
             payload: {
               template_type: "button",
-              text: `Thanks for your comment! ${text}`,
+              text: welcomeText,
               buttons: [
                 {
-                  type: "web_url",
-                  url: link,
-                  title: buttonTitle,
-                  webview_height_ratio: "full",
+                  type: "postback",
+                  title: template.welcomeMessage.buttonTitle,
+                  payload: `WELCOME_${template.mediaId}_${recipientId}`,
                 },
               ],
             },
@@ -314,39 +351,52 @@ async function processDMFlow(
         },
       );
 
+      if (!welcomeSuccess) {
+        console.error("Failed to send welcome message");
+      }
+
       return {
-        success: dmSuccess,
-        dmSent: dmSuccess,
-        followChecked: false,
-        linkSent: dmSuccess,
-        stage: "final_link",
-      };
-    } catch (error) {
-      console.error("Failed to send direct link DM:", error);
-      return {
-        success: false,
-        dmSent: false,
+        success: welcomeSuccess,
+        dmSent: welcomeSuccess,
         followChecked: false,
         linkSent: false,
-        stage: "initial",
+        stage: "welcome",
       };
     }
-  }
 
-  // For free users without direct link or pro users - send initial DM
-  let initialButtonPayload = "";
-  let initialButtonText = "";
+    // Send initial DM with appropriate flow based on template settings
+    let initialButtonPayload = "";
+    let initialButtonText = "Get Access";
+    let initialMessage = "Thanks for your comment!";
 
-  if (userTier === "free") {
-    initialButtonPayload = `GET_ACCESS_${template.mediaId}`;
-    initialButtonText = "Get Access";
-  } else {
-    initialButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
-    initialButtonText = "Send me the access";
-  }
+    if (template.askFollow?.enabled) {
+      initialButtonPayload = `CHECK_FOLLOW_${template.mediaId}_${recipientId}`;
+      initialButtonText = "Send me the link";
+      initialMessage =
+        "Hey thanks a ton for the comment! 😊 Simply tap below and I will send you the access!";
+    } else if (template.askEmail?.enabled) {
+      initialButtonPayload = `ASK_EMAIL_${template.mediaId}_${recipientId}`;
+      initialButtonText = "Continue";
+      initialMessage = template.askEmail.openingMessage.replace(
+        /\{\{username\}\}/g,
+        recipientUsername,
+      );
+    } else if (template.askPhone?.enabled) {
+      initialButtonPayload = `ASK_PHONE_${template.mediaId}_${recipientId}`;
+      initialButtonText = "Continue";
+      initialMessage = template.askPhone.openingMessage.replace(
+        /\{\{username\}\}/g,
+        recipientUsername,
+      );
+    } else {
+      // Direct link for free users or simple flow
+      initialButtonPayload = `GET_ACCESS_${template.mediaId}_${recipientId}`;
+      initialButtonText = selectRandomItem(
+        template.content.map((c: any) => c.buttonTitle || "Get Access"),
+      );
+      initialMessage = "Tap below to get instant access!";
+    }
 
-  try {
-    // Send initial DM with button - fire and forget
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -356,10 +406,7 @@ async function processDMFlow(
           type: "template",
           payload: {
             template_type: "button",
-            text:
-              userTier === "free"
-                ? "Thanks for your comment! Tap below to get instant access!"
-                : "Hey thanks a ton for the comment! 😊 Now simply tap below and I will send you the access right now!",
+            text: initialMessage,
             buttons: [
               {
                 type: "postback",
@@ -380,7 +427,7 @@ async function processDMFlow(
       stage: "initial",
     };
   } catch (error) {
-    console.error("Failed to send initial DM:", error);
+    console.error("Failed to process DM flow:", error);
     return {
       success: false,
       dmSent: false,
@@ -391,6 +438,9 @@ async function processDMFlow(
   }
 }
 
+/**
+ * Check if comment is meaningful (not just emojis/GIFs)
+ */
 function isMeaningfulComment(text: string): boolean {
   if (!text || text.trim().length === 0) return false;
 
@@ -407,4 +457,13 @@ function isMeaningfulComment(text: string): boolean {
   }
 
   return true;
+}
+
+/**
+ * Select random item from array
+ */
+function selectRandomItem(items: string[]): string {
+  if (!items || items.length === 0) return "";
+  const randomIndex = Math.floor(Math.random() * items.length);
+  return items[randomIndex];
 }

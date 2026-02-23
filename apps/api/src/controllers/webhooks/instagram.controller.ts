@@ -1,8 +1,11 @@
+// controllers/webhooks/instagram.controller.ts
 import { Request, Response } from "express";
 import crypto from "crypto";
-import { addWebhookToQueue } from "@/queues/webhook.queue";
+import { processInstagramWebhook } from "@/services/webhook/instagram-processor.service";
 
-// GET /api/webhooks/instagram - Verify webhook
+/**
+ * GET /api/webhooks/instagram - Verify webhook
+ */
 export const verifyInstagramWebhookController = (
   req: Request,
   res: Response,
@@ -26,7 +29,13 @@ export const verifyInstagramWebhookController = (
   });
 };
 
-// POST /api/webhooks/instagram - Handle Instagram webhooks
+/**
+ * POST /api/webhooks/instagram - Handle Instagram webhooks
+ * INTELLIGENT QUEUEING:
+ * - Respond to Instagram immediately (< 1 second)
+ * - Process webhook asynchronously
+ * - Queue if rate limited
+ */
 export const handleInstagramWebhookController = async (
   req: Request,
   res: Response,
@@ -86,7 +95,7 @@ export const handleInstagramWebhookController = async (
       });
     }
 
-    // IMMEDIATE RESPONSE (within 1 second)
+    // ✅ IMMEDIATE RESPONSE (within 1 second)
     const responseTime = Date.now() - startTime;
     res.status(200).json({
       success: true,
@@ -96,26 +105,35 @@ export const handleInstagramWebhookController = async (
       responseTime,
     });
 
-    // Add to queue for async processing
-    await addWebhookToQueue({
-      type: "instagram",
-      payload,
-      webhookId,
-      receivedAt: new Date(),
-      source: req.headers["user-agent"] || "unknown",
-      ip: req.ip,
-      signature: req.headers["x-hub-signature-256"],
-    });
+    // ✅ PROCESS ASYNCHRONOUSLY
+    // The processor will handle intelligent queueing internally
+    setImmediate(async () => {
+      try {
+        const result = await processInstagramWebhook(payload);
 
-    console.log(`✅ Webhook ${webhookId} added to queue`);
+        console.log(`✅ Webhook ${webhookId} processed:`, {
+          processed: result.processed,
+          queued: result.queued,
+          errors: result.errors.length,
+        });
+
+        if (result.errors.length > 0) {
+          console.error(`⚠️ Webhook ${webhookId} errors:`, result.errors);
+        }
+      } catch (error) {
+        console.error(`❌ Webhook ${webhookId} processing error:`, error);
+      }
+    });
   } catch (error) {
     console.error("❌ Webhook handler error:", error);
 
-    // Always respond with 200 to Instagram
-    res.status(200).json({
-      success: false,
-      error: "Webhook received but processing error",
-      timestamp: new Date().toISOString(),
-    });
+    // Always respond with 200 to Instagram to prevent retries
+    if (!res.headersSent) {
+      res.status(200).json({
+        success: false,
+        error: "Webhook received but processing error",
+        timestamp: new Date().toISOString(),
+      });
+    }
   }
 };

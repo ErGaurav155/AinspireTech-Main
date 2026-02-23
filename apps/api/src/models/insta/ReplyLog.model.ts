@@ -1,95 +1,112 @@
+// models/insta/ReplyLog.model.ts
 import mongoose, { Schema, Document } from "mongoose";
 
 export interface IReplyLog extends Document {
-  // User and account info
   userId: string;
   accountId: string;
   templateId?: string;
   templateName?: string;
 
-  // Comment info
+  // Comment/Story details
   commentId: string;
   commentText: string;
   commenterUsername: string;
   commenterUserId: string;
   mediaId: string;
 
-  // Reply info
+  // Reply details
   replyText?: string;
-  replyType: "comment" | "dm" | "both";
+  replyType?: "comment" | "dm" | "both" | "none";
 
-  // DM flow info
-  dmFlowStage?: "initial" | "follow_check" | "follow_reminder" | "final_link";
+  // DM flow tracking
+  dmFlowStage?: string; // 'initial' | 'welcome' | 'check_follow' | 'waiting_for_follow' | 'waiting_for_email' | 'waiting_for_phone' | 'email_collected' | 'phone_collected' | 'final_link'
   dmMessageId?: string;
+
+  // Follow tracking
   followChecked?: boolean;
   userFollows?: boolean;
+
+  // Email/Phone collection
+  emailCollected?: string;
+  phoneCollected?: string;
+
+  // Link tracking
   linkSent?: boolean;
 
-  // Performance
+  // Status
   success: boolean;
-  responseTime: number; // milliseconds
+  responseTime?: number;
   errorMessage?: string;
 
-  // Rate limit info
-  wasQueued: boolean;
-  queueId?: string;
-  processedAfterQueue?: boolean;
-
-  // Metadata
-  ipAddress?: string;
-  userAgent?: string;
+  // Queue status
+  wasQueued?: boolean;
+  queuedAt?: Date;
+  processedAt?: Date;
 
   createdAt: Date;
+  updatedAt: Date;
 }
 
 const ReplyLogSchema = new Schema<IReplyLog>(
   {
     userId: { type: String, required: true, index: true },
     accountId: { type: String, required: true, index: true },
-    templateId: { type: String },
+    templateId: { type: String, index: true },
     templateName: { type: String },
 
+    // Comment/Story details
     commentId: { type: String, required: true, unique: true },
     commentText: { type: String, required: true },
     commenterUsername: { type: String, required: true },
     commenterUserId: { type: String, required: true, index: true },
     mediaId: { type: String, required: true, index: true },
 
+    // Reply details
     replyText: { type: String },
     replyType: {
       type: String,
-      enum: ["comment", "dm", "both"],
-      default: "both",
+      enum: ["comment", "dm", "both", "none"],
+      default: "none",
     },
 
-    dmFlowStage: {
-      type: String,
-      enum: ["initial", "follow_check", "follow_reminder", "final_link"],
-    },
+    // DM flow tracking
+    dmFlowStage: { type: String },
     dmMessageId: { type: String },
-    followChecked: { type: Boolean },
-    userFollows: { type: Boolean },
-    linkSent: { type: Boolean },
 
+    // Follow tracking
+    followChecked: { type: Boolean, default: false },
+    userFollows: { type: Boolean },
+
+    // Email/Phone collection
+    emailCollected: { type: String },
+    phoneCollected: { type: String },
+
+    // Link tracking
+    linkSent: { type: Boolean, default: false },
+
+    // Status
     success: { type: Boolean, required: true },
-    responseTime: { type: Number, required: true },
+    responseTime: { type: Number },
     errorMessage: { type: String },
 
+    // Queue status
     wasQueued: { type: Boolean, default: false },
-    queueId: { type: String },
-    processedAfterQueue: { type: Boolean },
-
-    ipAddress: { type: String },
-    userAgent: { type: String },
+    queuedAt: { type: Date },
+    processedAt: { type: Date },
   },
   { timestamps: true },
 );
 
-// Indexes for analytics
-ReplyLogSchema.index({ createdAt: -1 });
+// Indexes for performance
 ReplyLogSchema.index({ userId: 1, createdAt: -1 });
-ReplyLogSchema.index({ accountId: 1, success: 1 });
-ReplyLogSchema.index({ commenterUserId: 1, createdAt: -1 });
+ReplyLogSchema.index({ accountId: 1, createdAt: -1 });
+ReplyLogSchema.index({ templateId: 1, createdAt: -1 });
+ReplyLogSchema.index({ success: 1, createdAt: -1 });
+ReplyLogSchema.index({ wasQueued: 1, createdAt: -1 });
+ReplyLogSchema.index(
+  { userId: 1, commenterUserId: 1, dmFlowStage: 1 },
+  { sparse: true },
+);
 
 const InstaReplyLog =
   mongoose.models?.InstaReplyLog ||

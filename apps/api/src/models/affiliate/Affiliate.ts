@@ -1,4 +1,4 @@
-// models/Affiliate.ts
+// models/affiliate/Affiliate.ts
 import { Schema, model, models } from "mongoose";
 
 const PaymentDetailsSchema = new Schema({
@@ -29,23 +29,29 @@ const AffiliateSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["pending", "active", "suspended"],
-      default: "pending",
+      enum: ["active", "suspended"],
+      default: "active",
     },
-    paymentDetails: PaymentDetailsSchema,
+
+    // ✅ OPTIONAL - User can add this later when requesting payout
+    paymentDetails: {
+      type: PaymentDetailsSchema,
+      required: false,
+      default: null,
+    },
 
     // Commission settings
     commissionRate: {
       type: Number,
-      default: 0.3, // 30%
+      default: 0.25, // 25%
     },
     monthlyMonths: {
       type: Number,
-      default: 10, // Commission for 10 months for monthly subs
+      default: 10,
     },
     yearlyYears: {
       type: Number,
-      default: 3, // Commission for 3 years for yearly subs
+      default: 3,
     },
 
     // Stats
@@ -73,7 +79,7 @@ const AffiliateSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 const Affiliate = models?.Affiliate || model("Affiliate", AffiliateSchema);

@@ -52,9 +52,17 @@ export function NavBar() {
     setIsMenuOpen(false);
   };
 
+  // On marketing site (www.rocketreplai.com) - when user clicks sign-in
   const handleSignInClick = () => {
-    // Push to external URL
-    window.location.href = "https://app.rocketreplai.com/signin";
+    const referralCode = localStorage.getItem("referral_code");
+    const dashboardUrl = "https://app.rocketreplai.com";
+
+    if (referralCode) {
+      // Append referral code to URL
+      window.location.href = `${dashboardUrl}?ref=${referralCode}`;
+    } else {
+      window.location.href = dashboardUrl;
+    }
   };
   if (!mounted) {
     return (

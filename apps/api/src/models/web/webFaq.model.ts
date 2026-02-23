@@ -60,7 +60,7 @@ const FAQSchema = new Schema<IFAQ>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes for optimized queries

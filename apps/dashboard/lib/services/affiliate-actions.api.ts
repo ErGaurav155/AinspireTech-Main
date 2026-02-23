@@ -10,6 +10,35 @@ export const getAffiliateDashInfo = (
   });
 };
 
+export const saveAffiPaymentDetails = (
+  apiRequest: ApiRequestFn,
+  data: any,
+): Promise<any> => {
+  return apiRequest("/affiliates/payment-details", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+};
+
+export const getAffiPaymentDetails = (
+  apiRequest: ApiRequestFn,
+): Promise<any> => {
+  return apiRequest("/affiliates/payment-details", {
+    method: "GET",
+  });
+};
+
+export const requestPayout = (
+  apiRequest: ApiRequestFn,
+  payoutAmount: number,
+): Promise<any> => {
+  return apiRequest("/affiliates/request-payout", {
+    method: "POST",
+    body: JSON.stringify({
+      amount: payoutAmount,
+    }),
+  });
+};
 /* ==================== CREATE AFFILIATE LINK ==================== */
 
 export const createAffiliateLink = (
