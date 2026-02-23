@@ -25,7 +25,7 @@ export default function LoginPage({ onClose }: LoginPageProps) {
   }
 
   const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
-    "https://ainspiretech.com/insta/pricing",
+    "https://app.rocketreplai.com/insta/pricing",
   )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
 
   return (
