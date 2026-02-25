@@ -21,8 +21,8 @@ import { Badge } from "@rocketreplai/ui/components/radix/badge";
 // Admin menu sections
 const ADMIN_SECTIONS = [
   {
-    id: "dashboard",
-    label: "Dashboard",
+    id: "home",
+    label: "Home",
     href: "/admin",
     icon: LayoutDashboard,
     iconBg: "bg-cyan-50",
@@ -88,7 +88,7 @@ const ADMIN_SECTIONS = [
 // The 4 fixed bottom nav items for quick access
 const BOTTOM_NAV_ITEMS = [
   {
-    label: "Dash",
+    label: "Home",
     href: "/admin",
     icon: LayoutDashboard,
   },
@@ -160,14 +160,16 @@ export default function AdminBottomNavbar() {
           {/* All admin sections */}
           {ADMIN_SECTIONS.map((section) => {
             const Icon = section.icon;
-            const isSelected = activeSection.id === section.id;
+            // const isSelected = activeSection.id === section.id;
+            const active = isActive(section.href);
+
             return (
               <Link
                 key={section.id}
                 href={section.href}
                 onClick={() => setMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${
-                  isSelected ? "bg-cyan-50/60" : ""
+                  active ? "bg-cyan-50/60" : ""
                 }`}
               >
                 <div
@@ -178,13 +180,13 @@ export default function AdminBottomNavbar() {
                 <div className="flex-1 min-w-0">
                   <p
                     className={`text-sm font-semibold truncate ${
-                      isSelected ? "text-cyan-700" : "text-gray-700"
+                      active ? "text-cyan-700" : "text-gray-700"
                     }`}
                   >
                     {section.label}
                   </p>
                   <p className="text-xs text-gray-400">
-                    {section.id === "dashboard" && "Overview"}
+                    {section.id === "home" && "Overview"}
                     {section.id === "subscriptions" && "Manage plans"}
                     {section.id === "appointments" && "Bookings"}
                     {section.id === "rate-limits" && "API limits"}
@@ -194,7 +196,7 @@ export default function AdminBottomNavbar() {
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                  {isSelected && (
+                  {active && (
                     <div className="w-2 h-2 rounded-full bg-cyan-500" />
                   )}
                 </div>

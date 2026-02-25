@@ -122,8 +122,8 @@ export default function InstaSidebar({
               </div>
             </div>
             <span className="text-xl font-black tracking-tight">
-              <span className="text-pink-500">Ainpire</span>
-              <span className="text-purple-600">Tech</span>
+              <span className="text-pink-500">Rocket</span>
+              <span className="text-purple-600">Replai</span>
             </span>
           </Link>
         </div>
@@ -295,7 +295,7 @@ export default function InstaSidebar({
   ]);
   if (isLoading) {
     return (
-      <div className="fixed left-0 top-0 bottom-0 w-60 lg:w-72 bg-white border-r border-gray-200 flex items-center justify-center">
+      <div className="fixed left-0 top-0 bottom-0 w-72 bg-white border-r border-gray-200 flex items-center justify-center">
         <div className="w-5 h-5 border-2 border-t-transparent border-cyan-500 rounded-full animate-spin" />
       </div>
     );
@@ -304,7 +304,7 @@ export default function InstaSidebar({
     <>
       {/* Unified sidebar - works the same on mobile and desktop */}
       <div
-        className={`fixed top-0 bottom-0 md:top-2 md:bottom-2 rounded-lg  w-60 lg:w-72 bg-white border border-gray-300 z-50 shadow-xl transition-transform duration-300 ${
+        className={`fixed top-0 bottom-0 md:top-2 md:bottom-2 rounded-lg  w-72 bg-white border border-gray-300 z-50 shadow-xl transition-transform duration-300 ${
           isOpen
             ? "translate-x-0 left-0 md:left-2"
             : "-translate-x-full left-0 "

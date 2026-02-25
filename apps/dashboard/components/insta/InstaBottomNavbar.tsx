@@ -20,12 +20,12 @@ const BOTTOM_NAV_ITEMS = [
     icon: LayoutDashboard,
   },
   {
-    label: "Automations",
+    label: "Auto",
     href: "/insta/automations",
     icon: MessageSquare,
   },
   {
-    label: "Contacts",
+    label: "Accounts",
     href: "/insta/accounts",
     icon: Users,
   },

@@ -49,7 +49,7 @@ export default function InstaLayout({
 
       <main
         className={`flex-1 min-w-0 transition-all duration-300 min-h-screen ${
-          isSidebarOpen ? "md:ml-60 lg:ml-72" : "md:ml-0"
+          isSidebarOpen ? "md:ml-72" : "md:ml-0"
         }`}
       >
         <Navbar
