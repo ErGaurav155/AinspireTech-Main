@@ -91,7 +91,6 @@ export default function TokenDashboard() {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
   const { theme, resolvedTheme } = useTheme();
-  const isMounted = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -106,7 +105,6 @@ export default function TokenDashboard() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isMounted.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -157,9 +155,6 @@ export default function TokenDashboard() {
         getTokenBalance(apiRequest),
         getTokenUsage(apiRequest, "month"),
       ]);
-
-      if (!isMounted.current) return;
-
       setTokenStats(balanceData);
       setUsageData(usageData);
     } catch (error: any) {
@@ -172,9 +167,7 @@ export default function TokenDashboard() {
         duration: 3000,
       });
     } finally {
-      if (isMounted.current) {
-        setIsRefreshing(false);
-      }
+      setIsRefreshing(false);
       setLoading(false);
       abortControllerRef.current = null;
     }
@@ -386,7 +379,7 @@ export default function TokenDashboard() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="bg-gray-100 p-1 rounded-xl flex items-center justify-start gap-1 w-full overflow-x-auto">
+          <TabsList className="bg-gray-100 p-1 rounded-xl flex items-center justify-start gap-1 w-full max-w-max overflow-x-auto lg:overflow-hidden ">
             <TabsTrigger
               value="overview"
               className="flex items-center gap-2 text-xs md:text-base font-light md:font-normal"

@@ -45,8 +45,6 @@ interface ChatbotOverview {
 export default function WebDashboardPage() {
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
-  const isMounted = useRef(true);
-
   const [chatbots, setChatbots] = useState<ChatbotOverview[]>([]);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,13 +56,6 @@ export default function WebDashboardPage() {
     totalTokensUsed: 0,
     satisfactionRate: 98,
   });
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
 
   const loadDashboard = useCallback(async () => {
     if (!userId) return;
@@ -78,8 +69,6 @@ export default function WebDashboardPage() {
         getChatbots(apiRequest),
         getTokenBalance(apiRequest),
       ]);
-
-      if (!isMounted.current) return;
 
       setTokenBalance(tokenData?.availableTokens || 0);
 
@@ -148,7 +137,6 @@ export default function WebDashboardPage() {
         totalTokensUsed: tokenData?.usedTokens || 0,
       }));
     } catch (error) {
-      if (!isMounted.current) return;
       console.error("Error loading dashboard:", error);
       setError("Failed to load dashboard data");
       toast({
@@ -157,9 +145,7 @@ export default function WebDashboardPage() {
         duration: 3000,
       });
     } finally {
-      if (isMounted.current) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   }, [userId, apiRequest]);
 
@@ -209,7 +195,7 @@ export default function WebDashboardPage() {
       case "chatbot-education":
         return "/web/chatbot-education/overview";
       default:
-        return "/web/dashboard";
+        return "/web";
     }
   };
 
@@ -220,7 +206,7 @@ export default function WebDashboardPage() {
       case "chatbot-education":
         return "/web/chatbot-education/build";
       default:
-        return "/web/dashboard";
+        return "/web";
     }
   };
 
@@ -292,15 +278,6 @@ export default function WebDashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F9FA]">
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <span className="font-medium text-gray-800">Dashboard</span>
-          <span className="text-gray-300">›</span>
-          <span className="text-gray-600">Overview</span>
-        </div>
-      </div>
-
       <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
         {/* Hero Card */}
         <div className="relative overflow-hidden bg-white rounded-3xl shadow-sm border border-gray-100">
@@ -495,7 +472,7 @@ export default function WebDashboardPage() {
           <h3 className="text-base font-semibold text-gray-800 mb-4">
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Link
               href="/web/tokens"
               className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
@@ -508,20 +485,6 @@ export default function WebDashboardPage() {
                 <p className="text-xs text-gray-400">Add more tokens</p>
               </div>
               <ArrowUpRight className="h-4 w-4 text-gray-300 group-hover:text-amber-500 ml-auto transition-colors" />
-            </Link>
-
-            <Link
-              href="/web/analytics"
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
-            >
-              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <BarChart3 className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-800">Analytics</p>
-                <p className="text-xs text-gray-400">View detailed reports</p>
-              </div>
-              <ArrowUpRight className="h-4 w-4 text-gray-300 group-hover:text-purple-500 ml-auto transition-colors" />
             </Link>
 
             <Link

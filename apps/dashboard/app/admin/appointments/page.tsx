@@ -395,7 +395,7 @@ export default function AdminAppointmentsPage() {
                 className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
               />
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 overflow-auto">
               <select
                 value={subjectFilter}
                 onChange={(e) => setSubjectFilter(e.target.value)}
@@ -403,7 +403,11 @@ export default function AdminAppointmentsPage() {
               >
                 <option value="all">All Subjects</option>
                 {subjects.map((subject) => (
-                  <option key={subject} value={subject}>
+                  <option
+                    className="overflow-auto"
+                    key={subject}
+                    value={subject}
+                  >
                     {subject}
                   </option>
                 ))}

@@ -90,9 +90,6 @@ export default function LeadConversationsPage() {
       // Transform conversations to extract lead info
       const transformed = (data.conversations || []).map((conv: any) => {
         const formData = conv?.formData || {};
-
-        console.log("Form Data for conversation", formData);
-
         const name = formData.name || conv.customerName || "Anonymous";
 
         const email = formData.email || conv.customerEmail || "";

@@ -122,7 +122,7 @@ export function Navbar({
           )}
 
           {/* Breadcrumbs */}
-          <div className="hidden sm:flex">
+          <div className="hidden lg:flex">
             <BreadcrumbsDefault />
           </div>
         </div>
@@ -150,7 +150,7 @@ export function Navbar({
                 asChild
                 className={`text-xs font-semibold ${theme.text} border ${theme.lightBorder} py-1.5 rounded-full ${theme.hoverBg} transition-colors`}
               >
-                <Link href="/insta/collaboration">
+                <Link href="/insta/refer">
                   <HandshakeIcon className="h-3.5 w-3.5 mr-1.5" />
                   <span className="hidden lg:inline">
                     Collab<span className="hidden xl:inline">oration</span>

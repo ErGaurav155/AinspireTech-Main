@@ -678,7 +678,7 @@ export default function AdminInstagramPage() {
                 <h3 className="text-sm font-semibold text-pink-800 mb-3">
                   Account Information
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap gap-3">
                   <div>
                     <p className="text-xs text-pink-600 mb-1">Username</p>
                     <p className="text-sm font-medium text-pink-900">

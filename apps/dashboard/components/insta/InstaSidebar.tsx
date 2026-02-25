@@ -32,7 +32,7 @@ import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
 const NAV_ITEMS = [
   {
     label: "Home",
-    href: "/insta/dashboard",
+    href: "/insta",
     icon: LayoutDashboard,
     isNew: false,
   },
@@ -42,13 +42,7 @@ const NAV_ITEMS = [
     icon: MessageSquare,
     isNew: false,
   },
-  { label: "Contacts", href: "/insta/accounts", icon: Users, isNew: false },
-  {
-    label: "Analytics",
-    href: "/insta/analytics",
-    icon: BarChart3,
-    isNew: false,
-  },
+  { label: "Accounts", href: "/insta/accounts", icon: Users, isNew: false },
   { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings, isNew: false },
 ] as const;
@@ -102,8 +96,7 @@ export default function InstaSidebar({
   const isActive = useCallback(
     (href: string) => {
       return (
-        pathname === href ||
-        (href !== "/insta/dashboard" && pathname.startsWith(href))
+        pathname === href || (href !== "/insta" && pathname.startsWith(href))
       );
     },
     [pathname],
@@ -115,7 +108,7 @@ export default function InstaSidebar({
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-5 border-b border-gray-100">
-          <Link href="/insta/dashboard" className="flex items-center gap-2.5">
+          <Link href="/insta" className="flex items-center gap-2.5">
             <div className="relative h-9 w-9 flex-shrink-0">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200" />
               <div className="absolute inset-[3px] rounded-full bg-white flex items-center justify-center">

@@ -503,7 +503,7 @@ export const Checkout = ({
 
         setTimeout(() => {
           setShowModal(false);
-          router.push("/web/dashboard");
+          router.push("/web");
         }, 2000);
       } else {
         showErrorToast(verifyResponse.message || "Verification failed");

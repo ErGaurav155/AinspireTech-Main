@@ -68,8 +68,6 @@ export default function DynamicOverviewPage() {
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
 
-  // Use refs to track mounted state and prevent memory leaks
-  const isMounted = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // State
@@ -205,7 +203,6 @@ export default function DynamicOverviewPage() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isMounted.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -218,10 +215,6 @@ export default function DynamicOverviewPage() {
 
     try {
       const data = await getChatbots(apiRequest);
-
-      // Only update if component is still mounted
-      if (!isMounted.current) return;
-
       const foundChatbot = data.chatbots?.find(
         (bot: any) => bot.type === chatbotType,
       );
@@ -268,9 +261,6 @@ export default function DynamicOverviewPage() {
         getAnalytics(apiRequest, chatbotType),
         getConversations(apiRequest, chatbotType),
       ]);
-
-      // Only update if component is still mounted
-      if (!isMounted.current) return;
 
       if (isLeadGeneration) {
         // Lead generation stats
@@ -410,23 +400,6 @@ export default function DynamicOverviewPage() {
   if (chatbot && !chatbot.isBuilt) {
     return (
       <div className="min-h-screen bg-[#F8F9FA]">
-        <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-          <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
-            <Link
-              href="/web/dashboard"
-              className="text-gray-400 hover:text-gray-600"
-            >
-              Dashboard
-            </Link>
-            <span className="text-gray-300">›</span>
-            <span className="font-medium text-gray-800">
-              {displayInfo.name}
-            </span>
-            <span className="text-gray-300">›</span>
-            <span className="text-gray-600">Overview</span>
-          </div>
-        </div>
-
         <div className="p-12 text-center">
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center mx-auto mb-6`}

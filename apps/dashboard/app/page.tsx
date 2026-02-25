@@ -33,9 +33,9 @@ function ChooseProductContent() {
 
   const handleSelectProduct = (product: "web-chatbot" | "insta-automation") => {
     if (product === "web-chatbot") {
-      router.push("/web/dashboard");
+      router.push("/web");
     } else {
-      router.push("/insta/dashboard");
+      router.push("/insta");
     }
   };
 

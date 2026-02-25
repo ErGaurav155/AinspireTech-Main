@@ -134,15 +134,11 @@ export default function SettingsPage() {
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
   const { apiRequest } = useApi();
-
-  // Refs to prevent memory leaks
-  const isMounted = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isMounted.current = false;
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
@@ -163,10 +159,6 @@ export default function SettingsPage() {
     setIsLoading(true);
     try {
       const data = await getAllInstagramAccounts(apiRequest);
-
-      // Only update if component is still mounted
-      if (!isMounted.current) return;
-
       if (data?.accounts && data.accounts.length > 0) {
         const activeAccount =
           data.accounts.find((a: any) => a.isActive) || data.accounts[0];

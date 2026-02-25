@@ -610,7 +610,7 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <div className="border-b border-gray-100">
-          <div className="flex gap-6 overflow-x-auto">
+          <div className="flex gap-6 overflow-x-auto text-nowrap">
             <button
               onClick={() => setActiveTab("overview")}
               className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${

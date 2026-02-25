@@ -42,7 +42,7 @@ const CHATBOT_ITEMS = [
   {
     id: "chatbot-lead-generation",
     label: "Lead Generation",
-    href: "/web/chatbot-lead-generation/overview",
+    href: "/web/chatbot-lead-generation",
     icon: Target,
     gradient: "from-purple-500 to-pink-500",
     iconBg: "bg-purple-50",
@@ -53,7 +53,7 @@ const CHATBOT_ITEMS = [
   {
     id: "chatbot-education",
     label: "Education",
-    href: "/web/chatbot-education/overview",
+    href: "/web/chatbot-education",
     icon: GraduationCap,
     gradient: "from-green-500 to-emerald-500",
     iconBg: "bg-green-50",
@@ -153,9 +153,9 @@ export default function WebSidebar({
 
   // Get chatbot display name from path
   const getChatbotDisplayName = useCallback(() => {
-    if (pathname.includes("/web/lead-generation")) return "Lead Generation";
-    if (pathname.includes("/web/customer-support")) return "Customer Support";
-    if (pathname.includes("/web/education")) return "Education";
+    if (pathname.includes("/web/chatbot-lead-generation"))
+      return "Lead Generation";
+    if (pathname.includes("/web/chatbot-education")) return "Education";
     if (pathname.includes("/web/tokens")) return "Token Dashboard";
     if (pathname.includes("/web/analytics")) return "Analytics";
     if (pathname.includes("/web/refer")) return "Refer & Earn";
@@ -169,7 +169,7 @@ export default function WebSidebar({
       <div className="flex flex-col h-full">
         {/* Logo */}
         <div className="p-5 border-b border-gray-100">
-          <Link href="/web/dashboard" className="flex items-center gap-2.5">
+          <Link href="/web" className="flex items-center gap-2.5">
             <div className="relative h-9 w-9 flex-shrink-0">
               <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-md shadow-purple-200" />
               <div className="absolute inset-[3px] rounded-full bg-white flex items-center justify-center">
@@ -183,8 +183,8 @@ export default function WebSidebar({
               </div>
             </div>
             <span className="text-xl font-black tracking-tight">
-              <span className="text-purple-500">Ainpire</span>
-              <span className="text-pink-600">Tech</span>
+              <span className="text-purple-500">Rocket</span>
+              <span className="text-pink-600">Replai</span>
             </span>
           </Link>
         </div>
@@ -254,7 +254,7 @@ export default function WebSidebar({
               {CHATBOT_ITEMS.map((bot) => (
                 <Link
                   key={bot.id}
-                  href={bot.href}
+                  href={`${bot.href}/overview`}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
                   onClick={() => {
                     setSelectedChatbot(bot.id);

@@ -57,7 +57,7 @@ export default function InstaLayout({
           isSidebarOpen={isSidebarOpen}
           dashboardType="insta"
         />
-        <div className="flex sm:hidden">
+        <div className="flex lg:hidden">
           <BreadcrumbsDefault />
         </div>
 

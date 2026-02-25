@@ -120,11 +120,15 @@ export default function AdminBottomNavbar() {
     ADMIN_SECTIONS.find((section) => pathname.startsWith(section.href)) ??
     ADMIN_SECTIONS[0];
 
+  // Memoize active state check
   const isActive = useCallback(
-    (href: string) => pathname === href || pathname.startsWith(href),
+    (href: string) => {
+      return (
+        pathname === href || (href !== "/admin" && pathname.startsWith(href))
+      );
+    },
     [pathname],
   );
-
   // Close on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

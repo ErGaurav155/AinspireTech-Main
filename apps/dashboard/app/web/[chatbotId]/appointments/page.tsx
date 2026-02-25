@@ -241,10 +241,7 @@ export default function AppointmentQuestionsPage() {
       {/* Top bar */}
       <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
         <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <Link
-            href="/web/dashboard"
-            className="text-gray-400 hover:text-gray-600"
-          >
+          <Link href="/web" className="text-gray-400 hover:text-gray-600">
             Dashboard
           </Link>
           <span className="text-gray-300">›</span>

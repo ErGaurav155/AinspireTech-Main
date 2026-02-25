@@ -99,7 +99,6 @@ export default function AccountsPage() {
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
   const { apiRequest } = useApi();
-  const isMounted = useRef(true);
 
   // State
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
@@ -114,13 +113,6 @@ export default function AccountsPage() {
   const [isUpdatingAccount, setIsUpdatingAccount] = useState<string | null>(
     null,
   );
-
-  // Cleanup
-  useEffect(() => {
-    return () => {
-      isMounted.current = false;
-    };
-  }, []);
 
   // Theme-based styles
   const themeStyles = useMemo((): ThemeStyles => {
@@ -176,8 +168,6 @@ export default function AccountsPage() {
 
       const response = await getInstaAccount(apiRequest);
 
-      if (!isMounted.current) return;
-
       if (response?.accounts) {
         const formattedAccounts: InstagramAccount[] = response.accounts.map(
           (acc: any) => ({
@@ -207,16 +197,13 @@ export default function AccountsPage() {
         setAccounts([]);
       }
     } catch (error) {
-      if (!isMounted.current) return;
       console.error("Failed to fetch accounts:", error);
       setError(
         error instanceof Error ? error.message : "Failed to load accounts",
       );
     } finally {
-      if (isMounted.current) {
-        setIsLoading(false);
-        setIsRefreshing(false);
-      }
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, [userId, router, apiRequest]);
 
@@ -226,7 +213,7 @@ export default function AccountsPage() {
 
     try {
       const userData = await getUserById(apiRequest, userId);
-      if (userData && isMounted.current) {
+      if (userData) {
         setUserInfo(userData);
       }
     } catch (error) {
@@ -403,20 +390,6 @@ export default function AccountsPage() {
 
   return (
     <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <Link
-            href="/insta/dashboard"
-            className="text-gray-400 hover:text-gray-600"
-          >
-            Dashboard
-          </Link>
-          <span className="text-gray-300">›</span>
-          <span className="font-medium text-gray-800">Accounts</span>
-        </div>
-      </div>
-
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

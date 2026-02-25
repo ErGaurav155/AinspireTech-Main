@@ -678,7 +678,7 @@ export default function AdminWebPage() {
                 <h3 className="text-sm font-semibold text-blue-800 mb-3">
                   User Information
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-wrap gap-3">
                   <div>
                     <p className="text-xs text-blue-600 mb-1">Name</p>
                     <p className="text-sm font-medium text-blue-900">

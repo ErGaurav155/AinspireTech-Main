@@ -371,7 +371,7 @@ export default function AdminRateLimitsPage() {
         </div>
 
         {/* Current Status Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {/* User Rate Limit Card */}
           <div className="bg-white border border-gray-100 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-3">
