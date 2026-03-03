@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   PlusCircle,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter, useParams } from "next/navigation";
@@ -30,6 +31,9 @@ import {
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -102,10 +106,12 @@ function PhonePreview({
   form,
   accountUsername,
   automationType,
+  isDark,
 }: {
   form: AutomationForm;
   accountUsername: string;
   automationType: string;
+  isDark: boolean;
 }) {
   const showDMFlow = useMemo(
     () =>
@@ -143,9 +149,9 @@ function PhonePreview({
   );
 
   return (
-    <div className="fixed top-24 ">
+    <div className="fixed top-24">
       <div
-        className="relative mx-auto rounded-[3rem] overflow-hidden shadow-2xl bg-black"
+        className="relative mx-auto rounded-[3rem] overflow-hidden shadow-2xl"
         style={{ width: 280, height: 560, border: "8px solid #1a1a1a" }}
       >
         <div className="bg-black text-white flex items-center justify-between px-6 pt-3 pb-1">
@@ -169,19 +175,32 @@ function PhonePreview({
           style={{ height: "calc(100% - 40px)" }}
         >
           {screen === "posts" && (
-            <PostsScreen form={form} accountUsername={accountUsername} />
+            <PostsScreen
+              form={form}
+              accountUsername={accountUsername}
+              isDark={isDark}
+            />
           )}
           {screen === "story" && (
-            <StoryScreen form={form} accountUsername={accountUsername} />
+            <StoryScreen
+              form={form}
+              accountUsername={accountUsername}
+              isDark={isDark}
+            />
           )}
           {screen === "comments" && (
-            <CommentsScreen form={form} accountUsername={accountUsername} />
+            <CommentsScreen
+              form={form}
+              accountUsername={accountUsername}
+              isDark={isDark}
+            />
           )}
           {screen === "dm" && (
             <DMScreen
               form={form}
               accountUsername={accountUsername}
               automationType={automationType}
+              isDark={isDark}
             />
           )}
         </div>
@@ -193,17 +212,27 @@ function PhonePreview({
 function PostsScreen({
   form,
   accountUsername,
+  isDark,
 }: {
   form: AutomationForm;
   accountUsername: string;
+  isDark: boolean;
 }) {
   return (
-    <div className="bg-white h-full flex flex-col">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-        <button className="text-gray-800">
+    <div
+      className={`h-full flex flex-col ${isDark ? "bg-[#1A1A1E]" : "bg-white"}`}
+    >
+      <div
+        className={`flex items-center justify-between px-3 py-2 border-b ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+      >
+        <button className={isDark ? "text-white/60" : "text-gray-800"}>
           <ChevronRight className="h-4 w-4 rotate-180" />
         </button>
-        <span className="text-sm font-semibold text-gray-800">Posts</span>
+        <span
+          className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-800"}`}
+        >
+          Posts
+        </span>
         <div className="w-4" />
       </div>
       <div className="flex-1 overflow-hidden">
@@ -211,12 +240,21 @@ function PostsScreen({
           <div className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold">
             {accountUsername?.[0]?.toUpperCase() || "A"}
           </div>
-          <span className="text-xs font-medium text-gray-800">
+          <span
+            className={`text-xs font-medium ${isDark ? "text-white" : "text-gray-800"}`}
+          >
             {accountUsername || "your_account"}
           </span>
-          <span className="text-gray-300 text-xs ml-auto">···</span>
+          <span
+            className={`text-xs ml-auto ${isDark ? "text-white/40" : "text-gray-300"}`}
+          >
+            ···
+          </span>
         </div>
-        <div className="bg-gray-100 w-full relative" style={{ height: 200 }}>
+        <div
+          className={`w-full relative ${isDark ? "bg-white/[0.06]" : "bg-gray-100"}`}
+          style={{ height: 200 }}
+        >
           {form.mediaUrl ? (
             <Image
               src={form.mediaUrl}
@@ -226,9 +264,15 @@ function PostsScreen({
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <div className="text-center text-gray-400">
-                <ImageIcon className="h-8 w-8 mx-auto mb-1 opacity-50" />
-                <p className="text-xs">Select a post</p>
+              <div className="text-center">
+                <ImageIcon
+                  className={`h-8 w-8 mx-auto mb-1 ${isDark ? "text-white/20" : "text-gray-300"}`}
+                />
+                <p
+                  className={`text-xs ${isDark ? "text-white/40" : "text-gray-400"}`}
+                >
+                  Select a post
+                </p>
               </div>
             </div>
           )}
@@ -240,11 +284,13 @@ function PostsScreen({
           <span className="ml-auto text-lg">🔖</span>
         </div>
         <div className="px-3 pb-2">
-          <p className="text-xs text-gray-600">
+          <p
+            className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
+          >
             <span className="font-semibold">
               {accountUsername || "your_account"}
             </span>{" "}
-            <span className="text-gray-500 truncate">
+            <span className={isDark ? "text-white/40" : "text-gray-500"}>
               {form.mediaUrl
                 ? "Click the link in my bio! 🔥"
                 : "Select a post to preview"}
@@ -252,8 +298,12 @@ function PostsScreen({
           </p>
         </div>
       </div>
-      <div className="border-t border-gray-100 px-3 py-2 flex items-center gap-2">
-        <div className="flex-1 bg-gray-100 rounded-full px-3 py-1.5 text-xs text-gray-400">
+      <div
+        className={`border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"} px-3 py-2 flex items-center gap-2`}
+      >
+        <div
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs ${isDark ? "bg-white/[0.06] text-white/40" : "bg-gray-100 text-gray-400"}`}
+        >
           Message...
         </div>
         <span className="text-lg">📷</span>
@@ -266,9 +316,11 @@ function PostsScreen({
 function StoryScreen({
   form,
   accountUsername,
+  isDark,
 }: {
   form: AutomationForm;
   accountUsername: string;
+  isDark: boolean;
 }) {
   return (
     <div className="bg-black h-full flex flex-col relative">
@@ -314,20 +366,33 @@ function StoryScreen({
 function CommentsScreen({
   form,
   accountUsername,
+  isDark,
 }: {
   form: AutomationForm;
   accountUsername: string;
+  isDark: boolean;
 }) {
   return (
-    <div className="bg-white h-full flex flex-col">
-      <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">
-        <button className="text-gray-800">
+    <div
+      className={`h-full flex flex-col ${isDark ? "bg-[#1A1A1E]" : "bg-white"}`}
+    >
+      <div
+        className={`flex items-center justify-between px-3 py-2 border-b ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+      >
+        <button className={isDark ? "text-white/60" : "text-gray-800"}>
           <ChevronRight className="h-4 w-4 rotate-180" />
         </button>
-        <span className="text-sm font-semibold text-gray-800">Posts</span>
+        <span
+          className={`text-sm font-semibold ${isDark ? "text-white" : "text-gray-800"}`}
+        >
+          Posts
+        </span>
         <div className="w-4" />
       </div>
-      <div className="bg-gray-100 w-full" style={{ height: 130 }}>
+      <div
+        className={`w-full ${isDark ? "bg-white/[0.06]" : "bg-gray-100"}`}
+        style={{ height: 130 }}
+      >
         {form.mediaUrl ? (
           <div className="relative h-full">
             <Image
@@ -339,27 +404,57 @@ function CommentsScreen({
           </div>
         ) : (
           <div className="h-full flex items-center justify-center">
-            <ImageIcon className="h-6 w-6 text-gray-300" />
+            <ImageIcon
+              className={`h-6 w-6 ${isDark ? "text-white/20" : "text-gray-300"}`}
+            />
           </div>
         )}
       </div>
-      <div className="px-3 py-1.5 border-b border-gray-100">
-        <p className="text-xs font-semibold text-gray-700">Comments</p>
+      <div
+        className={`px-3 py-1.5 border-b ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+      >
+        <p
+          className={`text-xs font-semibold ${isDark ? "text-white/80" : "text-gray-700"}`}
+        >
+          Comments
+        </p>
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3">
         <div className="flex items-start gap-2">
-          <div className="w-6 h-6 rounded-full bg-gray-200 flex-shrink-0 flex items-center justify-center">
-            <span className="text-xs text-gray-500">👤</span>
+          <div
+            className={`w-6 h-6 rounded-full ${isDark ? "bg-white/[0.06]" : "bg-gray-200"} flex-shrink-0 flex items-center justify-center`}
+          >
+            <span
+              className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}
+            >
+              👤
+            </span>
           </div>
           <div>
-            <p className="text-xs text-gray-500">
-              <span className="font-medium text-gray-700">example_user</span>
-              <span className="text-gray-400 text-xs ml-1">1h</span>
+            <p
+              className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}
+            >
+              <span
+                className={`font-medium ${isDark ? "text-white/80" : "text-gray-700"}`}
+              >
+                example_user
+              </span>
+              <span
+                className={`text-xs ml-1 ${isDark ? "text-white/30" : "text-gray-400"}`}
+              >
+                1h
+              </span>
             </p>
-            <p className="text-xs text-gray-600">
+            <p
+              className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
+            >
               {form.keywords[0] || "Leave a Comment..."}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">Reply</p>
+            <p
+              className={`text-xs mt-0.5 ${isDark ? "text-white/30" : "text-gray-400"}`}
+            >
+              Reply
+            </p>
           </div>
         </div>
         {form.publicReplies
@@ -371,20 +466,40 @@ function CommentsScreen({
                 {accountUsername?.[0]?.toUpperCase() || "A"}
               </div>
               <div>
-                <p className="text-xs text-gray-500">
-                  <span className="font-medium text-gray-700">
+                <p
+                  className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}
+                >
+                  <span
+                    className={`font-medium ${isDark ? "text-white/80" : "text-gray-700"}`}
+                  >
                     {accountUsername || "your_account"}
                   </span>
-                  <span className="text-gray-400 text-xs ml-1">1h</span>
+                  <span
+                    className={`text-xs ml-1 ${isDark ? "text-white/30" : "text-gray-400"}`}
+                  >
+                    1h
+                  </span>
                 </p>
-                <p className="text-xs text-gray-600">{reply}</p>
-                <p className="text-xs text-gray-400 mt-0.5">Reply</p>
+                <p
+                  className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
+                >
+                  {reply}
+                </p>
+                <p
+                  className={`text-xs mt-0.5 ${isDark ? "text-white/30" : "text-gray-400"}`}
+                >
+                  Reply
+                </p>
               </div>
             </div>
           ))}
       </div>
-      <div className="border-t border-gray-100 px-3 py-2 flex items-center gap-2">
-        <div className="flex-1 bg-gray-100 rounded-full px-3 py-1.5 text-xs text-gray-400">
+      <div
+        className={`border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"} px-3 py-2 flex items-center gap-2`}
+      >
+        <div
+          className={`flex-1 rounded-full px-3 py-1.5 text-xs ${isDark ? "bg-white/[0.06] text-white/40" : "bg-gray-100 text-gray-400"}`}
+        >
           Add a comment...
         </div>
       </div>
@@ -396,10 +511,12 @@ function DMScreen({
   form,
   accountUsername,
   automationType,
+  isDark,
 }: {
   form: AutomationForm;
   accountUsername: string;
   automationType: string;
+  isDark: boolean;
 }) {
   const messages = useMemo(() => {
     const msgs: {
@@ -577,17 +694,21 @@ function Toggle({
   checked,
   onChange,
   disabled = false,
+  isDark,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  isDark: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className={`relative rounded-full transition-colors flex-shrink-0 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${checked ? "bg-pink-500" : "bg-gray-200"}`}
+      className={`relative rounded-full transition-colors flex-shrink-0 ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+      } ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
       style={{ width: 44, height: 24 }}
     >
       <span
@@ -597,19 +718,33 @@ function Toggle({
           height: 18,
           top: 3,
           left: checked ? 23 : 3,
-          transition: "left 0.2s",
         }}
       />
     </button>
   );
 }
 
-function CharCounter({ current, max }: { current: number; max: number }) {
+function CharCounter({
+  current,
+  max,
+  isDark,
+}: {
+  current: number;
+  max: number;
+  isDark: boolean;
+}) {
   const pct = (current / max) * 100;
   const r = 8;
   const circ = 2 * Math.PI * r;
   const dash = circ - (pct / 100) * circ;
-  const color = pct > 90 ? "#ef4444" : pct > 70 ? "#f59e0b" : "#d1d5db";
+  const color =
+    pct > 90
+      ? "#ef4444"
+      : pct > 70
+        ? "#f59e0b"
+        : isDark
+          ? "#4B5563"
+          : "#d1d5db";
 
   return (
     <div className="flex items-center gap-1.5">
@@ -619,7 +754,7 @@ function CharCounter({ current, max }: { current: number; max: number }) {
           cy="10"
           r={r}
           fill="none"
-          stroke="#e5e7eb"
+          stroke={isDark ? "#374151" : "#e5e7eb"}
           strokeWidth="2"
         />
         <circle
@@ -635,7 +770,7 @@ function CharCounter({ current, max }: { current: number; max: number }) {
           transform="rotate(-90 10 10)"
         />
       </svg>
-      <span className="text-xs text-gray-400">
+      <span className={`text-xs ${isDark ? "text-white/40" : "text-gray-400"}`}>
         {current} / {max}
       </span>
     </div>
@@ -648,13 +783,16 @@ function EditLinkModal({
   link,
   onSave,
   onClose,
+  isDark,
 }: {
   link: { url: string; buttonTitle: string };
   onSave: (url: string, title: string) => void;
   onClose: () => void;
+  isDark: boolean;
 }) {
   const [url, setUrl] = useState(link.url);
   const [title, setTitle] = useState(link.buttonTitle);
+  const { styles } = useThemeStyles(); // for modal overlay classes
 
   return (
     <div
@@ -662,24 +800,38 @@ function EditLinkModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl"
+        className={`${
+          isDark ? "bg-[#1A1A1E]" : "bg-white"
+        } rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-800">Edit Link</h3>
+          <h3
+            className={`text-lg font-semibold ${isDark ? "text-white" : "text-gray-800"}`}
+          >
+            Edit Link
+          </h3>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className={
+              isDark
+                ? "text-white/40 hover:text-white/60"
+                : "text-gray-400 hover:text-gray-600"
+            }
           >
             <X className="h-5 w-5" />
           </button>
         </div>
-        <p className="text-sm text-gray-500 mb-4">
+        <p
+          className={`text-sm mb-4 ${isDark ? "text-white/40" : "text-gray-500"}`}
+        >
           Set a title and link for your DM button
         </p>
         <div className="space-y-3">
           <div>
-            <label className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+            <label
+              className={`flex items-center gap-2 text-sm ${isDark ? "text-white/60" : "text-gray-600"} mb-2`}
+            >
               <Pencil className="h-3 w-3" />
               Button Title
             </label>
@@ -687,12 +839,18 @@ function EditLinkModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                isDark
+                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
+                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
+              }`}
               placeholder="e.g. AInspiretech"
             />
           </div>
           <div>
-            <label className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+            <label
+              className={`flex items-center gap-2 text-sm ${isDark ? "text-white/60" : "text-gray-600"} mb-2`}
+            >
               <LinkIcon className="h-3 w-3" />
               Link URL
             </label>
@@ -700,7 +858,11 @@ function EditLinkModal({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-200"
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                isDark
+                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
+                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
+              }`}
               placeholder="https://ainspiretech.com"
             />
           </div>
@@ -795,9 +957,213 @@ export default function CreateAutomationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
 
-  // Memoized fetch media function - NO dependencies to prevent recreation
+  const { styles, isDark } = useThemeStyles();
+
+  // Page‑specific styles (everything that isn’t in the central theme)
+  const pageStyles = useMemo(() => {
+    return {
+      page: isDark ? "min-h-screen relative overflow-hidden" : "min-h-screen",
+      container: "flex flex-1",
+      leftPreview: isDark
+        ? "hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]"
+        : "hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]",
+      rightContent: "flex-1 overflow-y-auto w-full",
+      actionBar:
+        "flex items-center justify-end w-full gap-2 px-4 md:px-6 max-w-2xl mx-auto py-4",
+      saveButton: (disabled?: boolean) =>
+        isDark
+          ? `flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
+          : `flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+      goLiveButton: (disabled?: boolean) =>
+        isDark
+          ? `flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
+          : `flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+      formContainer: "p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-4",
+      input: isDark
+        ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white placeholder:text-white/25 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500"
+        : "w-full px-4 py-3 bg-white border border-gray-200 text-gray-700 placeholder-gray-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300",
+      textarea: isDark
+        ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white placeholder:text-white/25 rounded-xl text-sm focus:outline-none resize-none"
+        : "w-full px-4 py-3 bg-white border border-gray-200 text-gray-700 placeholder-gray-400 rounded-xl text-sm focus:outline-none resize-none",
+      card: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5"
+        : "bg-white border border-gray-100 rounded-2xl p-5",
+      cardNoPadding: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl overflow-hidden"
+        : "bg-white border border-gray-100 rounded-2xl overflow-hidden",
+      stepNumber: isDark
+        ? "w-7 h-7 rounded-full bg-gray-700 text-white text-sm font-bold flex items-center justify-center flex-shrink-0"
+        : "w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0",
+      stepTitle: isDark
+        ? "font-semibold text-white"
+        : "font-semibold text-gray-800",
+      mediaGrid: "grid grid-cols-4 gap-2 mb-2",
+      mediaItem: (isSelected: boolean) =>
+        isDark
+          ? `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${
+              isSelected
+                ? "ring-2 ring-pink-500 ring-offset-2 ring-offset-[#1A1A1E]"
+                : "hover:opacity-90"
+            }`
+          : `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${
+              isSelected
+                ? "ring-2 ring-pink-500 ring-offset-1"
+                : "hover:opacity-90"
+            }`,
+      mediaVideoBadge:
+        "absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded",
+      mediaLoadMore: isDark
+        ? "aspect-square rounded-xl bg-pink-500/10 border-2 border-dashed border-pink-500/30 flex flex-col items-center justify-center text-pink-400 hover:bg-pink-500/20 transition-colors text-xs text-center"
+        : "aspect-square rounded-xl bg-pink-50 border-2 border-dashed border-pink-200 flex flex-col items-center justify-center text-pink-400 hover:bg-pink-100 transition-colors text-xs text-center",
+      showMoreButton: isDark
+        ? "w-full py-2 text-sm text-pink-400 font-medium hover:text-pink-300 transition-colors"
+        : "w-full py-2 text-sm text-pink-500 font-medium hover:text-pink-600 transition-colors",
+      accountGrid: "flex gap-2 flex-wrap",
+      accountButton: (isSelected: boolean) =>
+        isDark
+          ? `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+              isSelected
+                ? "bg-pink-500/10 border-2 border-pink-500 text-pink-400"
+                : "bg-white/[0.06] border border-white/[0.08] text-white/60 hover:border-pink-500/50"
+            }`
+          : `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
+              isSelected
+                ? "bg-pink-50 border-2 border-pink-300 text-pink-600"
+                : "bg-gray-50 border border-gray-200 text-gray-600 hover:border-gray-300"
+            }`,
+      accountAvatar:
+        "w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold",
+      keywordInput: isDark
+        ? "flex items-center w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white"
+        : "flex items-center w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700",
+      keywordField: isDark
+        ? "w-full bg-transparent border-none text-sm text-white placeholder:text-white/25 focus:outline-none"
+        : "w-full bg-gray-50 border-none text-sm text-gray-700 placeholder-gray-400 focus:outline-none",
+      keywordAddButton: isDark
+        ? "p-1 bg-red-500/80 text-white rounded-lg hover:bg-red-500"
+        : "p-1 bg-red-400 text-white rounded-lg hover:bg-red-500",
+      keywordTag: isDark
+        ? "flex items-center gap-1.5 px-3 py-1 bg-pink-500/20 text-pink-400 rounded-full text-sm"
+        : "flex items-center gap-1.5 px-3 py-1 bg-pink-50 text-pink-600 rounded-full text-sm",
+      keywordRemove: isDark
+        ? "text-pink-400/60 hover:text-pink-400"
+        : "text-pink-400 hover:text-pink-600",
+      uploadArea: isDark
+        ? "border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center cursor-pointer hover:border-pink-500/50 hover:bg-pink-500/10 transition-all mb-4"
+        : "border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-pink-300 hover:bg-pink-50/50 transition-all mb-4",
+      uploadIcon: isDark
+        ? "h-5 w-5 text-white/40 mx-auto mb-2"
+        : "h-5 w-5 text-gray-400 mx-auto mb-2",
+      uploadText: isDark ? "text-sm text-white/60" : "text-sm text-gray-500",
+      uploadSubtext: isDark
+        ? "text-xs text-white/40 mt-1"
+        : "text-xs text-gray-400 mt-1",
+      linkItem: isDark
+        ? "flex items-center gap-2 mb-2 p-3 bg-white/[0.03] rounded-xl"
+        : "flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-xl",
+      linkIcon: isDark
+        ? "h-4 w-4 text-white/40 flex-shrink-0"
+        : "h-4 w-4 text-gray-400 flex-shrink-0",
+      linkUrl: isDark
+        ? "text-xs text-white/60 truncate"
+        : "text-xs text-gray-600 truncate",
+      linkTitle: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      linkAction: (color: string) =>
+        isDark
+          ? `p-1 text-white/40 hover:text-${color}-400`
+          : `p-1 text-gray-400 hover:text-${color}-600`,
+      linkForm: isDark
+        ? "border border-white/[0.08] rounded-xl p-3 mb-2"
+        : "border border-gray-200 rounded-xl p-3 mb-2",
+      linkInput: isDark
+        ? "w-full px-3 py-2 bg-white/[0.05] border border-white/[0.08] rounded-lg text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-pink-500"
+        : "w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-pink-300",
+      addLinkButton: isDark
+        ? "flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600"
+        : "flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600",
+      cancelButton: isDark
+        ? "px-3 py-2 text-white/60 text-sm rounded-lg hover:bg-white/[0.06]"
+        : "px-3 py-2 text-gray-500 text-sm rounded-lg hover:bg-gray-100",
+      addLinkTrigger: isDark
+        ? "w-full py-2.5 border border-white/[0.08] rounded-xl text-sm text-pink-400 font-medium hover:bg-pink-500/10 transition-colors flex items-center justify-center gap-2"
+        : "w-full py-2.5 border border-gray-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors flex items-center justify-center gap-2",
+      sectionToggle: "flex items-center justify-between p-5",
+      sectionLabel: isDark
+        ? "text-sm font-medium text-white/80"
+        : "text-sm font-medium text-gray-700",
+      sectionInfoIcon: isDark
+        ? "h-4 w-4 text-white/30"
+        : "h-4 w-4 text-gray-300",
+      sectionContent: isDark
+        ? "px-5 pb-5 space-y-3 border-t border-white/[0.06] pt-4"
+        : "px-5 pb-5 space-y-3 border-t border-gray-50 pt-4",
+      publicReplyItem: (isEditing: boolean) =>
+        isDark
+          ? `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isEditing ? "border-pink-500" : "border-white/[0.08]"}`
+          : `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isEditing ? "border-pink-300" : "border-gray-200"}`,
+      tagButton: (isSelected: boolean) =>
+        isDark
+          ? `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
+              isSelected
+                ? "border-2 border-pink-400 text-pink-400 bg-pink-500/10"
+                : "border border-white/[0.08] text-white/60 hover:border-pink-500/50"
+            }`
+          : `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
+              isSelected
+                ? "border-2 border-pink-400 text-pink-600 bg-pink-50"
+                : "border border-gray-200 text-gray-600 hover:border-gray-300"
+            }`,
+      delayButton: (isSelected: boolean) =>
+        isDark
+          ? `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
+              isSelected
+                ? "bg-pink-500 text-white"
+                : "text-white/40 hover:text-white/60"
+            }`
+          : `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
+              isSelected
+                ? "bg-pink-500 text-white"
+                : "text-gray-400 hover:text-gray-600"
+            }`,
+      crownIcon: isDark ? "h-4 w-4 text-yellow-400" : "h-4 w-4 text-yellow-400",
+      loadingContainer: isDark
+        ? "min-h-screen flex items-center justify-center bg-[#0F0F11]"
+        : "min-h-screen flex items-center justify-center bg-[#F8F9FA]",
+      loadingSpinner: isDark
+        ? "w-5 h-5 border-2 border-t-transparent border-pink-400 rounded-full animate-spin"
+        : "w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin",
+      followUpCard: isDark
+        ? "border border-white/[0.08] rounded-xl p-4 space-y-3"
+        : "border border-gray-200 rounded-xl p-4 space-y-3",
+      followUpTitle: isDark
+        ? "text-sm font-medium text-white"
+        : "text-sm font-medium text-gray-700",
+      followUpSelect: isDark
+        ? "w-full px-4 py-3 bg-white/[0.05] border-2 border-white/[0.08] rounded-xl text-sm text-white focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/30 transition-all appearance-none cursor-pointer hover:border-white/[0.12]"
+        : "w-full px-4 py-3 bg-white border-2 border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:border-pink-400 focus:ring-2 focus:ring-pink-200 transition-all appearance-none cursor-pointer hover:border-gray-300",
+      followUpGrid: "grid grid-cols-2 gap-2",
+      followUpInput: isDark
+        ? "px-3 py-2 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white focus:outline-none focus:ring-1 focus:ring-pink-500"
+        : "px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-1 focus:ring-pink-200",
+      followUpTextarea: isDark
+        ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none resize-none"
+        : "w-full px-4 py-3 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none resize-none",
+      followUpAddLink: isDark
+        ? "w-full py-2 border border-pink-500/30 rounded-xl text-sm text-pink-400 font-medium hover:bg-pink-500/10 transition-colors flex items-center justify-center gap-2"
+        : "w-full py-2 border border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors flex items-center justify-center gap-2",
+      addFollowUpButton: isDark
+        ? "w-full py-2.5 border-2 border-dashed border-pink-500/30 rounded-xl text-sm text-pink-400 font-medium hover:bg-pink-500/10 transition-colors"
+        : "w-full py-2.5 border-2 border-dashed border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors",
+      // Empty state
+      emptyIcon: isDark ? "text-white/20" : "text-gray-300",
+      emptyText: isDark ? "text-white/35" : "text-gray-500",
+    };
+  }, [isDark]);
+
+  // Memoized fetch media function
   const fetchMedia = useCallback(
     async (accountId: string) => {
       if (!accountId || automationType === "dms") return;
@@ -813,7 +1179,7 @@ export default function CreateAutomationPage() {
         setIsLoadingMedia(false);
       }
     },
-    [apiRequest, automationType], // Only depends on these
+    [apiRequest, automationType],
   );
 
   // Separate effect for fetching accounts - runs once
@@ -860,7 +1226,7 @@ export default function CreateAutomationPage() {
     automationType,
     form.accountId,
     fetchMedia,
-  ]); // Added proper dependencies
+  ]);
 
   // Separate effect for when account changes via dropdown
   useEffect(() => {
@@ -1129,39 +1495,33 @@ export default function CreateAutomationPage() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin" />
+      <div className={pageStyles.loadingContainer}>
+        <div className={pageStyles.loadingSpinner} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA] flex flex-col">
-      <div className="flex flex-1 ">
+    <div className={pageStyles.page}>
+      {isDark && <Orbs />}
+      <div className={pageStyles.container}>
         {/* Left: Phone preview */}
-        <div
-          className="hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle, #d1d5db 1px, transparent 1px)",
-            backgroundSize: "20px 20px",
-            backgroundColor: "#F8F9FA",
-          }}
-        >
+        <div className={pageStyles.leftPreview}>
           <PhonePreview
             form={form}
             accountUsername={form.accountUsername}
             automationType={automationType}
+            isDark={isDark}
           />
         </div>
 
         {/* Right: Form */}
-        <div className="flex-1 overflow-y-auto w-full">
-          <div className="flex items-center justify-end w-full gap-2 px-4 md:px-6 max-w-2xl mx-auto py-4">
+        <div className={pageStyles.rightContent}>
+          <div className={pageStyles.actionBar}>
             <button
               onClick={() => handleSave(false)}
               disabled={isSaving || isGoingLive}
-              className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+              className={pageStyles.saveButton(isSaving || isGoingLive)}
             >
               <Bookmark className="h-4 w-4" />
               {isSaving ? "Saving..." : "Save"}
@@ -1169,41 +1529,41 @@ export default function CreateAutomationPage() {
             <button
               onClick={() => handleSave(true)}
               disabled={isSaving || isGoingLive}
-              className="flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+              className={pageStyles.goLiveButton(isSaving || isGoingLive)}
             >
               <Activity className="h-4 w-4" />
               {isGoingLive ? "Going Live..." : "Go Live"}
             </button>
           </div>
 
-          <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-4">
+          <div className={pageStyles.formContainer}>
             {/* Automation name */}
             <input
               type="text"
               placeholder="Enter Automation Name"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              className="w-full px-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300"
+              className={pageStyles.input}
             />
 
             {/* Account selector */}
             {accounts.length > 1 && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
-                <p className="text-xs font-medium text-gray-500 mb-3">
+              <div className={pageStyles.card}>
+                <p
+                  className={`text-xs font-medium mb-3 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                >
                   Instagram Account
                 </p>
-                <div className="flex gap-2 flex-wrap">
+                <div className={pageStyles.accountGrid}>
                   {accounts.map((acc) => (
                     <button
                       key={acc.instagramId}
                       onClick={() => handleAccountChange(acc)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-                        form.accountUsername === acc.username
-                          ? "bg-pink-50 border-2 border-pink-300 text-pink-600"
-                          : "bg-gray-50 border border-gray-200 text-gray-600 hover:border-gray-300"
-                      }`}
+                      className={pageStyles.accountButton(
+                        form.accountUsername === acc.username,
+                      )}
                     >
-                      <div className="w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold">
+                      <div className={pageStyles.accountAvatar}>
                         {acc.username[0].toUpperCase()}
                       </div>
                       @{acc.username}
@@ -1215,12 +1575,10 @@ export default function CreateAutomationPage() {
 
             {/* Step 1: Select Post/Story (NOT for DMs) */}
             {automationType !== "dms" && (
-              <div className="bg-white border border-gray-100 rounded-2xl p-5">
+              <div className={pageStyles.card}>
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
-                    1
-                  </div>
-                  <h3 className="font-semibold text-gray-800">
+                  <div className={pageStyles.stepNumber}>1</div>
+                  <h3 className={pageStyles.stepTitle}>
                     {automationType === "stories"
                       ? "Select a Story"
                       : "Select Instagram Posts or Reel"}
@@ -1228,7 +1586,9 @@ export default function CreateAutomationPage() {
                 </div>
 
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-gray-600">
+                  <span
+                    className={`text-sm ${isDark ? "text-white/60" : "text-gray-600"}`}
+                  >
                     {automationType === "stories"
                       ? "Any story"
                       : "Any post or reel"}
@@ -1242,6 +1602,7 @@ export default function CreateAutomationPage() {
                         mediaId: v ? "" : f.mediaId,
                       }))
                     }
+                    isDark={isDark}
                   />
                 </div>
 
@@ -1249,11 +1610,11 @@ export default function CreateAutomationPage() {
                   <>
                     {isLoadingMedia ? (
                       <div className="flex items-center justify-center py-8">
-                        <div className="w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin" />
+                        <div className={pageStyles.loadingSpinner} />
                       </div>
                     ) : media.length > 0 ? (
                       <>
-                        <div className="grid grid-cols-4 gap-2 mb-2">
+                        <div className={pageStyles.mediaGrid}>
                           {visibleMedia.map((item) => (
                             <div
                               key={item.id}
@@ -1265,7 +1626,9 @@ export default function CreateAutomationPage() {
                                   mediaType: item.media_type,
                                 }))
                               }
-                              className={`relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${form.mediaId === item.id ? "ring-2 ring-pink-500 ring-offset-1" : "hover:opacity-90"}`}
+                              className={pageStyles.mediaItem(
+                                form.mediaId === item.id,
+                              )}
                             >
                               <Image
                                 src={item.media_url}
@@ -1274,7 +1637,7 @@ export default function CreateAutomationPage() {
                                 className="object-cover"
                               />
                               {item.media_type === "VIDEO" && (
-                                <div className="absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded">
+                                <div className={pageStyles.mediaVideoBadge}>
                                   ▶
                                 </div>
                               )}
@@ -1283,7 +1646,7 @@ export default function CreateAutomationPage() {
                           {!showMoreMedia && media.length > 4 && (
                             <button
                               onClick={() => setShowMoreMedia(true)}
-                              className="aspect-square rounded-xl bg-pink-50 border-2 border-dashed border-pink-200 flex flex-col items-center justify-center text-pink-400 hover:bg-pink-100 transition-colors text-xs text-center"
+                              className={pageStyles.mediaLoadMore}
                             >
                               Next{" "}
                               {automationType === "stories" ? "Story" : "Post"}
@@ -1293,16 +1656,18 @@ export default function CreateAutomationPage() {
                         {!showMoreMedia && media.length > 4 && (
                           <button
                             onClick={() => setShowMoreMedia(true)}
-                            className="w-full py-2 text-sm text-pink-500 font-medium hover:text-pink-600 transition-colors"
+                            className={pageStyles.showMoreButton}
                           >
                             Show More
                           </button>
                         )}
                       </>
                     ) : (
-                      <div className="text-center py-6 text-gray-400">
-                        <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">
+                      <div className="text-center py-6">
+                        <ImageIcon
+                          className={`h-8 w-8 mx-auto mb-2 ${pageStyles.emptyIcon}`}
+                        />
+                        <p className={`text-sm ${pageStyles.emptyText}`}>
                           No{" "}
                           {automationType === "stories" ? "stories" : "posts"}{" "}
                           found
@@ -1315,25 +1680,27 @@ export default function CreateAutomationPage() {
             )}
 
             {/* Step 2: Trigger Keywords (NOT for DMs) */}
-
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <div className={pageStyles.card}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
-                  2
+                <div className={pageStyles.stepNumber}>
+                  {automationType === "dms" ? "1" : "2"}
                 </div>
-                <h3 className="font-semibold text-gray-800">
-                  Set Trigger Keywords
-                </h3>
+                <h3 className={pageStyles.stepTitle}>Set Trigger Keywords</h3>
               </div>
 
               {/* ANY KEYWORD TOGGLE */}
               {(automationType === "comments" ||
                 automationType === "stories") && (
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-sm text-gray-600">Any keyword</span>
+                  <span
+                    className={`text-sm ${isDark ? "text-white/60" : "text-gray-600"}`}
+                  >
+                    Any keyword
+                  </span>
                   <Toggle
                     checked={form.anyKeyword}
                     onChange={(v) => setForm((f) => ({ ...f, anyKeyword: v }))}
+                    isDark={isDark}
                   />
                 </div>
               )}
@@ -1345,7 +1712,7 @@ export default function CreateAutomationPage() {
                   !form.anyKeyword)) && (
                 <>
                   {/* INPUT */}
-                  <div className="flex items-center w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700">
+                  <div className={pageStyles.keywordInput}>
                     <input
                       type="text"
                       placeholder="Type & Hit ↵ Enter to add Keyword"
@@ -1357,12 +1724,16 @@ export default function CreateAutomationPage() {
                         }))
                       }
                       onKeyDown={handleKeywordInput}
-                      className="w-full bg-gray-50 border-none text-sm text-gray-700 focus:outline-none"
+                      className={pageStyles.keywordField}
                     />
 
                     {form.keywordInput && (
-                      <button type="button" onClick={addKeyword}>
-                        <Plus className="h-6 w-6 text-red-400 border rounded-lg p-1" />
+                      <button
+                        type="button"
+                        onClick={addKeyword}
+                        className={pageStyles.keywordAddButton}
+                      >
+                        <Plus className="h-4 w-4" />
                       </button>
                     )}
                   </div>
@@ -1371,15 +1742,12 @@ export default function CreateAutomationPage() {
                   {form.keywords.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {form.keywords.map((kw) => (
-                        <span
-                          key={kw}
-                          className="flex items-center gap-1.5 px-3 py-1 bg-pink-50 text-pink-600 rounded-full text-sm"
-                        >
+                        <span key={kw} className={pageStyles.keywordTag}>
                           {kw}
                           <button
                             type="button"
                             onClick={() => removeKeyword(kw)}
-                            className="text-pink-400 hover:text-pink-600"
+                            className={pageStyles.keywordRemove}
                           >
                             <X className="h-3 w-3" />
                           </button>
@@ -1392,24 +1760,24 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* Step 3: Send DM */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <div className={pageStyles.card}>
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-7 h-7 rounded-full bg-gray-900 text-white text-sm font-bold flex items-center justify-center flex-shrink-0">
-                  {automationType === "dms" ? "1" : "3"}
+                <div className={pageStyles.stepNumber}>
+                  {automationType === "dms" ? "2" : "3"}
                 </div>
-                <h3 className="font-semibold text-gray-800">Send DM</h3>
+                <h3 className={pageStyles.stepTitle}>Send DM</h3>
               </div>
 
               {!form.dmImagePreview ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center cursor-pointer hover:border-pink-300 hover:bg-pink-50/50 transition-all mb-4"
+                  className={pageStyles.uploadArea}
                 >
-                  <Upload className="h-5 w-5 text-gray-400 mx-auto mb-2" />
-                  <p className="text-sm text-gray-500">
+                  <Upload className={pageStyles.uploadIcon} />
+                  <p className={pageStyles.uploadText}>
                     Drag and drop or click to upload
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
+                  <p className={pageStyles.uploadSubtext}>
                     Max 2 MB • PNG or JPEG only
                   </p>
                   <input
@@ -1444,7 +1812,9 @@ export default function CreateAutomationPage() {
                 </div>
               )}
 
-              <div className="border border-gray-200 rounded-xl overflow-hidden mb-1">
+              <div
+                className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden mb-1`}
+              >
                 <textarea
                   value={form.dmMessage}
                   onChange={(e) =>
@@ -1453,32 +1823,35 @@ export default function CreateAutomationPage() {
                   placeholder="Enter your message here..."
                   maxLength={1000}
                   rows={3}
-                  className="w-full px-4 py-3 text-sm text-gray-700 placeholder-gray-400 focus:outline-none resize-none border-0"
+                  className={pageStyles.textarea}
                 />
-                <div className="flex items-center px-4 py-2 border-t border-gray-100">
-                  <CharCounter current={form.dmMessage.length} max={1000} />
+                <div
+                  className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                >
+                  <CharCounter
+                    current={form.dmMessage.length}
+                    max={1000}
+                    isDark={isDark}
+                  />
                 </div>
               </div>
 
               {form.dmLinks.map((link, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-xl"
-                >
-                  <LinkIcon className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                <div key={i} className={pageStyles.linkItem}>
+                  <LinkIcon className={pageStyles.linkIcon} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs text-gray-600 truncate">{link.url}</p>
-                    <p className="text-xs text-gray-400">{link.buttonTitle}</p>
+                    <p className={pageStyles.linkUrl}>{link.url}</p>
+                    <p className={pageStyles.linkTitle}>{link.buttonTitle}</p>
                   </div>
                   <button
                     onClick={() => setEditingLinkIndex(i)}
-                    className="p-1 text-gray-400 hover:text-gray-600"
+                    className={pageStyles.linkAction("gray")}
                   >
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => removeLink(i)}
-                    className="p-1 text-gray-400 hover:text-red-500"
+                    className={pageStyles.linkAction("red")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -1486,32 +1859,32 @@ export default function CreateAutomationPage() {
               ))}
 
               {showLinkForm ? (
-                <div className="border border-gray-200 rounded-xl p-3 mb-2">
+                <div className={pageStyles.linkForm}>
                   <div className="space-y-2">
                     <input
                       type="url"
                       placeholder="https://yourlink.com"
                       value={newLinkUrl}
                       onChange={(e) => setNewLinkUrl(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-pink-300"
+                      className={pageStyles.linkInput}
                     />
                     <input
                       type="text"
                       placeholder="Button title (e.g. Get Access)"
                       value={newLinkBtn}
                       onChange={(e) => setNewLinkBtn(e.target.value)}
-                      className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-pink-300"
+                      className={pageStyles.linkInput}
                     />
                     <div className="flex gap-2">
                       <button
                         onClick={addLink}
-                        className="flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600"
+                        className={pageStyles.addLinkButton}
                       >
                         Add Link
                       </button>
                       <button
                         onClick={() => setShowLinkForm(false)}
-                        className="px-3 py-2 text-gray-500 text-sm rounded-lg hover:bg-gray-100"
+                        className={pageStyles.cancelButton}
                       >
                         Cancel
                       </button>
@@ -1521,7 +1894,7 @@ export default function CreateAutomationPage() {
               ) : (
                 <button
                   onClick={() => setShowLinkForm(true)}
-                  className="w-full py-2.5 border border-gray-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors flex items-center justify-center gap-2"
+                  className={pageStyles.addLinkTrigger}
                 >
                   <Plus className="h-4 w-4" />
                   Add Link
@@ -1530,25 +1903,28 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* Welcome Message */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between p-5">
+            <div className={pageStyles.cardNoPadding}>
+              <div className={pageStyles.sectionToggle}>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className={pageStyles.sectionLabel}>
                     Welcome Message
                   </span>
-                  <Info className="h-4 w-4 text-gray-300" />
+                  <Info className={pageStyles.sectionInfoIcon} />
                 </div>
                 <Toggle
                   checked={form.welcomeMessage}
                   onChange={(v) =>
                     setForm((f) => ({ ...f, welcomeMessage: v }))
                   }
+                  isDark={isDark}
                 />
               </div>
 
               {form.welcomeMessage && (
-                <div className="px-5 pb-5 space-y-3 border-t border-gray-50 pt-4">
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className={pageStyles.sectionContent}>
+                  <div
+                    className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                  >
                     <textarea
                       value={form.welcomeText}
                       onChange={(e) =>
@@ -1556,17 +1932,24 @@ export default function CreateAutomationPage() {
                       }
                       maxLength={1000}
                       rows={3}
-                      className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                      className={pageStyles.textarea}
                     />
-                    <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                    <div
+                      className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                    >
                       <CharCounter
                         current={form.welcomeText.length}
                         max={1000}
+                        isDark={isDark}
                       />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5">
-                    <Pencil className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <div
+                    className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
+                  >
+                    <Pencil
+                      className={`h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
+                    />
                     <input
                       type="text"
                       value={form.welcomeButtonTitle}
@@ -1577,7 +1960,11 @@ export default function CreateAutomationPage() {
                         }))
                       }
                       placeholder="Button title..."
-                      className="flex-1 text-sm text-gray-700 focus:outline-none"
+                      className={
+                        isDark
+                          ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
+                          : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
+                      }
                     />
                   </div>
                 </div>
@@ -1586,28 +1973,35 @@ export default function CreateAutomationPage() {
 
             {/* Publicly Reply To Comments */}
             {automationType === "comments" && (
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between p-5 gap-3">
+              <div className={pageStyles.cardNoPadding}>
+                <div className={pageStyles.sectionToggle}>
                   <div className="flex items-center justify-start gap-2">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className={pageStyles.sectionLabel}>
                       Publicly Reply To Comments
                     </span>
-                    <Info className="h-4 w-4 text-gray-300" />
+                    <Info className={pageStyles.sectionInfoIcon} />
                   </div>
                   <Toggle
                     checked={form.publicReply}
                     onChange={(v) => setForm((f) => ({ ...f, publicReply: v }))}
+                    isDark={isDark}
                   />
                 </div>
 
                 {form.publicReply && (
-                  <div className="px-5 pb-5 space-y-2 border-t border-gray-50 pt-4">
+                  <div className={pageStyles.sectionContent}>
                     {form.publicReplies.map((reply, i) => (
                       <div
                         key={i}
-                        className={`flex items-center gap-2 border rounded-xl px-3 py-2.5 ${editingPublicReplyIndex === i ? "border-pink-300" : "border-gray-200"}`}
+                        className={pageStyles.publicReplyItem(
+                          editingPublicReplyIndex === i,
+                        )}
                       >
-                        <span className="text-gray-400 flex-shrink-0">💬</span>
+                        <span
+                          className={`${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
+                        >
+                          💬
+                        </span>
                         <input
                           type="text"
                           value={reply}
@@ -1618,12 +2012,20 @@ export default function CreateAutomationPage() {
                           }}
                           onFocus={() => setEditingPublicReplyIndex(i)}
                           onBlur={() => setEditingPublicReplyIndex(null)}
-                          className="flex-1 text-sm text-gray-700 focus:outline-none"
+                          className={
+                            isDark
+                              ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
+                              : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
+                          }
                           placeholder="Reply text..."
                         />
                         <button
                           onClick={() => removePublicReply(i)}
-                          className="text-gray-300 hover:text-red-400 flex-shrink-0"
+                          className={
+                            isDark
+                              ? "text-white/30 hover:text-red-400 flex-shrink-0"
+                              : "text-gray-300 hover:text-red-400 flex-shrink-0"
+                          }
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -1632,14 +2034,16 @@ export default function CreateAutomationPage() {
 
                     <button
                       onClick={addPublicReply}
-                      className="w-full py-2.5 border border-gray-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors flex items-center justify-center gap-2"
+                      className={pageStyles.addLinkTrigger}
                     >
                       <Plus className="h-4 w-4" />
                       Add Public Reply
                     </button>
 
                     <div>
-                      <p className="text-sm text-gray-600 mb-2 mt-2">
+                      <p
+                        className={`text-sm mb-2 mt-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                      >
                         Tag in public reply?
                       </p>
                       <div className="flex gap-2">
@@ -1649,11 +2053,9 @@ export default function CreateAutomationPage() {
                             onClick={() =>
                               setForm((f) => ({ ...f, tagType: tag }))
                             }
-                            className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
-                              form.tagType === tag
-                                ? "border-2 border-pink-400 text-pink-600 bg-pink-50"
-                                : "border border-gray-200 text-gray-600 hover:border-gray-300"
-                            }`}
+                            className={pageStyles.tagButton(
+                              form.tagType === tag,
+                            )}
                           >
                             {tag === "none"
                               ? "None"
@@ -1670,23 +2072,26 @@ export default function CreateAutomationPage() {
             )}
 
             {/* Ask To Follow */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between p-5 gap-3">
+            <div className={pageStyles.cardNoPadding}>
+              <div className={pageStyles.sectionToggle}>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className={pageStyles.sectionLabel}>
                     Ask To Follow Before Sending DM
                   </span>
-                  <Info className="h-4 w-4 text-gray-300" />
+                  <Info className={pageStyles.sectionInfoIcon} />
                 </div>
                 <Toggle
                   checked={form.askFollow}
                   onChange={(v) => setForm((f) => ({ ...f, askFollow: v }))}
+                  isDark={isDark}
                 />
               </div>
 
               {form.askFollow && (
-                <div className="px-5 pb-5 space-y-3 border-t border-gray-50 pt-4">
-                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <div className={pageStyles.sectionContent}>
+                  <div
+                    className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                  >
                     <textarea
                       value={form.askFollowMessage}
                       onChange={(e) =>
@@ -1697,18 +2102,25 @@ export default function CreateAutomationPage() {
                       }
                       maxLength={500}
                       rows={3}
-                      className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                      className={pageStyles.textarea}
                     />
-                    <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                    <div
+                      className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                    >
                       <CharCounter
                         current={form.askFollowMessage.length}
                         max={500}
+                        isDark={isDark}
                       />
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5">
-                    <Pencil className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <div
+                    className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
+                  >
+                    <Pencil
+                      className={`h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
+                    />
                     <input
                       type="text"
                       value={form.visitProfileBtn}
@@ -1719,12 +2131,20 @@ export default function CreateAutomationPage() {
                         }))
                       }
                       placeholder="Visit Profile"
-                      className="flex-1 text-sm text-gray-700 focus:outline-none"
+                      className={
+                        isDark
+                          ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
+                          : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
+                      }
                     />
                   </div>
 
-                  <div className="flex items-center gap-2 border border-gray-200 rounded-xl px-3 py-2.5">
-                    <Pencil className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                  <div
+                    className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
+                  >
+                    <Pencil
+                      className={`h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
+                    />
                     <input
                       type="text"
                       value={form.followingBtn}
@@ -1732,7 +2152,11 @@ export default function CreateAutomationPage() {
                         setForm((f) => ({ ...f, followingBtn: e.target.value }))
                       }
                       placeholder="I'm following ✅"
-                      className="flex-1 text-sm text-gray-700 focus:outline-none"
+                      className={
+                        isDark
+                          ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
+                          : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
+                      }
                     />
                   </div>
                 </div>
@@ -1740,28 +2164,33 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* Ask Email */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between p-5 gap-3">
+            <div className={pageStyles.cardNoPadding}>
+              <div className={pageStyles.sectionToggle}>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className={pageStyles.sectionLabel}>
                     Ask To Share Their Email
                   </span>
-                  <Info className="h-4 w-4 text-gray-300" />
-                  <Crown className="h-4 w-4 text-yellow-400" />
+                  <Info className={pageStyles.sectionInfoIcon} />
+                  <Crown className={pageStyles.crownIcon} />
                 </div>
                 <Toggle
                   checked={form.askEmail}
                   onChange={(v) => setForm((f) => ({ ...f, askEmail: v }))}
+                  isDark={isDark}
                 />
               </div>
 
               {form.askEmail && (
-                <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
+                <div className={pageStyles.sectionContent}>
                   <div>
-                    <p className="text-xs font-medium text-gray-600 mb-2">
+                    <p
+                      className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                    >
                       Opening Message:
                     </p>
-                    <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div
+                      className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                    >
                       <textarea
                         value={form.emailOpeningMessage}
                         onChange={(e) =>
@@ -1772,22 +2201,29 @@ export default function CreateAutomationPage() {
                         }
                         maxLength={1000}
                         rows={3}
-                        className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                        className={pageStyles.textarea}
                       />
-                      <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                      <div
+                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                      >
                         <CharCounter
                           current={form.emailOpeningMessage.length}
                           max={1000}
+                          isDark={isDark}
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs font-medium text-gray-600 mb-2">
+                    <p
+                      className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                    >
                       Retry Message if the answer is incorrect:
                     </p>
-                    <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div
+                      className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                    >
                       <textarea
                         value={form.emailRetryMessage}
                         onChange={(e) =>
@@ -1798,19 +2234,24 @@ export default function CreateAutomationPage() {
                         }
                         maxLength={500}
                         rows={2}
-                        className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                        className={pageStyles.textarea}
                       />
-                      <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                      <div
+                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                      >
                         <CharCounter
                           current={form.emailRetryMessage.length}
                           max={500}
+                          isDark={isDark}
                         />
                       </div>
                     </div>
                   </div>
 
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">
+                    <p
+                      className={`text-xs mb-2 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                    >
                       Retry 3 times and if the user still has not shared valid
                       email:
                     </p>
@@ -1819,11 +2260,9 @@ export default function CreateAutomationPage() {
                         onClick={() =>
                           setForm((f) => ({ ...f, emailNoValidAction: "send" }))
                         }
-                        className={`flex-1 py-2.5 rounded-xl text-sm transition-colors ${
-                          form.emailNoValidAction === "send"
-                            ? "border-2 border-pink-400 text-pink-600 font-medium"
-                            : "border border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
+                        className={pageStyles.tagButton(
+                          form.emailNoValidAction === "send",
+                        )}
                       >
                         Send them the DM anyway
                       </button>
@@ -1834,11 +2273,9 @@ export default function CreateAutomationPage() {
                             emailNoValidAction: "nosend",
                           }))
                         }
-                        className={`flex-1 py-2.5 rounded-xl text-sm transition-colors ${
-                          form.emailNoValidAction === "nosend"
-                            ? "border-2 border-pink-400 text-pink-600 font-medium"
-                            : "border border-gray-200 text-gray-600 hover:border-gray-300"
-                        }`}
+                        className={pageStyles.tagButton(
+                          form.emailNoValidAction === "nosend",
+                        )}
                       >
                         Do not send them the DM
                       </button>
@@ -1848,30 +2285,35 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            {/* Ask Phone (NEW - for Stories primarily) */}
+            {/* Ask Phone (for Stories) */}
             {automationType === "stories" && (
-              <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-                <div className="flex items-center justify-between p-5">
+              <div className={pageStyles.cardNoPadding}>
+                <div className={pageStyles.sectionToggle}>
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className={pageStyles.sectionLabel}>
                       Ask To Share Their Phone
                     </span>
-                    <Info className="h-4 w-4 text-gray-300" />
-                    <Crown className="h-4 w-4 text-yellow-400" />
+                    <Info className={pageStyles.sectionInfoIcon} />
+                    <Crown className={pageStyles.crownIcon} />
                   </div>
                   <Toggle
                     checked={form.askPhone}
                     onChange={(v) => setForm((f) => ({ ...f, askPhone: v }))}
+                    isDark={isDark}
                   />
                 </div>
 
                 {form.askPhone && (
-                  <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
+                  <div className={pageStyles.sectionContent}>
                     <div>
-                      <p className="text-xs font-medium text-gray-600 mb-2">
+                      <p
+                        className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                      >
                         Opening Message:
                       </p>
-                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div
+                        className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                      >
                         <textarea
                           value={form.phoneOpeningMessage}
                           onChange={(e) =>
@@ -1882,22 +2324,29 @@ export default function CreateAutomationPage() {
                           }
                           maxLength={1000}
                           rows={3}
-                          className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                          className={pageStyles.textarea}
                         />
-                        <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
                           <CharCounter
                             current={form.phoneOpeningMessage.length}
                             max={1000}
+                            isDark={isDark}
                           />
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <p className="text-xs font-medium text-gray-600 mb-2">
+                      <p
+                        className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
+                      >
                         Retry Message if the answer is incorrect:
                       </p>
-                      <div className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div
+                        className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                      >
                         <textarea
                           value={form.phoneRetryMessage}
                           onChange={(e) =>
@@ -1908,19 +2357,24 @@ export default function CreateAutomationPage() {
                           }
                           maxLength={500}
                           rows={2}
-                          className="w-full px-4 py-3 text-sm text-gray-700 focus:outline-none resize-none"
+                          className={pageStyles.textarea}
                         />
-                        <div className="flex items-center px-4 py-2 border-t border-gray-100">
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
                           <CharCounter
                             current={form.phoneRetryMessage.length}
                             max={500}
+                            isDark={isDark}
                           />
                         </div>
                       </div>
                     </div>
 
                     <div>
-                      <p className="text-xs text-gray-500 mb-2">
+                      <p
+                        className={`text-xs mb-2 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                      >
                         After 3 invalid attempts:
                       </p>
                       <div className="flex gap-2">
@@ -1931,11 +2385,9 @@ export default function CreateAutomationPage() {
                               phoneNoValidAction: "send",
                             }))
                           }
-                          className={`flex-1 py-2.5 rounded-xl text-sm transition-colors ${
-                            form.phoneNoValidAction === "send"
-                              ? "border-2 border-pink-400 text-pink-600 font-medium"
-                              : "border border-gray-200 text-gray-600 hover:border-gray-300"
-                          }`}
+                          className={pageStyles.tagButton(
+                            form.phoneNoValidAction === "send",
+                          )}
                         >
                           Send them the next DM anyway
                         </button>
@@ -1946,11 +2398,9 @@ export default function CreateAutomationPage() {
                               phoneNoValidAction: "nosend",
                             }))
                           }
-                          className={`flex-1 py-2.5 rounded-xl text-sm transition-colors ${
-                            form.phoneNoValidAction === "nosend"
-                              ? "border-2 border-pink-400 text-pink-600 font-medium"
-                              : "border border-gray-200 text-gray-600 hover:border-gray-300"
-                          }`}
+                          className={pageStyles.tagButton(
+                            form.phoneNoValidAction === "nosend",
+                          )}
                         >
                           Do not send them the next DM
                         </button>
@@ -1962,30 +2412,28 @@ export default function CreateAutomationPage() {
             )}
 
             {/* Follow-Up DMs */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between p-5">
+            <div className={pageStyles.cardNoPadding}>
+              <div className={pageStyles.sectionToggle}>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className={pageStyles.sectionLabel}>
                     Send Follow-Up DMs
                   </span>
-                  <Info className="h-4 w-4 text-gray-300" />
-                  <Crown className="h-4 w-4 text-yellow-400" />
+                  <Info className={pageStyles.sectionInfoIcon} />
+                  <Crown className={pageStyles.crownIcon} />
                 </div>
                 <Toggle
                   checked={form.followUpDMs}
                   onChange={(v) => setForm((f) => ({ ...f, followUpDMs: v }))}
+                  isDark={isDark}
                 />
               </div>
 
               {form.followUpDMs && (
-                <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
+                <div className={pageStyles.sectionContent}>
                   {form.followUpMessages.map((msg, i) => (
-                    <div
-                      key={i}
-                      className="border border-gray-200 rounded-xl p-4 space-y-3"
-                    >
+                    <div key={i} className={pageStyles.followUpCard}>
                       <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium text-gray-700">
+                        <h4 className={pageStyles.followUpTitle}>
                           #{i + 1} Follow-Up Message
                         </h4>
                         <button
@@ -2006,33 +2454,28 @@ export default function CreateAutomationPage() {
                           };
                           setForm((f) => ({ ...f, followUpMessages: updated }));
                         }}
-                        className="w-full px-4 py-3 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-xl text-sm 
-    focus:outline-none focus:border-pink-400 dark:focus:border-pink-500 focus:ring-2 focus:ring-pink-200 dark:focus:ring-pink-900/30 
-    transition-all duration-200 appearance-none cursor-pointer
-    hover:border-gray-300 dark:hover:border-gray-600
-    text-gray-700 dark:text-gray-200 font-medium 
-    bg-no-repeat bg-[right_1rem_center] bg-[length:16px] pr-10"
+                        className={pageStyles.followUpSelect}
                       >
                         <option
                           value=""
-                          className="text-gray-400 dark:text-gray-500"
+                          className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
                         >
                           Select a condition
                         </option>
                         <option
                           value="no_reply"
-                          className="text-gray-700 dark:text-gray-200 py-2"
+                          className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
                         >
                           💬 If user has not replied
                         </option>
                         <option
                           value="no_action"
-                          className="text-gray-700 dark:text-gray-200 py-2"
+                          className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
                         >
                           🔄 If user has not taken action
                         </option>
                       </select>
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className={pageStyles.followUpGrid}>
                         <input
                           type="number"
                           value={msg.waitTime}
@@ -2047,7 +2490,7 @@ export default function CreateAutomationPage() {
                               followUpMessages: updated,
                             }));
                           }}
-                          className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-pink-200"
+                          className={pageStyles.followUpInput}
                           placeholder="60"
                         />
                         <select
@@ -2063,13 +2506,25 @@ export default function CreateAutomationPage() {
                               followUpMessages: updated,
                             }));
                           }}
-                          className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-pink-200"
+                          className={pageStyles.followUpInput}
                         >
-                          <option value="minutes">Minutes</option>
-                          <option value="hours">Hours</option>
+                          <option
+                            value="minutes"
+                            className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                          >
+                            Minutes
+                          </option>
+                          <option
+                            value="hours"
+                            className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                          >
+                            Hours
+                          </option>
                         </select>
                       </div>
-                      <p className="text-xs text-gray-400">
+                      <p
+                        className={`text-xs ${isDark ? "text-white/40" : "text-gray-400"}`}
+                      >
                         Between 5 min and 23 hours • Wait for 1 hr
                       </p>
 
@@ -2086,11 +2541,15 @@ export default function CreateAutomationPage() {
                         placeholder="Just checking in—did you get a chance to see our previous message?"
                         rows={3}
                         maxLength={1000}
-                        className="w-full px-4 py-3 text-sm text-gray-700 border border-gray-200 rounded-xl focus:outline-none resize-none"
+                        className={pageStyles.followUpTextarea}
                       />
-                      <CharCounter current={msg.message.length} max={1000} />
+                      <CharCounter
+                        current={msg.message.length}
+                        max={1000}
+                        isDark={isDark}
+                      />
 
-                      <button className="w-full py-2 border border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors flex items-center justify-center gap-2">
+                      <button className={pageStyles.followUpAddLink}>
                         <Plus className="h-4 w-4" />
                         Add Link
                       </button>
@@ -2099,7 +2558,7 @@ export default function CreateAutomationPage() {
 
                   <button
                     onClick={addFollowUpMessage}
-                    className="w-full py-2.5 border-2 border-dashed border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors"
+                    className={pageStyles.addFollowUpButton}
                   >
                     Add follow-up message
                   </button>
@@ -2108,12 +2567,14 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* Delay */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-5">
+            <div className={pageStyles.card}>
               <div className="flex items-center gap-2 mb-4">
-                <h3 className="text-sm font-medium text-gray-700">
+                <h3
+                  className={`text-sm font-medium ${isDark ? "text-white/80" : "text-gray-700"}`}
+                >
                   Delay before sending DM
                 </h3>
-                <Crown className="h-4 w-4 text-yellow-400" />
+                <Crown className={pageStyles.crownIcon} />
               </div>
               <div className="flex flex-wrap gap-2">
                 {(["immediate", "3min", "5min", "10min"] as const).map(
@@ -2130,11 +2591,9 @@ export default function CreateAutomationPage() {
                         onClick={() =>
                           setForm((f) => ({ ...f, delayOption: opt }))
                         }
-                        className={`flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
-                          form.delayOption === opt
-                            ? "bg-pink-500 text-white"
-                            : "text-gray-400 hover:text-gray-600"
-                        }`}
+                        className={pageStyles.delayButton(
+                          form.delayOption === opt,
+                        )}
                       >
                         {labels[opt]}
                       </button>
@@ -2160,6 +2619,7 @@ export default function CreateAutomationPage() {
             setEditingLinkIndex(null);
           }}
           onClose={() => setEditingLinkIndex(null)}
+          isDark={isDark}
         />
       )}
     </div>

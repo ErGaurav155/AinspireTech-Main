@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Download,
   MoreHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getConversations } from "@/lib/services/web-actions.api";
@@ -39,6 +40,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@rocketreplai/ui/components/radix/dropdown-menu";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
 
 interface Conversation {
   id: string;
@@ -64,6 +69,7 @@ interface Conversation {
 export default function LeadConversationsPage() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [filteredConversations, setFilteredConversations] = useState<
@@ -91,11 +97,8 @@ export default function LeadConversationsPage() {
       const transformed = (data.conversations || []).map((conv: any) => {
         const formData = conv?.formData || {};
         const name = formData.name || conv.customerName || "Anonymous";
-
         const email = formData.email || conv.customerEmail || "";
-
         const phone = formData.phone || "";
-
         const service = formData.service || "";
 
         return {
@@ -153,24 +156,36 @@ export default function LeadConversationsPage() {
     switch (status) {
       case "active":
         return (
-          <Badge className="bg-green-100 text-green-600 border-green-200">
+          <span
+            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.green}`}
+          >
             Active
-          </Badge>
+          </span>
         );
       case "resolved":
         return (
-          <Badge className="bg-blue-100 text-blue-600 border-blue-200">
+          <span
+            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.blue}`}
+          >
             Resolved
-          </Badge>
+          </span>
         );
       case "pending":
         return (
-          <Badge className="bg-yellow-100 text-yellow-600 border-yellow-200">
+          <span
+            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+          >
             Pending
-          </Badge>
+          </span>
         );
       default:
-        return <Badge className="bg-gray-100 text-gray-600">Unknown</Badge>;
+        return (
+          <span
+            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.gray}`}
+          >
+            Unknown
+          </span>
+        );
     }
   };
 
@@ -178,37 +193,50 @@ export default function LeadConversationsPage() {
     switch (status) {
       case "active":
         return (
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <div
+            className={`w-2 h-2 ${isDark ? "bg-green-400" : "bg-green-500"} rounded-full animate-pulse`}
+          />
         );
       case "resolved":
-        return <CheckCircle className="h-4 w-4 text-blue-500" />;
+        return (
+          <CheckCircle
+            className={`h-4 w-4 ${isDark ? "text-blue-400" : "text-blue-500"}`}
+          />
+        );
       case "pending":
-        return <AlertCircle className="h-4 w-4 text-yellow-500" />;
+        return (
+          <AlertCircle
+            className={`h-4 w-4 ${isDark ? "text-yellow-400" : "text-yellow-500"}`}
+          />
+        );
       default:
         return null;
     }
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-purple-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <Spinner label="Loading conversations..." />;
   }
 
   return (
-    <div className="min-h-screen ">
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
-        <div className="flex flex-wrap  gap-2 items-center justify-between">
+        <div className="flex flex-wrap gap-2 items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <MessageSquare className="h-5 w-5 text-white" />
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles.icon.purple}`}
+            >
+              <MessageSquare
+                className={`h-5 w-5 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Conversations</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className={`text-xl font-bold ${styles.text.primary}`}>
+                Conversations
+              </h1>
+              <p className={`text-sm ${styles.text.secondary}`}>
                 {filteredConversations.length} leads found
               </p>
             </div>
@@ -217,14 +245,16 @@ export default function LeadConversationsPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill} ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <RefreshCw
                 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
               />
               Refresh
             </button>
-            <button className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors">
+            <button
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill}`}
+            >
               <Download className="h-4 w-4" />
               Export
             </button>
@@ -232,61 +262,75 @@ export default function LeadConversationsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            {/* Search */}
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, phone, service..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-300"
-              />
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex items-center gap-2">
-              <Filter className="h-4 w-4 text-gray-400" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="pending">Pending</option>
-                <option value="resolved">Resolved</option>
-              </select>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-4 relative z-10">
+          <div className="flex-1 relative">
+            <Search
+              size={14}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 ${styles.text.muted}`}
+            />
+            <input
+              type="text"
+              placeholder="Search by name, email, phone, or subject..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            />
+          </div>
+          <div className="flex gap-2 overflow-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm ${styles.input}`}
+            >
+              <option value="all" className={styles.innerCard}>
+                All Status
+              </option>
+              <option value="active" className={styles.innerCard}>
+                Active
+              </option>
+              <option value="pending" className={styles.innerCard}>
+                Pending
+              </option>
+              <option value="resolved" className={styles.innerCard}>
+                Resolved
+              </option>
+            </select>
           </div>
         </div>
-
         {/* Conversations List */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+        <div className={`rounded-2xl overflow-hidden ${styles.card}`}>
           {filteredConversations.length > 0 ? (
-            <div className="divide-y divide-gray-50">
+            <div
+              className={`divide-y ${isDark ? "divide-white/[0.06]" : "divide-gray-100"}`}
+            >
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation?.id || Math.random().toString()}
-                  className="p-5 hover:bg-gray-50/50 transition-colors"
+                  className={`p-5 hover:bg-white/[0.03] transition-colors border-b ${styles.divider}`}
                 >
                   <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                     {/* Lead Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center flex-shrink-0">
-                          <User className="h-5 w-5 text-purple-600" />
+                        <div
+                          className={`w-10 h-10 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/30 flex items-center justify-center flex-shrink-0`}
+                        >
+                          <User
+                            className={`h-5 w-5 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+                          />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="font-semibold text-gray-800">
+                            <h3
+                              className={`font-semibold ${styles.text.primary}`}
+                            >
                               {conversation.customerName}
                             </h3>
                             {getStatusBadge(conversation.status)}
                           </div>
-                          <div className="flex flex-wrap items-center gap-3 text-xs text-gray-400 mt-1">
+                          <div
+                            className={`flex flex-wrap items-center gap-3 mt-1 text-xs ${styles.text.secondary}`}
+                          >
                             {conversation.customerEmail && (
                               <span className="flex items-center gap-1">
                                 <Mail className="h-3 w-3" />
@@ -312,8 +356,12 @@ export default function LeadConversationsPage() {
                       {/* Last Message Preview */}
                       {conversation.messages &&
                         conversation.messages.length > 0 && (
-                          <p className="text-sm text-gray-500 truncate max-w-xl ml-13">
-                            <span className="font-medium text-gray-600">
+                          <p
+                            className={`text-sm ${styles.text.secondary} truncate max-w-xl ml-13`}
+                          >
+                            <span
+                              className={`font-medium ${styles.text.primary}`}
+                            >
                               Last message:
                             </span>{" "}
                             {
@@ -328,7 +376,9 @@ export default function LeadConversationsPage() {
                     {/* Meta Info & Actions */}
                     <div className="flex items-center gap-4 ml-13 lg:ml-0">
                       <div className="text-right">
-                        <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <div
+                          className={`flex items-center gap-2 text-xs ${styles.text.secondary}`}
+                        >
                           <Clock className="h-3 w-3" />
                           <span>
                             {formatDistanceToNow(
@@ -339,7 +389,9 @@ export default function LeadConversationsPage() {
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           {getStatusIcon(conversation.status)}
-                          <span className="text-xs capitalize text-gray-500">
+                          <span
+                            className={`text-xs capitalize ${styles.text.muted}`}
+                          >
                             {conversation.status}
                           </span>
                         </div>
@@ -353,7 +405,7 @@ export default function LeadConversationsPage() {
                             setSelectedConversation(conversation);
                             setShowViewDialog(true);
                           }}
-                          className="text-gray-400 hover:text-purple-600"
+                          className={`p-1.5 ${styles.text.muted} hover:${styles.text.primary}`}
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -362,22 +414,28 @@ export default function LeadConversationsPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-gray-400"
+                              className={`p-1.5 ${styles.text.muted} hover:${styles.text.primary}`}
                             >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent
                             align="end"
-                            className="rounded-xl"
+                            className={`rounded-xl ${isDark ? "bg-[#1A1A1E] border-white/[0.08] text-white" : "bg-white border-gray-100"}`}
                           >
-                            <DropdownMenuItem className="text-sm">
+                            <DropdownMenuItem
+                              className={`text-sm ${isDark ? "hover:bg-white/[0.06]" : "hover:bg-gray-50"}`}
+                            >
                               Mark as Resolved
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-sm">
+                            <DropdownMenuItem
+                              className={`text-sm ${isDark ? "hover:bg-white/[0.06]" : "hover:bg-gray-50"}`}
+                            >
                               Add Tag
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-sm text-red-600">
+                            <DropdownMenuItem
+                              className={`text-sm ${isDark ? "text-red-400 hover:bg-white/[0.06]" : "text-red-600 hover:bg-red-50"}`}
+                            >
                               Delete
                             </DropdownMenuItem>
                           </DropdownMenuContent>
@@ -392,7 +450,7 @@ export default function LeadConversationsPage() {
                       {conversation.tags.map((tag) => (
                         <span
                           key={tag}
-                          className="text-xs px-2 py-0.5 bg-purple-50 text-purple-600 rounded-full"
+                          className={`text-xs px-2 py-0.5 ${styles.badge.purple} rounded-full`}
                         >
                           #{tag}
                         </span>
@@ -404,18 +462,24 @@ export default function LeadConversationsPage() {
             </div>
           ) : (
             <div className="p-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-4">
-                <MessageSquare className="h-8 w-8 text-purple-400" />
+              <div
+                className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${styles.icon.purple}`}
+              >
+                <MessageSquare
+                  className={`h-8 w-8 ${isDark ? "text-purple-400" : "text-purple-400"}`}
+                />
               </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+              <h3
+                className={`text-lg font-semibold ${styles.text.primary} mb-2`}
+              >
                 No conversations yet
               </h3>
-              <p className="text-sm text-gray-500 mb-6">
+              <p className={`text-sm ${styles.text.secondary} mb-6`}>
                 Integrate your chatbot to start capturing leads
               </p>
               <Link
                 href="/web/lead-generation/integration"
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-sm font-medium transition-colors"
+                className={`inline-flex items-center gap-2 px-5 py-2.5 ${styles.button.primary} text-white rounded-xl text-sm font-medium transition-colors`}
               >
                 View Integration Guide
                 <ArrowUpRight className="h-4 w-4" />
@@ -427,116 +491,161 @@ export default function LeadConversationsPage() {
 
       {/* View Conversation Dialog */}
       <Dialog open={showViewDialog} onOpenChange={setShowViewDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <User className="h-5 w-5 text-purple-500" />
-              Conversation with {selectedConversation?.customerName}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+          <DialogContent
+            className={`${isDark ? "bg-[#1A1A1E] border border-white/[0.08]" : "bg-white border border-gray-100"} rounded-2xl max-w-2xl max-h-[80vh] overflow-y-auto`}
+          >
+            <DialogHeader>
+              <DialogTitle
+                className={`flex items-center gap-2 ${styles.text.primary}`}
+              >
+                <User className="h-5 w-5 text-purple-400" />
+                Conversation with {selectedConversation?.customerName}
+              </DialogTitle>
+            </DialogHeader>
 
-          {selectedConversation && (
-            <div className="space-y-6">
-              {/* Lead Details */}
-              <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
-                <h4 className="text-sm font-semibold text-purple-800 mb-3">
-                  Lead Details
-                </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {selectedConversation.customerName && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <User className="h-4 w-4 text-purple-500" />
-                      <span className="text-gray-600">
-                        {selectedConversation.customerName}
-                      </span>
-                    </div>
-                  )}
-                  {selectedConversation.customerEmail && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="h-4 w-4 text-purple-500" />
-                      <a
-                        href={`mailto:${selectedConversation.customerEmail}`}
-                        className="text-purple-600 hover:underline"
-                      >
-                        {selectedConversation.customerEmail}
-                      </a>
-                    </div>
-                  )}
-                  {selectedConversation.customerPhone && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone className="h-4 w-4 text-purple-500" />
-                      <a
-                        href={`tel:${selectedConversation.customerPhone}`}
-                        className="text-purple-600 hover:underline"
-                      >
-                        {selectedConversation.customerPhone}
-                      </a>
-                    </div>
-                  )}
-                  {selectedConversation.service && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-purple-500" />
-                      <span className="text-gray-600">
-                        Interested in: {selectedConversation.service}
-                      </span>
-                    </div>
-                  )}
+            {selectedConversation && (
+              <div className="space-y-6">
+                {/* Lead Details */}
+                <div
+                  className={`${isDark ? "bg-purple-500/10 border border-purple-500/20" : "bg-purple-50 border border-purple-100"} rounded-xl p-4`}
+                >
+                  <h4
+                    className={`text-sm font-semibold ${isDark ? "text-purple-400" : "text-purple-800"} mb-3`}
+                  >
+                    Lead Details
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {selectedConversation.customerName && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <User
+                          className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                        />
+                        <span
+                          className={isDark ? "text-white/60" : "text-gray-600"}
+                        >
+                          {selectedConversation.customerName}
+                        </span>
+                      </div>
+                    )}
+                    {selectedConversation.customerEmail && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail
+                          className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                        />
+                        <a
+                          href={`mailto:${selectedConversation.customerEmail}`}
+                          className={
+                            isDark
+                              ? "text-purple-400 hover:underline"
+                              : "text-purple-600 hover:underline"
+                          }
+                        >
+                          {selectedConversation.customerEmail}
+                        </a>
+                      </div>
+                    )}
+                    {selectedConversation.customerPhone && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Phone
+                          className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                        />
+                        <a
+                          href={`tel:${selectedConversation.customerPhone}`}
+                          className={
+                            isDark
+                              ? "text-purple-400 hover:underline"
+                              : "text-purple-600 hover:underline"
+                          }
+                        >
+                          {selectedConversation.customerPhone}
+                        </a>
+                      </div>
+                    )}
+                    {selectedConversation.service && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar
+                          className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                        />
+                        <span
+                          className={isDark ? "text-white/60" : "text-gray-600"}
+                        >
+                          Interested in: {selectedConversation.service}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Messages */}
-              <div>
-                <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                  Conversation History
-                </h4>
-                <div className="space-y-3 max-h-96 overflow-y-auto p-1">
-                  {selectedConversation.messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
-                    >
+                {/* Messages */}
+                <div>
+                  <h4
+                    className={`text-sm font-semibold ${styles.text.primary} mb-3`}
+                  >
+                    Conversation History
+                  </h4>
+                  <div className="space-y-3 max-h-96 overflow-y-auto p-1">
+                    {selectedConversation.messages.map((message) => (
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                          message.type === "user"
-                            ? "bg-purple-500 text-white"
-                            : "bg-gray-100 text-gray-800"
-                        }`}
+                        key={message.id}
+                        className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
                       >
-                        <p className="text-sm">{message.content}</p>
-                        <p className="text-xs opacity-70 mt-1">
-                          {new Date(message.timestamp).toLocaleTimeString()}
-                        </p>
+                        <div
+                          className={
+                            message.type === "user"
+                              ? `max-w-[80%] rounded-2xl px-4 py-2 ${isDark ? "bg-purple-500 text-white" : "bg-purple-500 text-white"}`
+                              : `max-w-[80%] rounded-2xl px-4 py-2 ${isDark ? "bg-white/[0.06] text-white/80" : "bg-gray-100 text-gray-800"}`
+                          }
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          <p
+                            className={`text-xs opacity-70 mt-1 ${isDark ? "text-white/60" : "text-white/80"}`}
+                          >
+                            {new Date(message.timestamp).toLocaleTimeString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Form Data */}
+                {selectedConversation.formData &&
+                  selectedConversation.formData.length > 0 && (
+                    <div className={`border-t pt-4 ${styles.divider}`}>
+                      <h4
+                        className={`text-sm font-semibold ${styles.text.primary} mb-3`}
+                      >
+                        Form Submissions
+                      </h4>
+                      <div className="space-y-2">
+                        {selectedConversation.formData.map((field, index) => (
+                          <div
+                            key={index}
+                            className="flex items-start gap-2 text-sm"
+                          >
+                            <span
+                              className={`font-medium ${isDark ? "text-white/60" : "text-gray-600"} min-w-[120px]`}
+                            >
+                              {field.question}:
+                            </span>
+                            <span
+                              className={
+                                isDark ? "text-white" : "text-gray-800"
+                              }
+                            >
+                              {field.answer}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
+                  )}
               </div>
-
-              {/* Form Data */}
-              {selectedConversation.formData &&
-                selectedConversation.formData.length > 0 && (
-                  <div className="border-t border-gray-100 pt-4">
-                    <h4 className="text-sm font-semibold text-gray-800 mb-3">
-                      Form Submissions
-                    </h4>
-                    <div className="space-y-2">
-                      {selectedConversation.formData.map((field, index) => (
-                        <div
-                          key={index}
-                          className="flex items-start gap-2 text-sm"
-                        >
-                          <span className="font-medium text-gray-600 min-w-[120px]">
-                            {field.question}:
-                          </span>
-                          <span className="text-gray-800">{field.answer}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-            </div>
-          )}
-        </DialogContent>
+            )}
+          </DialogContent>
+        </DialogPrimitive.Portal>
       </Dialog>
     </div>
   );

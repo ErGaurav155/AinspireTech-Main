@@ -1,26 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef, JSX } from "react";
+import { useState, useEffect, useCallback, useMemo, JSX } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
-  Filter,
   Download,
   RefreshCw,
   Instagram,
   Globe,
-  CheckCircle,
-  XCircle,
-  Clock,
   Users,
   Calendar,
   DollarSign,
   ArrowUpRight,
-  ChevronDown,
   Eye,
-  MoreHorizontal,
   FileText,
   Mail,
   User,
@@ -28,23 +22,29 @@ import {
   AlertTriangle,
   CreditCard,
   Zap,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Coins,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
   getInstaSubscriptions,
   getWebSubscriptions,
   getUsers,
   verifyOwner,
 } from "@/lib/services/admin-actions.api";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { GateScreen } from "@/components/shared/GateScreen";
+import { AvatarCircle } from "@/components/shared/AvatarCircle";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatCard } from "@/components/shared/StatCard";
 
 interface User {
   clerkId: string;
@@ -103,7 +103,7 @@ interface CombinedSubscription {
   subscriptionId: string;
 }
 
-// Pricing mapping
+// Pricing mapping (kept as is)
 const PRICING: Record<string, { monthly: number; yearly: number }> = {
   "chatbot-customer-support": { monthly: 29, yearly: 290 },
   "chatbot-e-commerce": { monthly: 49, yearly: 490 },
@@ -138,37 +138,39 @@ const getPlanIcon = (type: string, chatbotType: string) => {
   return icons[chatbotType] || <Globe className="h-4 w-4" />;
 };
 
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "active":
-      return (
-        <Badge className="bg-green-100 text-green-600 border-green-200">
-          Active
-        </Badge>
-      );
-    case "cancelled":
-      return (
-        <Badge className="bg-red-100 text-red-600 border-red-200">
-          Cancelled
-        </Badge>
-      );
-    case "expired":
-      return (
-        <Badge className="bg-yellow-100 text-yellow-600 border-yellow-200">
-          Expired
-        </Badge>
-      );
-    default:
-      return <Badge className="bg-gray-100 text-gray-600">Unknown</Badge>;
-  }
+const getStatusBadge = (
+  styles: ReturnType<typeof useThemeStyles>["styles"],
+  status: string,
+) => {
+  const Icon =
+    status === "active"
+      ? CheckCircle
+      : status === "cancelled"
+        ? XCircle
+        : Clock;
+  const badgeClass =
+    status === "active"
+      ? styles.badge.active
+      : status === "cancelled"
+        ? styles.badge.cancelled
+        : styles.badge.expired;
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium capitalize ${badgeClass}`}
+    >
+      <Icon className="h-3 w-3" />
+      {status}
+    </span>
+  );
 };
 
 export default function AdminSubscriptionsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [subscriptions, setSubscriptions] = useState<CombinedSubscription[]>(
     [],
@@ -186,26 +188,6 @@ export default function AdminSubscriptionsPage() {
     useState<CombinedSubscription | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  // Theme styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
-      tableBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
-      tableBorder: isDark ? "border-gray-800" : "border-gray-100",
-      tableRowHover: isDark ? "hover:bg-[#252529]" : "hover:bg-gray-50",
-    };
-  }, [currentTheme]);
-
   // Check owner and fetch data
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -214,9 +196,7 @@ export default function AdminSubscriptionsPage() {
       setLoading(true);
       setError(null);
 
-      // Verify owner
       const ownerVerification = await verifyOwner(apiRequest);
-
       setIsOwner(ownerVerification.isOwner);
 
       if (!ownerVerification.isOwner) {
@@ -225,17 +205,14 @@ export default function AdminSubscriptionsPage() {
         return;
       }
 
-      // Fetch all data
       const [webSubs, instaSubs, users] = await Promise.all([
         getWebSubscriptions(apiRequest),
         getInstaSubscriptions(apiRequest),
         getUsers(apiRequest),
       ]);
 
-      // Create user map
       const userMap = new Map(users?.map((u: User) => [u.clerkId, u]));
 
-      // Transform web subscriptions
       const webTransformed: CombinedSubscription[] = webSubs.map(
         (sub: WebSubscription) => ({
           id: sub._id,
@@ -253,7 +230,6 @@ export default function AdminSubscriptionsPage() {
         }),
       );
 
-      // Transform insta subscriptions
       const instaTransformed: CombinedSubscription[] = instaSubs.map(
         (sub: InstaSubscription) => ({
           id: sub._id,
@@ -271,7 +247,6 @@ export default function AdminSubscriptionsPage() {
         }),
       );
 
-      // Combine and sort
       const combined = [...webTransformed, ...instaTransformed].sort(
         (a, b) =>
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
@@ -381,114 +356,86 @@ export default function AdminSubscriptionsPage() {
   const isUserOwner =
     user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
 
+  // Guard screens
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-cyan-200 border-t-cyan-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading..." />;
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-cyan-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-10 w-10 text-cyan-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Authentication Required
-          </h1>
-          <p className="text-gray-500 mb-6">
-            Please sign in to access the admin dashboard.
-          </p>
-          <Link
-            href="/sign-in"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Sign In
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="h-8 w-8 text-cyan-500 animate-spin" />
-          <p className="text-sm text-gray-400">Loading subscriptions...</p>
-        </div>
-      </div>
+      <GateScreen
+        icon={<Shield className="h-8 w-8 text-blue-400" />}
+        title="Authentication Required"
+        body="Please sign in to access the admin dashboard."
+      >
+        <Link
+          href="/sign-in"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Sign In <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (!isUserOwner && isOwner === false) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="h-10 w-10 text-red-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Access Denied
-          </h1>
-          <p className="text-gray-500 mb-2">
-            You are not authorized to view this page.
-          </p>
-          <p className="text-sm text-gray-400 mb-4">
-            Logged in as:{" "}
-            <span className="text-cyan-600">
-              {user.primaryEmailAddress?.emailAddress}
-            </span>
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Return to Home
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Access Denied"
+        body="You are not authorized to view this page."
+        subText={`Logged in as: ${user.primaryEmailAddress?.emailAddress}`}
+      >
+        <Link
+          href="/"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Return to Home <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
+  }
+
+  if (loading) {
+    return <Spinner label="Loading subscriptions…" />;
   }
 
   if (error && error !== "ACCESS_DENIED") {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="text-center max-w-md p-6 bg-red-50 rounded-2xl">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium mb-4">Error loading data</p>
-          <p className="text-sm text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Something went wrong"
+        body={error}
+      >
+        <button
+          onClick={fetchData}
+          className={`px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Try Again
+        </button>
+      </GateScreen>
     );
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-200/50">
-              <CreditCard className="h-6 w-6 text-white" />
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center ${styles.icon.green}`}
+            >
+              <CreditCard className="h-6 w-6 text-green-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1
+                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
+              >
                 Subscriptions
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-xs ${styles.text.secondary}`}>
                 Manage all web and Instagram subscriptions
               </p>
             </div>
@@ -496,14 +443,14 @@ export default function AdminSubscriptionsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <Download className="h-4 w-4" />
               Export
@@ -513,132 +460,219 @@ export default function AdminSubscriptionsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Total Subscriptions</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-            <div className="flex items-center gap-2 mt-2">
-              <Badge className="bg-cyan-100 text-cyan-600 border-cyan-200">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Total Subscriptions
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
+                  {stats.total}
+                </p>
+              </div>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.blue}`}
+              >
+                <Users className="h-5 w-5 text-blue-400" />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3 relative z-10">
+              <span
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${styles.badge.cyan}`}
+              >
                 Web: {stats.web}
-              </Badge>
-              <Badge className="bg-pink-100 text-pink-600 border-pink-200">
+              </span>
+              <span
+                className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${styles.badge.pink}`}
+              >
                 Insta: {stats.insta}
-              </Badge>
+              </span>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Active Subscriptions</p>
-            <p className="text-2xl font-bold text-gray-800">{stats.active}</p>
-            <p className="text-xs text-green-600 mt-2">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Active Subscriptions
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
+                  {stats.active}
+                </p>
+              </div>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.green}`}
+              >
+                <CheckCircle className="h-5 w-5 text-green-400" />
+              </div>
+            </div>
+            <p className={`text-xs mt-2 ${styles.text.muted}`}>
               {((stats.active / stats.total) * 100 || 0).toFixed(1)}% active
               rate
             </p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Monthly Revenue</p>
-            <p className="text-2xl font-bold text-green-600">
-              ${stats.monthlyRevenue}
-            </p>
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Monthly Revenue
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
+                  ${stats.monthlyRevenue}
+                </p>
+              </div>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.purple}`}
+              >
+                <DollarSign className="h-5 w-5 text-purple-400" />
+              </div>
+            </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <p className="text-xs text-gray-400 mb-1">Total Revenue (MRR)</p>
-            <p className="text-2xl font-bold text-cyan-600">
-              ${stats.totalRevenue}
-            </p>
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
+              <div>
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Total Revenue (MRR)
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
+                  ${stats.totalRevenue}
+                </p>
+              </div>
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.cyan}`}
+              >
+                <Coins className="h-5 w-5 text-cyan-400" />
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, plan, or subscription ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              >
-                <option value="all">All Types</option>
-                <option value="web">Web</option>
-                <option value="instagram">Instagram</option>
-              </select>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-cyan-200"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="expired">Expired</option>
-              </select>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-4 relative z-10">
+          <div className="flex-1 relative">
+            <Search
+              size={14}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 ${styles.text.muted}`}
+            />
+            <input
+              type="text"
+              placeholder="Search by name, email, plan, or subscription ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            >
+              <option value="all" className={styles.tableHead}>
+                All Types
+              </option>
+              <option value="web" className={styles.tableHead}>
+                Web
+              </option>
+              <option value="instagram" className={styles.tableHead}>
+                Instagram
+              </option>
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            >
+              <option value="all" className={styles.tableHead}>
+                All Status
+              </option>
+              <option value="active" className={styles.tableHead}>
+                Active
+              </option>
+              <option value="cancelled" className={styles.tableHead}>
+                Cancelled
+              </option>
+              <option value="expired" className={styles.tableHead}>
+                Expired
+              </option>
+            </select>
           </div>
         </div>
 
         {/* Subscriptions Table */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className={`rounded-2xl overflow-hidden ${styles.card}`}>
+          <div className="overflow-x-auto no-scrollbar relative z-10">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+              <thead>
+                <tr className={`border-b ${styles.divider}`}>
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     User
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Type
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Plan
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Billing
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Status
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Price
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Start Date
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Expiry
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredSubscriptions.map((sub) => (
+              <tbody>
+                {filteredSubscriptions.map((sub, idx) => (
                   <tr
                     key={sub.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className={`border-b ${styles.divider} transition-colors ${styles.rowHover}`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-cyan-500 to-blue-500 flex items-center justify-center text-white text-xs font-medium">
-                          {sub.user?.firstName?.[0]}
-                          {sub.user?.lastName?.[0]}
-                        </div>
+                        <AvatarCircle
+                          name={`${sub.user?.firstName || ""} ${sub.user?.lastName || ""}`}
+                          idx={idx}
+                        />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">
+                          <p
+                            className={`text-sm font-medium ${styles.text.primary}`}
+                          >
                             {sub.user?.firstName} {sub.user?.lastName}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className={`text-xs ${styles.text.muted}`}>
                             {sub.user?.email}
                           </p>
                         </div>
@@ -647,47 +681,59 @@ export default function AdminSubscriptionsPage() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`w-6 h-6 rounded-lg ${
+                          className={`w-6 h-6 rounded-lg flex items-center justify-center ${
                             sub.type === "instagram"
-                              ? "bg-pink-100"
-                              : "bg-cyan-100"
-                          } flex items-center justify-center`}
+                              ? styles.icon.pink
+                              : styles.icon.cyan
+                          }`}
                         >
                           {getPlanIcon(sub.type, sub.chatbotType)}
                         </div>
-                        <span className="text-sm capitalize text-gray-700">
+                        <span
+                          className={`text-sm capitalize ${styles.text.primary}`}
+                        >
                           {sub.type}
                         </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className="text-sm text-gray-700">{sub.plan}</span>
+                      <span className={`text-sm ${styles.text.primary}`}>
+                        {sub.plan}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge
-                        className={
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium capitalize ${
                           sub.billingCycle === "yearly"
-                            ? "bg-green-100 text-green-600 border-green-200"
-                            : "bg-blue-100 text-blue-600 border-blue-200"
-                        }
+                            ? styles.badge.green
+                            : styles.badge.blue
+                        }`}
                       >
                         {sub.billingCycle}
-                      </Badge>
+                      </span>
                     </td>
-                    <td className="px-6 py-4">{getStatusBadge(sub.status)}</td>
                     <td className="px-6 py-4">
-                      <span className="text-sm font-medium text-gray-800">
+                      {getStatusBadge(styles, sub.status)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
                         ${sub.price}
-                        <span className="text-xs text-gray-400 ml-1">
+                        <span className={`text-xs ml-1 ${styles.text.muted}`}>
                           /{sub.billingCycle === "yearly" ? "yr" : "mo"}
                         </span>
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(sub.createdAt).toLocaleDateString()}
+                    <td className="px-6 py-4">
+                      <span className={`text-sm ${styles.text.secondary}`}>
+                        {new Date(sub.createdAt).toLocaleDateString()}
+                      </span>
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(sub.expiresAt).toLocaleDateString()}
+                    <td className="px-6 py-4">
+                      <span className={`text-sm ${styles.text.secondary}`}>
+                        {new Date(sub.expiresAt).toLocaleDateString()}
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -695,7 +741,7 @@ export default function AdminSubscriptionsPage() {
                           setSelectedSubscription(sub);
                           setShowDetailsDialog(true);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-cyan-600 rounded-lg hover:bg-cyan-50 transition-colors"
+                        className={`p-1.5 rounded-lg transition-colors ${styles.pill}`}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -707,138 +753,192 @@ export default function AdminSubscriptionsPage() {
           </div>
 
           {filteredSubscriptions.length === 0 && (
-            <div className="p-12 text-center">
-              <CreditCard className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No subscriptions found</p>
-            </div>
+            <EmptyState
+              icon={<CreditCard className="h-8 w-8" />}
+              label="No subscriptions found"
+            />
           )}
         </div>
       </div>
 
-      {/* Subscription Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-cyan-600" />
+      {/* Subscription Details Dialog - Radix UI Dialog */}
+      <Dialog.Root open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={styles.dialogOverlay} />
+          <Dialog.Content className={styles.dialogContent}>
+            <Dialog.Title className="sr-only">
               Subscription Details
-            </DialogTitle>
-          </DialogHeader>
+            </Dialog.Title>
+            <Dialog.Close className={styles.dialogClose}>
+              <X className="h-4 w-4" />
+            </Dialog.Close>
 
-          {selectedSubscription && (
-            <div className="space-y-4">
-              {/* User Info */}
-              <div className="bg-cyan-50 border border-cyan-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-cyan-800 mb-3">
-                  User Information
+            {selectedSubscription && (
+              <div className="space-y-4">
+                <h3
+                  className={`text-lg font-semibold mb-4 ${styles.text.primary}`}
+                >
+                  Subscription Details
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-cyan-600 mb-1">Name</p>
-                    <p className="text-sm font-medium text-cyan-900">
-                      {selectedSubscription.user?.firstName}{" "}
-                      {selectedSubscription.user?.lastName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-cyan-600 mb-1">Email</p>
-                    <p className="text-sm text-cyan-900">
-                      {selectedSubscription.user?.email}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-cyan-600 mb-1">Clerk ID</p>
-                    <p className="text-sm text-cyan-900 font-mono">
-                      {selectedSubscription.clerkId}
-                    </p>
-                  </div>
-                </div>
-              </div>
 
-              {/* Subscription Info */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">
-                  Subscription Information
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Type</p>
-                    <div className="flex items-center gap-1">
-                      {selectedSubscription.type === "instagram" ? (
-                        <Instagram className="h-4 w-4 text-pink-500" />
-                      ) : (
-                        <Globe className="h-4 w-4 text-cyan-500" />
-                      )}
-                      <span className="text-sm capitalize text-gray-800">
-                        {selectedSubscription.type}
-                      </span>
+                {/* User Info */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h4
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    User Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Name
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
+                        {selectedSubscription.user?.firstName}{" "}
+                        {selectedSubscription.user?.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Email
+                      </p>
+                      <p className={`text-sm ${styles.text.primary}`}>
+                        {selectedSubscription.user?.email}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Clerk ID
+                      </p>
+                      <p
+                        className={`text-xs font-mono ${styles.text.secondary}`}
+                      >
+                        {selectedSubscription.clerkId}
+                      </p>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Plan</p>
-                    <p className="text-sm text-gray-800">
-                      {selectedSubscription.plan}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Billing Cycle</p>
-                    <Badge
-                      className={
-                        selectedSubscription.billingCycle === "yearly"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-blue-100 text-blue-600"
-                      }
-                    >
-                      {selectedSubscription.billingCycle}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Status</p>
-                    {getStatusBadge(selectedSubscription.status)}
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Price</p>
-                    <p className="text-sm font-medium text-gray-800">
-                      ${selectedSubscription.price}/
-                      {selectedSubscription.billingCycle === "yearly"
-                        ? "year"
-                        : "month"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">
-                      Subscription ID
-                    </p>
-                    <p className="text-xs text-gray-600 font-mono">
-                      {selectedSubscription.subscriptionId}
-                    </p>
-                  </div>
                 </div>
-              </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                  <p className="text-xs text-green-600 mb-1">Start Date</p>
-                  <p className="text-sm font-medium text-green-800">
-                    {new Date(
-                      selectedSubscription.createdAt,
-                    ).toLocaleDateString()}
-                  </p>
+                {/* Subscription Info */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h4
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Subscription Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Type
+                      </p>
+                      <div className="flex items-center gap-1">
+                        <div
+                          className={`w-5 h-5 rounded-lg flex items-center justify-center ${
+                            selectedSubscription.type === "instagram"
+                              ? styles.icon.pink
+                              : styles.icon.cyan
+                          }`}
+                        >
+                          {selectedSubscription.type === "instagram" ? (
+                            <Instagram className="h-3 w-3" />
+                          ) : (
+                            <Globe className="h-3 w-3" />
+                          )}
+                        </div>
+                        <span
+                          className={`text-sm capitalize ${styles.text.primary}`}
+                        >
+                          {selectedSubscription.type}
+                        </span>
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Plan
+                      </p>
+                      <p className={`text-sm ${styles.text.primary}`}>
+                        {selectedSubscription.plan}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Billing Cycle
+                      </p>
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium capitalize ${
+                          selectedSubscription.billingCycle === "yearly"
+                            ? styles.badge.green
+                            : styles.badge.blue
+                        }`}
+                      >
+                        {selectedSubscription.billingCycle}
+                      </span>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Status
+                      </p>
+                      {getStatusBadge(styles, selectedSubscription.status)}
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Price
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
+                        ${selectedSubscription.price}
+                        <span className={`text-xs ml-1 ${styles.text.muted}`}>
+                          /
+                          {selectedSubscription.billingCycle === "yearly"
+                            ? "year"
+                            : "month"}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Subscription ID
+                      </p>
+                      <p
+                        className={`text-xs font-mono ${styles.text.secondary}`}
+                      >
+                        {selectedSubscription.subscriptionId}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                  <p className="text-xs text-yellow-600 mb-1">Expiry Date</p>
-                  <p className="text-sm font-medium text-yellow-800">
-                    {new Date(
-                      selectedSubscription.expiresAt,
-                    ).toLocaleDateString()}
-                  </p>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className={`rounded-xl p-3 ${styles.badge.blue}`}>
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Start Date
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(
+                        selectedSubscription.createdAt,
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className={`rounded-xl p-3 ${styles.badge.green}`}>
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Expiry Date
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(
+                        selectedSubscription.expiresAt,
+                      ).toLocaleDateString()}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

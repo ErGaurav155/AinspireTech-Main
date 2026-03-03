@@ -1,18 +1,10 @@
-import ReferEarnPage from "@/components/shared/ReferEarnPage";
 import { Suspense } from "react";
+import { Spinner } from "@/components/shared/Spinner";
+import ReferEarnPage from "@/components/shared/ReferEarnPage";
 
 export default function InstaReferPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">Loading referral program...</p>
-          </div>
-        </div>
-      }
-    >
+    <Suspense fallback={<Spinner />}>
       <ReferEarnPage dashboardType="insta" />
     </Suspense>
   );

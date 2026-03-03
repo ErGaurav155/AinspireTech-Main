@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   Instagram,
@@ -23,7 +24,6 @@ import {
   Trash2,
   Shield,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import { Button } from "@rocketreplai/ui/components/radix/button";
@@ -47,6 +47,10 @@ import {
   deleteInstaAccount,
   refreshInstagramToken,
 } from "@/lib/services/insta-actions.api";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AccountDetails {
   id: string;
@@ -76,9 +80,9 @@ export default function AccountDetailsPage() {
   const accountId = params.accountId as string;
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [account, setAccount] = useState<AccountDetails | null>(null);
   const [settings, setSettings] = useState({
@@ -92,22 +96,104 @@ export default function AccountDetailsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [hasError, setHasError] = useState(false);
 
-  // Theme styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
+  // Page-specific styles (not in central theme)
+  const pageStyles = useMemo(() => {
     return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
+      backButton: isDark
+        ? "p-2 text-white/40 hover:text-pink-400 rounded-lg hover:bg-pink-500/10 transition-colors"
+        : "p-2 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors",
+      headerAvatar: isDark
+        ? "w-12 h-12 rounded-full object-cover border-2 border-white/[0.08]"
+        : "w-12 h-12 rounded-full object-cover border-2 border-gray-100",
+      headerTitle: isDark
+        ? "text-2xl font-bold text-white"
+        : "text-2xl font-bold text-gray-800",
+      headerSub: isDark ? "text-sm text-white/40" : "text-sm text-gray-400",
+      saveButton: (disabled?: boolean) =>
+        isDark
+          ? `bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
+          : `bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+      statCard: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4"
+        : "bg-white border border-gray-100 rounded-2xl p-4",
+      statIcon: (color: string) =>
+        isDark ? `h-4 w-4 text-${color}-400` : `h-4 w-4 text-${color}-500`,
+      statLabel: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      statValue: isDark
+        ? "text-xl font-bold text-white"
+        : "text-xl font-bold text-gray-800",
+      statWarning: isDark
+        ? "text-xl font-bold text-red-400"
+        : "text-xl font-bold text-red-600",
+      settingsSection: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
+        : "bg-white border border-gray-100 rounded-2xl p-6",
+      sectionTitle: isDark
+        ? "font-semibold text-white mb-4"
+        : "font-semibold text-gray-800 mb-4",
+      switchTrack: isDark
+        ? "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-white/[0.06]"
+        : "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-gray-200",
+      settingLabel: isDark
+        ? "text-sm font-medium text-white/80"
+        : "text-sm font-medium text-gray-700",
+      settingDesc: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      tokenStatus: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
+        : "bg-white border border-gray-100 rounded-2xl p-6",
+      tokenRow: "flex items-center justify-between",
+      tokenLabel: isDark ? "text-sm text-white/60" : "text-sm text-gray-600",
+      tokenRefresh: isDark
+        ? "p-1.5 text-amber-400 bg-amber-500/10 rounded-lg hover:bg-amber-500/20 transition-colors"
+        : "p-1.5 text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors",
+      badgeGreen: isDark
+        ? "bg-green-500/10 border border-green-500/20 text-green-400"
+        : "bg-green-100 text-green-600 border-green-200",
+      badgeYellow: isDark
+        ? "bg-yellow-500/10 border border-yellow-500/20 text-yellow-400"
+        : "bg-yellow-100 text-yellow-600 border-yellow-200",
+      badgeRed: isDark
+        ? "bg-red-500/10 border border-red-500/20 text-red-400"
+        : "bg-red-100 text-red-600 border-red-200",
+      activitySection: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
+        : "bg-white border border-gray-100 rounded-2xl p-6",
+      activityRow: "flex justify-between",
+      activityLabel: isDark ? "text-sm text-white/60" : "text-sm text-gray-600",
+      activityValue: isDark
+        ? "text-sm font-semibold text-white"
+        : "text-sm font-semibold text-gray-800",
+      dangerZone: isDark
+        ? "bg-white/[0.04] border border-red-500/30 rounded-2xl p-6"
+        : "bg-white border border-red-200 rounded-2xl p-6",
+      dangerTitle: isDark ? "text-red-400" : "text-red-600",
+      dangerButton: isDark
+        ? "w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/10 transition-colors"
+        : "w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors",
+      dangerText: isDark
+        ? "text-xs text-white/40 mt-3"
+        : "text-xs text-gray-400 mt-3",
+      notFoundContainer: isDark
+        ? "min-h-screen flex items-center justify-center bg-[#0F0F11]"
+        : "min-h-screen flex items-center justify-center bg-[#F8F9FA]",
+      notFoundIcon: isDark
+        ? "h-12 w-12 text-red-400 mx-auto mb-4"
+        : "h-12 w-12 text-red-500 mx-auto mb-4",
+      notFoundTitle: isDark
+        ? "text-xl font-bold text-white mb-2"
+        : "text-xl font-bold text-gray-800 mb-2",
+      notFoundButton: isDark
+        ? "inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl"
+        : "inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl",
+      loadingContainer: isDark
+        ? "min-h-screen flex items-center justify-center bg-[#0F0F11]"
+        : "min-h-screen flex items-center justify-center bg-[#F8F9FA]",
+      loadingSpinner: isDark
+        ? "w-8 h-8 border-3 border-pink-200 border-t-pink-400 rounded-full animate-spin"
+        : "w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin",
+      loadingText: isDark ? "text-sm text-white/40" : "text-sm text-gray-400",
     };
-  }, [currentTheme]);
+  }, [isDark]);
 
   // Fetch account details
   const fetchAccount = useCallback(async () => {
@@ -250,10 +336,10 @@ export default function AccountDetailsPage() {
 
   if (!isLoaded || isLoading) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+      <div className={pageStyles.loadingContainer}>
         <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading account details...</p>
+          <div className={pageStyles.loadingSpinner} />
+          <p className={pageStyles.loadingText}>Loading account details...</p>
         </div>
       </div>
     );
@@ -261,16 +347,11 @@ export default function AccountDetailsPage() {
 
   if (!account) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+      <div className={pageStyles.notFoundContainer}>
         <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-gray-800 mb-2">
-            Account not found
-          </h2>
-          <Link
-            href="/insta/accounts"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl"
-          >
+          <AlertTriangle className={pageStyles.notFoundIcon} />
+          <h2 className={pageStyles.notFoundTitle}>Account not found</h2>
+          <Link href="/insta/accounts" className={pageStyles.notFoundButton}>
             <ArrowLeft className="h-4 w-4" />
             Back to Accounts
           </Link>
@@ -280,15 +361,13 @@ export default function AccountDetailsPage() {
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link
-              href="/insta/accounts"
-              className="p-2 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors"
-            >
+            <Link href="/insta/accounts" className={pageStyles.backButton}>
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className="flex items-center gap-3">
@@ -298,13 +377,11 @@ export default function AccountDetailsPage() {
                 width={48}
                 height={48}
                 onError={() => setHasError(true)}
-                className="w-12 h-12 rounded-full object-cover border-2 border-gray-100"
+                className={pageStyles.headerAvatar}
               />
               <div>
-                <h1 className="text-2xl font-bold text-gray-800">
-                  @{account.username}
-                </h1>
-                <p className="text-sm text-gray-400">
+                <h1 className={pageStyles.headerTitle}>@{account.username}</h1>
+                <p className={pageStyles.headerSub}>
                   Instagram Account Settings
                 </p>
               </div>
@@ -313,7 +390,7 @@ export default function AccountDetailsPage() {
           <Button
             onClick={handleSaveSettings}
             disabled={isSaving}
-            className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+            className={pageStyles.saveButton(isSaving)}
           >
             <Save className="h-4 w-4 mr-2" />
             {isSaving ? "Saving..." : "Save Changes"}
@@ -322,44 +399,44 @@ export default function AccountDetailsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={pageStyles.statCard}>
             <div className="flex items-center gap-2 mb-2">
-              <Heart className="h-4 w-4 text-pink-500" />
-              <p className="text-xs text-gray-400">Followers</p>
+              <Heart className={pageStyles.statIcon("pink")} />
+              <p className={pageStyles.statLabel}>Followers</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">
+            <p className={pageStyles.statValue}>
               {account.followersCount.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={pageStyles.statCard}>
             <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-blue-500" />
-              <p className="text-xs text-gray-400">Following</p>
+              <Users className={pageStyles.statIcon("blue")} />
+              <p className={pageStyles.statLabel}>Following</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">
+            <p className={pageStyles.statValue}>
               {account.followingCount.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={pageStyles.statCard}>
             <div className="flex items-center gap-2 mb-2">
-              <Camera className="h-4 w-4 text-purple-500" />
-              <p className="text-xs text-gray-400">Posts</p>
+              <Camera className={pageStyles.statIcon("purple")} />
+              <p className={pageStyles.statLabel}>Posts</p>
             </div>
-            <p className="text-xl font-bold text-gray-800">
+            <p className={pageStyles.statValue}>
               {account.mediaCount.toLocaleString()}
             </p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={pageStyles.statCard}>
             <div className="flex items-center gap-2 mb-2">
-              <Zap className="h-4 w-4 text-yellow-500" />
-              <p className="text-xs text-gray-400">API Calls/Hour</p>
+              <Zap className={pageStyles.statIcon("yellow")} />
+              <p className={pageStyles.statLabel}>API Calls/Hour</p>
             </div>
             <p
-              className={`text-xl font-bold ${
+              className={
                 account.metaCallsThisHour > 150
-                  ? "text-red-600"
-                  : "text-gray-800"
-              }`}
+                  ? pageStyles.statWarning
+                  : pageStyles.statValue
+              }
             >
               {account.metaCallsThisHour}
             </p>
@@ -371,18 +448,14 @@ export default function AccountDetailsPage() {
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-4">
             {/* Account Status */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">
-                Account Status
-              </h3>
+            <div className={pageStyles.settingsSection}>
+              <h3 className={pageStyles.sectionTitle}>Account Status</h3>
 
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      Account Active
-                    </p>
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.settingLabel}>Account Active</p>
+                    <p className={pageStyles.settingDesc}>
                       Enable/disable all automations
                     </p>
                   </div>
@@ -391,16 +464,16 @@ export default function AccountDetailsPage() {
                     onCheckedChange={(checked) =>
                       handleSettingChange("isActive", checked)
                     }
-                    className="data-[state=checked]:bg-pink-500"
+                    className={pageStyles.switchTrack}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">
+                    <p className={pageStyles.settingLabel}>
                       Comment Automations
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.settingDesc}>
                       Auto-reply to comments
                     </p>
                   </div>
@@ -409,16 +482,14 @@ export default function AccountDetailsPage() {
                     onCheckedChange={(checked) =>
                       handleSettingChange("autoReplyEnabled", checked)
                     }
-                    className="data-[state=checked]:bg-pink-500"
+                    className={pageStyles.switchTrack}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      DM Automations
-                    </p>
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.settingLabel}>DM Automations</p>
+                    <p className={pageStyles.settingDesc}>
                       Auto-send direct messages
                     </p>
                   </div>
@@ -427,16 +498,14 @@ export default function AccountDetailsPage() {
                     onCheckedChange={(checked) =>
                       handleSettingChange("autoDMEnabled", checked)
                     }
-                    className="data-[state=checked]:bg-pink-500"
+                    className={pageStyles.switchTrack}
                   />
                 </div>
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-700">
-                      Follow Checks
-                    </p>
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.settingLabel}>Follow Checks</p>
+                    <p className={pageStyles.settingDesc}>
                       Check if user follows before DM
                     </p>
                   </div>
@@ -445,57 +514,57 @@ export default function AccountDetailsPage() {
                     onCheckedChange={(checked) =>
                       handleSettingChange("followCheckEnabled", checked)
                     }
-                    className="data-[state=checked]:bg-pink-500"
+                    className={pageStyles.switchTrack}
                   />
                 </div>
               </div>
             </div>
 
             {/* Token Status */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Token Status</h3>
+            <div className={pageStyles.tokenStatus}>
+              <h3 className={pageStyles.sectionTitle}>Token Status</h3>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">Token Expiry</span>
+                <div className={pageStyles.tokenRow}>
+                  <span className={pageStyles.tokenLabel}>Token Expiry</span>
                   {account.tokenExpiresAt ? (
                     <div className="flex items-center gap-2">
-                      <Badge
-                        className={
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                           isTokenExpiring
-                            ? "bg-yellow-100 text-yellow-600 border-yellow-200"
-                            : "bg-green-100 text-green-600 border-green-200"
-                        }
+                            ? pageStyles.badgeYellow
+                            : pageStyles.badgeGreen
+                        }`}
                       >
                         {new Date(account.tokenExpiresAt).toLocaleDateString()}
-                      </Badge>
+                      </span>
                       {isTokenExpiring && (
                         <button
                           onClick={handleRefreshToken}
-                          className="p-1.5 text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
+                          className={pageStyles.tokenRefresh}
                         >
                           <RefreshCw className="h-4 w-4" />
                         </button>
                       )}
                     </div>
                   ) : (
-                    <span className="text-sm text-gray-400">No expiry</span>
+                    <span className={pageStyles.tokenLabel}>No expiry</span>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">
+                <div className={pageStyles.tokenRow}>
+                  <span className={pageStyles.tokenLabel}>
                     Rate Limit Status
                   </span>
-                  <Badge
-                    className={
+                  <span
+                    className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                       account.isMetaRateLimited
-                        ? "bg-red-100 text-red-600 border-red-200"
-                        : "bg-green-100 text-green-600 border-green-200"
-                    }
+                        ? pageStyles.badgeRed
+                        : pageStyles.badgeGreen
+                    }`}
                   >
                     {account.isMetaRateLimited ? "Limited" : "Normal"}
-                  </Badge>
+                  </span>
                 </div>
               </div>
             </div>
@@ -504,31 +573,35 @@ export default function AccountDetailsPage() {
           {/* Sidebar */}
           <div className="space-y-4">
             {/* Activity Stats */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Activity</h3>
+            <div className={pageStyles.activitySection}>
+              <h3 className={pageStyles.sectionTitle}>Activity</h3>
 
               <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Replies Sent</span>
-                  <span className="text-sm font-semibold text-gray-800">
+                <div className={pageStyles.activityRow}>
+                  <span className={pageStyles.activityLabel}>Replies Sent</span>
+                  <span className={pageStyles.activityValue}>
                     {account.accountReply.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">DMs Sent</span>
-                  <span className="text-sm font-semibold text-gray-800">
+                <div className={pageStyles.activityRow}>
+                  <span className={pageStyles.activityLabel}>DMs Sent</span>
+                  <span className={pageStyles.activityValue}>
                     {account.accountDMSent.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Follow Checks</span>
-                  <span className="text-sm font-semibold text-gray-800">
+                <div className={pageStyles.activityRow}>
+                  <span className={pageStyles.activityLabel}>
+                    Follow Checks
+                  </span>
+                  <span className={pageStyles.activityValue}>
                     {account.accountFollowCheck.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Last Activity</span>
-                  <span className="text-sm text-gray-800">
+                <div className={pageStyles.activityRow}>
+                  <span className={pageStyles.activityLabel}>
+                    Last Activity
+                  </span>
+                  <span className={pageStyles.activityValue}>
                     {new Date(account.lastActivity).toLocaleDateString()}
                   </span>
                 </div>
@@ -536,20 +609,22 @@ export default function AccountDetailsPage() {
             </div>
 
             {/* Danger Zone */}
-            <div className="bg-white border border-red-200 rounded-2xl p-6">
-              <h3 className="font-semibold text-red-600 mb-4 flex items-center gap-2">
+            <div className={pageStyles.dangerZone}>
+              <h3
+                className={`font-semibold mb-4 flex items-center gap-2 ${pageStyles.dangerTitle}`}
+              >
                 <AlertTriangle className="h-4 w-4" />
                 Danger Zone
               </h3>
 
               <button
                 onClick={() => setShowDeleteDialog(true)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors"
+                className={pageStyles.dangerButton}
               >
                 <Trash2 className="h-4 w-4" />
                 Delete Account
               </button>
-              <p className="text-xs text-gray-400 mt-3">
+              <p className={pageStyles.dangerText}>
                 This will permanently delete this Instagram account and all
                 associated data.
               </p>
@@ -559,27 +634,42 @@ export default function AccountDetailsPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className="rounded-2xl">
+      <ConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleDeleteAccount}
+        title="Delete Instagram Account"
+        description="Are you sure you want to delete @{account.username}? This will
+              permanently remove the account and all associated automations,
+              templates, and data. This action cannot be undone."
+        confirmText="Delete Permanently"
+        isDestructive={true}
+      />
+      {/* <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent className={styles.dialogContent}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Instagram Account</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-500">
+            <AlertDialogTitle className={styles.dialogTitle}>
+              Delete Instagram Account
+            </AlertDialogTitle>
+            <AlertDialogDescription className={styles.dialogDesc}>
               Are you sure you want to delete @{account.username}? This will
               permanently remove the account and all associated automations,
               templates, and data. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className={styles.dialogCancel}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
-              className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
+              className={styles.dialogAction}
             >
               Delete Permanently
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
     </div>
   );
 }

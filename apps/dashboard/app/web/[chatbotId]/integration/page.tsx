@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -18,6 +18,8 @@ import {
   ExternalLink,
   HelpCircle,
   Settings,
+  RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getChatbots } from "@/lib/services/web-actions.api";
@@ -30,6 +32,9 @@ import {
   TabsList,
   TabsTrigger,
 } from "@rocketreplai/ui/components/radix/tabs";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
 
 interface ChatbotInfo {
   id: string;
@@ -45,6 +50,7 @@ interface ChatbotInfo {
 export default function LeadIntegrationPage() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
   const [copied, setCopied] = useState(false);
@@ -154,29 +160,30 @@ export default function LeadIntegrationPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-purple-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <Spinner label="Loading integration..." />;
   }
 
   if (!chatbot) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA]">
+      <div className={styles.page}>
+        {isDark && <Orbs />}
         <div className="p-4 md:p-6 lg:p-8 text-center">
-          <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-4">
-            <Code className="h-8 w-8 text-purple-400" />
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${styles.icon.purple}`}
+          >
+            <Code
+              className={`h-8 w-8 ${isDark ? "text-purple-400" : "text-purple-400"}`}
+            />
           </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className={`text-lg font-semibold ${styles.text.primary} mb-2`}>
             Build your chatbot first
           </h3>
-          <p className="text-sm text-gray-500 mb-6">
+          <p className={`text-sm ${styles.text.secondary} mb-6`}>
             You need to build your lead generation chatbot before integrating it
           </p>
           <Link
             href="/web/lead-generation/build"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+            className={`inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl text-sm font-medium transition-colors`}
           >
             Build Chatbot Now
             <ExternalLink className="h-4 w-4" />
@@ -189,24 +196,29 @@ export default function LeadIntegrationPage() {
   const instructions = getPlatformInstructions(activeTab);
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+            <div
+              className={`w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center ${isDark ? "opacity-90" : ""}`}
+            >
               <Code className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">Integration</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className={`text-xl font-bold ${styles.text.primary}`}>
+                Integration
+              </h1>
+              <p className={`text-sm ${styles.text.secondary}`}>
                 Add your chatbot to any website in minutes
               </p>
             </div>
           </div>
           <Link
             href={`/web/lead-generation/settings`}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill}`}
           >
             <Settings className="h-4 w-4" />
             Chatbot Settings
@@ -214,27 +226,43 @@ export default function LeadIntegrationPage() {
         </div>
 
         {/* Embed Code Card */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6">
+        <div className={`${styles.card} p-6`}>
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
-              <Code2 className="h-4 w-4 text-purple-600" />
+            <div
+              className={`w-8 h-8 rounded-full ${styles.icon.purple} flex items-center justify-center`}
+            >
+              <Code2
+                className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+              />
             </div>
-            <h3 className="font-semibold text-gray-800">
+            <h3 className={`font-semibold ${styles.text.primary}`}>
               Universal Embed Code
             </h3>
-            <Badge className="bg-green-100 text-green-600 border-green-200 ml-auto">
+            <span
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.green} ml-auto`}
+            >
               <Zap className="h-3 w-3 mr-1" />
               Works everywhere
-            </Badge>
+            </span>
           </div>
 
           <div className="relative">
-            <pre className="bg-gray-900 text-gray-100 p-4 rounded-xl text-xs overflow-x-auto font-mono">
+            <pre
+              className={`${isDark ? "bg-[#0a0a16] text-gray-100" : "bg-gray-900 text-gray-100"} p-4 rounded-xl text-xs overflow-x-auto font-mono border ${isDark ? "border-white/[0.08]" : ""}`}
+            >
               <code>{generateEmbedCode()}</code>
             </pre>
             <button
               onClick={handleCopyCode}
-              className="absolute top-3 right-3 flex items-center gap-2 px-3 py-1.5 bg-purple-500 hover:bg-purple-600 text-white rounded-lg text-xs font-medium transition-colors"
+              className={`absolute top-3 right-3 flex items-center gap-2 px-3 py-1.5 ${
+                copied
+                  ? isDark
+                    ? "bg-green-500/80"
+                    : "bg-green-500"
+                  : isDark
+                    ? "bg-purple-500/80 hover:bg-purple-500"
+                    : "bg-purple-500 hover:bg-purple-600"
+              } text-white rounded-lg text-xs font-medium transition-colors`}
             >
               {copied ? (
                 <>
@@ -250,11 +278,19 @@ export default function LeadIntegrationPage() {
             </button>
           </div>
 
-          <div className="mt-4 flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-            <AlertCircle className="h-4 w-4 text-blue-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-blue-700">
+          <div
+            className={`mt-4 flex items-start gap-3 ${isDark ? "bg-blue-500/10 border border-blue-500/20" : "bg-blue-50 border border-blue-100"} rounded-xl p-3`}
+          >
+            <AlertCircle
+              className={`h-4 w-4 ${isDark ? "text-blue-400" : "text-blue-500"} flex-shrink-0 mt-0.5`}
+            />
+            <p
+              className={`text-xs ${isDark ? "text-blue-400/80" : "text-blue-700"}`}
+            >
               Paste this code just before the closing{" "}
-              <code className="bg-blue-100 px-1 py-0.5 rounded">
+              <code
+                className={`${isDark ? "bg-blue-500/20 px-1 py-0.5 rounded text-blue-400" : "bg-blue-100 px-1 py-0.5 rounded text-blue-700"}`}
+              >
                 &lt;/body&gt;
               </code>{" "}
               tag of your website. The widget will automatically appear in the{" "}
@@ -264,57 +300,86 @@ export default function LeadIntegrationPage() {
         </div>
 
         {/* Platform-specific instructions */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-6">
-          <h3 className="font-semibold text-gray-800 mb-4">Platform Guides</h3>
+        <div className={`${styles.card} p-6`}>
+          <h3 className={`font-semibold ${styles.text.primary}`}>
+            Platform Guides
+          </h3>
 
           <Tabs
             value={activeTab}
             onValueChange={setActiveTab}
-            className="space-y-4"
+            className="space-y-4 mt-4"
           >
-            <TabsList className="bg-gray-100 p-1 rounded-xl">
+            <TabsList
+              className={`${isDark ? "bg-white/[0.06]" : "bg-gray-100"} p-1 rounded-xl`}
+            >
               <TabsTrigger
                 value="wordpress"
-                className="flex items-center gap-2"
+                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
               >
                 <Globe className="h-4 w-4" />
                 WordPress
               </TabsTrigger>
-              <TabsTrigger value="shopify" className="flex items-center gap-2">
+              <TabsTrigger
+                value="shopify"
+                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
+              >
                 <Smartphone className="h-4 w-4" />
                 Shopify
               </TabsTrigger>
-              <TabsTrigger value="wix" className="flex items-center gap-2">
+              <TabsTrigger
+                value="wix"
+                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
+              >
                 <Chrome className="h-4 w-4" />
                 Wix
               </TabsTrigger>
-              <TabsTrigger value="html" className="flex items-center gap-2">
+              <TabsTrigger
+                value="html"
+                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
+              >
                 <Laptop className="h-4 w-4" />
                 HTML/Custom
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="space-y-4">
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <h4 className="text-sm font-medium text-gray-700 mb-3">
+              <div
+                className={`${isDark ? "bg-white/[0.03] border border-white/[0.06]" : "bg-gray-50 border border-gray-200"} rounded-xl p-4`}
+              >
+                <h4
+                  className={`text-sm font-medium ${isDark ? "text-white/80" : "text-gray-700"} mb-3`}
+                >
                   Step-by-Step Guide for{" "}
                   {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
                 </h4>
                 <ol className="space-y-2">
                   {instructions.steps.map((step, index) => (
                     <li key={index} className="flex items-start gap-2 text-sm">
-                      <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-xs font-medium flex-shrink-0">
+                      <span
+                        className={`w-5 h-5 rounded-full ${isDark ? "bg-purple-500/20 text-purple-400" : "bg-purple-100 text-purple-600"} flex items-center justify-center text-xs font-medium flex-shrink-0`}
+                      >
                         {index + 1}
                       </span>
-                      <span className="text-gray-600">{step}</span>
+                      <span
+                        className={`text-sm ${isDark ? "text-white/60" : "text-gray-600"}`}
+                      >
+                        {step}
+                      </span>
                     </li>
                   ))}
                 </ol>
               </div>
 
-              <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-100 rounded-xl">
-                <HelpCircle className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                <p className="text-xs text-amber-700">
+              <div
+                className={`flex items-center gap-3 ${isDark ? "bg-amber-500/10 border border-amber-500/20" : "bg-amber-50 border border-amber-100"} rounded-xl p-3`}
+              >
+                <HelpCircle
+                  className={`h-4 w-4 ${isDark ? "text-amber-400" : "text-amber-500"} flex-shrink-0`}
+                />
+                <p
+                  className={`text-xs ${isDark ? "text-amber-400/80" : "text-amber-700"}`}
+                >
                   Need help? Check out our{" "}
                   <a href="#" className="underline font-medium">
                     video tutorial
@@ -330,16 +395,26 @@ export default function LeadIntegrationPage() {
         </div>
 
         {/* Test Integration */}
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+        <div
+          className={`${isDark ? "bg-green-500/10 border border-green-500/20" : "bg-green-50 border border-green-200"} rounded-xl p-6`}
+        >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+            <div
+              className={`w-12 h-12 rounded-full ${isDark ? "bg-green-500/20" : "bg-green-100"} flex items-center justify-center`}
+            >
+              <CheckCircle
+                className={`h-6 w-6 ${isDark ? "text-green-400" : "text-green-600"}`}
+              />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-green-800 mb-1">
+              <h3
+                className={`font-semibold ${isDark ? "text-green-400" : "text-green-800"} mb-1`}
+              >
                 Ready to test?
               </h3>
-              <p className="text-sm text-green-700">
+              <p
+                className={`text-sm ${isDark ? "text-green-400/80" : "text-green-700"}`}
+              >
                 After adding the code to your website, visit your site and look
                 for the chat widget in the bottom corner. Test it out to make
                 sure everything works!
@@ -347,7 +422,7 @@ export default function LeadIntegrationPage() {
             </div>
             <Button
               onClick={() => window.open(chatbot.websiteUrl, "_blank")}
-              className="bg-green-600 hover:bg-green-700 text-white rounded-xl"
+              className={`${isDark ? "bg-green-500/80 hover:bg-green-500" : "bg-green-600 hover:bg-green-700"} text-white rounded-xl ${!chatbot.websiteUrl ? "opacity-50 cursor-not-allowed" : ""}`}
               disabled={!chatbot.websiteUrl}
             >
               Test Your Site

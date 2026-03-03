@@ -14,6 +14,8 @@ import {
   Calendar,
   CreditCard,
   Coins,
+  RefreshCw,
+  AlertTriangle,
 } from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -23,7 +25,6 @@ import { useApi } from "@/lib/useApi";
 
 import PaymentModal from "@/components/insta/PaymentModal";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
-import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 import { PricingPlan } from "@rocketreplai/shared";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
@@ -50,6 +51,12 @@ import {
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
 import { getUserById } from "@/lib/services/user-actions.api";
+import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // Types
 interface Subscription {
@@ -122,9 +129,9 @@ function PricingWithSearchParams() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeProductId = searchParams.get("code");
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
@@ -160,35 +167,6 @@ function PricingWithSearchParams() {
   >("monthly");
   const [userAccounts, setUserAccounts] = useState<any[]>([]);
   const [isProcessingChange, setIsProcessingChange] = useState(false);
-
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      hoverBorder: isDark
-        ? "hover:border-pink-500/50"
-        : "hover:border-pink-300",
-      badgeBg: isDark ? "bg-gray-800" : "bg-gray-100",
-      alertBg: isDark ? "bg-red-900/20" : "bg-red-50",
-      buttonOutlineBorder: isDark ? "border-gray-700" : "border-gray-200",
-      buttonOutlineText: isDark ? "text-gray-300" : "text-gray-600",
-      dialogBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
-      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
-      inputText: isDark ? "text-white" : "text-gray-900",
-      gradientPrimary: "from-pink-500 to-rose-500",
-      gradientSecondary: "from-purple-500 to-pink-500",
-      gradientGold: "from-amber-500 to-orange-500",
-    };
-  }, [currentTheme]);
 
   // Helper: Show toast notifications
   const showToast = useCallback(
@@ -540,44 +518,180 @@ function PricingWithSearchParams() {
     }
   };
 
+  // Page-specific styles (not in central theme)
+  const pageStyles = useMemo(
+    () => ({
+      heroPill: isDark
+        ? "inline-flex items-center bg-pink-500/10 border border-pink-500/20 rounded-full px-4 py-1 mb-4"
+        : "inline-flex items-center bg-pink-50 border border-pink-200 rounded-full px-4 py-1 mb-4",
+      heroPillIcon: isDark ? "text-pink-400" : "text-pink-500",
+      heroPillText: isDark
+        ? "text-sm font-medium text-pink-400"
+        : "text-sm font-medium text-pink-600",
+      heroTitle: isDark
+        ? "text-2xl md:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-400 to-pink-200 bg-clip-text text-transparent"
+        : "text-2xl md:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-pink-100 bg-clip-text text-transparent",
+      heroText: isDark
+        ? "text-white/40 text-lg mb-6 max-w-2xl mx-auto"
+        : "text-gray-500 text-lg mb-6 max-w-2xl mx-auto",
+      billingText: (isActive: boolean) =>
+        isDark
+          ? `text-sm font-medium ${isActive ? "text-white" : "text-white/40"}`
+          : `text-sm font-medium ${isActive ? "text-gray-900" : "text-gray-400"}`,
+      switchTrack: isDark
+        ? "data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-pink-500 data-[state=checked]:to-rose-500"
+        : "data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-pink-500 data-[state=checked]:to-rose-500",
+      cardPopular: (isPopular: boolean, isCurrent: boolean) => {
+        if (isCurrent) {
+          return isDark
+            ? "border-pink-500 ring-2 ring-pink-500/30"
+            : "border-pink-500 ring-2 ring-pink-200";
+        }
+        if (isPopular) {
+          return isDark ? "ring-1 ring-pink-500/20" : "ring-1 ring-pink-200";
+        }
+        return "";
+      },
+      featureIcon: (included: boolean) =>
+        isDark
+          ? `w-5 h-5 rounded-full ${
+              included ? "bg-pink-500/20" : "bg-white/[0.06]"
+            } flex items-center justify-center flex-shrink-0 mt-0.5`
+          : `w-5 h-5 rounded-full ${
+              included ? "bg-pink-100" : "bg-gray-100"
+            } flex items-center justify-center flex-shrink-0 mt-0.5`,
+      featureIconColor: (included: boolean) =>
+        isDark
+          ? included
+            ? "text-pink-400"
+            : "text-white/40"
+          : included
+            ? "text-pink-600"
+            : "text-gray-400",
+      priceHighlight: isDark
+        ? "text-3xl font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent"
+        : "text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent",
+      tokenBadge: isDark
+        ? "text-sm text-green-400 bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2 mb-4"
+        : "text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4",
+      buttonPrimary: (disabled?: boolean) =>
+        isDark
+          ? `w-full bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`
+          : `w-full bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`,
+      buttonCurrent: isDark
+        ? "w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
+        : "w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed",
+      buttonOutline: isDark
+        ? "w-full border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl"
+        : "w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl",
+      buttonDisabled: isDark
+        ? "w-full bg-gray-700 text-white/40 cursor-not-allowed rounded-xl"
+        : "w-full bg-gray-300 text-gray-800 cursor-not-allowed rounded-xl",
+      badgeDefault: isDark
+        ? "bg-gray-500/10 border border-gray-500/20 text-gray-400"
+        : "bg-gray-100 text-gray-500 border-gray-200",
+      badgeGreen: isDark
+        ? "bg-green-500/10 border border-green-500/20 text-green-400"
+        : "bg-green-100 text-green-600 border-green-200",
+      badgePopular:
+        "bg-gradient-to-r from-pink-500 to-pink-100 text-white border-0 px-4 py-1",
+      badgeCurrent:
+        "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-4 py-1",
+      tableHead: isDark ? "bg-white/[0.04]" : "bg-gray-50",
+      tableHeadCell: isDark
+        ? "text-left py-4 px-6 font-semibold text-white"
+        : "text-left py-4 px-6 font-semibold text-gray-700",
+      tableHeadCellCenter: (color: string) =>
+        isDark
+          ? `text-center py-4 px-6 font-semibold text-${color}-400`
+          : `text-center py-4 px-6 font-semibold text-${color}-600`,
+      tableRow: isDark
+        ? "hover:bg-white/[0.03] transition-colors divide-y divide-white/[0.06]"
+        : "hover:bg-gray-50 transition-colors divide-y divide-gray-100",
+      tableCell: isDark
+        ? "py-4 px-6 font-medium text-white"
+        : "py-4 px-6 font-medium text-gray-700",
+      tableCellValue: isDark ? "text-white/60" : "text-gray-600",
+      checkIcon: isDark
+        ? "h-5 w-5 text-green-400 mx-auto"
+        : "h-5 w-5 text-green-500 mx-auto",
+      xIcon: isDark
+        ? "h-5 w-5 text-red-400 mx-auto"
+        : "h-5 w-5 text-red-500 mx-auto",
+      trustCard: isDark
+        ? "glass-inner rounded-xl p-4 text-center"
+        : "bg-white border border-gray-100 rounded-xl p-4 text-center",
+      trustIcon: isDark
+        ? "h-8 w-8 text-pink-400 mx-auto mb-2"
+        : "h-8 w-8 text-pink-500 mx-auto mb-2",
+      trustTitle: isDark
+        ? "font-semibold text-white mb-1"
+        : "font-semibold text-gray-800 mb-1",
+      trustDesc: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      cancelDialog: isDark
+        ? "bg-[#1A1A1E] border border-white/[0.08] rounded-2xl p-6 max-w-md w-full shadow-xl"
+        : "bg-white border border-gray-100 rounded-2xl p-6 max-w-md w-full shadow-xl",
+      cancelTitle: isDark
+        ? "text-xl font-bold bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent"
+        : "text-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent",
+      cancelClose: isDark
+        ? "p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+        : "p-1.5 rounded-lg hover:bg-gray-100 transition-colors",
+      cancelCloseIcon: isDark ? "text-white/40" : "text-gray-400",
+      cancelLabel: isDark ? "text-white/60" : "text-gray-500",
+      cancelTextarea: isDark
+        ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-2 focus:ring-pink-500/50 resize-none"
+        : "w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none",
+      cancelInfo: isDark
+        ? "bg-white/[0.03] rounded-xl p-4 space-y-1.5"
+        : "bg-gray-50 rounded-xl p-4 space-y-1.5",
+      cancelInfoText: isDark
+        ? "text-xs text-white/60"
+        : "text-xs text-gray-600",
+      cancelButtonNow: isDark
+        ? "flex-1 rounded-xl bg-red-500/80 hover:bg-red-500 text-white"
+        : "flex-1 rounded-xl bg-red-500 hover:bg-red-600 text-white",
+      cancelButtonTerm: isDark
+        ? "flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+        : "flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl",
+    }),
+    [isDark],
+  );
+
   // Loading state
-  if (isLoading || !isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">
-            Loading pricing information...
-          </p>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading || !isLoaded)
+    return <Spinner label="Loading pricing information..." />;
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
+    <div
+      className={
+        isDark ? "min-h-screen relative overflow-hidden" : "min-h-screen"
+      }
+    >
+      {isDark && <Orbs />}
+
       {/* Hero Section */}
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center bg-pink-50 border border-pink-200 rounded-full px-4 py-1 mb-4">
-            <Zap className="h-4 w-4 text-pink-500 mr-1" />
-            <span className="text-sm font-medium text-pink-600">
+          <div className={pageStyles.heroPill}>
+            <Zap className={`h-4 w-4 mr-1 ${pageStyles.heroPillIcon}`} />
+            <span className={pageStyles.heroPillText}>
               Never Miss a Customer Comment
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 bg-gradient-to-r from-pink-500 to-pink-100 bg-clip-text text-transparent">
-            Instagram Comment Automation
-          </h1>
-          <p
-            className={`text-lg ${themeStyles.textSecondary} mb-6 max-w-2xl mx-auto`}
-          >
+          <h1 className={pageStyles.heroTitle}>Instagram Comment Automation</h1>
+          <p className={pageStyles.heroText}>
             Reply instantly to every comment. No setup fees. Cancel anytime.
           </p>
 
           {/* Billing Toggle */}
           <div className="flex items-center justify-center gap-4">
             <span
-              className={`text-sm font-medium ${billingCycle === "monthly" ? themeStyles.textPrimary : themeStyles.textMuted}`}
+              className={pageStyles.billingText(billingCycle === "monthly")}
             >
               Monthly
             </span>
@@ -586,57 +700,55 @@ function PricingWithSearchParams() {
               onCheckedChange={(checked) =>
                 setBillingCycle(checked ? "yearly" : "monthly")
               }
-              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-pink-500 data-[state=checked]:to-rose-500"
+              className={pageStyles.switchTrack}
             />
-            <span
-              className={`text-sm font-medium ${billingCycle === "yearly" ? themeStyles.textPrimary : themeStyles.textMuted}`}
-            >
+            <span className={pageStyles.billingText(billingCycle === "yearly")}>
               Yearly
             </span>
-            <Badge className="bg-green-100 text-green-600 border-green-200 ml-2">
+            <span
+              className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${pageStyles.badgeGreen} ml-2`}
+            >
               Save 16%
-            </Badge>
+            </span>
           </div>
         </div>
       </section>
+
       {/* Pricing Cards */}
       <section className="px-4 sm:px-6 lg:px-8 pb-16">
         <div className="flex flex-col lg:flex-row items-center justify-center gap-6 max-w-6xl mx-auto">
           {/* Free Plan Card */}
           <div
-            className={`relative group rounded-2xl border transition-all duration-300 ${themeStyles.cardBg} ${themeStyles.cardBorder} hover:border-pink-300 p-6 w-full lg:w-96`}
+            className={`relative group rounded-2xl border transition-all duration-300 ${styles.card} p-6 w-full lg:w-96`}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-pink-500/5 to-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl" />
 
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-4">
-                <h3 className={`text-xl font-bold ${themeStyles.textPrimary}`}>
+                <h3 className={styles.text.primary + " text-xl font-bold"}>
                   Free
                 </h3>
-                <Badge
-                  variant="outline"
-                  className="text-gray-500 border-gray-200"
+                <span
+                  className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${pageStyles.badgeDefault}`}
                 >
                   Default
-                </Badge>
+                </span>
               </div>
 
               <div className="mb-4">
-                <p className="text-3xl font-bold text-gray-800">₹0</p>
-                <p className={`text-sm ${themeStyles.textSecondary}`}>
-                  forever
+                <p className="text-3xl font-bold text-gray-800 dark:text-white">
+                  ₹0
                 </p>
+                <p className={styles.text.secondary + " text-sm"}>forever</p>
               </div>
 
               <ul className="space-y-3 mb-6">
                 {freePlanFeatures.map((feature, idx) => (
                   <li key={idx} className="flex items-start gap-3">
-                    <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Check className="h-3 w-3 text-pink-600" />
+                    <div className={pageStyles.featureIcon(true)}>
+                      <Check className={pageStyles.featureIconColor(true)} />
                     </div>
-                    <span className={`text-sm ${themeStyles.textSecondary}`}>
-                      {feature}
-                    </span>
+                    <span className={pageStyles.heroPillText}>{feature}</span>
                   </li>
                 ))}
               </ul>
@@ -644,7 +756,7 @@ function PricingWithSearchParams() {
               <SignedOut>
                 <Button
                   onClick={() => router.push("/sign-in")}
-                  className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+                  className={pageStyles.buttonPrimary()}
                 >
                   Get Started
                 </Button>
@@ -652,11 +764,11 @@ function PricingWithSearchParams() {
               <SignedIn>
                 <Button
                   disabled={!currentSubscription}
-                  className={`w-full rounded-xl ${
+                  className={
                     currentSubscription
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
-                      : "bg-gray-300 text-gray-800 cursor-not-allowed"
-                  }`}
+                      ? pageStyles.buttonPrimary()
+                      : pageStyles.buttonDisabled
+                  }
                 >
                   {currentSubscription ? "Current Plan" : "Your Current Plan"}
                 </Button>
@@ -673,15 +785,11 @@ function PricingWithSearchParams() {
             return (
               <div
                 key={plan.id}
-                className={`relative group rounded-2xl border-2 transition-all duration-300 ${
-                  isCurrentPlan
-                    ? "border-pink-500 ring-2 ring-pink-200"
-                    : themeStyles.cardBorder
-                } ${themeStyles.cardBg} ${plan.popular && " ring-2 ring-pink-200"} hover:border-pink-400 p-6 w-full lg:w-96 transform lg:scale-105 z-10`}
+                className={`relative group rounded-2xl border-2 transition-all duration-300 ${styles.card} ${pageStyles.cardPopular(plan.popular, isCurrentPlan)} p-6 w-full lg:w-96 transform lg:scale-105 z-10 overflow-visible`}
               >
                 {plan.popular && !isCurrentPlan && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <Badge className="bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white border-0 px-4 py-1">
+                    <Badge className={pageStyles.badgePopular}>
                       <Sparkles className="h-3 w-3 mr-1" />
                       Most Popular
                     </Badge>
@@ -690,7 +798,7 @@ function PricingWithSearchParams() {
 
                 {isCurrentPlan && (
                   <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                    <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-4 py-1">
+                    <Badge className={pageStyles.badgeCurrent}>
                       <BadgeCheck className="h-3 w-3 mr-1" />
                       Current Plan
                     </Badge>
@@ -700,9 +808,11 @@ function PricingWithSearchParams() {
                 <div className="relative z-10">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                      <Crown className="h-6 w-6 text-pink-500" />
+                      <Crown
+                        className={`h-6 w-6 ${isDark ? "text-pink-400" : "text-pink-500"}`}
+                      />
                       <h3
-                        className={`text-xl font-bold ${themeStyles.textPrimary}`}
+                        className={styles.text.primary + " text-xl font-bold"}
                       >
                         {plan.name}
                       </h3>
@@ -710,15 +820,13 @@ function PricingWithSearchParams() {
                   </div>
 
                   <div className="mb-4">
-                    <p className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-rose-600 bg-clip-text text-transparent">
-                      ₹{price}
-                    </p>
-                    <p className={`text-sm ${themeStyles.textSecondary}`}>
+                    <p className={pageStyles.priceHighlight}>₹{price}</p>
+                    <p className={styles.text.secondary + " text-sm"}>
                       per {billingCycle === "monthly" ? "month" : "year"}
                     </p>
                   </div>
 
-                  <p className="text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2 mb-4">
+                  <p className={pageStyles.tokenBadge}>
                     <Calendar className="h-4 w-4 inline mr-1" />
                     Two months free on yearly plan
                   </p>
@@ -726,12 +834,12 @@ function PricingWithSearchParams() {
                   <ul className="space-y-3 mb-6">
                     {plan.features.map((feature, idx) => (
                       <li key={idx} className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-pink-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <Check className="h-3 w-3 text-pink-600" />
+                        <div className={pageStyles.featureIcon(true)}>
+                          <Check
+                            className={pageStyles.featureIconColor(true)}
+                          />
                         </div>
-                        <span
-                          className={`text-sm ${themeStyles.textSecondary}`}
-                        >
+                        <span className={pageStyles.heroPillText}>
                           {feature}
                         </span>
                       </li>
@@ -741,7 +849,7 @@ function PricingWithSearchParams() {
                   <SignedOut>
                     <Button
                       onClick={() => router.push("/sign-in")}
-                      className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+                      className={pageStyles.buttonPrimary()}
                     >
                       Get Started
                     </Button>
@@ -749,10 +857,7 @@ function PricingWithSearchParams() {
                   <SignedIn>
                     {isCurrentPlan ? (
                       <div className="space-y-2">
-                        <Button
-                          disabled
-                          className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
-                        >
+                        <Button disabled className={pageStyles.buttonCurrent}>
                           <BadgeCheck className="h-4 w-4 mr-2" />
                           Current Plan
                         </Button>
@@ -760,7 +865,7 @@ function PricingWithSearchParams() {
                           variant="outline"
                           onClick={() => setShowCancelConfirmDialog(true)}
                           disabled={isCancelling}
-                          className="w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
+                          className={pageStyles.buttonOutline}
                         >
                           Cancel Subscription
                         </Button>
@@ -769,7 +874,9 @@ function PricingWithSearchParams() {
                       <Button
                         onClick={() => handleSubscribe(plan, billingCycle)}
                         disabled={isUpgrading || isProcessingChange}
-                        className="w-full bg-gradient-to-r from-pink-500 to-pink-100 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+                        className={pageStyles.buttonPrimary(
+                          isUpgrading || isProcessingChange,
+                        )}
                       >
                         {isUpgrading || isProcessingChange ? (
                           <>
@@ -790,58 +897,59 @@ function PricingWithSearchParams() {
           })}
         </div>
       </section>
+
       {/* Feature Comparison Section */}
-      <section className=" relative py-12 px-4 sm:px-4 lg:px-8 border-t border-gray-100">
+      <section className="relative py-12 px-4 sm:px-4 lg:px-8 border-t border-gray-100 dark:border-white/[0.06]">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent mb-2">
               Free vs Pro Comparison
             </h2>
-            <p className={`text-base ${themeStyles.textSecondary}`}>
+            <p className={styles.text.secondary}>
               Everything you get with each plan
             </p>
           </div>
-          <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
+          <div className={styles.card}>
             <div className="w-full overflow-x-auto">
               <table className="min-w-[700px] w-full table-fixed border-collapse">
-                <thead className="bg-gray-50">
+                <thead className={pageStyles.tableHead}>
                   <tr>
-                    <th className="w-1/3 text-left py-4 px-6 font-semibold text-gray-700">
-                      Features
-                    </th>
-                    <th className="w-1/3 text-center py-4 px-6 font-semibold text-pink-600">
+                    <th className={pageStyles.tableHeadCell}>Features</th>
+                    <th className={pageStyles.tableHeadCellCenter("pink")}>
                       Free
                     </th>
-                    <th className="w-1/3 text-center py-4 px-6 font-semibold text-pink-600">
+                    <th className={pageStyles.tableHeadCellCenter("pink")}>
                       Pro Unlimited
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className={pageStyles.tableRow}>
                   {comparisonFeatures.map((row, index) => (
                     <tr
                       key={index}
-                      className="hover:bg-gray-50 transition-colors"
+                      className="hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors"
                     >
-                      <td className="py-4 px-6 font-medium text-gray-700">
-                        {row.feature}
-                      </td>
+                      <td className={pageStyles.tableCell}>{row.feature}</td>
                       <td className="py-4 px-6 text-center">
                         {row.free === "✓" ? (
-                          <Check className="h-5 w-5 text-green-500 mx-auto" />
+                          <Check className={pageStyles.checkIcon} />
                         ) : row.free === "✗" ? (
-                          <X className="h-5 w-5 text-red-500 mx-auto" />
+                          <X className={pageStyles.xIcon} />
                         ) : (
-                          <span className="text-gray-600">{row.free}</span>
+                          <span className={pageStyles.tableCellValue}>
+                            {row.free}
+                          </span>
                         )}
                       </td>
                       <td className="py-4 px-6 text-center">
                         {row.pro === "✓" ? (
-                          <Check className="h-5 w-5 text-green-500 mx-auto" />
+                          <Check className={pageStyles.checkIcon} />
                         ) : row.pro === "✗" ? (
-                          <X className="h-5 w-5 text-red-500 mx-auto" />
+                          <X className={pageStyles.xIcon} />
                         ) : (
-                          <span className="text-gray-600">{row.pro}</span>
+                          <span className={pageStyles.tableCellValue}>
+                            {row.pro}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -850,77 +958,69 @@ function PricingWithSearchParams() {
               </table>
             </div>
           </div>
+
           {/* Trust Badges */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-              <Shield className="h-8 w-8 text-pink-500 mx-auto mb-2" />
-              <h4 className="font-semibold text-gray-800 mb-1">
-                Secure Payments
-              </h4>
-              <p className="text-xs text-gray-400">
+            <div className={`${pageStyles.trustCard} ${styles.card}`}>
+              <Shield className={pageStyles.trustIcon} />
+              <h4 className={pageStyles.trustTitle}>Secure Payments</h4>
+              <p className={pageStyles.trustDesc}>
                 256-bit encrypted transactions
               </p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-              <TrendingUp className="h-8 w-8 text-pink-500 mx-auto mb-2" />
-              <h4 className="font-semibold text-gray-800 mb-1">
-                No Hidden Fees
-              </h4>
-              <p className="text-xs text-gray-400">
+            <div className={`${pageStyles.trustCard} ${styles.card}`}>
+              <TrendingUp className={pageStyles.trustIcon} />
+              <h4 className={pageStyles.trustTitle}>No Hidden Fees</h4>
+              <p className={pageStyles.trustDesc}>
                 Cancel anytime, no questions asked
               </p>
             </div>
-            <div className="bg-white border border-gray-100 rounded-xl p-4 text-center">
-              <CreditCard className="h-8 w-8 text-pink-500 mx-auto mb-2" />
-              <h4 className="font-semibold text-gray-800 mb-1">
-                Multiple Payment Modes
-              </h4>
-              <p className="text-xs text-gray-400">
+            <div className={`${pageStyles.trustCard} ${styles.card}`}>
+              <CreditCard className={pageStyles.trustIcon} />
+              <h4 className={pageStyles.trustTitle}>Multiple Payment Modes</h4>
+              <p className={pageStyles.trustDesc}>
                 Cards, UPI, NetBanking, Wallets
               </p>
             </div>
           </div>
         </div>
       </section>
+
       {/* Cancel Subscription Dialog */}
       {showCancelDialog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div
-            className={`${themeStyles.dialogBg} border ${themeStyles.cardBorder} rounded-2xl p-6 max-w-md w-full shadow-xl`}
-          >
+          <div className={pageStyles.cancelDialog}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
-                Cancel Subscription
-              </h2>
+              <h2 className={pageStyles.cancelTitle}>Cancel Subscription</h2>
               <button
                 onClick={() => setShowCancelDialog(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                className={pageStyles.cancelClose}
               >
-                <X className="h-5 w-5 text-gray-400" />
+                <X className={pageStyles.cancelCloseIcon} />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
                 <label
-                  className={`block text-sm font-medium ${themeStyles.textSecondary} mb-2`}
+                  className={`block text-sm font-medium ${pageStyles.cancelLabel} mb-2`}
                 >
                   Please tell us why you are leaving
                 </label>
                 <textarea
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
-                  className={`w-full px-4 py-3 ${themeStyles.inputBg} border ${themeStyles.inputBorder} rounded-xl text-sm ${themeStyles.inputText} focus:outline-none focus:ring-2 focus:ring-pink-200 resize-none`}
+                  className={pageStyles.cancelTextarea}
                   placeholder="Cancellation reason..."
                   rows={3}
                 />
               </div>
 
-              <div className={`bg-gray-50 rounded-xl p-4 space-y-1.5`}>
-                <p className="text-xs text-gray-600">
+              <div className={pageStyles.cancelInfo}>
+                <p className={pageStyles.cancelInfoText}>
                   <strong>Immediate:</strong> Service ends immediately
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className={pageStyles.cancelInfoText}>
                   <strong>End-of-term:</strong> Service continues until billing
                   period ends
                 </p>
@@ -934,7 +1034,7 @@ function PricingWithSearchParams() {
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
-                  className="flex-1 rounded-xl"
+                  className={pageStyles.cancelButtonNow}
                 >
                   {isCancelling ? "Cancelling..." : "Cancel Now"}
                 </Button>
@@ -944,7 +1044,7 @@ function PricingWithSearchParams() {
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-pink-600 text-white rounded-xl"
+                  className={pageStyles.cancelButtonTerm}
                 >
                   {isCancelling ? "Cancelling..." : "End of Term"}
                 </Button>
@@ -953,6 +1053,7 @@ function PricingWithSearchParams() {
           </div>
         </div>
       )}
+
       {/* Payment Modal */}
       {userId && (
         <PaymentModal
@@ -973,6 +1074,7 @@ function PricingWithSearchParams() {
           }}
         />
       )}
+
       {/* Confirm Subscription Change Dialog */}
       <ConfirmSubscriptionChangeDialog
         isOpen={showConfirmDialog}
@@ -986,6 +1088,7 @@ function PricingWithSearchParams() {
         newPlan={pendingPlan}
         isLoading={isProcessingChange}
       />
+
       {/* Account Selection Dialog */}
       <AccountSelectionDialog
         isOpen={showAccountDialog}
@@ -995,25 +1098,41 @@ function PricingWithSearchParams() {
         newPlan={pendingPlan}
         isLoading={isProcessingChange}
       />
+
       {/* Confirm Cancellation Dialog */}
-      <AlertDialog
+      <ConfirmDialog
+        open={showCancelConfirmDialog}
+        onOpenChange={setShowCancelConfirmDialog}
+        onConfirm={handleConfirmedCancellation}
+        title="Confirm Cancellation"
+        description="Are you sure you want to cancel your subscription? Your plan will
+              revert to the Free plan which only allows 1 Instagram account."
+        confirmText="Yes, Cancel Subscription"
+        isDestructive={true}
+        isLoading={isCancelling}
+      />
+      {/* <AlertDialog
         open={showCancelConfirmDialog}
         onOpenChange={setShowCancelConfirmDialog}
       >
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className={styles.dialogContent}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Cancellation</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-500">
+            <AlertDialogTitle className={styles.dialogTitle}>
+              Confirm Cancellation
+            </AlertDialogTitle>
+            <AlertDialogDescription className={styles.dialogDesc}>
               Are you sure you want to cancel your subscription? Your plan will
               revert to the Free plan which only allows 1 Instagram account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className={styles.dialogCancel}>
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConfirmedCancellation}
               disabled={isCancelling}
-              className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
+              className={styles.dialogAction}
             >
               {isCancelling ? (
                 <>
@@ -1026,7 +1145,8 @@ function PricingWithSearchParams() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
+
       {/* Account Selection Dialog for Cancellation */}
       <AccountSelectionDialog
         isOpen={showCancelAccountDialog}
@@ -1054,10 +1174,10 @@ export default function Pricing() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+        <div className="min-h-screen bg-[#F8F9FA] dark:bg-[#0F0F11] flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
             <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-            <p className="text-sm text-gray-400">
+            <p className="text-sm text-gray-400 dark:text-white/40">
               Loading pricing information...
             </p>
           </div>

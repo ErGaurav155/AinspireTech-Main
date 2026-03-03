@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -30,12 +30,14 @@ import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import { getAppointments, verifyOwner } from "@/lib/services/admin-actions.api";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { GateScreen } from "@/components/shared/GateScreen";
+import { AvatarCircle } from "@/components/shared/AvatarCircle";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface Appointment {
   _id: string;
@@ -52,9 +54,9 @@ interface Appointment {
 export default function AdminAppointmentsPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [filteredAppointments, setFilteredAppointments] = useState<
@@ -68,26 +70,6 @@ export default function AdminAppointmentsPage() {
   const [selectedAppointment, setSelectedAppointment] =
     useState<Appointment | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
-
-  // Theme styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
-      tableBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
-      tableBorder: isDark ? "border-gray-800" : "border-gray-100",
-      tableRowHover: isDark ? "hover:bg-[#252529]" : "hover:bg-gray-50",
-    };
-  }, [currentTheme]);
 
   // Get unique subjects for filter
   const subjects = useMemo(() => {
@@ -103,9 +85,7 @@ export default function AdminAppointmentsPage() {
       setLoading(true);
       setError(null);
 
-      // Verify owner
       const ownerVerification = await verifyOwner(apiRequest);
-
       setIsOwner(ownerVerification.isOwner);
 
       if (!ownerVerification.isOwner) {
@@ -114,9 +94,7 @@ export default function AdminAppointmentsPage() {
         return;
       }
 
-      // Fetch appointments
       const appointmentsData = await getAppointments(apiRequest);
-
       setAppointments(appointmentsData.formattedAppointments || []);
       setFilteredAppointments(appointmentsData.formattedAppointments || []);
     } catch (err) {
@@ -207,112 +185,86 @@ export default function AdminAppointmentsPage() {
   const isUserOwner =
     user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
 
+  // Guard screens
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading..." />;
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-10 w-10 text-purple-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Authentication Required
-          </h1>
-          <p className="text-gray-500 mb-6">
-            Please sign in to access the admin dashboard.
-          </p>
-          <Link
-            href="/sign-in"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Sign In
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<Shield className="h-8 w-8 text-blue-400" />}
+        title="Authentication Required"
+        body="Please sign in to access the admin dashboard."
+      >
+        <Link
+          href="/sign-in"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Sign In <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (!isUserOwner && isOwner === false) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="h-10 w-10 text-red-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Access Denied
-          </h1>
-          <p className="text-gray-500 mb-2">
-            You are not authorized to view this page.
-          </p>
-          <p className="text-sm text-gray-400 mb-4">
-            Logged in as:{" "}
-            <span className="text-purple-600">
-              {user.primaryEmailAddress?.emailAddress}
-            </span>
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Return to Home
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Access Denied"
+        body="You are not authorized to view this page."
+        subText={`Logged in as: ${user.primaryEmailAddress?.emailAddress}`}
+      >
+        <Link
+          href="/"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Return to Home <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="h-8 w-8 text-purple-500 animate-spin" />
-          <p className="text-sm text-gray-400">Loading appointments...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading appointments…" />;
   }
 
   if (error && error !== "ACCESS_DENIED") {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="text-center max-w-md p-6 bg-red-50 rounded-2xl">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium mb-4">Error loading data</p>
-          <p className="text-sm text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Something went wrong"
+        body={error}
+      >
+        <button
+          onClick={fetchData}
+          className={`px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Try Again
+        </button>
+      </GateScreen>
     );
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 ">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={`p-4 md:p-6 lg:p-8 ${styles.container}`}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-200/50">
-              <CalendarDays className="h-6 w-6 text-white" />
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center ${styles.icon.purple}`}
+            >
+              <CalendarDays className="h-6 w-6 text-purple-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">Appointments</h1>
-              <p className="text-sm text-gray-500">
+              <h1
+                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
+              >
+                Appointments
+              </h1>
+              <p className={`text-xs ${styles.text.secondary}`}>
                 Manage all appointment bookings
               </p>
             </div>
@@ -320,14 +272,14 @@ export default function AdminAppointmentsPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <Download className="h-4 w-4" />
               Export
@@ -336,155 +288,188 @@ export default function AdminAppointmentsPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Total Appointments</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Total Appointments
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.total}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                <CalendarDays className="h-5 w-5 text-purple-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.purple}`}
+              >
+                <CalendarDays className="h-5 w-5 text-purple-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
                   Todays Appointments
                 </p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.today}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-green-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.green}`}
+              >
+                <Clock className="h-5 w-5 text-green-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Unique Subjects</p>
-                <p className="text-2xl font-bold text-cyan-600">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Unique Subjects
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.subjects}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center">
-                <Target className="h-5 w-5 text-cyan-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.cyan}`}
+              >
+                <Target className="h-5 w-5 text-cyan-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by name, email, phone, or subject..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-200"
-              />
-            </div>
-            <div className="flex gap-2 overflow-auto">
-              <select
-                value={subjectFilter}
-                onChange={(e) => setSubjectFilter(e.target.value)}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200"
-              >
-                <option value="all">All Subjects</option>
-                {subjects.map((subject) => (
-                  <option
-                    className="overflow-auto"
-                    key={subject}
-                    value={subject}
-                  >
-                    {subject}
-                  </option>
-                ))}
-              </select>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-4 relative z-10">
+          <div className="flex-1 relative">
+            <Search
+              size={14}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 ${styles.text.muted}`}
+            />
+            <input
+              type="text"
+              placeholder="Search by name, email, phone, or subject..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            />
+          </div>
+          <div className="flex gap-2 overflow-auto">
+            <select
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            >
+              <option value="all" className={styles.innerCard}>
+                All Subjects
+              </option>
+              {subjects.map((subject) => (
+                <option
+                  key={subject}
+                  value={subject}
+                  className={styles.innerCard}
+                >
+                  {subject}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* Appointments Table */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className={`rounded-2xl overflow-hidden ${styles.card}`}>
+          <div className="overflow-x-auto no-scrollbar relative z-10">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+              <thead>
+                <tr className={`border-b ${styles.divider}`}>
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Name
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Contact
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Subject
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Address
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Date
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredAppointments.map((apt) => (
+              <tbody className={`divide-y ${styles.divider}`}>
+                {filteredAppointments.map((apt, idx) => (
                   <tr
                     key={apt._id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className={`transition-colors ${styles.rowHover}`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center text-white text-xs font-medium">
-                          {apt.name[0]}
-                        </div>
+                        <AvatarCircle name={apt.name} idx={idx} />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">
+                          <p
+                            className={`text-sm font-medium ${styles.text.primary}`}
+                          >
                             {apt.name}
                           </p>
-                          <p className="text-xs text-gray-400">{apt.email}</p>
+                          <p className={`text-xs ${styles.text.muted}`}>
+                            {apt.email}
+                          </p>
                         </div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <p className="text-sm text-gray-600 flex items-center gap-1">
+                        <p
+                          className={`text-sm ${styles.text.secondary} flex items-center gap-1`}
+                        >
                           <Phone className="h-3 w-3" />
                           {apt.phone}
                         </p>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-nowrap overflow-x-auto">
-                      <Badge className="bg-purple-100 text-purple-600 border-purple-200">
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+                      >
                         {apt.subject}
-                      </Badge>
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600 max-w-xs truncate flex items-center gap-1">
+                      <p
+                        className={`text-sm ${styles.text.secondary} max-w-xs truncate flex items-center gap-1`}
+                      >
                         <MapPin className="h-3 w-3 flex-shrink-0" />
                         {apt.address}
                       </p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">
+                      <p className={`text-sm ${styles.text.secondary}`}>
                         {new Date(apt.createdAt).toLocaleDateString()}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className={`text-xs ${styles.text.muted}`}>
                         {new Date(apt.createdAt).toLocaleTimeString()}
                       </p>
                     </td>
@@ -494,7 +479,7 @@ export default function AdminAppointmentsPage() {
                           setSelectedAppointment(apt);
                           setShowDetailsDialog(true);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-purple-600 rounded-lg hover:bg-purple-50 transition-colors"
+                        className={`p-1.5 rounded-lg transition-colors ${styles.pill}`}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -506,108 +491,136 @@ export default function AdminAppointmentsPage() {
           </div>
 
           {filteredAppointments.length === 0 && (
-            <div className="p-12 text-center">
-              <CalendarDays className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">No appointments found</p>
-            </div>
+            <EmptyState
+              icon={<CalendarDays className="h-8 w-8" />}
+              label="No appointments found"
+            />
           )}
         </div>
       </div>
 
       {/* Appointment Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-purple-600" />
-              Appointment Details
-            </DialogTitle>
-          </DialogHeader>
+      <Dialog.Root open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={styles.dialogOverlay} />
+          <Dialog.Content className={styles.dialogContent}>
+            <Dialog.Title className="sr-only">Appointment Details</Dialog.Title>
+            <Dialog.Close className={styles.dialogClose}>
+              <X className="h-4 w-4" />
+            </Dialog.Close>
 
-          {selectedAppointment && (
-            <div className="space-y-4">
-              {/* Personal Info */}
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-purple-800 mb-3">
-                  Personal Information
-                </h3>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <User className="h-4 w-4 text-purple-600" />
-                    <span className="text-sm text-purple-900">
-                      {selectedAppointment.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-purple-600" />
-                    <a
-                      href={`mailto:${selectedAppointment.email}`}
-                      className="text-sm text-purple-900 hover:underline"
-                    >
-                      {selectedAppointment.email}
-                    </a>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-purple-600" />
-                    <a
-                      href={`tel:${selectedAppointment.phone}`}
-                      className="text-sm text-purple-900 hover:underline"
-                    >
-                      {selectedAppointment.phone}
-                    </a>
+            {selectedAppointment && (
+              <div className="space-y-4 mt-4">
+                {/* Personal Info */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h3
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Personal Information
+                  </h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4 text-purple-400" />
+                      <span className={`text-sm ${styles.text.primary}`}>
+                        {selectedAppointment.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-purple-400" />
+                      <a
+                        href={`mailto:${selectedAppointment.email}`}
+                        className={`text-sm ${styles.text.primary} hover:underline`}
+                      >
+                        {selectedAppointment.email}
+                      </a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-purple-400" />
+                      <a
+                        href={`tel:${selectedAppointment.phone}`}
+                        className={`text-sm ${styles.text.primary} hover:underline`}
+                      >
+                        {selectedAppointment.phone}
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Appointment Info */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">
-                  Appointment Information
-                </h3>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Subject</p>
-                    <Badge className="bg-purple-100 text-purple-600 border-purple-200">
-                      {selectedAppointment.subject}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Address</p>
-                    <p className="text-sm text-gray-800 flex items-start gap-1">
-                      <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-                      {selectedAppointment.address}
-                    </p>
-                  </div>
-                  {selectedAppointment.message && (
+                {/* Appointment Info */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h3
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Appointment Information
+                  </h3>
+                  <div className="space-y-3">
                     <div>
-                      <p className="text-xs text-gray-500 mb-1">Message</p>
-                      <p className="text-sm text-gray-700 bg-white p-3 rounded-lg border border-gray-200">
-                        {selectedAppointment.message}
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Subject
+                      </p>
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+                      >
+                        {selectedAppointment.subject}
+                      </span>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Address
+                      </p>
+                      <p
+                        className={`text-sm ${styles.text.secondary} flex items-start gap-1`}
+                      >
+                        <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        {selectedAppointment.address}
                       </p>
                     </div>
-                  )}
+                    {selectedAppointment.message && (
+                      <div>
+                        <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                          Message
+                        </p>
+                        <p
+                          className={`text-sm p-3 rounded-lg border ${styles.input}`}
+                        >
+                          {selectedAppointment.message}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                  <p className="text-xs text-green-600 mb-1">Created</p>
-                  <p className="text-sm font-medium text-green-800">
-                    {new Date(selectedAppointment.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
-                  <p className="text-xs text-blue-600 mb-1">Last Updated</p>
-                  <p className="text-sm font-medium text-blue-800">
-                    {new Date(selectedAppointment.updatedAt).toLocaleString()}
-                  </p>
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div
+                    className={`rounded-xl p-3 ${isDark ? "bg-green-500/10 border border-green-500/20" : "bg-green-50 border border-green-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Created
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(selectedAppointment.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-xl p-3 ${isDark ? "bg-blue-500/10 border border-blue-500/20" : "bg-blue-50 border border-blue-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Last Updated
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(selectedAppointment.updatedAt).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
+
+// We need to import X from lucide-react for the dialog close button
+import { X } from "lucide-react";

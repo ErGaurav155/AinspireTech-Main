@@ -12,6 +12,7 @@ import {
 } from "@rocketreplai/ui/components/radix/dialog";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 interface ConfirmSubscriptionChangeDialogProps {
   isOpen: boolean;
@@ -22,6 +23,27 @@ interface ConfirmSubscriptionChangeDialogProps {
   isLoading?: boolean;
 }
 
+// Theme map matching the dashboard's pattern
+function buildTheme(isDark: boolean) {
+  return {
+    dialogContent: isDark
+      ? "bg-[#1A1A1E] backdrop-blur-lg border border-white/[0.08] rounded-xl"
+      : "bg-white/95 backdrop-blur-lg border border-gray-200 rounded-xl",
+    dialogTitle: isDark ? "text-white" : "text-gray-900",
+    dialogDesc: isDark
+      ? "text-white/60 font-montserrat"
+      : "text-gray-600 font-montserrat",
+    dialogText: isDark
+      ? "text-white/60 font-montserrat"
+      : "text-gray-500 font-montserrat",
+    buttonOutline: isDark
+      ? "border-white/20 text-white/70 hover:bg-white/10"
+      : "border-gray-300 text-gray-700 hover:bg-gray-100",
+    buttonConfirm:
+      "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white",
+  } as const;
+}
+
 export function ConfirmSubscriptionChangeDialog({
   isOpen,
   onClose,
@@ -30,62 +52,50 @@ export function ConfirmSubscriptionChangeDialog({
   newPlan,
   isLoading = false,
 }: ConfirmSubscriptionChangeDialogProps) {
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
 
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      dialogBg: isDark ? "bg-[#0a0a0a]/95" : "bg-white/95",
-      dialogBorder: isDark ? "border-white/10" : "border-gray-200",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-300" : "text-gray-600",
-      textMuted: isDark ? "text-gray-400" : "text-gray-500",
-      buttonOutlineBorder: isDark ? "border-white/20" : "border-gray-300",
-      buttonOutlineText: isDark ? "text-gray-300" : "text-gray-700",
-    };
-  }, [currentTheme]);
+  const isDark = resolvedTheme === "dark";
+  const themeStyles = useMemo(() => buildTheme(isDark), [isDark]);
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent
-        className={`${themeStyles.dialogBg} backdrop-blur-lg border ${themeStyles.dialogBorder} rounded-xl`}
-      >
-        <DialogHeader>
-          <DialogTitle className={themeStyles.textPrimary}>
-            Confirm Subscription Change
-          </DialogTitle>
-          <DialogDescription
-            className={`${themeStyles.textSecondary} font-montserrat`}
-          >
-            Are you sure you want to change your subscription from{" "}
-            {currentPlan?.name} to {newPlan?.name}?
-          </DialogDescription>
-        </DialogHeader>
-        <div className="py-4">
-          <p className={`text-sm ${themeStyles.textSecondary} font-montserrat`}>
-            Your current subscription will be cancelled immediately and you will
-            be charged for the new plan.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-            className={`${themeStyles.buttonOutlineBorder} ${themeStyles.buttonOutlineText}`}
-          >
-            Cancel
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white"
-          >
-            {isLoading ? "Processing..." : "Confirm Change"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
+      <DialogPrimitive.Portal>
+        <DialogPrimitive.Overlay className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50" />
+        <DialogContent className={themeStyles.dialogContent}>
+          <DialogHeader>
+            <DialogTitle className={themeStyles.dialogTitle}>
+              Confirm Subscription Change
+            </DialogTitle>
+            <DialogDescription className={themeStyles.dialogDesc}>
+              Are you sure you want to change your subscription from{" "}
+              {currentPlan?.name} to {newPlan?.name}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className={`text-sm ${themeStyles.dialogText}`}>
+              Your current subscription will be cancelled immediately and you
+              will be charged for the new plan.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={onClose}
+              disabled={isLoading}
+              className={themeStyles.buttonOutline}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={onConfirm}
+              disabled={isLoading}
+              className={themeStyles.buttonConfirm}
+            >
+              {isLoading ? "Processing..." : "Confirm Change"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </DialogPrimitive.Portal>
     </Dialog>
   );
 }

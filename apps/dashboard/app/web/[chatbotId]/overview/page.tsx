@@ -23,6 +23,7 @@ import {
   Brain,
   Sparkles,
   Bot,
+  AlertTriangle,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -32,6 +33,9 @@ import {
 } from "@/lib/services/web-actions.api";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
 
 // Types
 interface LeadStats {
@@ -67,6 +71,7 @@ export default function DynamicOverviewPage() {
   const chatbotId = params.chatbotId as string;
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -353,7 +358,7 @@ export default function DynamicOverviewPage() {
         abortControllerRef.current.abort();
       }
     };
-  }, [chatbotType, isLoaded, userId, loadChatbot, loadData]); // Added all dependencies
+  }, [chatbotType, isLoaded, userId, loadChatbot, loadData]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -364,18 +369,24 @@ export default function DynamicOverviewPage() {
   // Error state
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
+      <div
+        className={`min-h-screen flex items-center justify-center ${isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FA]"}`}
+      >
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
-            <Bot className="h-8 w-8 text-red-500" />
+          <div
+            className={`w-16 h-16 rounded-full ${isDark ? "bg-red-500/20 border border-red-500/30" : "bg-red-100"} flex items-center justify-center mx-auto mb-4`}
+          >
+            <Bot
+              className={`h-8 w-8 ${isDark ? "text-red-400" : "text-red-500"}`}
+            />
           </div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className={`text-lg font-semibold ${styles.text.primary} mb-2`}>
             Error Loading Dashboard
           </h3>
-          <p className="text-sm text-gray-500 mb-4">{error}</p>
+          <p className={`text-sm ${styles.text.secondary} mb-4`}>{error}</p>
           <button
             onClick={handleRefresh}
-            className="px-4 py-2 bg-purple-500 text-white rounded-xl text-sm hover:bg-purple-600"
+            className={`px-4 py-2 rounded-xl text-sm ${isDark ? "bg-purple-500/80 hover:bg-purple-500 text-white" : "bg-purple-500 hover:bg-purple-600 text-white"}`}
           >
             Try Again
           </button>
@@ -386,30 +397,26 @@ export default function DynamicOverviewPage() {
 
   // Loading state
   if (isLoading || !displayInfo) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading dashboard...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading dashboard..." />;
   }
 
   // Not built state
   if (chatbot && !chatbot.isBuilt) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA]">
+      <div className={styles.page}>
+        {isDark && <Orbs />}
         <div className="p-12 text-center">
           <div
-            className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center mx-auto mb-6`}
+            className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center mx-auto mb-6 ${isDark ? "opacity-90" : ""}`}
           >
             <displayInfo.icon className="h-10 w-10 text-white" />
           </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-3">
+          <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
             Build Your {displayInfo.name}
           </h2>
-          <p className="text-gray-500 max-w-md mx-auto mb-8">
+          <p
+            className={`text-sm ${styles.text.secondary} max-w-md mx-auto mb-8`}
+          >
             {isLeadGeneration
               ? "Create a lead generation chatbot to capture and qualify leads automatically."
               : "Create an education chatbot to engage students with interactive MCQ quizzes."}
@@ -430,21 +437,22 @@ export default function DynamicOverviewPage() {
   const primaryColor = displayInfo.primaryColor;
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header with refresh */}
         <div className="flex flex-wrap gap-2 items-center justify-between">
-          <div className="flex  items-center gap-3">
+          <div className="flex items-center gap-3">
             <div
-              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center shadow-lg`}
+              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center ${isDark ? "opacity-90" : ""} shadow-lg`}
             >
               <Icon className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1 className={`text-2xl font-bold ${styles.text.primary}`}>
                 {displayInfo.name}
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-sm ${styles.text.secondary}`}>
                 {isLeadGeneration
                   ? "Track and manage your leads"
                   : "Monitor student progress and engagement"}
@@ -454,7 +462,7 @@ export default function DynamicOverviewPage() {
           <button
             onClick={handleRefresh}
             disabled={isRefreshing}
-            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors disabled:opacity-50"
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill} disabled:opacity-50`}
           >
             <RefreshCw
               className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -469,36 +477,25 @@ export default function DynamicOverviewPage() {
             const StatIcon = stat.icon;
             const value = stats ? (stats as any)[stat.key] : 0;
 
-            // Color variations based on primary color
-            const colorClasses = {
-              purple: {
-                bg: "bg-purple-100",
-                text: "text-purple-600",
-              },
-              green: {
-                bg: "bg-green-100",
-                text: "text-green-600",
-              },
-            };
-
-            const colors =
-              colorClasses[primaryColor as keyof typeof colorClasses] ||
-              colorClasses.purple;
-
             return (
-              <div
-                key={stat.key}
-                className="bg-white border border-gray-100 rounded-2xl p-5 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between mb-3">
+              <div key={stat.key} className={`${styles.card} p-5`}>
+                <div className="flex items-center justify-between mb-3 relative z-10">
                   <div
-                    className={`w-10 h-10 rounded-xl ${colors.bg} flex items-center justify-center`}
+                    className={`w-10 h-10 rounded-xl ${styles.icon[primaryColor as keyof typeof styles.icon] || styles.icon.purple} flex items-center justify-center`}
                   >
-                    <StatIcon className={`h-5 w-5 ${colors.text}`} />
+                    <StatIcon
+                      className={
+                        isDark
+                          ? `text-${primaryColor}-400`
+                          : `text-${primaryColor}-600`
+                      }
+                    />
                   </div>
                 </div>
-                <p className="text-xs text-gray-500 mb-1">{stat.label}</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className={`text-xs ${styles.text.secondary} mb-1`}>
+                  {stat.label}
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {typeof value === "number" ? value.toLocaleString() : value}
                   {stat.suffix || ""}
                 </p>
@@ -508,15 +505,21 @@ export default function DynamicOverviewPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className="bg-white border border-gray-100 rounded-2xl">
-          <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+        <div className={`${styles.card} overflow-hidden`}>
+          <div
+            className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
+          >
             <div className="flex items-center gap-2">
               {isLeadGeneration ? (
-                <Target className="h-4 w-4 text-purple-400" />
+                <Target
+                  className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+                />
               ) : (
-                <Users className="h-4 w-4 text-green-400" />
+                <Users
+                  className={`h-4 w-4 ${isDark ? "text-green-400" : "text-green-500"}`}
+                />
               )}
-              <h3 className="text-sm font-bold text-gray-800">
+              <h3 className={`text-sm font-bold ${styles.text.primary}`}>
                 {isLeadGeneration ? "Recent Leads" : "Recent Student Responses"}
               </h3>
             </div>
@@ -526,41 +529,43 @@ export default function DynamicOverviewPage() {
                   ? `/web/${chatbotId}/conversations`
                   : `/web/${chatbotId}/responses`
               }
-              className={`text-xs ${
-                isLeadGeneration ? "text-purple-500" : "text-green-500"
-              } font-semibold flex items-center gap-1 hover:opacity-80`}
+              className={`text-xs font-semibold flex items-center gap-1 hover:opacity-80 ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-500`}`}
             >
               View All <ArrowUpRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          <div className="divide-y divide-gray-50">
+          <div className={`divide-y ${styles.divider}`}>
             {recentItems.length > 0 ? (
               recentItems.map((item) => (
                 <div
                   key={item.id}
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors"
+                  className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors ${styles.divider}`}
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div
-                      className={`w-10 h-10 rounded-full bg-gradient-to-br ${
-                        isLeadGeneration
-                          ? "from-purple-100 to-pink-100"
-                          : "from-green-100 to-emerald-100"
-                      } flex items-center justify-center flex-shrink-0`}
+                      className={`w-10 h-10 rounded-full bg-gradient-to-br ${isLeadGeneration ? "from-purple-100 to-pink-100" : "from-green-100 to-emerald-100"} ${isDark ? "opacity-90" : ""} flex items-center justify-center flex-shrink-0`}
                     >
                       {isLeadGeneration ? (
-                        <User className="h-5 w-5 text-purple-600" />
+                        <User
+                          className={`h-5 w-5 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+                        />
                       ) : (
-                        <GraduationCap className="h-5 w-5 text-green-600" />
+                        <GraduationCap
+                          className={`h-5 w-5 ${isDark ? "text-green-400" : "text-green-600"}`}
+                        />
                       )}
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-gray-800">
+                      <p
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
                         {item.name || item.studentName}
                       </p>
                       {isLeadGeneration ? (
-                        <div className="flex items-center gap-3 text-xs text-gray-400 mt-1">
+                        <div
+                          className={`flex items-center gap-3 mt-1 text-xs ${styles.text.secondary}`}
+                        >
                           {item.email && (
                             <span className="flex items-center gap-1">
                               <Mail className="h-3 w-3" />
@@ -575,7 +580,7 @@ export default function DynamicOverviewPage() {
                           )}
                         </div>
                       ) : (
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className={`text-xs ${styles.text.secondary}`}>
                           Score: {item.score}%
                         </p>
                       )}
@@ -585,37 +590,37 @@ export default function DynamicOverviewPage() {
                     {isLeadGeneration ? (
                       <>
                         {item.service && (
-                          <Badge className="bg-purple-50 text-purple-600 border-purple-100">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+                          >
                             {item.service}
-                          </Badge>
+                          </span>
                         )}
-                        <Badge
-                          className={
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                             item.status === "qualified"
-                              ? "bg-green-100 text-green-600"
-                              : "bg-blue-100 text-blue-600"
-                          }
+                              ? styles.badge.green
+                              : styles.badge.blue
+                          }`}
                         >
                           {item.status}
-                        </Badge>
+                        </span>
                       </>
                     ) : (
-                      <Badge
-                        className={
+                      <span
+                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                           item.score >= 80
-                            ? "bg-green-100 text-green-600"
-                            : "bg-yellow-100 text-yellow-600"
-                        }
+                            ? styles.badge.green
+                            : styles.badge.purple
+                        }`}
                       >
                         {item.score >= 80 ? "Passed" : "Review Needed"}
-                      </Badge>
+                      </span>
                     )}
-                    <span className="text-xs text-gray-400">
+                    <span className={`text-xs ${styles.text.muted}`}>
                       {formatDistanceToNow(
                         new Date(item.date || item.timestamp),
-                        {
-                          addSuffix: true,
-                        },
+                        { addSuffix: true },
                       )}
                     </span>
                   </div>
@@ -623,13 +628,15 @@ export default function DynamicOverviewPage() {
               ))
             ) : (
               <div className="px-5 py-8 text-center">
-                <Users className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-                <p className="text-sm text-gray-500">
+                <Users
+                  className={`h-8 w-8 mx-auto mb-3 ${styles.text.muted}`}
+                />
+                <p className={`text-sm ${styles.text.muted}`}>
                   {isLeadGeneration
                     ? "No leads yet"
                     : "No student responses yet"}
                 </p>
-                <p className="text-xs text-gray-400 mt-1">
+                <p className={`text-xs mt-1 ${styles.text.muted}`}>
                   {isLeadGeneration
                     ? "Integrate your chatbot to start capturing leads"
                     : "Share your education chatbot to collect responses"}
@@ -647,30 +654,30 @@ export default function DynamicOverviewPage() {
               <Link
                 key={index}
                 href={action.href}
-                className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-gray-200 hover:shadow-sm transition-all group"
+                className={`${styles.card} p-5 hover:border-${primaryColor}-200 hover:shadow-sm transition-all group`}
               >
                 <div className="flex items-center gap-4">
                   <div
-                    className={`w-12 h-12 rounded-xl ${
-                      isLeadGeneration ? "bg-purple-100" : "bg-green-100"
-                    } flex items-center justify-center group-hover:scale-110 transition-transform`}
+                    className={`w-12 h-12 rounded-xl ${styles.icon[primaryColor as keyof typeof styles.icon] || styles.icon.purple} flex items-center justify-center group-hover:scale-110 transition-transform`}
                   >
                     <ActionIcon
-                      className={`h-6 w-6 ${
-                        isLeadGeneration ? "text-purple-600" : "text-green-600"
-                      }`}
+                      className={
+                        isDark
+                          ? `text-${primaryColor}-400`
+                          : `text-${primaryColor}-600`
+                      }
                     />
                   </div>
                   <div className="flex-1">
-                    <h4 className="font-semibold text-gray-800 mb-1">
+                    <h4 className={`font-semibold ${styles.text.primary} mb-1`}>
                       {action.label}
                     </h4>
-                    <p className="text-xs text-gray-400">Click to manage</p>
+                    <p className={`text-xs ${styles.text.muted}`}>
+                      Click to manage
+                    </p>
                   </div>
                   <ArrowUpRight
-                    className={`h-5 w-5 text-gray-300 group-hover:${
-                      isLeadGeneration ? "text-purple-400" : "text-green-400"
-                    } transition-colors`}
+                    className={`h-5 w-5 transition-colors ${isDark ? "text-white/20 group-hover:text-${primaryColor}-400" : "text-gray-300 group-hover:text-${primaryColor}-400"}`}
                   />
                 </div>
               </Link>
@@ -680,49 +687,41 @@ export default function DynamicOverviewPage() {
 
         {/* Additional Info Card */}
         <div
-          className={`${
-            isLeadGeneration
-              ? "bg-purple-50 border-purple-200"
-              : "bg-green-50 border-green-200"
-          } border rounded-2xl p-6`}
+          className={`${isDark ? `bg-${primaryColor}-500/10 border border-${primaryColor}-500/20` : `bg-${primaryColor}-50 border border-${primaryColor}-200`} rounded-2xl p-6`}
         >
           <div className="flex items-start gap-4">
             <div
-              className={`w-12 h-12 rounded-xl ${
-                isLeadGeneration ? "bg-purple-100" : "bg-green-100"
-              } flex items-center justify-center`}
+              className={`w-12 h-12 rounded-xl ${isDark ? `bg-${primaryColor}-500/20 border border-${primaryColor}-500/30` : `bg-${primaryColor}-100`} flex items-center justify-center`}
             >
               <Sparkles
-                className={`h-6 w-6 ${
-                  isLeadGeneration ? "text-purple-600" : "text-green-600"
-                }`}
+                className={
+                  isDark
+                    ? `text-${primaryColor}-400`
+                    : `text-${primaryColor}-600`
+                }
               />
             </div>
             <div className="flex-1">
               <h3
-                className={`text-lg font-semibold ${
-                  isLeadGeneration ? "text-purple-800" : "text-green-800"
-                } mb-2`}
+                className={`text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
               >
                 {isLeadGeneration
                   ? "Pro Tip: Qualify Leads Faster"
                   : "Pro Tip: Engage Students Better"}
               </h3>
               <p
-                className={`text-sm ${
-                  isLeadGeneration ? "text-purple-700" : "text-green-700"
-                }`}
+                className={`text-sm ${isDark ? `text-${primaryColor}-400/80` : `text-${primaryColor}-700`}`}
               >
                 {isLeadGeneration
                   ? "Use custom questions to qualify leads automatically. Add specific fields to capture exactly what you need."
                   : "Add more questions with varying difficulty levels to keep students engaged. Track performance by category."}
               </p>
               <button
-                className={`mt-4 px-4 py-2 ${
-                  isLeadGeneration
-                    ? "bg-purple-500 hover:bg-purple-600"
-                    : "bg-green-500 hover:bg-green-600"
-                } text-white rounded-xl text-sm font-medium transition-colors`}
+                className={`mt-4 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  isDark
+                    ? `bg-${primaryColor}-500/80 hover:bg-${primaryColor}-500 text-white`
+                    : `bg-${primaryColor}-500 hover:bg-${primaryColor}-600 text-white`
+                }`}
               >
                 Learn More
               </button>

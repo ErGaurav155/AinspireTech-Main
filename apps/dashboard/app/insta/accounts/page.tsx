@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Plus,
   Instagram,
@@ -41,6 +41,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import defaultImg from "public/assets/img/default-img.jpg";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
@@ -48,9 +49,13 @@ import {
   refreshInstagramToken,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 
 // Types
 interface InstagramAccount {
@@ -74,33 +79,17 @@ interface InstagramAccount {
   createdAt: string;
 }
 
-// Theme styles interface
-interface ThemeStyles {
-  containerBg: string;
-  textPrimary: string;
-  textSecondary: string;
-  textMuted: string;
-  cardBg: string;
-  cardBorder: string;
-  badgeBg: string;
-  alertBg: string;
-  buttonOutlineBorder: string;
-  buttonOutlineText: string;
-}
-
 // Constants
 const FREE_PLAN_REPLY_LIMIT = 500;
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 
 export default function AccountsPage() {
-  // Hooks
   const { userId, isLoaded } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
-  // State
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -113,25 +102,6 @@ export default function AccountsPage() {
   const [isUpdatingAccount, setIsUpdatingAccount] = useState<string | null>(
     null,
   );
-
-  // Theme-based styles
-  const themeStyles = useMemo((): ThemeStyles => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      badgeBg: isDark ? "bg-gray-800" : "bg-gray-100",
-      alertBg: isDark ? "bg-red-900/20" : "bg-red-50",
-      buttonOutlineBorder: isDark ? "border-gray-700" : "border-gray-200",
-      buttonOutlineText: isDark ? "text-gray-300" : "text-gray-600",
-    };
-  }, [currentTheme]);
 
   // Helper: Format last activity
   const formatLastActivity = useCallback((dateString: string): string => {
@@ -350,58 +320,110 @@ export default function AccountsPage() {
 
   // Loading state
   if (!isLoaded || isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading accounts...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading accounts..." />;
   }
 
   // Error state
   if (error) {
     return (
-      <div
-        className={`min-h-screen ${themeStyles.containerBg} flex items-center justify-center`}
-      >
-        <Card
-          className={`max-w-md ${themeStyles.cardBg} ${themeStyles.cardBorder}`}
-        >
-          <CardContent className="pt-6 text-center">
-            <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-800 mb-2">
+      <div className={styles.page}>
+        {isDark && <Orbs />}
+        <div className={styles.container}>
+          <div className={`rounded-2xl p-6 text-center ${styles.card}`}>
+            <AlertCircle
+              className={`h-12 w-12 mx-auto mb-4 ${isDark ? "text-red-400" : "text-red-500"}`}
+            />
+            <h2 className={`text-xl font-bold mb-2 ${styles.text.primary}`}>
               Error Loading Accounts
             </h2>
-            <p className="text-gray-500 mb-6">{error}</p>
-            <Button
-              onClick={fetchAccounts}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl"
-            >
+            <p className={`${isDark ? "text-white/40" : "text-gray-500"} mb-6`}>
+              {error}
+            </p>
+            <Button onClick={fetchAccounts} className={styles.pill}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }
 
+  // Page-specific styles (not in central theme)
+  const pageStyles = {
+    headerIcon: isDark
+      ? "w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center opacity-90 shadow-lg shadow-pink-500/20"
+      : "w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200/50",
+    refreshButton: `flex items-center gap-2 px-4 py-2 text-sm ${
+      isDark
+        ? "bg-white/[0.06] border border-white/[0.09] backdrop-blur-[12px] text-white/70 hover:bg-white/[0.09] rounded-xl transition-colors"
+        : "bg-white border border-gray-200 text-gray-600 hover:border-gray-300 rounded-xl transition-colors"
+    } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`,
+    addButton: `flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors`,
+    statLabel: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+    statValue: isDark
+      ? "text-2xl font-bold text-white"
+      : "text-2xl font-bold text-gray-800",
+    statSub: isDark
+      ? "text-xs text-green-400 mt-1"
+      : "text-xs text-green-600 mt-1",
+    accountAvatar: (isActive: boolean) =>
+      isDark
+        ? `absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-[#1A1A1E] ${isActive ? "bg-emerald-400" : "bg-gray-500"}`
+        : `absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${isActive ? "bg-emerald-400" : "bg-gray-300"}`,
+    accountName: isDark
+      ? "font-semibold text-white"
+      : "font-semibold text-gray-800",
+    accountStats: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+    accountStatItem: "text-center",
+    accountStatValue: isDark
+      ? "text-sm font-semibold text-white"
+      : "text-sm font-semibold text-gray-800",
+    accountStatLabel: isDark
+      ? "text-xs text-white/40"
+      : "text-xs text-gray-400",
+    accountStatDivider: isDark
+      ? "w-1 h-1 bg-white/20 rounded-full"
+      : "w-1 h-1 bg-gray-300 rounded-full",
+    tokenButton: isDark
+      ? "p-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg hover:bg-amber-500/20 transition-colors"
+      : "p-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors",
+    manageButton: isDark
+      ? "p-2 text-white/40 hover:text-pink-400 rounded-lg hover:bg-pink-500/10 transition-colors"
+      : "p-2 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors",
+    emptyButton: isDark
+      ? "inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors"
+      : "inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors",
+    iconPink: isDark
+      ? "bg-pink-500/20 border border-pink-500/30"
+      : "bg-pink-100",
+    badgeGreen: isDark
+      ? "bg-green-500/10 border border-green-500/20 text-green-400"
+      : "bg-green-100 text-green-600 border-green-200",
+    badgeGray: isDark
+      ? "bg-gray-500/10 border border-gray-500/20 text-gray-400"
+      : "bg-gray-100 text-gray-600 border-gray-200",
+    switchTrack: isDark
+      ? "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-white/[0.06]"
+      : "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-gray-200",
+    textMuted: isDark ? "text-white/25" : "text-gray-400",
+  };
+
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200/50">
+            <div className={pageStyles.headerIcon}>
               <Instagram className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1 className={`text-2xl font-bold ${styles.text.primary}`}>
                 Instagram Accounts
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-sm ${styles.text.secondary}`}>
                 Manage all your connected Instagram accounts
               </p>
             </div>
@@ -410,7 +432,7 @@ export default function AccountsPage() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={pageStyles.refreshButton}
             >
               <RefreshCw
                 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -419,7 +441,7 @@ export default function AccountsPage() {
             </button>
             <button
               onClick={handleAddAccountClick}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors"
+              className={pageStyles.addButton}
             >
               <Plus className="h-4 w-4" />
               Add Account
@@ -429,45 +451,55 @@ export default function AccountsPage() {
 
         {/* Stats Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-400">Total Accounts</p>
-              <Instagram className="h-4 w-4 text-pink-500" />
+              <p className={pageStyles.statLabel}>Total Accounts</p>
+              <Instagram
+                className={`h-4 w-4 ${isDark ? "text-pink-400" : "text-pink-500"}`}
+              />
             </div>
-            <p className="text-2xl font-bold text-gray-800">
+            <p className={pageStyles.statValue}>
               {accounts.length} / {accountLimit}
             </p>
-            <p className="text-xs text-green-600 mt-1">
-              {stats.activeAccounts} active
-            </p>
+            <p className={pageStyles.statSub}>{stats.activeAccounts} active</p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-400">Total Followers</p>
-              <Users className="h-4 w-4 text-blue-500" />
+              <p className={pageStyles.statLabel}>Total Followers</p>
+              <Users
+                className={`h-4 w-4 ${isDark ? "text-blue-400" : "text-blue-500"}`}
+              />
             </div>
-            <p className="text-2xl font-bold text-gray-800">
+            <p className={pageStyles.statValue}>
               {stats.totalFollowers.toLocaleString()}
             </p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-400">Auto Replies</p>
-              <Zap className="h-4 w-4 text-purple-500" />
+              <p className={pageStyles.statLabel}>Auto Replies</p>
+              <Zap
+                className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+              />
             </div>
-            <p className="text-2xl font-bold text-purple-600">
+            <p
+              className={`text-2xl font-bold ${isDark ? "text-purple-400" : "text-purple-600"}`}
+            >
               {stats.totalReplies} / {replyLimit}
             </p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
+          <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs text-gray-400">Avg Engagement</p>
-              <BarChart3 className="h-4 w-4 text-green-500" />
+              <p className={pageStyles.statLabel}>Avg Engagement</p>
+              <BarChart3
+                className={`h-4 w-4 ${isDark ? "text-green-400" : "text-green-500"}`}
+              />
             </div>
-            <p className="text-2xl font-bold text-green-600">
+            <p
+              className={`text-2xl font-bold ${isDark ? "text-green-400" : "text-green-600"}`}
+            >
               {stats.avgEngagement}%
             </p>
           </div>
@@ -480,7 +512,9 @@ export default function AccountsPage() {
               <AccountCard
                 key={account.id}
                 account={account}
-                themeStyles={themeStyles}
+                isDark={isDark}
+                styles={styles}
+                pageStyles={pageStyles}
                 isUpdating={isUpdatingAccount === account.id}
                 hasError={hasError.includes(account.id)}
                 onToggleAccount={handleToggleAccount}
@@ -491,40 +525,51 @@ export default function AccountsPage() {
             ))
           ) : (
             <EmptyAccountsCard
-              themeStyles={themeStyles}
-              currentTheme={currentTheme}
+              styles={styles}
+              pageStyles={pageStyles}
+              isDark={isDark}
               onAddAccount={handleAddAccountClick}
             />
           )}
         </div>
       </div>
-
+      <AccountLimitDialog
+        open={showAccountLimitDialog}
+        onOpenChange={setShowAccountLimitDialog}
+        currentAccounts={accounts.length}
+        accountLimit={subscriptions.length === 0 ? 1 : 3}
+        dashboardType="insta"
+      />
       {/* Account Limit Dialog */}
-      <AlertDialog
+      {/* <AlertDialog
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
       >
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className={styles.dialogContent}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Account Limit Reached</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-500">
+            <AlertDialogTitle className={styles.dialogTitle}>
+              Account Limit Reached
+            </AlertDialogTitle>
+            <AlertDialogDescription className={styles.dialogDesc}>
               You have reached the maximum number of accounts for your current
               plan ({accounts.length}/{accountLimit}). To add more accounts,
               please upgrade your subscription.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className={styles.dialogCancel}>
+              Cancel
+            </AlertDialogCancel>
             <Button
               onClick={() => router.push("/insta/pricing")}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+              className={styles.button.primary}
             >
               <Crown className="h-4 w-4 mr-2" />
               Upgrade Now
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
     </div>
   );
 }
@@ -532,7 +577,9 @@ export default function AccountsPage() {
 // Account Card Component
 interface AccountCardProps {
   account: InstagramAccount;
-  themeStyles: ThemeStyles;
+  isDark: boolean;
+  styles: ReturnType<typeof useThemeStyles>["styles"];
+  pageStyles: any;
   isUpdating: boolean;
   hasError: boolean;
   onToggleAccount: (accountId: string, field: string, value: boolean) => void;
@@ -543,7 +590,9 @@ interface AccountCardProps {
 
 const AccountCard: React.FC<AccountCardProps> = ({
   account,
-  themeStyles,
+  isDark,
+  styles,
+  pageStyles,
   isUpdating,
   hasError,
   onToggleAccount,
@@ -557,9 +606,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
       new Date(Date.now() + 24 * 60 * 60 * 1000);
 
   return (
-    <div
-      className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl p-5 hover:border-pink-200 transition-all`}
-    >
+    <div className={`${styles.card} rounded-xl p-4`}>
       <div className="flex flex-col md:flex-row gap-4">
         {/* Account Info */}
         <div className="flex items-center gap-4 flex-1">
@@ -570,62 +617,60 @@ const AccountCard: React.FC<AccountCardProps> = ({
               width={56}
               height={56}
               onError={() => onImageError(account.id)}
-              className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"
+              className="w-14 h-14 rounded-full object-cover border-2 border-gray-100 dark:border-white/[0.08]"
             />
-            <span
-              className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-white ${
-                account.isActive ? "bg-emerald-400" : "bg-gray-300"
-              }`}
-            />
+            <span className={pageStyles.accountAvatar(account.isActive)} />
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold text-gray-800">
-                @{account.username}
-              </h3>
-              <Badge
-                className={
+              <h3 className={pageStyles.accountName}>@{account.username}</h3>
+              <span
+                className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                   account.isActive
-                    ? "bg-green-100 text-green-600 border-green-200"
-                    : "bg-gray-100 text-gray-600 border-gray-200"
-                }
+                    ? pageStyles.badgeGreen
+                    : pageStyles.badgeGray
+                }`}
               >
                 {account.isActive ? "Active" : "Inactive"}
-              </Badge>
+              </span>
             </div>
-            <div className="flex items-center gap-3 text-xs text-gray-400">
-              <span>{account.followersCount.toLocaleString()} followers</span>
-              <span className="w-1 h-1 bg-gray-300 rounded-full" />
-              <span>{account.mediaCount} posts</span>
+            <div className="flex items-center gap-3">
+              <span className={pageStyles.accountStats}>
+                {account.followersCount.toLocaleString()} followers
+              </span>
+              <span className={pageStyles.accountStatDivider} />
+              <span className={pageStyles.accountStats}>
+                {account.mediaCount} posts
+              </span>
             </div>
           </div>
         </div>
 
         {/* Stats */}
         <div className="flex items-center gap-4">
-          <div className="text-center">
-            <p className="text-sm font-semibold text-gray-800">
+          <div className={pageStyles.accountStatItem}>
+            <p className={pageStyles.accountStatValue}>
               {account.templatesCount}
             </p>
-            <p className="text-xs text-gray-400">Templates</p>
+            <p className={pageStyles.accountStatLabel}>Templates</p>
           </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-gray-800">
+          <div className={pageStyles.accountStatItem}>
+            <p className={pageStyles.accountStatValue}>
               {account.accountReply}
             </p>
-            <p className="text-xs text-gray-400">Replies</p>
+            <p className={pageStyles.accountStatLabel}>Replies</p>
           </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-gray-800">
+          <div className={pageStyles.accountStatItem}>
+            <p className={pageStyles.accountStatValue}>
               {account.accountDMSent}
             </p>
-            <p className="text-xs text-gray-400">DMs</p>
+            <p className={pageStyles.accountStatLabel}>DMs</p>
           </div>
-          <div className="text-center">
-            <p className="text-sm font-semibold text-gray-800">
+          <div className={pageStyles.accountStatItem}>
+            <p className={pageStyles.accountStatValue}>
               {formatLastActivity(account.lastActivity)}
             </p>
-            <p className="text-xs text-gray-400">Active</p>
+            <p className={pageStyles.accountStatLabel}>Active</p>
           </div>
         </div>
 
@@ -639,9 +684,11 @@ const AccountCard: React.FC<AccountCardProps> = ({
                 onToggleAccount(account.id, "autoReplyEnabled", checked)
               }
               disabled={isUpdating}
-              className="data-[state=checked]:bg-pink-500"
+              className={pageStyles.switchTrack}
             />
-            <span className="text-xs text-gray-500 hidden lg:inline">
+            <span
+              className={`text-xs hidden lg:inline ${pageStyles.textMuted}`}
+            >
               Auto-reply
             </span>
           </div>
@@ -650,7 +697,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
           {isTokenExpiring && (
             <button
               onClick={() => onRefreshToken(account.instagramId)}
-              className="p-2 text-amber-600 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors"
+              className={pageStyles.tokenButton}
               title="Refresh token"
             >
               <RefreshCw className="h-4 w-4" />
@@ -660,7 +707,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
           {/* Manage Button */}
           <Link
             href={`/insta/accounts/${account.id}`}
-            className="p-2 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors"
+            className={pageStyles.manageButton}
           >
             <Settings className="h-4 w-4" />
           </Link>
@@ -672,34 +719,40 @@ const AccountCard: React.FC<AccountCardProps> = ({
 
 // Empty Accounts Card Component
 interface EmptyAccountsCardProps {
-  themeStyles: ThemeStyles;
-  currentTheme: string;
+  styles: ReturnType<typeof useThemeStyles>["styles"];
+  pageStyles: any;
+  isDark: boolean;
   onAddAccount: () => void;
 }
 
 const EmptyAccountsCard: React.FC<EmptyAccountsCardProps> = ({
-  themeStyles,
-  currentTheme,
+  styles,
+  pageStyles,
+  isDark,
   onAddAccount,
 }) => (
-  <div
-    className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl p-12 text-center`}
-  >
-    <div className="w-20 h-20 rounded-full bg-pink-50 flex items-center justify-center mx-auto mb-4">
-      <Instagram className="h-10 w-10 text-pink-400" />
+  <div className={`${styles.card} rounded-xl p-4`}>
+    <div className="p-12 text-center">
+      <div
+        className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${pageStyles.iconPink}`}
+      >
+        <Instagram
+          className={`h-10 w-10 ${isDark ? "text-pink-400" : "text-pink-400"}`}
+        />
+      </div>
+      <h3 className={`text-xl font-bold mb-2 ${styles.text.primary}`}>
+        No accounts connected
+      </h3>
+      <p
+        className={`text-sm mb-6 max-w-sm mx-auto ${isDark ? "text-white/40" : "text-gray-500"}`}
+      >
+        Connect your first Instagram Business account to start automating
+        replies
+      </p>
+      <button onClick={onAddAccount} className={pageStyles.emptyButton}>
+        <Plus className="h-4 w-4" />
+        Connect Your First Account
+      </button>
     </div>
-    <h3 className="text-xl font-bold text-gray-800 mb-2">
-      No accounts connected
-    </h3>
-    <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-      Connect your first Instagram Business account to start automating replies
-    </p>
-    <button
-      onClick={onAddAccount}
-      className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl text-sm font-medium transition-colors"
-    >
-      <Plus className="h-4 w-4" />
-      Connect Your First Account
-    </button>
   </div>
 );

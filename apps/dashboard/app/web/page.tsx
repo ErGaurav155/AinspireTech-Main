@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -24,12 +24,21 @@ import {
   PlayCircle,
   AlertCircle,
   Loader2,
+  Shield,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getChatbots, getTokenBalance } from "@/lib/services/web-actions.api";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import { Button } from "@rocketreplai/ui/components/radix/button";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { GateScreen } from "@/components/shared/GateScreen";
+import { StatCard } from "@/components/shared/StatCard";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface ChatbotOverview {
   id: string;
@@ -45,6 +54,8 @@ interface ChatbotOverview {
 export default function WebDashboardPage() {
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
+
   const [chatbots, setChatbots] = useState<ChatbotOverview[]>([]);
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -211,101 +222,79 @@ export default function WebDashboardPage() {
   };
 
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading..." />;
   }
 
   if (!userId) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-purple-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Bot className="h-10 w-10 text-purple-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Sign in to Continue
-          </h1>
-          <p className="text-gray-500 mb-6">
-            Please sign in to access your chatbot dashboard.
-          </p>
-          <Link
-            href="/sign-in"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Sign In
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<Bot className="h-8 w-8 text-purple-400" />}
+        title="Sign in to Continue"
+        body="Please sign in to access your chatbot dashboard."
+      >
+        <Link href="/sign-in" className={styles.pill}>
+          Sign In <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading your dashboard...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading your dashboard…" />;
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="text-center max-w-md p-6 bg-red-50 rounded-2xl">
-          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium mb-4">
-            Error loading dashboard
-          </p>
-          <p className="text-sm text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={loadDashboard}
-            className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertCircle className="h-8 w-8 text-red-400" />}
+        title="Error loading dashboard"
+        body={error}
+      >
+        <button onClick={loadDashboard} className={styles.pill}>
+          Try Again
+        </button>
+      </GateScreen>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Hero Card */}
-        <div className="relative overflow-hidden bg-white rounded-3xl shadow-sm border border-gray-100">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-50/80 via-white to-pink-50/60 pointer-events-none" />
-          <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 opacity-50 blur-3xl pointer-events-none" />
-
-          <div className="relative z-10 p-4 md:p-8 lg:p-10">
+        <div className={`${styles.card} p-4 md:p-8 lg:p-10`}>
+          <div className="relative z-10">
             <div className="flex items-center gap-3 mb-4">
-              <Sparkles className="h-6 w-6 text-purple-500" />
-              <h1 className="text-2xl md:text-3xl font-black text-gray-900">
+              <Sparkles
+                className={`h-6 w-6 ${isDark ? "text-purple-400" : "text-purple-500"}`}
+              />
+              <h1
+                className={`text-2xl md:text-3xl font-black ${styles.text.primary}`}
+              >
                 Welcome to AI Chatbots
               </h1>
             </div>
-            <p className="text-gray-500 text-sm max-w-2xl mb-6 leading-relaxed">
+            <p
+              className={`${styles.text.secondary} text-sm max-w-2xl mb-6 leading-relaxed`}
+            >
               Build intelligent chatbots for lead generation and education.
               Automate conversations, capture leads, and engage with your
               audience 24/7.
             </p>
 
             {/* Token Balance */}
-            <div className="inline-flex w-full sm:w-auto items-center justify-between sm:justify-start gap-1 sm:gap-2 bg-amber-50 border border-amber-200 rounded-full px-2 sm:px-4 py-2">
-              <span className="flex items-center gap-1 text-xs md:text-sm font-medium text-amber-700">
+            <div
+              className={`inline-flex w-full sm:w-auto items-center justify-between sm:justify-start gap-1 sm:gap-2 rounded-full px-2 sm:px-4 py-2 ${styles.badge.amber}`}
+            >
+              <span
+                className={`flex items-center gap-1 text-xs md:text-sm font-medium ${styles.text.primary}`}
+              >
                 <Coins className="h-4 w-4 text-amber-500" />
                 {tokenBalance.toLocaleString()} tokens available
               </span>
               <Link
                 href="/web/tokens"
-                className="text-xs font-medium sm:font-semibold text-amber-600 hover:text-amber-700 text-nowrap"
+                className={`text-xs font-medium sm:font-semibold ${styles.text.primary} hover:opacity-80 text-nowrap`}
               >
                 Buy more →
               </Link>
@@ -315,62 +304,41 @@ export default function WebDashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl bg-purple-100 flex items-center justify-center">
-                <Bot className="h-[18px] w-[18px] text-purple-600" />
-              </div>
-              <Badge variant="outline" className="text-xs">
-                +{totalStats.activeChatbots}
-              </Badge>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Active Chatbots</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {totalStats.activeChatbots} / {chatbots.length}
-            </p>
-          </div>
+          <StatCard
+            iconBg={styles.icon.purple}
+            label="Active Chatbots"
+            icon={<Bot className="h-5 w-5 text-purple-400" />}
+            value={`${totalStats.activeChatbots} / ${chatbots.length}`}
+          />
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 flex items-center justify-center">
-                <MessageSquare className="h-[18px] w-[18px] text-blue-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Total Conversations</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {totalStats.totalConversations.toLocaleString()}
-            </p>
-          </div>
+          <StatCard
+            iconBg={styles.icon.blue}
+            label="Total Conversations"
+            icon={<MessageSquare className="h-5 w-5 text-blue-400" />}
+            value={totalStats.totalConversations.toLocaleString()}
+          />
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
-                <TrendingUp className="h-[18px] w-[18px] text-green-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Satisfaction Rate</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {totalStats.satisfactionRate}%
-            </p>
-          </div>
+          <StatCard
+            iconBg={styles.icon.green}
+            label="Satisfaction Rate"
+            icon={<TrendingUp className="h-5 w-5 text-green-400" />}
+            value={`${totalStats.satisfactionRate}%`}
+          />
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Coins className="h-[18px] w-[18px] text-amber-600" />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 mb-1">Tokens Used</p>
-            <p className="text-2xl font-bold text-gray-800">
-              {totalStats.totalTokensUsed.toLocaleString()}
-            </p>
-          </div>
+          <StatCard
+            iconBg={styles.icon.amber}
+            label="Tokens Used"
+            icon={<Coins className="h-5 w-5 text-amber-400" />}
+            value={totalStats.totalTokensUsed.toLocaleString()}
+          />
         </div>
 
         {/* Chatbots Grid */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
+            <h2
+              className={`text-base font-bold flex items-center gap-2 ${styles.text.primary}`}
+            >
               <Bot className="h-4 w-4 text-purple-400" />
               Your Chatbots
             </h2>
@@ -384,10 +352,7 @@ export default function WebDashboardPage() {
               const buildRoute = getBuildRoute(chatbot.type);
 
               return (
-                <div
-                  key={chatbot.id}
-                  className="bg-white border border-gray-100 rounded-2xl p-6 hover:border-gray-200 hover:shadow-md transition-all group"
-                >
+                <div key={chatbot.id} className={`${styles.card} p-6`}>
                   <div className="flex items-start justify-between mb-4">
                     <div
                       className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}
@@ -395,56 +360,57 @@ export default function WebDashboardPage() {
                       <Icon className="h-7 w-7 text-white" />
                     </div>
                     {chatbot.isBuilt ? (
-                      <Badge className="bg-green-100 text-green-600 border-green-200">
-                        <CheckCircle className="h-3 w-3 mr-1" />
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.green}`}
+                      >
+                        <CheckCircle className="h-3 w-3" />
                         Active
-                      </Badge>
+                      </span>
                     ) : (
-                      <Badge
-                        variant="outline"
-                        className="text-gray-400 border-gray-200"
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.gray}`}
                       >
                         Not Built
-                      </Badge>
+                      </span>
                     )}
                   </div>
 
-                  <h3 className="text-xl font-bold text-gray-800 mb-2">
+                  <h3
+                    className={`text-xl font-bold mb-2 ${styles.text.primary}`}
+                  >
                     {chatbot.name}
                   </h3>
 
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className={`text-sm mb-4 ${styles.text.secondary}`}>
                     {chatbot.description}
                   </p>
 
                   {chatbot.isBuilt ? (
                     <div className="space-y-4">
-                      <div className="flex items-center gap-4 text-sm">
+                      <div
+                        className={`flex items-center gap-4 text-sm ${styles.text.secondary}`}
+                      >
                         <div className="flex items-center gap-1.5">
-                          <MessageSquare className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600">
-                            {chatbot.conversations} conversations
-                          </span>
+                          <MessageSquare className="h-4 w-4" />
+                          <span>{chatbot.conversations} conversations</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Clock className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-600 capitalize">
-                            {chatbot.status}
-                          </span>
+                          <Clock className="h-4 w-4" />
+                          <span className="capitalize">{chatbot.status}</span>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3">
                         <Link
                           href={route}
-                          className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity ${styles.pill}`}
                         >
                           <PlayCircle className="h-4 w-4" />
                           Open Dashboard
                         </Link>
                         <Link
                           href={`/web/${chatbot.type.split("-")[2]}/settings`}
-                          className="p-2.5 border border-gray-200 rounded-xl text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-colors"
+                          className={`p-2.5 rounded-xl transition-colors ${styles.pill}`}
                         >
                           <Settings className="h-4 w-4" />
                         </Link>
@@ -454,7 +420,7 @@ export default function WebDashboardPage() {
                     <div className="space-y-4">
                       <Link
                         href={buildRoute}
-                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+                        className={`flex items-center justify-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity ${styles.pill}`}
                       >
                         <Plus className="h-4 w-4" />
                         Build Now
@@ -468,53 +434,75 @@ export default function WebDashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-5">
-          <h3 className="text-base font-semibold text-gray-800 mb-4">
+        <div className={`${styles.card} p-5`}>
+          <h3 className={`text-base font-semibold mb-4 ${styles.text.primary}`}>
             Quick Actions
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Link
               href="/web/tokens"
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
             >
-              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Coins className="h-5 w-5 text-amber-600" />
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${styles.icon.amber}`}
+              >
+                <Coins className="h-5 w-5 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-800">Buy Tokens</p>
-                <p className="text-xs text-gray-400">Add more tokens</p>
+                <p className={`text-sm font-medium ${styles.text.primary}`}>
+                  Buy Tokens
+                </p>
+                <p className={`text-xs ${styles.text.muted}`}>
+                  Add more tokens
+                </p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-gray-300 group-hover:text-amber-500 ml-auto transition-colors" />
+              <ArrowUpRight
+                className={`h-4 w-4 ml-auto transition-colors ${styles.text.muted} group-hover:text-amber-500`}
+              />
             </Link>
 
             <Link
               href="/web/refer"
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
             >
-              <div className="w-10 h-10 rounded-full bg-pink-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Users className="h-5 w-5 text-pink-600" />
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${styles.icon.pink}`}
+              >
+                <Users className="h-5 w-5 text-pink-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-800">
+                <p className={`text-sm font-medium ${styles.text.primary}`}>
                   Refer & Earn
                 </p>
-                <p className="text-xs text-gray-400">Get free tokens</p>
+                <p className={`text-xs ${styles.text.muted}`}>
+                  Get free tokens
+                </p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-gray-300 group-hover:text-pink-500 ml-auto transition-colors" />
+              <ArrowUpRight
+                className={`h-4 w-4 ml-auto transition-colors ${styles.text.muted} group-hover:text-pink-500`}
+              />
             </Link>
 
             <Link
               href="/web/settings"
-              className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors group"
+              className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
             >
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Settings className="h-5 w-5 text-blue-600" />
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${styles.icon.blue}`}
+              >
+                <Settings className="h-5 w-5 text-blue-500" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-800">Settings</p>
-                <p className="text-xs text-gray-400">Configure preferences</p>
+                <p className={`text-sm font-medium ${styles.text.primary}`}>
+                  Settings
+                </p>
+                <p className={`text-xs ${styles.text.muted}`}>
+                  Configure preferences
+                </p>
               </div>
-              <ArrowUpRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500 ml-auto transition-colors" />
+              <ArrowUpRight
+                className={`h-4 w-4 ml-auto transition-colors ${styles.text.muted} group-hover:text-blue-500`}
+              />
             </Link>
           </div>
         </div>

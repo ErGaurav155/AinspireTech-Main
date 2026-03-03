@@ -146,14 +146,6 @@ export const createInstaTemplate = (
 
 // ==================== ACCOUNT FUNCTIONS ====================
 
-export const getInstaAccounts = (
-  apiRequest: ApiRequestFn,
-): Promise<{ accounts: InstagramAccount[] }> => {
-  return apiRequest("/insta/accounts", {
-    method: "GET",
-  });
-};
-
 export const getAllInstagramAccounts = (
   apiRequest: ApiRequestFn,
 ): Promise<{ accounts: InstagramAccount[] }> => {

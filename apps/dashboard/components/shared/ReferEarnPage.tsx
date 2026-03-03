@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@clerk/nextjs";
@@ -16,27 +16,37 @@ import {
   ArrowRight,
   Instagram,
   Globe,
+  RefreshCw,
+  Shield,
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@rocketreplai/ui/components/radix/button";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { getAffiliateDashInfo } from "@/lib/services/affiliate-actions.api";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface ReferEarnPageProps {
   dashboardType: "insta" | "web";
 }
 
 // Illustration component
-const ReferralIllustration = () => (
+const ReferralIllustration = ({ isDark }: { isDark: boolean }) => (
   <div className="relative w-full h-64 flex items-center justify-center">
     <div className="relative">
-      <div className="w-48 h-48 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
+      <div
+        className={`w-48 h-48 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center ${isDark ? "opacity-90" : ""}`}
+      >
         <div className="text-white text-6xl">💰</div>
       </div>
 
       <motion.div
         animate={{ y: [-10, 10, -10] }}
         transition={{ duration: 2, repeat: Infinity }}
-        className="absolute -top-4 -right-4 w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-2xl"
+        className={`absolute -top-4 -right-4 w-16 h-16 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center text-2xl ${isDark ? "opacity-90" : ""}`}
       >
         💵
       </motion.div>
@@ -44,7 +54,7 @@ const ReferralIllustration = () => (
       <motion.div
         animate={{ y: [10, -10, 10] }}
         transition={{ duration: 2.5, repeat: Infinity }}
-        className="absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-2xl"
+        className={`absolute -bottom-4 -left-4 w-16 h-16 bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center text-2xl ${isDark ? "opacity-90" : ""}`}
       >
         💸
       </motion.div>
@@ -52,7 +62,7 @@ const ReferralIllustration = () => (
       <motion.div
         animate={{ y: [-5, 15, -5] }}
         transition={{ duration: 3, repeat: Infinity }}
-        className="absolute top-8 -right-12 w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-xl"
+        className={`absolute top-8 -right-12 w-12 h-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-xl ${isDark ? "opacity-90" : ""}`}
       >
         💳
       </motion.div>
@@ -64,22 +74,22 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [affiliateData, setAffiliateData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState("");
-  // Add this to the theme object
-  const theme = {
-    primary: dashboardType === "insta" ? "pink" : "purple",
-    gradient:
-      dashboardType === "insta"
-        ? "from-pink-500 to-rose-500"
-        : "from-purple-500 to-pink-500",
-    icon: dashboardType === "insta" ? Instagram : Globe,
-    payoutRoute:
-      dashboardType === "insta" ? "/insta/refer/payouts" : "/web/refer/payouts",
-  };
+
+  const primaryColor = dashboardType === "insta" ? "pink" : "purple";
+  const gradient =
+    dashboardType === "insta"
+      ? "from-pink-500 to-rose-500"
+      : "from-purple-500 to-pink-500";
+  const Icon = dashboardType === "insta" ? Instagram : Globe;
+  const payoutRoute =
+    dashboardType === "insta" ? "/insta/refer/payouts" : "/web/refer/payouts";
+
   useEffect(() => {
     if (!userId || !isLoaded) return;
 
@@ -173,31 +183,28 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
   };
 
   if (!isLoaded || loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <Spinner label="Loading referral program…" />;
   }
 
   const stats = affiliateData?.stats || {};
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Hero Section */}
-        <div className="bg-white rounded-3xl p-6 md:p-8 mb-6 border border-gray-100">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+        <div className={`${styles.card} p-6 md:p-8 mb-6`}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center relative z-10">
             <div>
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-4xl md:text-5xl font-bold text-gray-900 mb-4"
+                className={`text-4xl md:text-5xl font-bold mb-4 ${styles.text.primary}`}
               >
                 Invite friends.
                 <br />
                 <span
-                  className={`bg-gradient-to-r ${theme.gradient} bg-clip-text text-transparent`}
+                  className={`bg-gradient-to-r ${gradient} bg-clip-text text-transparent`}
                 >
                   Earn rewards.
                 </span>
@@ -207,21 +214,25 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="text-lg text-gray-600 mb-8"
+                className={`text-lg mb-8 ${styles.text.secondary}`}
               >
                 Share RocketReplai with your friends and earn commission when
                 they upgrade.
               </motion.p>
 
               <div className="flex items-center gap-2">
-                <theme.icon
+                <Icon
                   className={`h-5 w-5 ${
                     dashboardType === "insta"
-                      ? "text-pink-500"
-                      : "text-purple-500"
+                      ? isDark
+                        ? "text-pink-400"
+                        : "text-pink-500"
+                      : isDark
+                        ? "text-purple-400"
+                        : "text-purple-500"
                   }`}
                 />
-                <span className="text-sm text-gray-500">
+                <span className={`text-sm ${styles.text.muted}`}>
                   {dashboardType === "insta"
                     ? "Instagram Automation"
                     : "Web Chatbots"}
@@ -230,38 +241,32 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
             </div>
 
             <div className="hidden lg:block">
-              <ReferralIllustration />
+              <ReferralIllustration isDark={isDark} />
             </div>
           </div>
         </div>
 
         {/* Referral Link Section */}
-        <div className="bg-white rounded-3xl p-6 md:p-8 mb-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        <div className={`${styles.card} p-6 md:p-8 mb-6`}>
+          <h3 className={`text-lg font-semibold mb-4 ${styles.text.primary}`}>
             Your referral link
           </h3>
 
           <div className="flex flex-col sm:flex-row items-stretch gap-2 mb-4">
-            <div className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm text-gray-700 font-mono overflow-x-auto whitespace-nowrap">
+            <div
+              className={`flex-1 rounded-xl px-4 py-3 text-sm font-mono overflow-x-auto whitespace-nowrap ${styles.innerCard}`}
+            >
               {affiliateData?.affiliateLink || "Loading..."}
             </div>
             <div className="flex gap-2">
-              <Button
-                onClick={handleCopyLink}
-                variant="outline"
-                className="flex-shrink-0 rounded-xl border-gray-300 hover:bg-gray-50"
-              >
+              <Button onClick={handleCopyLink} className={styles.pill}>
                 {copied ? (
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                 ) : (
                   <Copy className="h-4 w-4" />
                 )}
               </Button>
-              <Button
-                onClick={handleShare}
-                variant="outline"
-                className="flex-shrink-0 rounded-xl border-gray-300 hover:bg-gray-50"
-              >
+              <Button onClick={handleShare} className={styles.pill}>
                 <Share2 className="h-4 w-4" />
               </Button>
             </div>
@@ -270,10 +275,14 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
           {/* OR Divider */}
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className={`w-full border-t ${styles.divider}`}></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white text-gray-500">OR</span>
+              <span
+                className={`px-4 ${isDark ? "bg-[#0a0a16]" : "bg-white"} ${styles.text.muted}`}
+              >
+                OR
+              </span>
             </div>
           </div>
 
@@ -284,11 +293,11 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="friend@email.com"
-              className="flex-1 px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+              className={`flex-1 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-${primaryColor}-500 focus:border-transparent ${styles.input}`}
             />
             <Button
               onClick={handleInvite}
-              className={`rounded-xl bg-gradient-to-r ${theme.gradient} hover:opacity-90 text-white px-6`}
+              className={`rounded-xl bg-gradient-to-r ${gradient} hover:opacity-90 text-white px-6`}
             >
               Invite
             </Button>
@@ -296,11 +305,11 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
         </div>
 
         {/* How It Works */}
-        <div className="bg-white rounded-3xl p-6 md:p-8 mb-6 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+        <div className={`${styles.card} p-6 md:p-8 mb-6`}>
+          <h3 className={`text-lg font-semibold mb-2 ${styles.text.primary}`}>
             How the referral program works
           </h3>
-          <p className="text-sm text-gray-600 mb-8">
+          <p className={`text-sm mb-8 ${styles.text.secondary}`}>
             Earn commission by inviting friends to RocketReplai.
           </p>
 
@@ -310,51 +319,58 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
                 icon: LinkIcon,
                 title: "Share your link",
                 description: "Send your unique referral link to your friends.",
+                color: "pink",
               },
               {
                 icon: Users,
                 title: "Friend signs up",
                 description: "They create an account using your referral link.",
+                color: "purple",
               },
               {
                 icon: CreditCard,
                 title: "They upgrade",
                 description: "When they purchase a paid plan, you qualify.",
+                color: "green",
               },
               {
                 icon: TrendingUp,
                 title: "You earn",
                 description: "Earn 25% commission on every successful payment.",
+                color: "blue",
               },
-            ].map((step, index) => (
-              <motion.div
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-                className="text-center"
-              >
-                <div
-                  className={`w-16 h-16 bg-gradient-to-br ${
-                    dashboardType === "insta"
-                      ? "from-pink-100 to-rose-100"
-                      : "from-purple-100 to-pink-100"
-                  } rounded-2xl flex items-center justify-center mx-auto mb-4`}
+            ].map((step, index) => {
+              const iconBgClass =
+                styles.icon[step.color as keyof typeof styles.icon] ||
+                styles.icon.blue;
+              return (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="text-center"
                 >
-                  <step.icon
-                    className={`w-6 h-6 ${
-                      dashboardType === "insta"
-                        ? "text-pink-600"
-                        : "text-purple-600"
-                    }`}
-                  />
-                </div>
-                <h4 className="font-semibold text-gray-900 mb-2">
-                  {step.title}
-                </h4>
-                <p className="text-sm text-gray-600">{step.description}</p>
-              </motion.div>
-            ))}
+                  <div
+                    className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${iconBgClass}`}
+                  >
+                    <step.icon
+                      className={`w-6 h-6 ${
+                        isDark
+                          ? `text-${step.color}-400`
+                          : `text-${step.color}-600`
+                      }`}
+                    />
+                  </div>
+                  <h4 className={`font-semibold mb-2 ${styles.text.primary}`}>
+                    {step.title}
+                  </h4>
+                  <p className={`text-sm ${styles.text.secondary}`}>
+                    {step.description}
+                  </p>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
 
@@ -387,10 +403,14 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="bg-white rounded-2xl p-6 border border-gray-100"
+              className={`${styles.card} p-6`}
             >
-              <p className="text-sm text-gray-600 mb-2">{stat.label}</p>
-              <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+              <p className={`text-sm mb-2 ${styles.text.secondary}`}>
+                {stat.label}
+              </p>
+              <p className={`text-2xl font-bold ${styles.text.primary}`}>
+                {stat.value}
+              </p>
             </motion.div>
           ))}
         </div>
@@ -398,9 +418,15 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
         {/* Go to Payout Button */}
         <div className="mb-6">
           <button
-            onClick={() => router.push(theme.payoutRoute)}
+            onClick={() => router.push(payoutRoute)}
             className={`inline-flex items-center gap-2 ${
-              dashboardType === "insta" ? "text-pink-500" : "text-purple-500"
+              dashboardType === "insta"
+                ? isDark
+                  ? "text-pink-400"
+                  : "text-pink-500"
+                : isDark
+                  ? "text-purple-400"
+                  : "text-purple-500"
             } hover:opacity-80 font-medium transition-colors`}
           >
             Go to payout
@@ -409,76 +435,61 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
         </div>
 
         {/* Referral Activity */}
-        <div className="bg-white rounded-3xl p-6 md:p-8 border border-gray-100">
-          <h3 className="text-lg font-semibold text-gray-900 mb-6">
+        <div className={`${styles.card} p-6 md:p-8`}>
+          <h3 className={`text-lg font-semibold mb-6 ${styles.text.primary}`}>
             Referral Activity
           </h3>
 
           {(!affiliateData?.referrals ||
             affiliateData.referrals.length === 0) && (
-            <div className="text-center py-12">
-              <div
-                className={`w-16 h-16 bg-gradient-to-br ${
-                  dashboardType === "insta"
-                    ? "from-pink-100 to-rose-100"
-                    : "from-purple-100 to-pink-100"
-                } rounded-full flex items-center justify-center mx-auto mb-4`}
-              >
-                <Users
-                  className={`w-8 h-8 ${
-                    dashboardType === "insta"
-                      ? "text-pink-600"
-                      : "text-purple-600"
-                  }`}
-                />
-              </div>
-              <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                Your referral journey starts here
-              </h4>
-              <p className="text-gray-600 max-w-md mx-auto">
-                You have not referred anyone yet. Share your referral link and
-                start earning rewards.
-              </p>
-            </div>
+            <EmptyState
+              icon={<Users className="h-8 w-8" />}
+              label="Your referral journey starts here"
+            />
           )}
 
           {affiliateData?.referrals && affiliateData.referrals.length > 0 && (
             <div className="space-y-4">
-              {affiliateData.referrals.slice(0, 5).map((referral: any) => (
-                <div
-                  key={referral._id}
-                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 bg-gradient-to-br ${
-                        dashboardType === "insta"
-                          ? "from-pink-500 to-rose-500"
-                          : "from-purple-500 to-pink-500"
-                      } rounded-full flex items-center justify-center text-white font-semibold`}
-                    >
-                      {referral.referredUserId?.firstName?.[0] || "U"}
+              {affiliateData.referrals.slice(0, 5).map((referral: any) => {
+                const iconBgClass =
+                  styles.icon[primaryColor as keyof typeof styles.icon] ||
+                  styles.icon.purple;
+                return (
+                  <div
+                    key={referral._id}
+                    className={`flex items-center justify-between p-4 rounded-xl ${styles.innerCard} ${styles.rowHover}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgClass}`}
+                      >
+                        <span className="text-sm font-semibold">
+                          {referral.referredUserId?.firstName?.[0] || "U"}
+                        </span>
+                      </div>
+                      <div>
+                        <p className={`font-medium ${styles.text.primary}`}>
+                          {referral.referredUserId?.firstName}{" "}
+                          {referral.referredUserId?.lastName}
+                        </p>
+                        <p className={`text-sm ${styles.text.secondary}`}>
+                          {new Date(referral.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-900">
-                        {referral.referredUserId?.firstName}{" "}
-                        {referral.referredUserId?.lastName}
+                    <div className="text-right">
+                      <p className={`font-bold ${styles.text.primary}`}>
+                        ₹{referral.totalCommissionEarned?.toFixed(2) || "0.00"}
                       </p>
-                      <p className="text-sm text-gray-600">
-                        {new Date(referral.createdAt).toLocaleDateString()}
+                      <p
+                        className={`text-sm capitalize ${styles.text.secondary}`}
+                      >
+                        {referral.status}
                       </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-bold text-gray-900">
-                      ₹{referral.totalCommissionEarned?.toFixed(2) || "0.00"}
-                    </p>
-                    <p className="text-sm text-gray-600 capitalize">
-                      {referral.status}
-                    </p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

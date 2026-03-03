@@ -1,4 +1,3 @@
-// app/insta/layout.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,72 +6,52 @@ import { Navbar } from "@/components/shared/Navbar";
 import { Toaster } from "@rocketreplai/ui/components/radix/toaster";
 import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import InstaBottomNavbar from "@/components/insta/InstaBottomNavbar";
-
-// Replace these with however you fetch the connected IG account in your app
-// e.g. from a context, SWR hook, server component prop, etc.
-const PLACEHOLDER_ACCOUNT = {
-  accountName: undefined as string | undefined,
-  accountHandle: undefined as string | undefined,
-  accountAvatarUrl: undefined as string | undefined,
-};
+import { useSidebar } from "@/lib/useSidebar";
+import { useUser } from "@clerk/nextjs";
+import { Spinner } from "@/components/shared/Spinner";
 
 export default function InstaLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isClient, setIsClient] = useState(false);
-
+  const { isOpen, toggle } = useSidebar(true); // Default open on desktop
+  const { user, isLoaded } = useUser();
+  const [mounted, setMounted] = useState(false);
   useEffect(() => {
-    setIsClient(true);
-    setIsSidebarOpen(window.innerWidth >= 768);
-
-    const handleResize = () => {
-      setIsSidebarOpen(window.innerWidth >= 768);
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    setMounted(true);
   }, []);
-
-  const toggleSidebar = () => setIsSidebarOpen((prev) => !prev);
+  if (!isLoaded || !mounted) return <Spinner label="Loading dashboard…" />;
 
   return (
-    <div className="flex min-h-screen bg-[#F8F9FC]">
-      <InstaSidebar
-        isOpen={isSidebarOpen}
-        onToggle={toggleSidebar}
-        accountName={PLACEHOLDER_ACCOUNT.accountName}
-        accountHandle={PLACEHOLDER_ACCOUNT.accountHandle}
-      />
+    <>
+      <div className="min-h-screen relative overflow-auto ">
+        <div className="flex min-h-screen relative">
+          <InstaSidebar isOpen={isOpen} onToggle={toggle} />
 
-      <main
-        className={`flex-1 min-w-0 transition-all duration-300 min-h-screen ${
-          isSidebarOpen ? "md:ml-72" : "md:ml-0"
-        }`}
-      >
-        <Navbar
-          onSidebarToggle={toggleSidebar}
-          isSidebarOpen={isSidebarOpen}
-          dashboardType="insta"
-        />
-        <div className="flex lg:hidden">
-          <BreadcrumbsDefault />
+          <main
+            className={`flex-1 min-w-0 transition-all duration-300 ${
+              isOpen ? "md:ml-72  md:pl-1" : "md:ml-0"
+            }`}
+          >
+            <Navbar
+              onSidebarToggle={toggle}
+              isSidebarOpen={isOpen}
+              dashboardType="insta"
+            />
+            <div className="flex lg:hidden mt-2">
+              <BreadcrumbsDefault />
+            </div>
+
+            {/* Bottom padding so content doesn't hide behind the mobile nav bar */}
+            <div className="pb-16 md:pb-0">{children}</div>
+
+            <Toaster />
+          </main>
         </div>
 
-        {/* Bottom padding so content doesn't hide behind the mobile nav bar */}
-        <div className="pb-16 md:pb-0">{children}</div>
-
-        <Toaster />
-      </main>
-
-      {/* Mobile bottom navigation — receives same account info as sidebar */}
-      <InstaBottomNavbar
-        accountName={PLACEHOLDER_ACCOUNT.accountName}
-        accountHandle={PLACEHOLDER_ACCOUNT.accountHandle}
-        accountAvatarUrl={PLACEHOLDER_ACCOUNT.accountAvatarUrl}
-      />
-    </div>
+        <InstaBottomNavbar />
+      </div>
+    </>
   );
 }

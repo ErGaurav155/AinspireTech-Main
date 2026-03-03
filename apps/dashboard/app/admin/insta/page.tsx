@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -26,6 +26,8 @@ import {
   BarChart3,
   Zap,
   TrendingUp,
+  ArrowUpRight,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
@@ -36,12 +38,14 @@ import {
   getUsers,
   verifyOwner,
 } from "@/lib/services/admin-actions.api";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
+import * as Dialog from "@radix-ui/react-dialog";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { GateScreen } from "@/components/shared/GateScreen";
+import { AvatarCircle } from "@/components/shared/AvatarCircle";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface InstaAccount {
   _id: string;
@@ -97,9 +101,9 @@ interface CombinedAccount {
 export default function AdminInstagramPage() {
   const { user, isLoaded } = useUser();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [accounts, setAccounts] = useState<CombinedAccount[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<CombinedAccount[]>(
@@ -114,26 +118,6 @@ export default function AdminInstagramPage() {
     useState<CombinedAccount | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
 
-  // Theme styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      textMuted: isDark ? "text-gray-500" : "text-gray-400",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
-      inputBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-      inputBorder: isDark ? "border-gray-700" : "border-gray-200",
-      tableBg: isDark ? "bg-[#1A1A1E]" : "bg-white",
-      tableBorder: isDark ? "border-gray-800" : "border-gray-100",
-      tableRowHover: isDark ? "hover:bg-[#252529]" : "hover:bg-gray-50",
-    };
-  }, [currentTheme]);
-
   // Check owner and fetch data
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -142,9 +126,7 @@ export default function AdminInstagramPage() {
       setLoading(true);
       setError(null);
 
-      // Verify owner
       const ownerVerification = await verifyOwner(apiRequest);
-
       setIsOwner(ownerVerification.isOwner);
 
       if (!ownerVerification.isOwner) {
@@ -153,16 +135,13 @@ export default function AdminInstagramPage() {
         return;
       }
 
-      // Fetch all data
       const [instaAccounts, users] = await Promise.all([
         getInstaAccounts(apiRequest),
         getUsers(apiRequest),
       ]);
 
-      // Create user map
       const userMap = new Map(users?.map((u: User) => [u.clerkId, u]));
 
-      // Transform accounts
       const transformed: CombinedAccount[] = instaAccounts.accounts.map(
         (acc: InstaAccount) => ({
           id: acc._id,
@@ -298,114 +277,86 @@ export default function AdminInstagramPage() {
   const isUserOwner =
     user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
 
+  // Guard screens
   if (!isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading..." />;
   }
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-pink-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <Shield className="h-10 w-10 text-pink-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Authentication Required
-          </h1>
-          <p className="text-gray-500 mb-6">
-            Please sign in to access the admin dashboard.
-          </p>
-          <Link
-            href="/sign-in"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Sign In
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<Shield className="h-8 w-8 text-pink-400" />}
+        title="Authentication Required"
+        body="Please sign in to access the admin dashboard."
+      >
+        <Link
+          href="/sign-in"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Sign In <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (!isUserOwner && isOwner === false) {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center p-6">
-        <div className="text-center max-w-md">
-          <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center mx-auto mb-6">
-            <AlertTriangle className="h-10 w-10 text-red-600" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">
-            Access Denied
-          </h1>
-          <p className="text-gray-500 mb-2">
-            You are not authorized to view this page.
-          </p>
-          <p className="text-sm text-gray-400 mb-4">
-            Logged in as:{" "}
-            <span className="text-pink-600">
-              {user.primaryEmailAddress?.emailAddress}
-            </span>
-          </p>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Return to Home
-          </Link>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Access Denied"
+        body="You are not authorized to view this page."
+        subText={`Logged in as: ${user.primaryEmailAddress?.emailAddress}`}
+      >
+        <Link
+          href="/"
+          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Return to Home <ArrowUpRight size={14} />
+        </Link>
+      </GateScreen>
     );
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="h-8 w-8 text-pink-500 animate-spin" />
-          <p className="text-sm text-gray-400">Loading Instagram accounts...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading Instagram accounts…" />;
   }
 
   if (error && error !== "ACCESS_DENIED") {
     return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="text-center max-w-md p-6 bg-red-50 rounded-2xl">
-          <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-medium mb-4">Error loading data</p>
-          <p className="text-sm text-gray-500 mb-4">{error}</p>
-          <button
-            onClick={fetchData}
-            className="px-4 py-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl hover:opacity-90 transition-opacity"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+      <GateScreen
+        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
+        title="Something went wrong"
+        body={error}
+      >
+        <button
+          onClick={fetchData}
+          className={`px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
+        >
+          Try Again
+        </button>
+      </GateScreen>
     );
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center shadow-lg shadow-pink-200/50">
-              <Instagram className="h-6 w-6 text-white" />
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center ${styles.icon.pink}`}
+            >
+              <Instagram className="h-6 w-6 text-pink-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-800">
+              <h1
+                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
+              >
                 Instagram Users
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-xs ${styles.text.secondary}`}>
                 Manage all connected Instagram accounts
               </p>
             </div>
@@ -413,14 +364,14 @@ export default function AdminInstagramPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleRefresh}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <RefreshCw className="h-4 w-4" />
               Refresh
             </button>
             <button
               onClick={handleExport}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <Download className="h-4 w-4" />
               Export
@@ -430,140 +381,185 @@ export default function AdminInstagramPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Total Accounts</p>
-                <p className="text-2xl font-bold text-gray-800">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Total Accounts
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.total}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-pink-100 flex items-center justify-center">
-                <Users className="h-5 w-5 text-pink-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.pink}`}
+              >
+                <Users className="h-5 w-5 text-pink-400" />
               </div>
             </div>
-            <p className="text-xs text-green-600 mt-2">{stats.active} active</p>
+            <p
+              className={`text-xs mt-2 p-1 rounded max-w-max ${styles.badge.green}`}
+            >
+              {stats.active} active
+            </p>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Total Followers</p>
-                <p className="text-2xl font-bold text-cyan-600">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Total Followers
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.totalFollowers.toLocaleString()}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-cyan-100 flex items-center justify-center">
-                <Heart className="h-5 w-5 text-cyan-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.cyan}`}
+              >
+                <Heart className="h-5 w-5 text-cyan-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Comments Replied</p>
-                <p className="text-2xl font-bold text-green-600">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Comments Replied
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.totalReplies.toLocaleString()}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                <MessageCircle className="h-5 w-5 text-green-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.green}`}
+              >
+                <MessageCircle className="h-5 w-5 text-green-400" />
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-gray-100 rounded-2xl p-4">
-            <div className="flex items-center justify-between">
+          <div className={`rounded-2xl p-5 ${styles.card}`}>
+            <div className="flex items-center justify-between relative z-10">
               <div>
-                <p className="text-xs text-gray-400 mb-1">Rate Limited</p>
-                <p className="text-2xl font-bold text-red-600">
+                <p className={`text-xs mb-1 ${styles.text.secondary}`}>
+                  Rate Limited
+                </p>
+                <p className={`text-2xl font-bold ${styles.text.primary}`}>
                   {stats.rateLimited}
                 </p>
               </div>
-              <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center ${styles.icon.red}`}
+              >
+                <AlertTriangle className="h-5 w-5 text-red-400" />
               </div>
             </div>
           </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white border border-gray-100 rounded-2xl p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search by username, owner name, or email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-pink-200"
-              >
-                <option value="all">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-                <option value="rate-limited">Rate Limited</option>
-              </select>
-            </div>
+        <div className="flex flex-col sm:flex-row gap-4 relative z-10">
+          <div className="flex-1 relative">
+            <Search
+              size={14}
+              className={`absolute left-3 top-1/2 -translate-y-1/2 ${styles.text.muted}`}
+            />
+            <input
+              type="text"
+              placeholder="Search by username, owner name, or email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            />
+          </div>
+          <div className="flex gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className={`px-3 py-2.5 rounded-xl text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
+            >
+              <option value="all" className={styles.innerCard}>
+                All Status
+              </option>
+              <option value="active" className={styles.innerCard}>
+                Active
+              </option>
+              <option value="inactive" className={styles.innerCard}>
+                Inactive
+              </option>
+              <option value="rate-limited" className={styles.innerCard}>
+                Rate Limited
+              </option>
+            </select>
           </div>
         </div>
 
         {/* Accounts Table */}
-        <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className={`rounded-2xl overflow-hidden ${styles.card}`}>
+          <div className="overflow-x-auto no-scrollbar relative z-10">
             <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+              <thead>
+                <tr className={`border-b ${styles.divider}`}>
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Account
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Owner
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Status
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Followers
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Engagement
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     API Calls
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Last Active
                   </th>
-                  <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  <th
+                    className={`text-left px-6 py-3 text-xs font-medium uppercase tracking-wide ${styles.text.muted}`}
+                  >
                     Actions
                   </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredAccounts.map((acc) => (
+              <tbody className={`divide-y ${styles.divider}`}>
+                {filteredAccounts.map((acc, idx) => (
                   <tr
                     key={acc.id}
-                    className="hover:bg-gray-50 transition-colors"
+                    className={`transition-colors ${styles.rowHover}`}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-medium">
-                          {acc.username[0].toUpperCase()}
-                        </div>
+                        <AvatarCircle name={acc.username} idx={idx} />
                         <div>
-                          <p className="text-sm font-medium text-gray-800">
+                          <p
+                            className={`text-sm font-medium ${styles.text.primary}`}
+                          >
                             @{acc.username}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className={`text-xs ${styles.text.muted}`}>
                             ID: {acc.instagramId.slice(-8)}
                           </p>
                         </div>
@@ -571,67 +567,71 @@ export default function AdminInstagramPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-sm text-gray-800">
+                        <p className={`text-sm ${styles.text.primary}`}>
                           {acc.user?.firstName} {acc.user?.lastName}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p className={`text-xs ${styles.text.muted}`}>
                           {acc.user?.email}
                         </p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <Badge
-                          className={
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
                             acc.isActive
-                              ? "bg-green-100 text-green-600 border-green-200"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
-                          }
+                              ? styles.badge.green
+                              : styles.badge.gray
+                          }`}
                         >
                           {acc.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        </span>
                         {acc.isMetaRateLimited && (
-                          <Badge className="bg-red-100 text-red-600 border-red-200">
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.red}`}
+                          >
                             Rate Limited
-                          </Badge>
+                          </span>
                         )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-medium text-gray-800">
+                      <p
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
                         {acc.followersCount.toLocaleString()}
                       </p>
-                      <p className="text-xs text-gray-400">
+                      <p className={`text-xs ${styles.text.muted}`}>
                         Following: {acc.followingCount.toLocaleString()}
                       </p>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">
-                        <p className="text-xs text-gray-600">
+                        <p className={`text-xs ${styles.text.secondary}`}>
                           <MessageCircle className="h-3 w-3 inline mr-1" />
                           Replies: {acc.accountReply}
                         </p>
-                        <p className="text-xs text-gray-600">
+                        <p className={`text-xs ${styles.text.secondary}`}>
                           <Zap className="h-3 w-3 inline mr-1" />
                           DMs: {acc.accountDMSent}
                         </p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <p
+                      <span
                         className={`text-sm font-medium ${
                           acc.metaCallsThisHour > 150
-                            ? "text-red-600"
-                            : "text-gray-800"
+                            ? styles.badge.red
+                            : styles.text.primary
                         }`}
                       >
                         {acc.metaCallsThisHour}/hour
-                      </p>
+                      </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600">
+                      <span className={`text-sm ${styles.text.secondary}`}>
                         {new Date(acc.lastActivity).toLocaleDateString()}
-                      </p>
+                      </span>
                     </td>
                     <td className="px-6 py-4">
                       <button
@@ -639,7 +639,7 @@ export default function AdminInstagramPage() {
                           setSelectedAccount(acc);
                           setShowDetailsDialog(true);
                         }}
-                        className="p-1.5 text-gray-400 hover:text-pink-600 rounded-lg hover:bg-pink-50 transition-colors"
+                        className={`p-1.5 rounded-lg transition-colors ${styles.pill}`}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
@@ -651,157 +651,253 @@ export default function AdminInstagramPage() {
           </div>
 
           {filteredAccounts.length === 0 && (
-            <div className="p-12 text-center">
-              <Instagram className="h-8 w-8 text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">
-                No Instagram accounts found
-              </p>
-            </div>
+            <EmptyState
+              icon={<Instagram className="h-8 w-8" />}
+              label="No Instagram accounts found"
+            />
           )}
         </div>
       </div>
 
-      {/* Account Details Dialog */}
-      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Instagram className="h-5 w-5 text-pink-600" />
+      {/* Account Details Dialog - Radix UI Dialog */}
+      <Dialog.Root open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <Dialog.Portal>
+          <Dialog.Overlay className={styles.dialogOverlay} />
+          <Dialog.Content className={styles.dialogContent}>
+            <Dialog.Title className="sr-only">
               Instagram Account Details
-            </DialogTitle>
-          </DialogHeader>
+            </Dialog.Title>
+            <Dialog.Close className={styles.dialogClose}>
+              <X className="h-4 w-4" />
+            </Dialog.Close>
 
-          {selectedAccount && (
-            <div className="space-y-4">
-              {/* Account Info */}
-              <div className="bg-pink-50 border border-pink-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-pink-800 mb-3">
-                  Account Information
+            {selectedAccount && (
+              <div className="space-y-4">
+                <h3
+                  className={`text-lg font-semibold mb-4 ${styles.text.primary}`}
+                >
+                  Instagram Account Details
                 </h3>
-                <div className="flex flex-wrap gap-3">
-                  <div>
-                    <p className="text-xs text-pink-600 mb-1">Username</p>
-                    <p className="text-sm font-medium text-pink-900">
-                      @{selectedAccount.username}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-pink-600 mb-1">Instagram ID</p>
-                    <p className="text-sm text-pink-900 font-mono">
-                      {selectedAccount.instagramId}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-pink-600 mb-1">Status</p>
-                    <div className="flex gap-1">
-                      <Badge
-                        className={
-                          selectedAccount.isActive
-                            ? "bg-green-100 text-green-600"
-                            : "bg-gray-100 text-gray-600"
-                        }
+
+                {/* Account Info */}
+                <div
+                  className={`rounded-xl p-4 ${isDark ? "bg-pink-500/10 border border-pink-500/20" : "bg-pink-50 border border-pink-200"}`}
+                >
+                  <h4
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Account Information
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Username
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${styles.text.primary}`}
                       >
-                        {selectedAccount.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                      {selectedAccount.isMetaRateLimited && (
-                        <Badge className="bg-red-100 text-red-600">
-                          Rate Limited
-                        </Badge>
-                      )}
+                        @{selectedAccount.username}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Instagram ID
+                      </p>
+                      <p
+                        className={`text-sm font-mono ${styles.text.secondary}`}
+                      >
+                        {selectedAccount.instagramId}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Status
+                      </p>
+                      <div className="flex gap-1 flex-wrap">
+                        <span
+                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
+                            selectedAccount.isActive
+                              ? styles.badge.green
+                              : styles.badge.gray
+                          }`}
+                        >
+                          {selectedAccount.isActive ? "Active" : "Inactive"}
+                        </span>
+                        {selectedAccount.isMetaRateLimited && (
+                          <span
+                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.red}`}
+                          >
+                            Rate Limited
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        API Calls This Hour
+                      </p>
+                      <span
+                        className={`text-sm font-medium ${
+                          selectedAccount.metaCallsThisHour > 150
+                            ? styles.badge.red
+                            : styles.text.primary
+                        }`}
+                      >
+                        {selectedAccount.metaCallsThisHour} / 200
+                      </span>
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs text-pink-600 mb-1">
-                      API Calls This Hour
-                    </p>
-                    <p
-                      className={`text-sm font-medium ${
-                        selectedAccount.metaCallsThisHour > 150
-                          ? "text-red-600"
-                          : "text-pink-900"
-                      }`}
-                    >
-                      {selectedAccount.metaCallsThisHour} / 200
-                    </p>
-                  </div>
                 </div>
-              </div>
 
-              {/* Owner Info */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                <h3 className="text-sm font-semibold text-gray-800 mb-3">
-                  Owner Information
-                </h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Name</p>
-                    <p className="text-sm text-gray-800">
-                      {selectedAccount.user?.firstName}{" "}
-                      {selectedAccount.user?.lastName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Email</p>
-                    <p className="text-sm text-gray-800">
-                      {selectedAccount.user?.email}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-1">Clerk ID</p>
-                    <p className="text-sm text-gray-600 font-mono">
-                      {selectedAccount.user?.clerkId}
-                    </p>
+                {/* Owner Info */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h4
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Owner Information
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Name
+                      </p>
+                      <p className={`text-sm ${styles.text.primary}`}>
+                        {selectedAccount.user?.firstName}{" "}
+                        {selectedAccount.user?.lastName}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Email
+                      </p>
+                      <p className={`text-sm ${styles.text.primary}`}>
+                        {selectedAccount.user?.email}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Clerk ID
+                      </p>
+                      <p
+                        className={`text-xs font-mono ${styles.text.secondary}`}
+                      >
+                        {selectedAccount.user?.clerkId}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-3">
-                  <p className="text-xs text-cyan-600 mb-1">Followers</p>
-                  <p className="text-lg font-bold text-cyan-800">
-                    {selectedAccount.followersCount.toLocaleString()}
-                  </p>
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div
+                    className={`rounded-lg p-3 ${isDark ? "bg-pink-500/10 border border-pink-500/20" : "bg-pink-50 border border-pink-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Followers
+                    </p>
+                    <p className={`text-lg font-bold ${styles.text.primary}`}>
+                      {selectedAccount.followersCount.toLocaleString()}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 ${isDark ? "bg-cyan-500/10 border border-cyan-500/20" : "bg-cyan-50 border border-cyan-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Following
+                    </p>
+                    <p className={`text-lg font-bold ${styles.text.primary}`}>
+                      {selectedAccount.followingCount.toLocaleString()}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 ${isDark ? "bg-purple-500/10 border border-purple-500/20" : "bg-purple-50 border border-purple-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>Posts</p>
+                    <p className={`text-lg font-bold ${styles.text.primary}`}>
+                      {selectedAccount.mediaCount.toLocaleString()}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-lg p-3 ${isDark ? "bg-green-500/10 border border-green-500/20" : "bg-green-50 border border-green-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      DMs Sent
+                    </p>
+                    <p className={`text-lg font-bold ${styles.text.primary}`}>
+                      {selectedAccount.accountDMSent.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                  <p className="text-xs text-blue-600 mb-1">Following</p>
-                  <p className="text-lg font-bold text-blue-800">
-                    {selectedAccount.followingCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                  <p className="text-xs text-purple-600 mb-1">Posts</p>
-                  <p className="text-lg font-bold text-purple-800">
-                    {selectedAccount.mediaCount.toLocaleString()}
-                  </p>
-                </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                  <p className="text-xs text-green-600 mb-1">DMs Sent</p>
-                  <p className="text-lg font-bold text-green-800">
-                    {selectedAccount.accountDMSent.toLocaleString()}
-                  </p>
-                </div>
-              </div>
 
-              {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3">
-                  <p className="text-xs text-green-600 mb-1">Created</p>
-                  <p className="text-sm font-medium text-green-800">
-                    {new Date(selectedAccount.createdAt).toLocaleString()}
-                  </p>
+                {/* Activity Stats */}
+                <div className={`rounded-xl p-4 ${styles.innerCard}`}>
+                  <h4
+                    className={`text-sm font-semibold mb-3 ${styles.text.primary}`}
+                  >
+                    Activity Statistics
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Comments Replied
+                      </p>
+                      <p
+                        className={`text-base font-semibold ${styles.text.primary}`}
+                      >
+                        {selectedAccount.accountReply.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        DMs Sent
+                      </p>
+                      <p
+                        className={`text-base font-semibold ${styles.text.primary}`}
+                      >
+                        {selectedAccount.accountDMSent.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                        Follow Checks
+                      </p>
+                      <p
+                        className={`text-base font-semibold ${styles.text.primary}`}
+                      >
+                        {selectedAccount.accountFollowCheck.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-3">
-                  <p className="text-xs text-yellow-600 mb-1">Last Active</p>
-                  <p className="text-sm font-medium text-yellow-800">
-                    {new Date(selectedAccount.lastActivity).toLocaleString()}
-                  </p>
+
+                {/* Dates */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div
+                    className={`rounded-xl p-3 ${isDark ? "bg-green-500/10 border border-green-500/20" : "bg-green-50 border border-green-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Created
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(selectedAccount.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <div
+                    className={`rounded-xl p-3 ${isDark ? "bg-pink-500/10 border border-pink-500/20" : "bg-pink-50 border border-pink-200"}`}
+                  >
+                    <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                      Last Active
+                    </p>
+                    <p className={`text-sm font-medium ${styles.text.primary}`}>
+                      {new Date(selectedAccount.lastActivity).toLocaleString()}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+            )}
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

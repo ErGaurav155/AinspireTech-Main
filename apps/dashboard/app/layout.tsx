@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
 import { ThemeProvider } from "@rocketreplai/ui/components/shared/theme-provider";
 import "./globals.css";
-import StarsBackground from "@/components/insta/StarsBackground";
 import { ClerkProvider } from "@clerk/nextjs";
 import { cn } from "@rocketreplai/shared";
 
@@ -24,9 +23,9 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <ClerkProvider
       appearance={{
@@ -36,17 +35,20 @@ export default async function RootLayout({
         },
       }}
     >
-      <html suppressHydrationWarning lang="en">
+      <html lang="en" suppressHydrationWarning>
         <body
           className={cn(
             orbitron.variable,
             montserrat.variable,
-            "font-montserrat  min-h-screen bg-[#F8F9FA]  text-foreground transition-colors duration-300",
+            "font-montserrat min-h-screen text-foreground ",
           )}
         >
-          <ThemeProvider>
-            {/* <StarsBackground /> */}
-            <div className="relative z-10">{children}</div>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="dark"
+            enableSystem={false}
+          >
+            <div className="relative z-10 min-h-screen">{children}</div>
           </ThemeProvider>
         </body>
       </html>

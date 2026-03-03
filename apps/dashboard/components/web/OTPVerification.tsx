@@ -18,6 +18,7 @@ import {
 } from "@rocketreplai/ui/components/radix/alert-dialog";
 import { updateNumberByUserId } from "@/lib/services/user-actions.api";
 import { useApi } from "@/lib/useApi";
+import { useThemeStyles } from "@/lib/theme";
 
 interface OTPVerificationProps {
   phone: string;
@@ -45,6 +46,7 @@ export default function OTPVerification({
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
   const router = useRouter();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const {
     handleSubmit,
@@ -54,7 +56,7 @@ export default function OTPVerification({
     resolver: zodResolver(formSchema),
   });
 
-  // Animation variants
+  // Animation variants (unchanged)
   const containerVariants = {
     hidden: { opacity: 0, scale: 0.9 },
     visible: {
@@ -239,7 +241,13 @@ export default function OTPVerification({
 
   return (
     <AlertDialog defaultOpen>
-      <AlertDialogContent className="bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a] backdrop-blur-2xl border border-white/10 rounded-2xl max-w-md p-0 overflow-hidden shadow-2xl">
+      <AlertDialogContent
+        className={`${styles.dialogContent} p-0 overflow-hidden shadow-2xl ${
+          isDark
+            ? "bg-gradient-to-br from-[#0a0a0a] via-[#1a1a1a] to-[#0a0a0a]"
+            : "bg-gradient-to-br from-white via-gray-50 to-white"
+        }`}
+      >
         <motion.div
           variants={containerVariants}
           initial="hidden"
@@ -250,17 +258,19 @@ export default function OTPVerification({
           <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/5 via-transparent to-[#B026FF]/5"></div>
 
           {/* Header */}
-          <div className="relative p-6 border-b border-white/10">
+          <div className={`relative p-6 border-b ${styles.divider}`}>
             <div className="flex justify-between items-center">
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <AlertDialogTitle className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF]">
+                <AlertDialogTitle
+                  className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF]`}
+                >
                   OTP Verification
                 </AlertDialogTitle>
-                <p className="text-sm text-gray-400 mt-1">
+                <p className={`text-sm ${styles.text.muted} mt-1`}>
                   Secure your account
                 </p>
               </motion.div>
@@ -269,7 +279,9 @@ export default function OTPVerification({
                 onClick={() => router.push(`/`)}
                 className="border-0 p-2 hover:bg-white/10 rounded-xl transition-all duration-300 group"
               >
-                <XMarkIcon className="size-5 text-gray-400 group-hover:text-white transition-colors" />
+                <XMarkIcon
+                  className={`size-5 ${styles.text.muted} group-hover:${styles.text.primary} transition-colors`}
+                />
               </AlertDialogCancel>
             </div>
           </div>
@@ -286,7 +298,7 @@ export default function OTPVerification({
               transition={{ delay: 0.3 }}
               className="text-center"
             >
-              <p className="text-gray-300 text-sm mb-2">
+              <p className={`${styles.text.secondary} text-sm mb-2`}>
                 Enter the verification code sent to
               </p>
               <p className="text-lg font-semibold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF]">
@@ -301,7 +313,9 @@ export default function OTPVerification({
               animate={{ opacity: 1 }}
               transition={{ delay: 0.4 }}
             >
-              <label className="block text-sm font-medium text-gray-300 text-center">
+              <label
+                className={`block text-sm font-medium ${styles.text.secondary} text-center`}
+              >
                 Enter 6-digit code
               </label>
 
@@ -324,7 +338,13 @@ export default function OTPVerification({
                     animate="visible"
                     whileFocus="focus"
                     whileHover="hover"
-                    className="w-12 h-12 bg-[#1a1a1a]/80 backdrop-blur-sm border-2 border-white/10 rounded-xl text-white text-center text-xl font-bold focus:outline-none focus:border-[#00F0FF] transition-all duration-300"
+                    className={`w-12 h-12 ${
+                      isDark
+                        ? "bg-[#1a1a1a]/80 border-white/10"
+                        : "bg-white/80 border-gray-200"
+                    } backdrop-blur-sm border-2 rounded-xl text-center text-xl font-bold focus:outline-none transition-all duration-300 ${
+                      isDark ? "text-white" : "text-gray-900"
+                    }`}
                     disabled={isVerifying}
                   />
                 ))}
@@ -390,10 +410,10 @@ export default function OTPVerification({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="p-4 text-center border-t border-white/10 bg-black/20"
+            className={`p-4 text-center border-t ${styles.divider} bg-black/20`}
           >
-            <AlertDialogDescription className="text-sm">
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF] font-semibold font-montserrat">
+            <AlertDialogDescription className={`text-sm ${styles.text.muted}`}>
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#B026FF] font-semibold">
                 IT WILL HELP US TO PROVIDE BETTER SERVICES
               </span>
             </AlertDialogDescription>

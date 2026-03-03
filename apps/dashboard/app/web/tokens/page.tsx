@@ -24,7 +24,6 @@ import {
   Download,
   ChevronRight,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 import { Button } from "@rocketreplai/ui/components/radix/button";
 import { Badge } from "@rocketreplai/ui/components/radix/badge";
@@ -64,6 +63,11 @@ import {
 } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { formatDistanceToNow } from "date-fns";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { EmptyState } from "@/components/shared/EmptyState";
+import { StatCard } from "@/components/shared/StatCard";
 
 interface TokenStats {
   availableTokens: number;
@@ -87,20 +91,28 @@ interface UsageData {
   };
 }
 
+const COLORS = [
+  "#8B5CF6",
+  "#EC4899",
+  "#3B82F6",
+  "#10B981",
+  "#F59E0B",
+  "#6366F1",
+];
+
 export default function TokenDashboard() {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
-  const { theme, resolvedTheme } = useTheme();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const { styles, isDark } = useThemeStyles();
 
   const [loading, setLoading] = useState(true);
   const [tokenStats, setTokenStats] = useState<TokenStats | null>(null);
   const [usageData, setUsageData] = useState<UsageData | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { apiRequest } = useApi();
-
-  const currentTheme = resolvedTheme || theme || "light";
+  type ActiveTab = "overview" | "purchase" | "usage" | "history";
+  const [activeTab, setActiveTab] = useState("overview");
 
   // Cleanup on unmount
   useEffect(() => {
@@ -110,33 +122,6 @@ export default function TokenDashboard() {
       }
     };
   }, []);
-
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBgHover: isDark ? "hover:bg-[#252529]" : "hover:bg-gray-50",
-      titleText: isDark ? "text-white" : "text-gray-900",
-      descriptionText: isDark ? "text-gray-400" : "text-gray-500",
-      mutedText: isDark ? "text-gray-500" : "text-gray-400",
-      border: isDark ? "border-gray-800" : "border-gray-100",
-      hoverBorder: isDark
-        ? "hover:border-purple-500/50"
-        : "hover:border-purple-300",
-      activeBorder: isDark ? "border-purple-500" : "border-purple-500",
-      chartGrid: isDark ? "#2A2A30" : "#E5E7EB",
-      chartText: isDark ? "#9CA3AF" : "#6B7280",
-      gradientPrimary: "from-purple-500 to-pink-500",
-      gradientSecondary: "from-blue-500 to-purple-500",
-      gradientGold: "from-amber-500 to-orange-500",
-      gradientGreen: "from-green-500 to-emerald-500",
-      iconBg: isDark ? "bg-gray-800" : "bg-gray-100",
-    };
-  }, [currentTheme]);
 
   // Fetch token data
   const fetchTokenData = useCallback(async () => {
@@ -222,41 +207,50 @@ export default function TokenDashboard() {
     const usedFree = totalFree - tokenStats.freeTokensRemaining;
     return (usedFree / totalFree) * 100;
   };
-
-  const COLORS = [
-    "#8B5CF6",
-    "#EC4899",
-    "#3B82F6",
-    "#10B981",
-    "#F59E0B",
-    "#6366F1",
-  ];
-
+  const TAB_LABELS: Record<
+    ActiveTab,
+    { label: string; icon: React.ElementType }
+  > = {
+    overview: {
+      label: "Overview",
+      icon: BarChart3,
+    },
+    purchase: {
+      label: `Buy Tokens`,
+      icon: CreditCard,
+    },
+    usage: {
+      label: `Analytics`,
+      icon: Target,
+    },
+    history: {
+      label: "History",
+      icon: History,
+    },
+  };
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-purple-200 border-t-purple-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading token dashboard...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading token dashboard…" />;
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Header */}
-        <div className="flex flex-wrap md:items-center justify-between gap-4">
-          <div className="flex items-center gap-2 md:gap-3">
-            <div className="w-12 h-12 p-2 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-200/50">
-              <Coins className="h-6 w-6  text-white" />
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-12 h-12 rounded-xl flex items-center justify-center ${styles.icon.purple}`}
+            >
+              <Coins className="h-6 w-6 text-purple-400" />
             </div>
             <div>
-              <h1 className=" text-xl md:text-2xl font-bold text-gray-800">
+              <h1
+                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
+              >
                 Token Management
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-xs ${styles.text.secondary}`}>
                 Manage your AI chatbot tokens and monitor usage analytics
               </p>
             </div>
@@ -265,7 +259,7 @@ export default function TokenDashboard() {
             <button
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 transition-colors disabled:opacity-50"
+              className={`flex items-center gap-2 px-4 py-2 text-sm ${styles.pill}`}
             >
               <RefreshCw
                 className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
@@ -274,7 +268,7 @@ export default function TokenDashboard() {
             </button>
             <Link
               href="/web/pricing"
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+              className={`flex items-center gap-2 px-4 py-2 text-sm bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:opacity-90 transition-opacity ${styles.pill}`}
             >
               <CreditCard className="h-4 w-4" />
               View Plans
@@ -285,87 +279,82 @@ export default function TokenDashboard() {
         {/* Token Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {/* Available Tokens */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 hover:border-gray-200 hover:shadow-sm transition-all">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-                  <Coins className="h-5 w-5 text-purple-600" />
-                </div>
-                <p className="text-sm font-medium text-gray-500">
-                  Available Tokens
-                </p>
-              </div>
-              <Badge
-                variant="outline"
-                className="text-purple-600 border-purple-200"
+          <StatCard
+            iconBg={styles.icon.purple}
+            label="Available Tokens"
+            icon={<Coins className="h-5 w-5 text-purple-400" />}
+            value={tokenStats?.availableTokens?.toLocaleString() || 0}
+            badge={
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
               >
-                <Zap className="h-3 w-3 mr-1" />
+                <Zap className="h-3 w-3" />
                 Active
-              </Badge>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">
-              {tokenStats?.availableTokens?.toLocaleString() || 0}
-            </p>
-            <div className="flex items-center gap-3 mt-3">
-              <Badge className="bg-blue-100 text-blue-600 border-blue-200">
-                <Shield className="h-3 w-3 mr-1" />
-                Free: {tokenStats?.freeTokensRemaining?.toLocaleString() || 0}
-              </Badge>
-              <Badge className="bg-purple-100 text-purple-600 border-purple-200">
-                <Crown className="h-3 w-3 mr-1" />
-                Purchased:{" "}
-                {tokenStats?.purchasedTokensRemaining?.toLocaleString() || 0}
-              </Badge>
-            </div>
-          </div>
+              </span>
+            }
+            sub={
+              <div className="flex items-center gap-3 mt-3">
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.blue}`}
+                >
+                  <Shield className="h-3 w-3" />
+                  Free: {tokenStats?.freeTokensRemaining?.toLocaleString() || 0}
+                </span>
+                <span
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+                >
+                  <Crown className="h-3 w-3" />
+                  Purchased:{" "}
+                  {tokenStats?.purchasedTokensRemaining?.toLocaleString() || 0}
+                </span>
+              </div>
+            }
+          />
 
           {/* Tokens Used */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 hover:border-gray-200 hover:shadow-sm transition-all">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
-                <TrendingUp className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-500">
-                  Tokens Used (30 days)
-                </p>
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-gray-800">
-              {usageData?.totalUsage?.totalTokens?.toLocaleString() || 0}
-            </p>
-            <p className="text-xs text-gray-400 mt-2">
-              {usageData?.totalUsage?.count || 0} requests processed
-            </p>
-          </div>
+          <StatCard
+            iconBg={styles.icon.green}
+            label="Tokens Used (30 days)"
+            icon={<TrendingUp className="h-5 w-5 text-green-400" />}
+            value={usageData?.totalUsage?.totalTokens?.toLocaleString() || 0}
+            sub={
+              <p className={`text-xs mt-2 ${styles.text.muted}`}>
+                {usageData?.totalUsage?.count || 0} requests processed
+              </p>
+            }
+          />
 
           {/* Free Tokens Reset */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-4 sm:p-5 hover:border-gray-200 hover:shadow-sm transition-all">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-                <Clock className="h-5 w-5 text-amber-600" />
+          <div className={`${styles.card} p-5`}>
+            <div className="flex items-center gap-2 mb-3 relative z-10">
+              <div
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles.icon.amber}`}
+              >
+                <Clock className="h-5 w-5 text-amber-400" />
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-500">
+                <p className={`text-xs ${styles.text.secondary}`}>
                   Free Tokens Reset
                 </p>
               </div>
             </div>
-            <p className="text-lg font-semibold text-gray-800">
+            <p
+              className={`text-lg font-semibold relative z-10 ${styles.text.primary}`}
+            >
               {tokenStats?.nextResetAt
                 ? formatDate(tokenStats.nextResetAt)
                 : "N/A"}
             </p>
-            <div className="mt-3">
+            <div className="mt-3 relative z-10">
               <div className="flex justify-between text-xs mb-1">
-                <span className="text-gray-400">Used</span>
-                <span className="font-medium text-purple-600">
+                <span className={styles.text.muted}>Used</span>
+                <span className="font-medium text-purple-400">
                   {getTokenPercentage().toFixed(0)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div className={styles.progressTrack}>
                 <div
-                  className="bg-gradient-to-r from-purple-500 to-pink-500 h-full rounded-full"
+                  className={styles.progressFill}
                   style={{ width: `${getTokenPercentage()}%` }}
                 />
               </div>
@@ -379,68 +368,71 @@ export default function TokenDashboard() {
           onValueChange={setActiveTab}
           className="space-y-6"
         >
-          <TabsList className="bg-gray-100 p-1 rounded-xl flex items-center justify-start gap-1 w-full max-w-max overflow-x-auto lg:overflow-hidden ">
-            <TabsTrigger
-              value="overview"
-              className="flex items-center gap-2 text-xs md:text-base font-light md:font-normal"
-            >
-              <BarChart3 className="h-4 w-4" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger
-              value="purchase"
-              className="flex items-center gap-2 text-xs md:text-base font-light md:font-normal"
-            >
-              <CreditCard className="h-4 w-4" />
-              Buy Tokens
-            </TabsTrigger>
-            <TabsTrigger
-              value="usage"
-              className="flex items-center gap-2 text-xs md:text-base font-light md:font-normal"
-            >
-              <Target className="h-4 w-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger
-              value="history"
-              className="flex items-center gap-2 text-xs md:text-base font-light md:font-normal"
-            >
-              <History className="h-4 w-4" />
-              History
-            </TabsTrigger>
-          </TabsList>
+          <div className={`border-b ${styles.divider}`}>
+            <nav className="flex gap-6 overflow-x-auto">
+              {(Object.keys(TAB_LABELS) as ActiveTab[]).map((tab) => {
+                const Icon = TAB_LABELS[tab].icon;
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`flex items-center gap-2 pb-3 px-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                      activeTab === tab
+                        ? styles.tab.active
+                        : styles.tab.inactive
+                    }`}
+                  >
+                    <Icon
+                      className={`h-4 w-4 ${
+                        activeTab === tab ? "text-blue-500" : "text-gray-400"
+                      }`}
+                    />
+                    {TAB_LABELS[tab].label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Daily Usage Chart */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <BarChart3 className="h-4 w-4 text-purple-600" />
+              <div className={`${styles.card} p-5`}>
+                <div className="flex items-center gap-2 mb-4 relative z-10">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${styles.icon.purple}`}
+                  >
+                    <BarChart3 className="h-4 w-4 text-purple-400" />
                   </div>
-                  <h3 className="font-semibold text-gray-800">
+                  <h3 className={`font-semibold ${styles.text.primary}`}>
                     Daily Token Usage
                   </h3>
                 </div>
-                <div className="h-64">
+                <div className="h-64 relative z-10">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={usageData?.dailyUsage || []}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke={isDark ? "#2A2A30" : "#E5E7EB"}
+                      />
                       <XAxis
                         dataKey="_id"
-                        stroke="#9CA3AF"
+                        stroke={isDark ? "#9CA3AF" : "#6B7280"}
                         tickFormatter={(value) =>
                           new Date(value).getDate().toString()
                         }
                       />
-                      <YAxis stroke="#9CA3AF" />
+                      <YAxis stroke={isDark ? "#9CA3AF" : "#6B7280"} />
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "white",
-                          border: "1px solid #E5E7EB",
+                          backgroundColor: isDark ? "#1A1A1E" : "white",
+                          border: isDark
+                            ? "1px solid rgba(255,255,255,0.08)"
+                            : "1px solid #E5E7EB",
                           borderRadius: "8px",
+                          padding: "8px 12px",
                         }}
                         formatter={(value) => [`${value} tokens`, "Usage"]}
                       />
@@ -457,16 +449,18 @@ export default function TokenDashboard() {
               </div>
 
               {/* Usage by Chatbot */}
-              <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
-                    <Bot className="h-4 w-4 text-pink-600" />
+              <div className={`${styles.card} p-5`}>
+                <div className="flex items-center gap-2 mb-4 relative z-10">
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center ${styles.icon.pink}`}
+                  >
+                    <Bot className="h-4 w-4 text-pink-400" />
                   </div>
-                  <h3 className="font-semibold text-gray-800">
+                  <h3 className={`font-semibold ${styles.text.primary}`}>
                     Usage by Chatbot
                   </h3>
                 </div>
-                <div className="h-64">
+                <div className="h-64 relative z-10">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -489,9 +483,12 @@ export default function TokenDashboard() {
                       </Pie>
                       <Tooltip
                         contentStyle={{
-                          backgroundColor: "white",
-                          border: "1px solid #E5E7EB",
+                          backgroundColor: isDark ? "#1A1A1E" : "white",
+                          border: isDark
+                            ? "1px solid rgba(255,255,255,0.08)"
+                            : "1px solid #E5E7EB",
                           borderRadius: "8px",
+                          padding: "8px 12px",
                         }}
                         formatter={(value) => [`${value} tokens`, "Usage"]}
                       />
@@ -503,16 +500,20 @@ export default function TokenDashboard() {
 
             {/* Low Token Alert */}
             {tokenStats && tokenStats.availableTokens < 1000 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 md:p-5">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-                    <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <div
+                className={`${styles.card} p-4 md:p-5 ${styles.icon.amber} border-0`}
+              >
+                <div className="flex items-start gap-4 relative z-10">
+                  <div
+                    className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${styles.icon.amber}`}
+                  >
+                    <AlertTriangle className="h-5 w-5 text-amber-400" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-amber-800 mb-1">
+                    <h3 className={`font-semibold mb-1 ${styles.text.primary}`}>
                       Low Token Alert
                     </h3>
-                    <p className="text-sm text-amber-700 mb-3">
+                    <p className={`text-sm mb-3 ${styles.text.secondary}`}>
                       You have only{" "}
                       {tokenStats.availableTokens.toLocaleString()} tokens
                       remaining. Consider purchasing more tokens to avoid
@@ -528,7 +529,7 @@ export default function TokenDashboard() {
                       </Button>
                       <Link
                         href="/web/pricing"
-                        className="px-4 py-2 border border-amber-300 text-amber-700 rounded-xl text-sm hover:bg-amber-100 transition-colors"
+                        className={`px-4 py-2 text-sm rounded-xl transition-colors ${styles.pill}`}
                       >
                         View Plans
                       </Link>
@@ -539,17 +540,19 @@ export default function TokenDashboard() {
             )}
 
             {/* Free Token Reset Card */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className={`${styles.card} p-5`}>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
-                    <RefreshCw className="h-6 w-6 text-blue-600" />
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${styles.icon.blue}`}
+                  >
+                    <RefreshCw className="h-6 w-6 text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-800">
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
                       Free Token Management
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className={`text-sm ${styles.text.secondary}`}>
                       Your free tokens reset monthly. Next reset:{" "}
                       {tokenStats?.nextResetAt
                         ? formatDate(tokenStats.nextResetAt)
@@ -561,7 +564,7 @@ export default function TokenDashboard() {
                   variant="outline"
                   onClick={handleResetFreeTokens}
                   disabled={new Date(tokenStats?.nextResetAt || 0) > new Date()}
-                  className="border-gray-200 text-gray-600 rounded-xl"
+                  className={styles.pill}
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   {new Date(tokenStats?.nextResetAt || 0) > new Date()
@@ -574,7 +577,7 @@ export default function TokenDashboard() {
 
           {/* Purchase Tab */}
           <TabsContent value="purchase">
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 md:p-5">
+            <div className={`rounded-2xl`}>
               <TokenPurchase
                 currentBalance={tokenStats?.availableTokens || 0}
                 onSuccess={fetchTokenData}
@@ -586,101 +589,73 @@ export default function TokenDashboard() {
           <TabsContent value="usage" className="space-y-6">
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                    <Coins className="h-4 w-4 text-blue-600" />
-                  </div>
-                  <p className="text-xs text-gray-500">Total Tokens Used</p>
-                </div>
-                <p className="text-xl font-bold text-gray-800">
-                  {usageData?.totalUsage?.totalTokens?.toLocaleString() || 0}
-                </p>
-              </div>
+              <StatCard
+                iconBg={styles.icon.blue}
+                label="Total Tokens Used"
+                icon={<Coins className="h-4 w-4 text-blue-400" />}
+                value={
+                  usageData?.totalUsage?.totalTokens?.toLocaleString() || 0
+                }
+              />
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                    <BarChart3 className="h-4 w-4 text-green-600" />
-                  </div>
-                  <p className="text-xs text-gray-500">Total Requests</p>
-                </div>
-                <p className="text-xl font-bold text-gray-800">
-                  {usageData?.totalUsage?.count?.toLocaleString() || 0}
-                </p>
-              </div>
+              <StatCard
+                iconBg={styles.icon.green}
+                label="Total Requests"
+                icon={<BarChart3 className="h-4 w-4 text-green-400" />}
+                value={usageData?.totalUsage?.count?.toLocaleString() || 0}
+              />
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">
-                    <CreditCard className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <p className="text-xs text-gray-500">Estimated Cost</p>
-                </div>
-                <p className="text-xl font-bold text-gray-800">
-                  ₹{(usageData?.totalUsage?.totalCost || 0).toFixed(2)}
-                </p>
-              </div>
+              <StatCard
+                iconBg={styles.icon.purple}
+                label="Estimated Cost"
+                icon={<CreditCard className="h-4 w-4 text-purple-400" />}
+                value={`₹${(usageData?.totalUsage?.totalCost || 0).toFixed(2)}`}
+              />
 
-              <div className="bg-white border border-gray-100 rounded-2xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center">
-                    <TrendingUp className="h-4 w-4 text-pink-600" />
-                  </div>
-                  <p className="text-xs text-gray-500">Avg Tokens/Request</p>
-                </div>
-                <p className="text-xl font-bold text-gray-800">
-                  {usageData?.totalUsage?.count
+              <StatCard
+                iconBg={styles.icon.pink}
+                label="Avg Tokens/Request"
+                icon={<TrendingUp className="h-4 w-4 text-pink-400" />}
+                value={
+                  usageData?.totalUsage?.count
                     ? Math.round(
                         usageData.totalUsage.totalTokens /
                           usageData.totalUsage.count,
                       )
-                    : 0}
-                </p>
-              </div>
+                    : 0
+                }
+              />
             </div>
 
+            <h3 className={`font-semibold ${styles.text.primary}`}>
+              Detailed Usage Statistics
+            </h3>
             {/* Usage Table */}
-            <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-gray-100">
-                <h3 className="font-semibold text-gray-800">
-                  Detailed Usage Statistics
-                </h3>
-              </div>
+            <div className={`${styles.card} overflow-hidden`}>
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead className="bg-gray-50">
+                  <thead className={`${styles.tableHead} ${styles.divider}`}>
                     <tr>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                        Period
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                        Tokens Used
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                        Requests
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                        Avg/Request
-                      </th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                        Date Range
-                      </th>
+                      <th className={styles.tableHead}>Period</th>
+                      <th className={styles.tableHead}>Tokens Used</th>
+                      <th className={styles.tableHead}>Requests</th>
+                      <th className={styles.tableHead}>Avg/Request</th>
+                      <th className={styles.tableHead}>Date Range</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    <tr className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-sm text-gray-800">
-                        Last 30 days
-                      </td>
-                      <td className="px-6 py-4 text-sm font-medium text-purple-600">
+                  <tbody className={`divide-y ${styles.divider}`}>
+                    <tr className={styles.rowHover}>
+                      <td className={styles.tableCell}>Last 30 days</td>
+                      <td
+                        className={`px-6 py-4 text-sm font-medium text-purple-400`}
+                      >
                         {usageData?.totalUsage?.totalTokens?.toLocaleString() ||
                           0}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className={styles.tableCell}>
                         {usageData?.totalUsage?.count || 0}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className={styles.tableCell}>
                         {usageData?.totalUsage?.count
                           ? Math.round(
                               usageData.totalUsage.totalTokens /
@@ -688,7 +663,7 @@ export default function TokenDashboard() {
                             )
                           : 0}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-500">
+                      <td className={styles.tableCell}>
                         {usageData?.startDate
                           ? formatDate(usageData.startDate)
                           : ""}{" "}
@@ -706,7 +681,9 @@ export default function TokenDashboard() {
 
           {/* History Tab */}
           <TabsContent value="history">
-            <PurchaseHistory userId={userId!} onSuccess={fetchTokenData} />
+            <div className={`${styles.card} overflow-hidden`}>
+              <PurchaseHistory userId={userId!} onSuccess={fetchTokenData} />
+            </div>
           </TabsContent>
         </Tabs>
       </div>
@@ -725,6 +702,7 @@ function PurchaseHistory({
   const [purchases, setPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const fetchPurchases = useCallback(async () => {
     try {
@@ -743,84 +721,73 @@ function PurchaseHistory({
 
   if (loading) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
+      <div className={`${styles.card} p-12 text-center`}>
         <div className="w-8 h-8 border-2 border-t-transparent border-purple-500 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-gray-400">Loading purchase history...</p>
+        <p className={`text-sm ${styles.text.secondary}`}>
+          Loading purchase history...
+        </p>
       </div>
     );
   }
 
   if (purchases.length === 0) {
     return (
-      <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-        <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-4">
-          <History className="h-8 w-8 text-purple-400" />
-        </div>
-        <h3 className="text-lg font-semibold text-gray-800 mb-2">
-          No purchase history
-        </h3>
-        <p className="text-sm text-gray-500 mb-6">
-          Your token purchase records will appear here
-        </p>
-        <Link
-          href="/web/tokens?tab=purchase"
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
-        >
-          <CreditCard className="h-4 w-4" />
-          Buy Tokens Now
-        </Link>
-      </div>
+      <EmptyState
+        icon={<History className="h-8 w-8" />}
+        label="No purchase history"
+        // description="Your token purchase records will appear here"
+        // action={
+        //   <Link
+        //     href="/web/tokens?tab=purchase"
+        //     className={`inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity ${styles.pill}`}
+        //   >
+        //     <CreditCard className="h-4 w-4" />
+        //     Buy Tokens Now
+        //   </Link>
+        // }
+      />
     );
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl overflow-hidden">
-      <div className="p-5 border-b border-gray-100">
-        <h3 className="font-semibold text-gray-800">Purchase History</h3>
+    <div className={`${styles.card} overflow-hidden`}>
+      <div className={`p-5 border-b ${styles.divider}`}>
+        <h3 className={`font-semibold ${styles.text.primary}`}>
+          Purchase History
+        </h3>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50">
+          <thead className={styles.tableHead}>
             <tr>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                Date
-              </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                Tokens
-              </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                Amount
-              </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                Order ID
-              </th>
-              <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
+              <th className={styles.tableHead}>Date</th>
+              <th className={styles.tableHead}>Tokens</th>
+              <th className={styles.tableHead}>Amount</th>
+              <th className={styles.tableHead}>Order ID</th>
+              <th className={styles.tableHead}>Status</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className={`divide-y ${styles.divider}`}>
             {purchases.map((purchase) => (
-              <tr
-                key={purchase._id}
-                className="hover:bg-gray-50 transition-colors"
-              >
-                <td className="px-6 py-4 text-sm text-gray-600">
+              <tr key={purchase._id} className={styles.rowHover}>
+                <td className={styles.tableCell}>
                   {new Date(purchase.createdAt).toLocaleDateString()}
                 </td>
-                <td className="px-6 py-4 text-sm font-medium text-purple-600">
+                <td className="px-6 py-4 text-sm font-medium text-purple-400">
                   {purchase.tokensPurchased.toLocaleString()}
                 </td>
-                <td className="px-6 py-4 text-sm font-medium text-green-600">
+                <td className="px-6 py-4 text-sm font-medium text-green-400">
                   ₹{purchase.amount.toLocaleString()}
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500 font-mono">
+                <td className={styles.tableCell}>
                   {purchase.razorpayOrderId?.slice(-8)}
                 </td>
                 <td className="px-6 py-4">
-                  <Badge className="bg-green-100 text-green-600 border-green-200">
+                  <span
+                    className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.blue}`}
+                  >
                     Completed
-                  </Badge>
+                  </span>
                 </td>
               </tr>
             ))}

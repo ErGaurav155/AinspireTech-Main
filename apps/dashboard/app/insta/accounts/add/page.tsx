@@ -39,12 +39,17 @@ import { getUserById } from "@/lib/services/user-actions.api";
 import { getInstaAccount } from "@/lib/services/insta-actions.api";
 import LoginPage from "@/components/insta/InstagramAutomationWizard";
 
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
+
 export default function AddAccountPage() {
   const { userId, isLoaded } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [accountLimit, setAccountLimit] = useState(1);
   const [totalAccounts, setTotalAccounts] = useState(0);
@@ -52,19 +57,48 @@ export default function AddAccountPage() {
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
 
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
+  // Page-specific styles (not in central theme)
+  const pageStyles = useMemo(() => {
     return {
-      containerBg: isDark ? "bg-[#0F0F11]" : "bg-[#F8F9FC]",
-      textPrimary: isDark ? "text-white" : "text-gray-900",
-      textSecondary: isDark ? "text-gray-400" : "text-gray-500",
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      cardBorder: isDark ? "border-gray-800" : "border-gray-100",
+      backButton: isDark
+        ? "inline-flex items-center gap-2 text-sm text-white/40 hover:text-white transition-colors"
+        : "inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors",
+      headerIcon: isDark
+        ? "w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4 opacity-90"
+        : "w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4",
+      headerTitle: isDark
+        ? "text-2xl font-bold text-white mb-2"
+        : "text-2xl font-bold text-gray-800 mb-2",
+      headerSub: isDark ? "text-sm text-white/40" : "text-sm text-gray-500",
+      alert: isDark
+        ? "bg-blue-500/10 border border-blue-500/20 rounded-xl"
+        : "bg-blue-50 border border-blue-200 rounded-xl",
+      alertIcon: isDark ? "text-blue-400" : "text-blue-600",
+      alertText: isDark ? "text-sm text-blue-400" : "text-sm text-blue-700",
+      alertStrong: isDark
+        ? "font-semibold text-blue-400"
+        : "font-semibold text-blue-700",
+      connectButton: (disabled?: boolean) =>
+        isDark
+          ? `flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
+          : `flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+      cancelButton: isDark
+        ? "border border-white/[0.08] text-white/70 hover:bg-white/[0.06] rounded-xl"
+        : "border border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl",
+      securityTitle: isDark
+        ? "flex items-center gap-2 text-pink-400"
+        : "flex items-center gap-2 text-pink-500",
+      securityList: isDark
+        ? "space-y-2 text-sm text-white/60"
+        : "space-y-2 text-sm text-gray-600",
+      securityBullet: isDark
+        ? "w-1.5 h-1.5 rounded-full bg-pink-400 mt-2"
+        : "w-1.5 h-1.5 rounded-full bg-pink-500 mt-2",
+      oauthDialog: isDark
+        ? "bg-[#1A1A1E] border border-white/[0.08] rounded-2xl max-w-md w-full shadow-xl"
+        : "bg-white border border-gray-100 rounded-2xl max-w-md w-full shadow-xl",
     };
-  }, [currentTheme]);
+  }, [isDark]);
 
   useEffect(() => {
     async function fetchData() {
@@ -106,60 +140,49 @@ export default function AddAccountPage() {
   };
 
   if (!isLoaded || isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-3 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400">Loading...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading..." />;
   }
 
   return (
-    <div className={`min-h-screen ${themeStyles.containerBg}`}>
-      <div className="p-6 max-w-2xl mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Back Button */}
-        <Link
-          href="/insta/accounts"
-          className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
-        >
+        <Link href="/insta/accounts" className={pageStyles.backButton}>
           <ArrowLeft className="h-4 w-4" />
           Back to Accounts
         </Link>
 
         {/* Header */}
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mx-auto mb-4">
+          <div className={pageStyles.headerIcon}>
             <Instagram className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">
-            Connect Instagram Account
-          </h1>
-          <p className="text-sm text-gray-500">
+          <h1 className={pageStyles.headerTitle}>Connect Instagram Account</h1>
+          <p className={pageStyles.headerSub}>
             Add your Instagram Business account to start automating comment
             replies
           </p>
         </div>
 
         {/* Important Notice */}
-        <Alert className="bg-blue-50 border border-blue-200 rounded-xl">
-          <Shield className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-sm text-blue-700">
-            <span className="font-semibold">Important:</span> For security and
-            compliance with Instagram Terms of Service, we use Instagrams
-            official Business API. We never access your password, only request
-            permission through Instagrams secure OAuth flow.
+        <Alert className={pageStyles.alert}>
+          <Shield className={`h-4 w-4 ${pageStyles.alertIcon}`} />
+          <AlertDescription className={pageStyles.alertText}>
+            <span className={pageStyles.alertStrong}>Important:</span> For
+            security and compliance with Instagram Terms of Service, we use
+            Instagrams official Business API. We never access your password,
+            only request permission through Instagrams secure OAuth flow.
           </AlertDescription>
         </Alert>
 
         {/* Connect Card */}
-        <Card
-          className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl`}
-        >
+        <Card className={styles.card}>
           <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>
+            <CardTitle className={styles.text.primary}>
+              Account Information
+            </CardTitle>
+            <CardDescription className={styles.text.secondary}>
               Connect your Instagram Business account to get started
             </CardDescription>
           </CardHeader>
@@ -168,7 +191,7 @@ export default function AddAccountPage() {
               <Button
                 onClick={handleConnectClick}
                 disabled={isConnecting}
-                className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+                className={pageStyles.connectButton(isConnecting)}
               >
                 {isConnecting ? (
                   <>
@@ -185,7 +208,7 @@ export default function AddAccountPage() {
               <Button
                 variant="outline"
                 asChild
-                className="border-gray-200 text-gray-600 hover:bg-gray-50 rounded-xl"
+                className={pageStyles.cancelButton}
               >
                 <Link href="/insta/accounts">Cancel</Link>
               </Button>
@@ -194,40 +217,38 @@ export default function AddAccountPage() {
         </Card>
 
         {/* Security Information */}
-        <Card
-          className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl`}
-        >
+        <Card className={styles.card}>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-pink-500" />
+            <CardTitle className={pageStyles.securityTitle}>
+              <Shield className="h-5 w-5" />
               Security & Privacy
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-2 text-sm text-gray-600">
+            <ul className={pageStyles.securityList}>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2" />
+                <div className={pageStyles.securityBullet} />
                 <span>
                   All account credentials are encrypted using industry-standard
                   AES-256 encryption
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2" />
+                <div className={pageStyles.securityBullet} />
                 <span>
                   We follow Instagram rate limiting guidelines to protect your
                   account
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2" />
+                <div className={pageStyles.securityBullet} />
                 <span>
                   Your data is stored securely and never shared with third
                   parties
                 </span>
               </li>
               <li className="flex items-start gap-2">
-                <div className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-2" />
+                <div className={pageStyles.securityBullet} />
                 <span>
                   We use Instagrams official Business API for all integrations
                 </span>
@@ -238,34 +259,43 @@ export default function AddAccountPage() {
       </div>
 
       {/* Account Limit Dialog */}
-      <AlertDialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
-        <AlertDialogContent className="rounded-2xl">
+      <AccountLimitDialog
+        open={showLimitDialog}
+        onOpenChange={setShowLimitDialog}
+        currentAccounts={totalAccounts}
+        accountLimit={accountLimit}
+        dashboardType="insta"
+      />
+      {/* <AlertDialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
+        <AlertDialogContent className={styles.dialogContent}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Account Limit Reached</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-500">
+            <AlertDialogTitle className={styles.dialogTitle}>
+              Account Limit Reached
+            </AlertDialogTitle>
+            <AlertDialogDescription className={styles.dialogDesc}>
               You have reached the maximum number of accounts ({totalAccounts}/
               {accountLimit}) for your current plan. To add more accounts,
               please upgrade your subscription.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className={styles.dialogCancel}>
+              Cancel
+            </AlertDialogCancel>
             <Button
               onClick={() => router.push("/insta/pricing")}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
+              className={styles.button.primary}
             >
               Upgrade Plan
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
 
       {/* Instagram OAuth Dialog */}
       {isConnecting && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div
-            className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} rounded-2xl max-w-md w-full shadow-xl`}
-          >
+          <div className={pageStyles.oauthDialog}>
             <LoginPage onClose={() => setIsConnecting(false)} />
           </div>
         </div>

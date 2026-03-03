@@ -35,6 +35,7 @@ import defaultImg from "public/assets/img/default-img.jpg";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
+import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -63,6 +64,12 @@ import {
   InstagramAccount,
   SubscriptionInfo,
 } from "@/lib/services/insta-actions.api";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Spinner } from "@/components/shared/Spinner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,47 +113,7 @@ interface RecentActivity {
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 
-// ─── Stat Card config ─────────────────────────────────────────────────────────
-
-const STAT_CARD_STYLES = [
-  {
-    bg: "bg-teal-50",
-    border: "border-teal-100",
-    iconBg: "bg-teal-100",
-    iconColor: "text-teal-600",
-    valueColor: "text-teal-700",
-  },
-  {
-    bg: "bg-rose-50",
-    border: "border-rose-100",
-    iconBg: "bg-rose-100",
-    iconColor: "text-rose-600",
-    valueColor: "text-rose-700",
-  },
-  {
-    bg: "bg-emerald-50",
-    border: "border-emerald-100",
-    iconBg: "bg-emerald-100",
-    iconColor: "text-emerald-600",
-    valueColor: "text-emerald-700",
-  },
-  {
-    bg: "bg-purple-50",
-    border: "border-purple-100",
-    iconBg: "bg-purple-100",
-    iconColor: "text-purple-600",
-    valueColor: "text-purple-700",
-  },
-  {
-    bg: "bg-orange-50",
-    border: "border-orange-100",
-    iconBg: "bg-orange-100",
-    iconColor: "text-orange-600",
-    valueColor: "text-orange-700",
-  },
-] as const;
-
-// ─── Small Components ─────────────────────────────────────────────────────────
+// ─── Stat Card Component (local, but uses theme styles) ───────────────────────
 
 interface StatCardProps {
   title: string;
@@ -165,7 +132,46 @@ const StatCard = React.memo(function StatCard({
   extra,
   styleIndex,
 }: StatCardProps) {
-  const s = STAT_CARD_STYLES[styleIndex % STAT_CARD_STYLES.length];
+  const { styles, isDark } = useThemeStyles();
+  // We'll reuse the same color mapping as before, but using isDark
+  const colors = [
+    {
+      bg: isDark ? "bg-teal-500/10" : "bg-teal-50",
+      border: isDark ? "border-teal-500/20" : "border-teal-100",
+      iconBg: isDark ? "bg-teal-500/20" : "bg-teal-100",
+      iconColor: isDark ? "text-teal-400" : "text-teal-600",
+      valueColor: isDark ? "text-teal-400" : "text-teal-700",
+    },
+    {
+      bg: isDark ? "bg-blue-500/10" : "bg-blue-50",
+      border: isDark ? "border-blue-500/20" : "border-blue-100",
+      iconBg: isDark ? "bg-blue-500/20" : "bg-blue-100",
+      iconColor: isDark ? "text-blue-400" : "text-blue-600",
+      valueColor: isDark ? "text-blue-400" : "text-blue-700",
+    },
+    {
+      bg: isDark ? "bg-green-500/10" : "bg-green-50",
+      border: isDark ? "border-green-500/20" : "border-green-100",
+      iconBg: isDark ? "bg-green-500/20" : "bg-green-100",
+      iconColor: isDark ? "text-green-400" : "text-green-600",
+      valueColor: isDark ? "text-green-400" : "text-green-700",
+    },
+    {
+      bg: isDark ? "bg-purple-500/10" : "bg-purple-50",
+      border: isDark ? "border-purple-500/20" : "border-purple-100",
+      iconBg: isDark ? "bg-purple-500/20" : "bg-purple-100",
+      iconColor: isDark ? "text-purple-400" : "text-purple-600",
+      valueColor: isDark ? "text-purple-400" : "text-purple-700",
+    },
+    {
+      bg: isDark ? "bg-orange-500/10" : "bg-orange-50",
+      border: isDark ? "border-orange-500/20" : "border-orange-100",
+      iconBg: isDark ? "bg-orange-500/20" : "bg-orange-100",
+      iconColor: isDark ? "text-orange-400" : "text-orange-600",
+      valueColor: isDark ? "text-orange-400" : "text-orange-700",
+    },
+  ];
+  const s = colors[styleIndex % colors.length];
   return (
     <div
       className={`${s.bg} border ${s.border} rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md transition-shadow`}
@@ -178,10 +184,16 @@ const StatCard = React.memo(function StatCard({
         </div>
       </div>
       <div>
-        <p className="text-xs font-medium text-gray-500 mb-1">{title}</p>
+        <p className={`text-xs font-medium ${styles.text.muted} mb-1`}>
+          {title}
+        </p>
         <p className={`text-2xl font-bold ${s.valueColor}`}>{value}</p>
-        {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
-        {extra && <p className="text-[10px] text-gray-400 mt-0.5">{extra}</p>}
+        {subtitle && (
+          <p className={`text-xs ${styles.text.muted} mt-0.5`}>{subtitle}</p>
+        )}
+        {extra && (
+          <p className={`text-[10px] ${styles.text.muted} mt-0.5`}>{extra}</p>
+        )}
       </div>
     </div>
   );
@@ -191,8 +203,10 @@ const StatCard = React.memo(function StatCard({
 
 export default function Dashboard() {
   const { userId, isLoaded } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   // Refs
   const isInitialMount = useRef(true);
@@ -589,35 +603,51 @@ export default function Dashboard() {
   // ── Loading state ─────────────────────────────────────────────────────────────
 
   if (isLoading || !isLoaded) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FC] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-pink-200 border-t-pink-500 rounded-full animate-spin" />
-          <p className="text-sm text-gray-400 font-medium">
-            Loading your dashboard…
-          </p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading your dashboard…" />;
   }
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen max-w-7xl m-auto w-full bg-[#F8F9FC]">
-      <div className="p-4 md:p-6 space-y-5 mx-auto">
+    <div
+      className={
+        isDark
+          ? "min-h-screen max-w-7xl m-auto w-full relative overflow-hidden"
+          : "min-h-screen max-w-7xl m-auto w-full"
+      }
+    >
+      {isDark && <Orbs />}
+      <div className="p-4 md:p-6 space-y-5 mx-auto relative z-10">
         {/* ── Automations Not Working Warning ────────────────────────────── */}
         {accountsWithIssues.length > 0 && (
-          <div className="bg-white border border-red-200 rounded-2xl p-5 shadow-sm">
+          <div
+            className={`rounded-2xl p-5 ${
+              isDark
+                ? "bg-white/[0.04] border border-red-500/30"
+                : "bg-white border border-red-200"
+            }`}
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                  <p className="font-bold text-red-600 text-sm">
+                  <AlertTriangle
+                    className={`h-5 w-5 flex-shrink-0 ${
+                      isDark ? "text-red-400" : "text-red-600"
+                    }`}
+                  />
+                  <p
+                    className={`font-bold text-sm ${
+                      isDark ? "text-red-400" : "text-red-600"
+                    }`}
+                  >
                     Your automations are not working!
                   </p>
                 </div>
-                <p className="text-xs text-gray-500 mb-3 font-medium">
+                <p
+                  className={`text-xs mb-3 font-medium ${
+                    isDark ? "text-white/40" : "text-gray-500"
+                  }`}
+                >
                   Refresh Permissions for{" "}
                   {accountsWithIssues.map((a) => `@${a.username}`).join(", ")}
                 </p>
@@ -629,10 +659,18 @@ export default function Dashboard() {
                   ].map((issue) => (
                     <li
                       key={issue}
-                      className="flex items-center gap-2 text-xs text-gray-500"
+                      className={`flex items-center gap-2 text-xs ${
+                        isDark ? "text-white/40" : "text-gray-500"
+                      }`}
                     >
-                      <div className="w-4 h-4 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
-                        <X className="h-2.5 w-2.5 text-red-500" />
+                      <div
+                        className={`w-4 h-4 rounded-full ${
+                          isDark
+                            ? "bg-red-500/10 border border-red-500/20"
+                            : "bg-red-100 border border-red-200"
+                        } flex items-center justify-center flex-shrink-0`}
+                      >
+                        <X className="h-2.5 w-2.5 text-red-400" />
                       </div>
                       {issue}
                     </li>
@@ -641,7 +679,9 @@ export default function Dashboard() {
               </div>
               <Button
                 asChild
-                className="flex-shrink-0 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full text-xs font-bold px-5 shadow-md shadow-pink-200/50 hover:opacity-90 transition-opacity"
+                className={`bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full text-xs font-bold px-5 shadow-md ${
+                  isDark ? "shadow-pink-500/20" : "shadow-pink-200/50"
+                } hover:opacity-90 transition-opacity`}
               >
                 <Link href="/insta/accounts/add">
                   <Instagram className="h-3.5 w-3.5 mr-1.5" />
@@ -654,13 +694,16 @@ export default function Dashboard() {
 
         {/* ── Promo / Early Bird Banner (no subscription) ─────────────────── */}
         {subscriptions.length === 0 && showPromoBanner && (
-          <div className="relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 rounded-2xl p-5 shadow-lg shadow-pink-200/50">
-            {/* Decorative circles */}
+          <div
+            className={`relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 rounded-2xl p-5 shadow-lg ${
+              isDark ? "shadow-pink-500/30" : "shadow-pink-200/50"
+            }`}
+          >
             <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
             <div className="absolute -right-4 top-4 w-20 h-20 rounded-full bg-white/10" />
             <button
               onClick={() => setShowPromoBanner(false)}
-              className="absolute top-3 right-3 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+              className={`absolute top-3 right-3 p-1 rounded-full bg-white/20 hover:bg-white/30 transition-colors`}
             >
               <X className="h-4 w-4 text-white" />
             </button>
@@ -668,15 +711,15 @@ export default function Dashboard() {
               <div className="flex flex-col ">
                 <div className="flex items-center gap-2 mb-1">
                   <Sparkles className="h-4 w-4 text-yellow-300" />
-                  <span className="text-white font-black text-sm">
+                  <span className={`font-black text-sm text-white`}>
                     Early Bird Offer
                   </span>
                   <Sparkles className="h-4 w-4 text-yellow-300" />
                 </div>
-                <p className="text-white font-black text-lg">
+                <p className={`font-black text-lg text-white`}>
                   Save 60% on RocketReplai Pro
                 </p>
-                <p className="text-pink-100 text-xs mt-0.5">
+                <p className={`text-xs mt-0.5 text-white opacity-80`}>
                   Don&apos;t miss out! Unlock unlimited growth — offer ends soon
                   👇
                 </p>
@@ -693,16 +736,38 @@ export default function Dashboard() {
 
         {/* ── Active Subscription Banner ──────────────────────────────────── */}
         {subscriptions.length > 0 && (
-          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+          <div
+            className={`rounded-2xl p-4 flex items-center justify-between gap-4 ${
+              isDark
+                ? "bg-green-500/10 border border-green-500/20"
+                : "bg-green-50 border border-green-200"
+            }`}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center">
-                <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <div
+                className={`w-9 h-9 rounded-full ${
+                  isDark ? "bg-green-500/20" : "bg-green-100"
+                } flex items-center justify-center`}
+              >
+                <CheckCircle
+                  className={`h-5 w-5 ${
+                    isDark ? "text-green-400" : "text-green-600"
+                  }`}
+                />
               </div>
               <div>
-                <p className="text-sm font-bold text-emerald-700">
+                <p
+                  className={`text-sm font-bold ${
+                    isDark ? "text-green-400" : "text-green-700"
+                  }`}
+                >
                   {subscriptions[0].chatbotType} Active
                 </p>
-                <p className="text-xs text-emerald-600">
+                <p
+                  className={`text-xs ${
+                    isDark ? "text-green-400/80" : "text-green-600"
+                  }`}
+                >
                   Next billing:{" "}
                   {new Date(subscriptions[0].expiresAt).toLocaleDateString()}
                 </p>
@@ -712,7 +777,11 @@ export default function Dashboard() {
               <Button
                 asChild
                 variant="outline"
-                className="text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-100 rounded-full px-4"
+                className={`text-xs rounded-full px-4 ${
+                  isDark
+                    ? "border-green-500/30 text-green-400 hover:bg-green-500/10"
+                    : "border-green-300 text-green-700 hover:bg-green-100"
+                }`}
               >
                 <Link href="/insta/pricing">Upgrade</Link>
               </Button>
@@ -720,7 +789,11 @@ export default function Dashboard() {
                 variant="destructive"
                 onClick={handleCancelInitiation}
                 disabled={isCancelling || isProcessingCancellation}
-                className="text-xs rounded-full px-4"
+                className={`text-xs rounded-full px-4 ${
+                  isDark
+                    ? "bg-red-500/80 hover:bg-red-500 text-white"
+                    : "bg-red-500 hover:bg-red-600 text-white"
+                }`}
               >
                 {isCancelling ? "Cancelling…" : "Cancel"}
               </Button>
@@ -729,20 +802,51 @@ export default function Dashboard() {
         )}
 
         {/* ── Hero Card ───────────────────────────────────────────────────── */}
-        <div className="relative overflow-hidden bg-white rounded-3xl shadow-sm border border-gray-100">
-          {/* Background gradient blob */}
-          <div className="absolute inset-0 bg-gradient-to-br from-pink-50/80 via-white to-purple-50/60 pointer-events-none" />
-          <div className="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 opacity-50 blur-3xl pointer-events-none" />
-          <div className="absolute -left-10 -top-10 w-40 h-40 rounded-full bg-gradient-to-br from-purple-100 to-indigo-100 opacity-30 blur-2xl pointer-events-none" />
+        <div
+          className={`relative overflow-hidden rounded-3xl shadow-sm border ${
+            isDark
+              ? "glass-card border-white/[0.08]"
+              : "bg-white border-gray-100"
+          }`}
+        >
+          <div
+            className={`absolute inset-0 bg-gradient-to-br ${
+              isDark
+                ? "from-pink-500/5 via-transparent to-purple-500/5"
+                : "from-pink-50/80 via-white to-purple-50/60"
+            } pointer-events-none`}
+          />
+          <div
+            className={`absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-gradient-to-br ${
+              isDark
+                ? "from-pink-500/10 to-rose-500/10"
+                : "from-pink-100 to-rose-100"
+            } opacity-50 blur-3xl pointer-events-none`}
+          />
+          <div
+            className={`absolute -left-10 -top-10 w-40 h-40 rounded-full bg-gradient-to-br ${
+              isDark
+                ? "from-purple-500/10 to-indigo-500/10"
+                : "from-purple-100 to-indigo-100"
+            } opacity-30 blur-2xl pointer-events-none`}
+          />
 
           <div className="relative z-10 p-5 md:p-10 text-center">
-            <h1 className="text-2xl md:text-3xl font-black text-gray-900 mb-3 tracking-tight">
+            <h1
+              className={`text-2xl md:text-3xl font-black mb-3 tracking-tight ${
+                isDark ? "text-white" : "text-gray-900"
+              }`}
+            >
               Your growth game just leveled up{" "}
               <span role="img" aria-label="game">
                 🎮
               </span>
             </h1>
-            <p className="text-gray-500 text-sm max-w-md mx-auto mb-7 leading-relaxed">
+            <p
+              className={`text-sm max-w-md mx-auto mb-7 leading-relaxed ${
+                isDark ? "text-white/40" : "text-gray-500"
+              }`}
+            >
               You&apos;re one step closer to growing your Instagram audience.
               Automate DMs, connect authentically, and watch your followers turn
               into real relationships.
@@ -751,14 +855,22 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-center justify-center gap-3 mb-7">
               <Button
                 onClick={handleAddAccountClick}
-                className="bg-gradient-to-r from-pink-500 to-pink-300 hover:from-pink-600 hover:to-rose-600 text-white font-bold rounded-full px-7 py-2.5 shadow-lg shadow-pink-200/60 transition-all hover:shadow-pink-300/70 hover:-translate-y-0.5"
+                className={`bg-gradient-to-r from-pink-500 to-pink-300 hover:from-pink-600 hover:to-rose-600 text-white font-bold rounded-full px-7 py-2.5 shadow-lg ${
+                  isDark
+                    ? "shadow-pink-500/30 hover:shadow-pink-500/40"
+                    : "shadow-pink-200/60 hover:shadow-pink-300/70"
+                } transition-all hover:-translate-y-0.5`}
               >
                 Create Automation
               </Button>
               <Button
                 asChild
                 variant="outline"
-                className="font-semibold rounded-full px-7 py-2.5 border-gray-200 text-gray-700 hover:bg-gray-50 gap-2"
+                className={`font-semibold rounded-full px-7 py-2.5 gap-2 ${
+                  isDark
+                    ? "border-white/[0.08] text-white/70 hover:bg-white/[0.06]"
+                    : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                }`}
               >
                 <Link href="/insta/analytics">
                   <PlayCircle className="h-4 w-4" />
@@ -769,9 +881,23 @@ export default function Dashboard() {
 
             {/* New features pills */}
             <div className="flex flex-wrap items-center justify-center gap-3">
-              <div className="inline-flex items-center gap-1.5 bg-pink-50 border border-pink-200 rounded-full px-3 py-1">
-                <Sparkles className="h-3 w-3 text-pink-500" />
-                <span className="text-xs font-semibold text-pink-600">
+              <div
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${
+                  isDark
+                    ? "bg-pink-500/10 border border-pink-500/20"
+                    : "bg-pink-50 border border-pink-200"
+                }`}
+              >
+                <Sparkles
+                  className={`h-3 w-3 ${
+                    isDark ? "text-pink-400" : "text-pink-600"
+                  }`}
+                />
+                <span
+                  className={`text-xs font-semibold ${
+                    isDark ? "text-pink-400" : "text-pink-600"
+                  }`}
+                >
                   New features
                 </span>
               </div>
@@ -782,7 +908,11 @@ export default function Dashboard() {
               ].map(({ icon: Icon, label }) => (
                 <div
                   key={label}
-                  className="flex flex-wrap items-center gap-1  md:gap-1.5  text-sm md:text-base bg-white border border-gray-200 rounded-full px-1.5 md:px-3 py-1 text-gray-600 hover:border-pink-200 hover:text-pink-600 transition-colors cursor-pointer"
+                  className={`flex flex-wrap items-center gap-1 md:gap-1.5 text-sm md:text-base rounded-full px-1.5 md:px-3 py-1 transition-colors cursor-pointer ${
+                    isDark
+                      ? "bg-white/[0.03] border border-white/[0.08] text-white/60 hover:border-pink-500/50 hover:text-pink-400"
+                      : "bg-white border border-gray-200 text-gray-600 hover:border-pink-200 hover:text-pink-600"
+                  }`}
                 >
                   <Icon className="h-3 w-3" />
                   <span className="text-xs font-medium">{label}</span>
@@ -795,14 +925,22 @@ export default function Dashboard() {
         {/* ── Growth Overview ──────────────────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Activity className="h-4 w-4 text-pink-400" />
+            <h2
+              className={`text-base font-bold flex items-center gap-2 ${
+                isDark ? "text-white" : "text-gray-800"
+              }`}
+            >
+              <Activity className={`h-4 w-4 text-pink-400`} />
               Growth Overview
             </h2>
             <button
               onClick={refresh}
               disabled={isRefreshing}
-              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-pink-500 transition-colors px-3 py-1.5 rounded-lg hover:bg-pink-50"
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors ${
+                isDark
+                  ? "text-white/40 hover:text-pink-400 hover:bg-white/[0.06]"
+                  : "text-gray-500 hover:text-pink-500 hover:bg-pink-50"
+              } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <RefreshCw
                 className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
@@ -850,7 +988,7 @@ export default function Dashboard() {
               title="Follow Requests"
               icon={UserCheck}
               value={totalFollowChecks}
-              styleIndex={5}
+              styleIndex={0}
             />
           </div>
         </div>
@@ -858,37 +996,49 @@ export default function Dashboard() {
         {/* ── Messages Sent / Recent Activity ─────────────────────────────── */}
         {dashboardData?.recentActivity &&
           dashboardData.recentActivity.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+            <div className={`rounded-2xl border ${styles.card}`}>
+              <div
+                className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
+              >
                 <div className="flex items-center gap-2">
-                  <Activity className="h-4 w-4 text-pink-400" />
-                  <h3 className="text-sm font-bold text-gray-800">
+                  <Activity className={`h-4 w-4 text-pink-400`} />
+                  <h3 className={`text-sm font-bold ${styles.text.primary}`}>
                     Recent Activity
                   </h3>
                 </div>
                 <Link
                   href="/insta/analytics"
-                  className="text-xs text-pink-500 font-semibold flex items-center gap-1 hover:text-pink-600"
+                  className={`text-xs ${
+                    isDark
+                      ? "bg-pink-500/10 border border-pink-500/20 text-pink-400"
+                      : "bg-pink-100 text-pink-600 border-pink-200"
+                  } font-semibold flex items-center gap-1 hover:opacity-80`}
                 >
                   View All <ChevronRight className="h-3.5 w-3.5" />
                 </Link>
               </div>
-              <div className="divide-y divide-gray-50">
+              <div className={`divide-y ${styles.divider}`}>
                 {(dashboardData.recentActivity as RecentActivity[]).map(
                   (activity) => (
                     <div
                       key={activity.id}
-                      className="flex items-center justify-between px-5 py-3.5 hover:bg-gray-50/50 transition-colors"
+                      className={`flex items-center justify-between px-5 py-3.5 ${
+                        isDark ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/50"
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center flex-shrink-0">
+                        <div
+                          className={`w-8 h-8 rounded-full bg-gradient-to-br from-pink-100 to-rose-100 flex items-center justify-center flex-shrink-0`}
+                        >
                           <MessageSquare className="h-3.5 w-3.5 text-pink-500" />
                         </div>
-                        <p className="text-sm text-gray-700">
+                        <p className={`text-sm ${styles.text.secondary}`}>
                           {activity.message}
                         </p>
                       </div>
-                      <span className="text-xs text-gray-400 flex-shrink-0 ml-4">
+                      <span
+                        className={`text-xs ${styles.text.muted} flex-shrink-0 ml-4`}
+                      >
                         {formatTimestamp(activity.timestamp)}
                       </span>
                     </div>
@@ -900,23 +1050,29 @@ export default function Dashboard() {
 
         {/* ── Connected Accounts List ─────────────────────────────────────── */}
         {userAccounts.length > 0 && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-            <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div className={`rounded-2xl border ${styles.card}`}>
+            <div
+              className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
+            >
               <div className="flex items-center gap-2">
-                <Instagram className="h-4 w-4 text-pink-400" />
-                <h3 className="text-sm font-bold text-gray-800">
+                <Instagram className={`h-4 w-4 text-pink-400`} />
+                <h3 className={`text-sm font-bold ${styles.text.primary}`}>
                   Connected Accounts
                 </h3>
               </div>
               <button
                 onClick={handleAddAccountClick}
-                className="text-xs text-pink-500 font-semibold flex items-center gap-1 hover:text-pink-600"
+                className={`text-xs ${
+                  isDark
+                    ? "bg-pink-500/10 border border-pink-500/20 text-pink-400"
+                    : "bg-pink-100 text-pink-600 border-pink-200"
+                } font-semibold flex items-center gap-1 hover:opacity-80`}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add Account
               </button>
             </div>
-            <div className="divide-y divide-gray-50">
+            <div className={`divide-y ${styles.divider}`}>
               {userAccounts.map((account) => {
                 const isTokenExpiring =
                   account.tokenExpiresAt &&
@@ -925,7 +1081,9 @@ export default function Dashboard() {
                 return (
                   <div
                     key={account.id}
-                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50/50 transition-colors"
+                    className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.06] ${
+                      isDark ? "" : "border-gray-50 hover:bg-gray-50/50"
+                    }`}
                   >
                     <div className="flex items-center gap-3">
                       <div className="relative flex-shrink-0">
@@ -939,19 +1097,29 @@ export default function Dashboard() {
                           }
                           alt={account.username}
                           onError={() => handleImageError(account.id)}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-100"
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-100 dark:border-white/[0.08]"
                         />
                         <span
-                          className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-white ${
-                            account.isActive ? "bg-emerald-400" : "bg-gray-300"
+                          className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 ${
+                            isDark ? "border-[#1A1A1E]" : "border-white"
+                          } ${
+                            account.isActive
+                              ? "bg-green-400"
+                              : isDark
+                                ? "bg-gray-500"
+                                : "bg-gray-300"
                           }`}
                         />
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-gray-800">
+                        <p
+                          className={`text-sm font-bold ${styles.text.primary}`}
+                        >
                           @{account.username}
                         </p>
-                        <p className="text-xs text-gray-400">
+                        <p
+                          className={`text-xs ${isDark ? "text-white/40" : "text-gray-400"}`}
+                        >
                           {account.followersCount?.toLocaleString() || 0}{" "}
                           followers
                         </p>
@@ -966,7 +1134,11 @@ export default function Dashboard() {
                               account.instagramId,
                             )
                           }
-                          className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-3 py-1 font-semibold flex items-center gap-1 hover:bg-amber-100 transition-colors"
+                          className={`text-xs px-3 py-1 rounded-full font-semibold flex items-center gap-1 transition-colors ${
+                            isDark
+                              ? "text-amber-400 bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/20"
+                              : "text-amber-600 bg-amber-50 border border-amber-200 hover:bg-amber-100"
+                          }`}
                         >
                           <RefreshCw className="h-3 w-3" />
                           Refresh Token
@@ -974,7 +1146,11 @@ export default function Dashboard() {
                       )}
                       <Link
                         href={`/insta/accounts/${account.id}`}
-                        className="text-xs text-gray-600 bg-gray-100 border border-gray-200 rounded-full px-4 py-1.5 font-semibold hover:bg-gray-200 transition-colors"
+                        className={`text-xs px-4 py-1.5 rounded-full font-semibold transition-colors ${
+                          isDark
+                            ? "text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.09]"
+                            : "text-gray-600 bg-gray-100 border border-gray-200 hover:bg-gray-200"
+                        }`}
                       >
                         Manage
                       </Link>
@@ -988,19 +1164,31 @@ export default function Dashboard() {
 
         {/* ── No Accounts Empty State ─────────────────────────────────────── */}
         {userAccounts.length === 0 && !isLoading && (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 md:p-10 text-center">
-            <div className="w-16 h-16 rounded-full bg-pink-50 flex items-center justify-center mx-auto mb-4">
-              <Instagram className="h-8 w-8 text-pink-400" />
+          <div
+            className={`rounded-2xl border ${styles.card} p-5 md:p-10 text-center`}
+          >
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+                isDark
+                  ? "bg-pink-500/20 border border-pink-500/30"
+                  : "bg-pink-100"
+              }`}
+            >
+              <Instagram className={`h-8 w-8 text-pink-400`} />
             </div>
-            <h3 className="text-base font-bold text-gray-800 mb-2">
+            <h3 className={`text-base font-bold ${styles.text.primary} mb-2`}>
               No accounts connected yet
             </h3>
-            <p className="text-sm text-gray-500 mb-5">
+            <p
+              className={`text-sm ${isDark ? "text-white/40" : "text-gray-500"} mb-5`}
+            >
               Connect your Instagram Business account to start automating
             </p>
             <Button
               asChild
-              className="bg-gradient-to-r from-pink-500 to-pink-300 text-white rounded-full font-bold px-7 shadow-md shadow-pink-200/50"
+              className={`bg-gradient-to-r from-pink-500 to-pink-300 text-white rounded-full font-bold px-7 shadow-md ${
+                isDark ? "shadow-pink-500/20" : "shadow-pink-200/50"
+              }`}
             >
               <Link href="/insta/accounts/add">
                 <Plus className="h-4 w-4 mr-2" />
@@ -1016,48 +1204,41 @@ export default function Dashboard() {
          ══════════════════════════════════════════════════════════════════════ */}
 
       {/* Account Limit Dialog */}
-      <AlertDialog
+      <AccountLimitDialog
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
-      >
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Account Limit Reached</AlertDialogTitle>
-            <AlertDialogDescription>
-              Your current plan allows {dashboardData?.accountLimit || 1}{" "}
-              account(s). Upgrade to Pro Unlimited to connect up to 3 Instagram
-              accounts.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              onClick={() => router.push("/insta/pricing")}
-              className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-full"
-            >
-              Upgrade Now
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      {/* Confirm Cancellation Dialog */}
-      <AlertDialog
+        currentAccounts={userAccounts.length}
+        accountLimit={subscriptions.length === 0 ? 1 : 3}
+        dashboardType="insta"
+      />
+      <ConfirmDialog
         open={showCancelConfirmDialog}
         onOpenChange={setShowCancelConfirmDialog}
+        onConfirm={handleConfirmedCancellation}
+        title="Confirm Cancellation"
+        description=" Are you sure you want to cancel your subscription? Your plan will
+              revert to the Free plan which only allows 1 Instagram account."
+        confirmText="Delete"
+        isDestructive={true}
+        isLoading={isCancelling}
+      />
+      {/* Confirm Cancellation Dialog */}
+      {/* <AlertDialog
+        open={showCancelConfirmDialog}
+        onOpenChange={showCancelConfirmDialog}
       >
-        <AlertDialogContent className="rounded-2xl">
+        <AlertDialogContent className={styles.dialogContent}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Cancellation</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className={styles.dialogTitle}>
+              Confirm Cancellation
+            </AlertDialogTitle>
+            <AlertDialogDescription className={styles.dialogDesc}>
               Are you sure you want to cancel your subscription? Your plan will
               revert to the Free plan which only allows 1 Instagram account.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-full">
+            <AlertDialogCancel className={styles.dialogCancel}>
               Keep Plan
             </AlertDialogCancel>
             <AlertDialogAction
@@ -1076,42 +1257,66 @@ export default function Dashboard() {
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
-      </AlertDialog>
+      </AlertDialog> */}
 
       {/* Cancel Subscription Reason Dialog */}
       {showCancelDialog && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl p-7 max-w-md w-full shadow-2xl">
+          <div
+            className={`${
+              isDark
+                ? "bg-[#1A1A1E] backdrop-blur-lg border border-white/[0.08]"
+                : "bg-white backdrop-blur-lg border border-gray-200"
+            } rounded-3xl p-7 max-w-md w-full shadow-2xl`}
+          >
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-lg font-black text-gray-900">
+              <h2
+                className={`text-lg font-black ${
+                  isDark ? "text-white" : "text-gray-900"
+                }`}
+              >
                 Cancel Subscription
               </h2>
               <button
                 onClick={() => setShowCancelDialog(false)}
                 disabled={isCancelling}
-                className="p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                className={`p-1.5 rounded-full transition-colors ${
+                  isDark ? "hover:bg-white/[0.06]" : "hover:bg-gray-100"
+                }`}
               >
                 <X className="h-4 w-4 text-gray-500" />
               </button>
             </div>
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <label
+                  className={`block text-sm font-semibold mb-2 ${
+                    isDark ? "text-white/80" : "text-gray-700"
+                  }`}
+                >
                   Please tell us why you&apos;re leaving
                 </label>
                 <Textarea
                   value={cancellationReason}
                   onChange={(e) => setCancellationReason(e.target.value)}
-                  className="w-full rounded-xl border-gray-200 focus:border-pink-300 focus:ring-pink-200"
+                  className={styles.input}
                   placeholder="Cancellation reason…"
                   disabled={isCancelling}
                 />
               </div>
-              <div className="bg-gray-50 rounded-xl p-4 space-y-1.5">
-                <p className="text-xs text-gray-600">
+              <div
+                className={`rounded-xl p-4 space-y-1.5 ${
+                  isDark ? "bg-white/[0.03]" : "bg-gray-50"
+                }`}
+              >
+                <p
+                  className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
+                >
                   <strong>Immediate:</strong> Service ends now
                 </p>
-                <p className="text-xs text-gray-600">
+                <p
+                  className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
+                >
                   <strong>End-of-term:</strong> Service continues until billing
                   period ends
                 </p>
@@ -1124,7 +1329,11 @@ export default function Dashboard() {
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
-                  className="flex-1 rounded-full"
+                  className={`flex-1 rounded-full ${
+                    isDark
+                      ? "bg-red-500/80 hover:bg-red-500 text-white"
+                      : "bg-red-500 hover:bg-red-600 text-white"
+                  }`}
                 >
                   {isCancelling ? "Cancelling…" : "Cancel Now"}
                 </Button>
@@ -1134,7 +1343,11 @@ export default function Dashboard() {
                     handleCancelSubscription();
                   }}
                   disabled={isCancelling}
-                  className="flex-1 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-full"
+                  className={`flex-1 rounded-full ${
+                    isDark
+                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
+                      : "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
+                  }`}
                 >
                   {isCancelling ? "Cancelling…" : "End of Term"}
                 </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -14,6 +14,8 @@ import {
   X,
   ChevronDown,
   HelpCircle,
+  RefreshCw,
+  ArrowRight,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -33,6 +35,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@rocketreplai/ui/components/radix/alert-dialog";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AppointmentQuestion {
   id: number;
@@ -45,6 +51,7 @@ interface AppointmentQuestion {
 export default function AppointmentQuestionsPage() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [questions, setQuestions] = useState<AppointmentQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,47 +236,31 @@ export default function AppointmentQuestionsPage() {
   };
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-purple-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <Spinner label="Loading questions..." />;
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      {/* Top bar */}
-      <div className="bg-white border-b border-gray-100 sticky top-0 z-10">
-        <div className="px-6 py-3 flex items-center gap-2 text-sm text-gray-500">
-          <Link href="/web" className="text-gray-400 hover:text-gray-600">
-            Dashboard
-          </Link>
-          <span className="text-gray-300">›</span>
-          <Link
-            href="/web/lead-generation/overview"
-            className="text-gray-400 hover:text-gray-600"
-          >
-            Lead Generation
-          </Link>
-          <span className="text-gray-300">›</span>
-          <span className="font-medium text-gray-800">
-            Appointment Questions
-          </span>
-        </div>
-      </div>
+    <div className={styles.page}>
+      {isDark && <Orbs />}
 
-      <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <div className={styles.container}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <Calendar className="h-5 w-5 text-white" />
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center ${styles.icon.purple}`}
+            >
+              <Calendar
+                className={`h-5 w-5 ${isDark ? "text-purple-400" : "text-purple-600"}`}
+              />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-gray-800">
+              <h1
+                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
+              >
                 Appointment Questions
               </h1>
-              <p className="text-sm text-gray-500">
+              <p className={`text-xs ${styles.text.secondary}`}>
                 Configure the questions asked during appointment booking
               </p>
             </div>
@@ -277,7 +268,7 @@ export default function AppointmentQuestionsPage() {
           <div className="flex items-center gap-2">
             <Button
               onClick={handleAddQuestion}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl"
+              className={`bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl`}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Question
@@ -285,7 +276,7 @@ export default function AppointmentQuestionsPage() {
             <Button
               onClick={handleSaveQuestions}
               disabled={isSaving}
-              className="bg-green-500 hover:bg-green-600 text-white rounded-xl"
+              className={`${isDark ? "bg-green-500/80 hover:bg-green-500" : "bg-green-500 hover:bg-green-600"} text-white rounded-xl ${isSaving ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               <Save className="h-4 w-4 mr-2" />
               {isSaving ? "Saving..." : "Save All"}
@@ -294,14 +285,22 @@ export default function AppointmentQuestionsPage() {
         </div>
 
         {/* Info Banner */}
-        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+        <div
+          className={`${isDark ? "bg-blue-500/10 border border-blue-500/20" : "bg-blue-50 border border-blue-200"} rounded-2xl p-4`}
+        >
           <div className="flex items-start gap-3">
-            <HelpCircle className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+            <HelpCircle
+              className={`h-5 w-5 ${isDark ? "text-blue-400" : "text-blue-500"} flex-shrink-0 mt-0.5`}
+            />
             <div>
-              <p className="text-sm font-medium text-blue-800 mb-1">
+              <p
+                className={`text-sm font-medium ${isDark ? "text-blue-400" : "text-blue-800"} mb-1`}
+              >
                 How it works
               </p>
-              <p className="text-xs text-blue-700">
+              <p
+                className={`text-xs ${isDark ? "text-blue-400/80" : "text-blue-700"}`}
+              >
                 These questions will be asked when users want to book an
                 appointment. The answers will be collected and sent to your
                 WhatsApp if configured. You can reorder questions by dragging
@@ -316,10 +315,12 @@ export default function AppointmentQuestionsPage() {
           {questions.map((question, index) => (
             <div
               key={question.id}
-              className="bg-white border border-gray-100 rounded-2xl p-5 hover:border-gray-200 transition-all"
+              className={`${styles.card} p-5 hover:border-white/[0.12] transition-all`}
             >
               <div className="flex items-start gap-3">
-                <div className="cursor-move text-gray-300 hover:text-gray-400 mt-3">
+                <div
+                  className={`cursor-move mt-3 ${isDark ? "text-white/20 hover:text-white/40" : "text-gray-300 hover:text-gray-400"}`}
+                >
                   <GripVertical className="h-5 w-5" />
                 </div>
 
@@ -339,7 +340,7 @@ export default function AppointmentQuestionsPage() {
                           e.target.value,
                         )
                       }
-                      className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      className={styles.input}
                       placeholder="Enter your question..."
                     />
                   </div>
@@ -355,21 +356,58 @@ export default function AppointmentQuestionsPage() {
                           e.target.value,
                         )
                       }
-                      className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      className={`px-3 py-1.5 ${isDark ? "bg-white/[0.05] border-white/[0.09] text-white/70" : "bg-gray-50 border-gray-200 text-gray-600"} rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-purple-500/50`}
                     >
-                      <option value="text">Text</option>
-                      <option value="email">Email</option>
-                      <option value="tel">Phone</option>
-                      <option value="date">Date</option>
-                      <option value="select">Select</option>
-                      <option value="textarea">Textarea</option>
+                      <option
+                        value="text"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Text
+                      </option>
+                      <option
+                        value="email"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Email
+                      </option>
+                      <option
+                        value="tel"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Phone
+                      </option>
+                      <option
+                        value="date"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Date
+                      </option>
+                      <option
+                        value="select"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Select
+                      </option>
+                      <option
+                        value="textarea"
+                        className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
+                      >
+                        Textarea
+                      </option>
                     </select>
 
-                    <label className="flex items-center gap-2 text-xs text-gray-600">
+                    <label
+                      className={`flex items-center gap-2 text-xs ${styles.text.secondary}`}
+                    >
                       <Switch
                         checked={question.required}
                         onCheckedChange={(checked) =>
                           handleUpdateQuestion(question.id, "required", checked)
+                        }
+                        className={
+                          isDark
+                            ? "data-[state=checked]:bg-purple-500/50 data-[state=unchecked]:bg-white/[0.06]"
+                            : "data-[state=checked]:bg-purple-500 data-[state=unchecked]:bg-gray-200"
                         }
                       />
                       Required
@@ -382,7 +420,7 @@ export default function AppointmentQuestionsPage() {
                             editingOptions === question.id ? null : question.id,
                           )
                         }
-                        className="text-xs text-purple-600 hover:text-purple-700 font-medium"
+                        className={`text-xs ${isDark ? "text-purple-400 hover:text-purple-300" : "text-purple-600 hover:text-purple-700"} font-medium`}
                       >
                         Manage Options
                       </button>
@@ -392,8 +430,12 @@ export default function AppointmentQuestionsPage() {
                   {/* Options Editor (for select type) */}
                   {question.type === "select" &&
                     editingOptions === question.id && (
-                      <div className="ml-7 mt-3 p-4 bg-gray-50 border border-gray-200 rounded-xl">
-                        <p className="text-xs font-medium text-gray-700 mb-3">
+                      <div
+                        className={`ml-7 mt-3 p-4 ${isDark ? "bg-white/[0.03] border border-white/[0.06]" : "bg-gray-50 border border-gray-200"} rounded-xl`}
+                      >
+                        <p
+                          className={`text-xs font-medium ${isDark ? "text-white/70" : "text-gray-700"} mb-3`}
+                        >
                           Dropdown Options
                         </p>
                         <div className="space-y-2 mb-3">
@@ -402,17 +444,19 @@ export default function AppointmentQuestionsPage() {
                               key={optIndex}
                               className="flex items-center gap-2"
                             >
-                              <span className="text-xs text-gray-500">
+                              <span className={`text-xs ${styles.text.muted}`}>
                                 {optIndex + 1}.
                               </span>
-                              <span className="flex-1 text-sm text-gray-700">
+                              <span
+                                className={`flex-1 ${isDark ? "text-white/60" : "text-gray-700"} text-sm`}
+                              >
                                 {option}
                               </span>
                               <button
                                 onClick={() =>
                                   handleRemoveOption(question.id, optIndex)
                                 }
-                                className="text-gray-400 hover:text-red-500"
+                                className={`${isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-500"}`}
                               >
                                 <X className="h-4 w-4" />
                               </button>
@@ -425,7 +469,7 @@ export default function AppointmentQuestionsPage() {
                             value={newOption}
                             onChange={(e) => setNewOption(e.target.value)}
                             placeholder="New option..."
-                            className="flex-1 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                            className={styles.input}
                             onKeyPress={(e) => {
                               if (e.key === "Enter") {
                                 e.preventDefault();
@@ -446,7 +490,7 @@ export default function AppointmentQuestionsPage() {
 
                 <button
                   onClick={() => setDeleteId(question.id)}
-                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"
+                  className={`p-1.5 ${isDark ? "text-white/40 hover:text-red-400 rounded-lg hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -457,20 +501,24 @@ export default function AppointmentQuestionsPage() {
 
         {/* Empty State */}
         {questions.length === 0 && (
-          <div className="bg-white border border-gray-100 rounded-2xl p-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-purple-50 flex items-center justify-center mx-auto mb-4">
-              <Calendar className="h-8 w-8 text-purple-400" />
+          <div className={`${styles.card} p-12 text-center`}>
+            <div
+              className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${styles.icon.purple}`}
+            >
+              <Calendar
+                className={`h-8 w-8 ${isDark ? "text-purple-400" : "text-purple-400"}`}
+              />
             </div>
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            <h3 className={`text-lg font-semibold ${styles.text.primary} mb-2`}>
               No questions yet
             </h3>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className={`text-sm ${styles.text.secondary} mb-6`}>
               Add your first appointment question to start collecting lead
               information
             </p>
             <Button
               onClick={handleAddQuestion}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl"
+              className={`bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl`}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Question
@@ -480,26 +528,16 @@ export default function AppointmentQuestionsPage() {
       </div>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
-        <AlertDialogContent className="rounded-2xl">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Question</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this question? This action cannot
-              be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => deleteId && handleDeleteQuestion(deleteId)}
-              className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={!!deleteId}
+        onOpenChange={() => setDeleteId(null)}
+        onConfirm={() => deleteId && handleDeleteQuestion(deleteId)}
+        title="Delete Question"
+        description={`Are you sure you want to delete this question? This action cannot
+              be undone.`}
+        confirmText="Remove Question"
+        isDestructive={true}
+      />
     </div>
   );
 }

@@ -7,7 +7,8 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { RefreshCw, XCircle, AlertTriangle } from "lucide-react";
+import { RefreshCw, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,11 @@ import {
   deleteInstaAccount,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
+
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
+import { Spinner } from "@/components/shared/Spinner";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -61,10 +67,12 @@ const Toggle = React.memo(function Toggle({
   checked,
   onChange,
   disabled = false,
+  isDark,
 }: {
   checked: boolean;
   onChange: (v: boolean) => void;
   disabled?: boolean;
+  isDark: boolean;
 }) {
   return (
     <button
@@ -73,7 +81,7 @@ const Toggle = React.memo(function Toggle({
       disabled={disabled}
       className={`relative rounded-full transition-colors flex-shrink-0 ${
         disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      } ${checked ? "bg-pink-500" : "bg-gray-200"}`}
+      } ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
       style={{ width: 44, height: 24 }}
     >
       <span
@@ -83,7 +91,6 @@ const Toggle = React.memo(function Toggle({
           height: 18,
           top: 3,
           left: checked ? 23 : 3,
-          transition: "left 0.2s",
         }}
       />
     </button>
@@ -97,20 +104,27 @@ const SettingsCard = React.memo(function SettingsCard({
   description,
   checked,
   onChange,
+  isDark,
 }: {
   title: string;
   description: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  isDark: boolean;
 }) {
+  const { styles } = useThemeStyles();
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl p-5">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h3 className="text-sm font-semibold text-gray-800 mb-1">{title}</h3>
-          <p className="text-sm text-gray-500">{description}</p>
+    <div className={styles.card}>
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex-1">
+            <h3 className={`text-sm font-semibold mb-1 ${styles.text.primary}`}>
+              {title}
+            </h3>
+            <p className={`text-sm ${styles.text.secondary}`}>{description}</p>
+          </div>
+          <Toggle checked={checked} onChange={onChange} isDark={isDark} />
         </div>
-        <Toggle checked={checked} onChange={onChange} />
       </div>
     </div>
   );
@@ -130,11 +144,86 @@ export default function SettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { userId, isLoaded } = useAuth();
+  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { apiRequest } = useApi();
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const { styles, isDark } = useThemeStyles();
+
+  // Page‑specific styles (not in central theme)
+  const pageStyles = useMemo(
+    () => ({
+      accountCard: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
+        : "bg-white border border-gray-100 rounded-2xl p-6",
+      accountAvatar: isDark
+        ? "w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden"
+        : "w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden",
+      accountName: isDark
+        ? "text-base font-semibold text-white"
+        : "text-base font-semibold text-gray-800",
+      accountUsername: isDark
+        ? "text-sm text-white/40"
+        : "text-sm text-gray-500",
+      accountStats: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      accountStatusDot: (isActive: boolean) =>
+        isDark
+          ? `w-2 h-2 rounded-full ${isActive ? "bg-green-400" : "bg-gray-500"}`
+          : `w-2 h-2 rounded-full ${isActive ? "bg-green-500" : "bg-gray-400"}`,
+      accountStatusText: (isActive: boolean) =>
+        isDark
+          ? `text-sm font-medium ${isActive ? "text-green-400" : "text-white/40"}`
+          : `text-sm font-medium ${isActive ? "text-green-600" : "text-gray-500"}`,
+      reconnectButton: isDark
+        ? "flex items-center gap-2 px-4 py-2 bg-white/[0.06] border border-white/[0.09] backdrop-blur-[12px] text-white/70 hover:bg-white/[0.09] rounded-xl text-sm transition-colors"
+        : "flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors",
+      disableButton: isDark
+        ? "flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors"
+        : "flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors",
+      emptyCard: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8 text-center"
+        : "bg-white border border-gray-100 rounded-2xl p-8 text-center",
+      emptyText: isDark ? "text-white/40 mb-4" : "text-gray-500 mb-4",
+      connectButton: isDark
+        ? "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+        : "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors",
+      settingsHeader: "flex items-center justify-between mb-4",
+      saveButton: (disabled?: boolean) =>
+        isDark
+          ? `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`
+          : `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`,
+      removeCard: isDark
+        ? "bg-red-500/10 border border-red-500/20 rounded-2xl p-6"
+        : "bg-red-50 border border-red-200 rounded-2xl p-6",
+      removeIcon: isDark ? "text-red-400" : "text-red-500",
+      removeTitle: isDark
+        ? "text-base font-semibold text-red-400"
+        : "text-base font-semibold text-red-700",
+      removeText: isDark
+        ? "text-sm text-red-400/80 leading-relaxed"
+        : "text-sm text-red-600 leading-relaxed",
+      removeButton: isDark
+        ? "flex-shrink-0 px-6 py-2.5 bg-red-500/80 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition-colors"
+        : "flex-shrink-0 px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors",
+      dialogAction: (disabled?: boolean) =>
+        isDark
+          ? `bg-red-500/80 hover:bg-red-500 text-white rounded-xl ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`
+          : `bg-red-500 hover:bg-red-600 text-white rounded-xl ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`,
+    }),
+    [isDark],
+  );
 
   // Cleanup on unmount
   useEffect(() => {
@@ -359,27 +448,24 @@ export default function SettingsPage() {
   );
 
   if (!isLoaded || isLoading) {
-    return (
-      <div className="min-h-screen bg-[#F8F9FA] flex items-center justify-center">
-        <div className="w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin" />
-      </div>
-    );
+    return <Spinner />;
   }
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
-      <div className="p-4 md:p-6 lg:p-8 mx-auto space-y-6">
+    <div className={styles.page}>
+      {isDark && <Orbs />}
+      <div className={styles.container}>
         {/* Instagram Account Section */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+          <h2 className={`text-lg font-semibold mb-4 ${styles.text.primary}`}>
             Instagram Account
           </h2>
 
           {account ? (
-            <div className="bg-white border border-gray-100 rounded-2xl p-6">
+            <div className={pageStyles.accountCard}>
               <div className="flex items-center gap-4">
                 {/* Profile Picture */}
-                <div className="w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden">
+                <div className={pageStyles.accountAvatar}>
                   {account.profilePicture ? (
                     <Image
                       src={account.profilePicture}
@@ -396,24 +482,26 @@ export default function SettingsPage() {
 
                 {/* Account Info */}
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-base font-semibold text-gray-800">
+                  <h3 className={pageStyles.accountName}>
                     {accountDisplayName}
                   </h3>
-                  <p className="text-sm text-gray-500">@{account.username}</p>
+                  <p className={pageStyles.accountUsername}>
+                    @{account.username}
+                  </p>
                   <div className="flex items-center gap-4 mt-1">
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.accountStats}>
                       Media Count: {account.mediaCount}
                     </p>
-                    <p className="text-xs text-gray-400">
+                    <p className={pageStyles.accountStats}>
                       Token Expires: {account.tokenExpiresAt}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-2">
                     <span
-                      className={`w-2 h-2 rounded-full ${account.isActive ? "bg-green-500" : "bg-gray-400"}`}
+                      className={pageStyles.accountStatusDot(account.isActive)}
                     />
                     <span
-                      className={`text-sm font-medium ${account.isActive ? "text-green-600" : "text-gray-500"}`}
+                      className={pageStyles.accountStatusText(account.isActive)}
                     >
                       {account.isActive ? "Active" : "Inactive"}
                     </span>
@@ -424,14 +512,14 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={handleReconnect}
-                    className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                    className={pageStyles.reconnectButton}
                   >
                     <RefreshCw className="h-4 w-4" />
                     Reconnect
                   </button>
                   <button
                     onClick={handleDisable}
-                    className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors"
+                    className={pageStyles.disableButton}
                   >
                     <XCircle className="h-4 w-4" />
                     Disable
@@ -440,13 +528,13 @@ export default function SettingsPage() {
               </div>
             </div>
           ) : (
-            <div className="bg-white border border-gray-100 rounded-2xl p-8 text-center">
-              <p className="text-gray-500 mb-4">
+            <div className={pageStyles.emptyCard}>
+              <p className={pageStyles.emptyText}>
                 No Instagram account connected
               </p>
               <button
                 onClick={handleReconnect}
-                className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+                className={pageStyles.connectButton}
               >
                 <RefreshCw className="h-4 w-4" />
                 Connect Instagram Account
@@ -457,14 +545,14 @@ export default function SettingsPage() {
 
         {/* Global Settings Section */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-800">
+          <div className={pageStyles.settingsHeader}>
+            <h2 className={`text-lg font-semibold mb-4 ${styles.text.primary}`}>
               Global Settings
             </h2>
             <button
               onClick={handleSaveChanges}
               disabled={isSaving}
-              className="px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors disabled:opacity-50"
+              className={pageStyles.saveButton(isSaving)}
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>
@@ -478,6 +566,7 @@ export default function SettingsPage() {
                 description={card.description}
                 checked={settings[card.key]}
                 onChange={(value) => handleSettingChange(card.key, value)}
+                isDark={isDark}
               />
             ))}
           </div>
@@ -485,55 +574,44 @@ export default function SettingsPage() {
 
         {/* Remove Account Section */}
         {account && (
-          <div className="bg-red-50 border border-red-200 rounded-2xl p-6">
+          <div className={pageStyles.removeCard}>
             <div className="flex items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
-                  <AlertTriangle className="h-5 w-5 text-red-500" />
-                  <h3 className="text-base font-semibold text-red-700">
+                  <AlertTriangle
+                    className={`h-5 w-5 ${pageStyles.removeIcon}`}
+                  />
+                  <h3 className={pageStyles.removeTitle}>
                     Remove Instagram Account
                   </h3>
                 </div>
-                <p className="text-sm text-red-600 leading-relaxed">
+                <p className={pageStyles.removeText}>
                   This will remove the Instagram account{" "}
                   <span className="font-semibold">@{account.username}</span>{" "}
-                  from <span className="font-semibold">Hypello</span>. All
+                  from <span className="font-semibold">RocketReplai</span>. All
                   automations, contacts, messages, analytics, and related data
                   associated with this account will be permanently deleted.
                 </p>
               </div>
+              <>
+                <button
+                  onClick={() => setShowDeleteDialog(true)}
+                  className={styles.pill}
+                >
+                  Remove
+                </button>
 
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <button className="flex-shrink-0 px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors">
-                    Remove
-                  </button>
-                </AlertDialogTrigger>
-                <AlertDialogContent className="bg-white border border-gray-100 rounded-2xl shadow-xl max-w-md">
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="text-gray-800">
-                      Remove Instagram Account
-                    </AlertDialogTitle>
-                    <AlertDialogDescription className="text-gray-500">
-                      Are you absolutely sure? This will permanently delete the
-                      account <strong>@{account.username}</strong> and all
-                      associated data. This action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel className="rounded-xl border-gray-200">
-                      Cancel
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={handleRemoveAccount}
-                      disabled={isRemoving}
-                      className="bg-red-500 hover:bg-red-600 text-white rounded-xl"
-                    >
-                      {isRemoving ? "Removing..." : "Remove Account"}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+                <ConfirmDialog
+                  open={showDeleteDialog}
+                  onOpenChange={setShowDeleteDialog}
+                  onConfirm={handleRemoveAccount}
+                  title="Remove Instagram Account"
+                  description={`Are you absolutely sure? This will permanently delete the account @${account?.username} and all associated data. This action cannot be undone.`}
+                  confirmText="Remove Account"
+                  isDestructive={true}
+                  isLoading={isRemoving}
+                />
+              </>
             </div>
           </div>
         )}

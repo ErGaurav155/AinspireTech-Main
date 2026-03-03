@@ -20,7 +20,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { useTheme } from "next-themes";
 import { useMemo } from "react";
 import { calculateCustomTokenPrice, tokenPlans } from "@rocketreplai/shared";
 import { toast } from "@rocketreplai/ui/components/radix/use-toast";
@@ -31,6 +30,8 @@ import {
   purchaseTokens,
   verifyPurchaseTokens,
 } from "@/lib/services/web-actions.api";
+import { useThemeStyles } from "@/lib/theme";
+import { Orbs } from "@/components/shared/Orbs";
 
 interface TokenPurchaseProps {
   onSuccess?: () => void;
@@ -43,9 +44,8 @@ export const TokenPurchase = ({
 }: TokenPurchaseProps) => {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
   const { apiRequest } = useApi();
+  const { styles, isDark } = useThemeStyles();
 
   const [selectedPlan, setSelectedPlan] = useState<string>("pro");
   const [customTokens, setCustomTokens] = useState<number>(100000);
@@ -53,26 +53,6 @@ export const TokenPurchase = ({
   const [showCustom, setShowCustom] = useState(false);
 
   const plans = Object.values(tokenPlans);
-
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      cardBg: isDark
-        ? "bg-[#1A1A1E] border-gray-800"
-        : "bg-white border-gray-100",
-      titleText: isDark ? "text-white" : "text-gray-900",
-      descriptionText: isDark ? "text-gray-400" : "text-gray-500",
-      mutedText: isDark ? "text-gray-500" : "text-gray-400",
-      border: isDark ? "border-gray-800" : "border-gray-200",
-      hoverBorder: isDark
-        ? "hover:border-purple-500/50"
-        : "hover:border-purple-300",
-      activeBorder: isDark ? "border-purple-500" : "border-purple-500",
-      sliderBg: isDark ? "bg-gray-800" : "bg-gray-200",
-      featureCardBg: isDark ? "bg-[#252529]" : "bg-gray-50",
-    };
-  }, [currentTheme]);
-
   const planIcons = {
     basic: Sparkles,
     pro: Gem,
@@ -162,28 +142,31 @@ export const TokenPurchase = ({
         id="razorpay-checkout-js"
         src="https://checkout.razorpay.com/v1/checkout.js"
       />
+      {isDark && <Orbs />}
 
-      <div className="space-y-6">
+      <div className="space-y-6 relative z-10">
         {/* Current Balance */}
         {currentBalance > 0 && (
-          <div
-            className={`${themeStyles.cardBg} border ${themeStyles.border} rounded-2xl p-5`}
-          >
+          <div className={`${styles.card} p-5`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 flex items-center justify-center">
                   <Zap className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500">Current Balance</p>
-                  <p className="text-2xl font-bold text-gray-800">
+                  <p className={`text-sm ${styles.text.secondary}`}>
+                    Current Balance
+                  </p>
+                  <p className={`text-2xl font-bold ${styles.text.primary}`}>
                     {currentBalance.toLocaleString()} tokens
                   </p>
                 </div>
               </div>
-              <Badge className="bg-purple-100 text-purple-600 border-purple-200">
+              <span
+                className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
+              >
                 Active
-              </Badge>
+              </span>
             </div>
           </div>
         )}
@@ -201,47 +184,55 @@ export const TokenPurchase = ({
                   setSelectedPlan(plan.id);
                   setShowCustom(false);
                 }}
-                className={`${themeStyles.cardBg} border rounded-2xl p-5 cursor-pointer transition-all ${
+                className={`${styles.card} p-5 cursor-pointer transition-all ${
                   isSelected
-                    ? `border-purple-500 ring-2 ring-purple-200`
-                    : `${themeStyles.border} hover:border-purple-300`
+                    ? isDark
+                      ? "border-purple-500 ring-2 ring-purple-500/30"
+                      : "border-purple-500 ring-2 ring-purple-200"
+                    : ""
                 }`}
               >
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-10 h-10 rounded-xl ${
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                         isSelected
                           ? "bg-gradient-to-r from-purple-500 to-pink-500"
-                          : "bg-gray-100"
-                      } flex items-center justify-center`}
+                          : isDark
+                            ? "bg-white/[0.06]"
+                            : "bg-gray-100"
+                      }`}
                     >
                       <PlanIcon
                         className={`h-5 w-5 ${
-                          isSelected ? "text-white" : "text-purple-500"
+                          isSelected
+                            ? "text-white"
+                            : isDark
+                              ? "text-purple-400"
+                              : "text-purple-500"
                         }`}
                       />
                     </div>
-                    <h3 className={`font-semibold ${themeStyles.titleText}`}>
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
                       {plan.name}
                     </h3>
                   </div>
                   {isSelected && (
-                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+                    <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
                       Selected
-                    </Badge>
+                    </span>
                   )}
                 </div>
 
-                <p className={`text-sm ${themeStyles.descriptionText} mb-3`}>
+                <p className={`text-sm mb-3 ${styles.text.secondary}`}>
                   {plan.tokens.toLocaleString()} tokens
                 </p>
 
                 <div className="mb-4">
-                  <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                     ₹{plan.price.toLocaleString()}
                   </p>
-                  <p className={`text-xs ${themeStyles.mutedText}`}>
+                  <p className={`text-xs ${styles.text.muted}`}>
                     ₹{plan.perTokenPrice.toFixed(4)} per token
                   </p>
                 </div>
@@ -249,22 +240,22 @@ export const TokenPurchase = ({
                 <ul className="space-y-2 mb-4">
                   {plan.features.slice(0, 3).map((feature, idx) => (
                     <li key={idx} className="flex items-center gap-2 text-sm">
-                      <div className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-                        <Check className="h-2.5 w-2.5 text-green-600" />
+                      <div
+                        className={`w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 ${styles.icon.green}`}
+                      >
+                        <Check className="h-2.5 w-2.5 text-green-400" />
                       </div>
-                      <span className={themeStyles.descriptionText}>
-                        {feature}
-                      </span>
+                      <span className={styles.text.secondary}>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 <Button
-                  className={`w-full ${
+                  className={`w-full rounded-xl ${
                     isSelected
                       ? "bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
-                      : "bg-gray-900 text-white hover:bg-gray-800"
-                  } rounded-xl`}
+                      : styles.pill
+                  }`}
                   onClick={(e) => {
                     e.stopPropagation();
                     handlePurchase(plan.id, plan.tokens, plan.price);
@@ -285,41 +276,49 @@ export const TokenPurchase = ({
 
         {/* Custom Token Pack */}
         <div
-          className={`${themeStyles.cardBg} border rounded-2xl p-5 cursor-pointer transition-all ${
+          className={`${styles.card} p-5 cursor-pointer transition-all ${
             showCustom
-              ? `border-purple-500 ring-2 ring-purple-200`
-              : `${themeStyles.border} hover:border-purple-300`
+              ? isDark
+                ? "border-purple-500 ring-2 ring-purple-500/30"
+                : "border-purple-500 ring-2 ring-purple-200"
+              : ""
           }`}
           onClick={() => setShowCustom(true)}
         >
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div
-                className={`w-10 h-10 rounded-xl ${
+                className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                   showCustom
                     ? "bg-gradient-to-r from-purple-500 to-pink-500"
-                    : "bg-gray-100"
-                } flex items-center justify-center`}
+                    : isDark
+                      ? "bg-white/[0.06]"
+                      : "bg-gray-100"
+                }`}
               >
                 <Infinity
                   className={`h-5 w-5 ${
-                    showCustom ? "text-white" : "text-purple-500"
+                    showCustom
+                      ? "text-white"
+                      : isDark
+                        ? "text-purple-400"
+                        : "text-purple-500"
                   }`}
                 />
               </div>
               <div>
-                <h3 className={`font-semibold ${themeStyles.titleText}`}>
+                <h3 className={`font-semibold ${styles.text.primary}`}>
                   Custom Token Pack
                 </h3>
-                <p className={`text-sm ${themeStyles.descriptionText}`}>
+                <p className={`text-sm ${styles.text.secondary}`}>
                   Choose your own token amount
                 </p>
               </div>
             </div>
             {showCustom && (
-              <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
+              <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
                 Selected
-              </Badge>
+              </span>
             )}
           </div>
 
@@ -329,17 +328,19 @@ export const TokenPurchase = ({
                 <div className="flex items-center justify-between mb-4">
                   <div>
                     <label
-                      className={`text-sm font-medium ${themeStyles.titleText}`}
+                      className={`text-sm font-medium ${styles.text.primary}`}
                     >
                       Custom Tokens
                     </label>
-                    <p className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                    <p className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
                       {customTokens.toLocaleString()}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500">Total Price</p>
-                    <p className="text-2xl font-bold text-gray-800">
+                    <p className={`text-sm ${styles.text.secondary}`}>
+                      Total Price
+                    </p>
+                    <p className={`text-2xl font-bold ${styles.text.primary}`}>
                       ₹
                       {calculateCustomTokenPrice(customTokens).toLocaleString()}
                     </p>
@@ -347,7 +348,9 @@ export const TokenPurchase = ({
                 </div>
 
                 <div className="space-y-4">
-                  <div className={`${themeStyles.sliderBg} rounded-full p-1`}>
+                  <div
+                    className={`${isDark ? "bg-white/[0.06]" : "bg-gray-200"} rounded-full p-1`}
+                  >
                     <Slider
                       value={[customTokens]}
                       min={10000}
@@ -363,10 +366,14 @@ export const TokenPurchase = ({
                       <button
                         key={amount}
                         onClick={() => setCustomTokens(amount)}
-                        className={`px-3 py-1.5 border rounded-lg text-xs transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
                           customTokens === amount
-                            ? "border-purple-500 bg-purple-50 text-purple-600"
-                            : `${themeStyles.border} ${themeStyles.descriptionText} hover:border-purple-300`
+                            ? isDark
+                              ? "border border-purple-500 bg-purple-500/20 text-purple-300"
+                              : "border border-purple-500 bg-purple-50 text-purple-600"
+                            : isDark
+                              ? "border border-white/[0.08] text-gray-400 hover:border-purple-500/50"
+                              : "border border-gray-200 text-gray-500 hover:border-purple-300"
                         }`}
                       >
                         {amount >= 1000000
@@ -382,10 +389,12 @@ export const TokenPurchase = ({
 
               <div className="grid grid-cols-2 gap-4">
                 <div
-                  className={`text-center p-4 rounded-xl ${themeStyles.featureCardBg}`}
+                  className={`text-center p-4 rounded-xl ${styles.innerCard}`}
                 >
-                  <p className="text-xs text-gray-500 mb-1">Price per token</p>
-                  <p className="text-lg font-bold text-green-600">
+                  <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                    Price per token
+                  </p>
+                  <p className={`text-lg font-bold text-green-400`}>
                     ₹
                     {(
                       calculateCustomTokenPrice(customTokens) / customTokens
@@ -393,10 +402,12 @@ export const TokenPurchase = ({
                   </p>
                 </div>
                 <div
-                  className={`text-center p-4 rounded-xl ${themeStyles.featureCardBg}`}
+                  className={`text-center p-4 rounded-xl ${styles.innerCard}`}
                 >
-                  <p className="text-xs text-gray-500 mb-1">Total tokens</p>
-                  <p className="text-lg font-bold text-purple-600">
+                  <p className={`text-xs mb-1 ${styles.text.muted}`}>
+                    Total tokens
+                  </p>
+                  <p className={`text-lg font-bold text-purple-400`}>
                     {customTokens.toLocaleString()}
                   </p>
                 </div>
@@ -421,43 +432,49 @@ export const TokenPurchase = ({
         {/* Features */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
-            className={`text-center  rounded-xl ${themeStyles.featureCardBg} p-4 md:p-6 lg:p-8`}
+            className={`${styles.innerCard} text-center p-4 md:p-6 lg:p-8 rounded-xl`}
           >
-            <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-3">
-              <Shield className="h-6 w-6 text-green-600" />
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${styles.icon.green}`}
+            >
+              <Shield className="h-6 w-6 text-green-400" />
             </div>
-            <h3 className={`font-semibold ${themeStyles.titleText} mb-2`}>
+            <h3 className={`font-semibold ${styles.text.primary} mb-2`}>
               No Expiration
             </h3>
-            <p className={`text-sm ${themeStyles.descriptionText}`}>
+            <p className={`text-sm ${styles.text.secondary}`}>
               Purchased tokens never expire. Use them whenever you need.
             </p>
           </div>
 
           <div
-            className={`text-center p-4 md:p-6 lg:p-8 rounded-xl ${themeStyles.featureCardBg}`}
+            className={`${styles.innerCard} text-center p-4 md:p-6 lg:p-8 rounded-xl`}
           >
-            <div className="w-12 h-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-3">
-              <Zap className="h-6 w-6 text-purple-600" />
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${styles.icon.purple}`}
+            >
+              <Zap className="h-6 w-6 text-purple-400" />
             </div>
-            <h3 className={`font-semibold ${themeStyles.titleText} mb-2`}>
+            <h3 className={`font-semibold ${styles.text.primary} mb-2`}>
               Use Across All Chatbots
             </h3>
-            <p className={`text-sm ${themeStyles.descriptionText}`}>
+            <p className={`text-sm ${styles.text.secondary}`}>
               Tokens work with all your chatbots. No restrictions.
             </p>
           </div>
 
           <div
-            className={`text-center p-4 md:p-6 lg:p-8 rounded-xl ${themeStyles.featureCardBg}`}
+            className={`${styles.innerCard} text-center p-4 md:p-6 lg:p-8 rounded-xl`}
           >
-            <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-3">
-              <TrendingUp className="h-6 w-6 text-blue-600" />
+            <div
+              className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${styles.icon.blue}`}
+            >
+              <TrendingUp className="h-6 w-6 text-blue-400" />
             </div>
-            <h3 className={`font-semibold ${themeStyles.titleText} mb-2`}>
+            <h3 className={`font-semibold ${styles.text.primary} mb-2`}>
               Bulk Discounts
             </h3>
-            <p className={`text-sm ${themeStyles.descriptionText}`}>
+            <p className={`text-sm ${styles.text.secondary}`}>
               The more tokens you buy, the less you pay per token.
             </p>
           </div>
