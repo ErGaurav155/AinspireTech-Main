@@ -22,7 +22,7 @@ import { useThemeStyles } from "@/lib/theme";
 const BOTTOM_NAV_ITEMS = [
   {
     label: "Home",
-    href: "/insta/dashboard",
+    href: "/insta",
     icon: LayoutDashboard,
   },
   {
