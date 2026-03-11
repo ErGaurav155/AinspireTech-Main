@@ -1,12 +1,11 @@
 // models/insta/ReplyLog.model.ts
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IReplyLog extends Document {
   userId: string;
   accountId: string;
   templateId?: string;
   templateName?: string;
-
   // Comment/Story details
   commentId: string;
   commentText: string;
@@ -39,6 +38,8 @@ export interface IReplyLog extends Document {
   errorMessage?: string;
 
   // Queue status
+  queueId?: string;
+  processedAfterQueue?: boolean;
   wasQueued?: boolean;
   queuedAt?: Date;
   processedAt?: Date;
@@ -90,6 +91,8 @@ const ReplyLogSchema = new Schema<IReplyLog>(
     errorMessage: { type: String },
 
     // Queue status
+    queueId: { type: String },
+    processedAfterQueue: { type: Boolean, default: false },
     wasQueued: { type: Boolean, default: false },
     queuedAt: { type: Date },
     processedAt: { type: Date },
@@ -108,8 +111,10 @@ ReplyLogSchema.index(
   { sparse: true },
 );
 
-const InstaReplyLog =
-  mongoose.models?.InstaReplyLog ||
-  mongoose.model<IReplyLog>("InstaReplyLog", ReplyLogSchema);
+const InstaReplyLog = (mongoose.models?.InstaReplyLog ||
+  mongoose.model<IReplyLog>(
+    "InstaReplyLog",
+    ReplyLogSchema,
+  )) as Model<IReplyLog>;
 
 export default InstaReplyLog;

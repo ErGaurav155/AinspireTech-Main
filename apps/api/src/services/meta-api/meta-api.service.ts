@@ -54,14 +54,16 @@ export async function sendInstagramDM(
   }
 }
 
+type FollowStatusResponse = {
+  is_user_follow_business?: boolean;
+  error?: string;
+};
+
 export async function checkFollowStatus(
   accountId: string,
   accessToken: string,
   userId: string,
-): Promise<{
-  is_user_follow_business?: boolean;
-  error?: string;
-}> {
+): Promise<FollowStatusResponse> {
   try {
     const response = await fetch(
       `https://graph.instagram.com/v23.0/${userId}?fields=is_user_follow_business&access_token=${accessToken}`,
@@ -73,12 +75,13 @@ export async function checkFollowStatus(
       },
     );
 
+    const data = (await response.json()) as FollowStatusResponse;
+
     if (!response.ok) {
-      const error = await response.json();
-      return { error: JSON.stringify(error) };
+      return { error: JSON.stringify(data) };
     }
 
-    return await response.json();
+    return data;
   } catch (error) {
     console.error("Failed to check follow relationship:", error);
     return { error: error instanceof Error ? error.message : "Unknown error" };

@@ -5,18 +5,19 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
 
-import { Input } from "@rocketreplai/ui/components/radix/input";
-import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
+  Button,
   Form,
   FormControl,
   FormField,
   FormItem,
   FormMessage,
-} from "@rocketreplai/ui/components/radix/form";
+  Input,
+  Textarea,
+  toast,
+} from "@rocketreplai/ui";
+
 import { createAppointment } from "@/lib/utils";
 import { formSchema } from "@/lib/validator";
 

@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IInstagramAccount extends Document {
   userId: string; // Clerk user ID
@@ -74,8 +74,10 @@ InstagramAccountSchema.index({ userId: 1, isActive: 1 });
 InstagramAccountSchema.index({ instagramId: 1, isActive: 1 });
 InstagramAccountSchema.index({ lastActivity: -1 });
 
-const InstagramAccount =
-  mongoose.models?.InstagramAccount ||
-  mongoose.model<IInstagramAccount>("InstagramAccount", InstagramAccountSchema);
+const InstagramAccount = (mongoose.models?.InstagramAccount ||
+  mongoose.model<IInstagramAccount>(
+    "InstagramAccount",
+    InstagramAccountSchema,
+  )) as Model<IInstagramAccount>;
 
 export default InstagramAccount;

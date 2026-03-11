@@ -1,10 +1,8 @@
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
 import React from "react";
 
 const TermsOfService = async () => {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen relative  ">
-      <BreadcrumbsDefault />
       <div className="wrapper2 w-full max-w-4xl px-4 py-12">
         <div className=" border border-[#B026FF]/30 rounded-xl p-8 md:p-12">
           <h2 className="font-black text-4xl mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">

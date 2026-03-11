@@ -33,13 +33,12 @@ export const uploadTextToCloudinary = async (
       const errorResult = await response.json();
       console.error("Cloudinary API error:", errorResult);
       throw new Error(
-        errorResult.error?.message ||
-          `Upload failed with status: ${response.status}`,
+        // errorResult?.error?.message ||
+        `Upload failed with status: ${response.status}`,
       );
     }
 
-    const result = await response.json();
-    console.log("Cloudinary upload successful:", result.secure_url);
+    const result = (await response.json()) as any;
     return result.secure_url;
   } catch (error) {
     console.error("Cloudinary upload error:", error);

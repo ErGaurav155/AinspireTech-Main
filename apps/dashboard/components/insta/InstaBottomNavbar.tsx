@@ -17,7 +17,7 @@ import {
   getSubscriptioninfo,
   getAllInstagramAccounts,
 } from "@/lib/services/insta-actions.api";
-import { useThemeStyles } from "@/lib/theme";
+import { useThemeStyles } from "@rocketreplai/ui";
 
 const BOTTOM_NAV_ITEMS = [
   {
@@ -182,8 +182,7 @@ export default function InstaBottomNavbar() {
   const isActive = useCallback(
     (href: string) => {
       return (
-        pathname === href ||
-        (href !== "/insta/dashboard" && pathname.startsWith(href))
+        pathname === href || (href !== "/insta" && pathname.startsWith(href))
       );
     },
     [pathname],

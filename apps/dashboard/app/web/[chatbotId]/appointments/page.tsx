@@ -22,22 +22,15 @@ import {
   getAppointmentQuestions,
   saveAppointmentQuestions,
 } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+  Button,
+  Orbs,
+  Spinner,
+  Switch,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AppointmentQuestion {
@@ -265,7 +258,7 @@ export default function AppointmentQuestionsPage() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={handleAddQuestion}
               className={`bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-xl`}
@@ -315,19 +308,13 @@ export default function AppointmentQuestionsPage() {
           {questions.map((question, index) => (
             <div
               key={question.id}
-              className={`${styles.card} p-5 hover:border-white/[0.12] transition-all`}
+              className={`${styles.card} p-4 hover:border-white/[0.12] transition-all`}
             >
-              <div className="flex items-start gap-3">
-                <div
-                  className={`cursor-move mt-3 ${isDark ? "text-white/20 hover:text-white/40" : "text-gray-300 hover:text-gray-400"}`}
-                >
-                  <GripVertical className="h-5 w-5" />
-                </div>
-
+              <div className="flex items-start gap-3 relative">
                 <div className="flex-1 space-y-4">
                   {/* Question Row */}
                   <div className="flex items-start gap-3">
-                    <span className="text-lg">
+                    <span className="hidden md:flex ">
                       {getTypeIcon(question.type)}
                     </span>
                     <input
@@ -340,13 +327,13 @@ export default function AppointmentQuestionsPage() {
                           e.target.value,
                         )
                       }
-                      className={styles.input}
+                      className={`${styles.input} w-[95%] md:w-[90%]  rounded-lg p-2`}
                       placeholder="Enter your question..."
                     />
                   </div>
 
                   {/* Settings Row */}
-                  <div className="flex flex-wrap items-center gap-4 ml-7">
+                  <div className="flex flex-wrap items-center gap-4 md:ml-7">
                     <select
                       value={question.type}
                       onChange={(e) =>
@@ -431,7 +418,7 @@ export default function AppointmentQuestionsPage() {
                   {question.type === "select" &&
                     editingOptions === question.id && (
                       <div
-                        className={`ml-7 mt-3 p-4 ${isDark ? "bg-white/[0.03] border border-white/[0.06]" : "bg-gray-50 border border-gray-200"} rounded-xl`}
+                        className={`md:ml-7 mt-3 p-4 ${isDark ? "bg-white/[0.03] border border-white/[0.06]" : "bg-gray-50 border border-gray-200"} rounded-xl`}
                       >
                         <p
                           className={`text-xs font-medium ${isDark ? "text-white/70" : "text-gray-700"} mb-3`}
@@ -463,7 +450,7 @@ export default function AppointmentQuestionsPage() {
                             </div>
                           ))}
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <input
                             type="text"
                             value={newOption}
@@ -490,7 +477,7 @@ export default function AppointmentQuestionsPage() {
 
                 <button
                   onClick={() => setDeleteId(question.id)}
-                  className={`p-1.5 ${isDark ? "text-white/40 hover:text-red-400 rounded-lg hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"}`}
+                  className={`absolute -top-3 -right-3 p-1 ${isDark ? "text-white/40 hover:text-red-400 rounded-lg hover:bg-red-500/10" : "text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50"}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

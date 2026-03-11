@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 // ─── Sub-document interfaces ──────────────────────────────────────────────────
 
@@ -321,9 +321,10 @@ ReplyTemplateSchema.index({ userId: 1, automationType: 1, isActive: 1 });
 ReplyTemplateSchema.index({ userId: 1, createdAt: -1 });
 
 // ─── Model ────────────────────────────────────────────────────────────────────
-
-const InstaReplyTemplate =
-  mongoose.models?.InstaReplyTemplate ||
-  mongoose.model<IReplyTemplate>("InstaReplyTemplate", ReplyTemplateSchema);
+const InstaReplyTemplate = (mongoose.models?.InstaReplyTemplate ||
+  mongoose.model<IReplyTemplate>(
+    "InstaReplyTemplate",
+    ReplyTemplateSchema,
+  )) as Model<IReplyTemplate>;
 
 export default InstaReplyTemplate;

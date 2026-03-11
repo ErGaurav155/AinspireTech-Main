@@ -30,10 +30,14 @@ import {
   getInstaTemplates,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import {
+  Button,
+  Orbs,
+  Spinner,
+  Textarea,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

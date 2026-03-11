@@ -20,22 +20,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getFAQ, saveFAQ } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface FAQQuestion {
@@ -296,7 +281,7 @@ export default function LeadFAQPage() {
                 <div key={faq.id} className={faqCardClasses}>
                   <div className="space-y-4">
                     {/* Question Row */}
-                    <div className="flex items-start gap-4">
+                    <div className="flex flex-wrap items-start gap-4">
                       <div className="flex-1">
                         {isEditing ? (
                           <input
@@ -310,7 +295,7 @@ export default function LeadFAQPage() {
                               )
                             }
                             placeholder="Enter question..."
-                            className={`${styles.input} w-full rounded-lg p-2`}
+                            className={`${styles.input} w-full min-w-max rounded-lg p-2`}
                           />
                         ) : (
                           <h3

@@ -5,9 +5,49 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow, getUserTier } from "@/services/rate-limit.service";
 import RateUserRateLimit from "@/models/Rate/UserRateLimit.model";
+// ─── Instagram API Response Types ───────────────────────────────────────────
 
+interface InstagramTokenResponse {
+  access_token: string;
+  user_id: string;
+  token_type?: string;
+}
+
+interface InstagramLongLivedTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface InstagramUserResponse {
+  id: string;
+  user_id: string;
+  username: string;
+  profile_picture_url?: string;
+}
+
+interface InstagramAPIError {
+  error?: {
+    message: string;
+    type?: string;
+    code?: number;
+    fbtrace_id?: string;
+  };
+}
+
+interface AccountUsageEntry {
+  instagramAccountId: string;
+  callsMade: number;
+  lastCallAt: Date;
+  accountUsername?: string;
+  accountProfile?: string;
+}
 // Helper function to get Instagram user info
-const getInstagramUser = async (accessToken: string, fields: string[]) => {
+// Update helper return type
+const getInstagramUser = async (
+  accessToken: string,
+  fields: string[],
+): Promise<InstagramUserResponse> => {
   const fieldsStr = fields.join(",");
   const url = `https://graph.instagram.com/v23.0/me?fields=${fieldsStr}&access_token=${accessToken}`;
 
@@ -16,7 +56,7 @@ const getInstagramUser = async (accessToken: string, fields: string[]) => {
     if (!response.ok) {
       throw new Error(`Instagram API error: ${response.statusText}`);
     }
-    return await response.json();
+    return (await response.json()) as InstagramUserResponse;
   } catch (error) {
     console.error("Error fetching Instagram user:", error);
     throw error;
@@ -69,7 +109,7 @@ const addInstagramAccountToRateLimit = async (
 
     // Check if account already exists in accountUsage
     const accountIndex = userRateLimit.accountUsage.findIndex(
-      (acc: any) => acc.instagramAccountId === instagramAccountId,
+      (acc: AccountUsageEntry) => acc.instagramAccountId === instagramAccountId,
     );
 
     if (accountIndex === -1) {
@@ -153,7 +193,8 @@ export const handleInstaCallbackController = async (
       throw new Error(`Instagram API error: ${tokenRes.statusText}`);
     }
 
-    const tokenData = await tokenRes.json();
+    const tokenData = (await tokenRes.json()) as InstagramTokenResponse &
+      InstagramAPIError;
     if (!tokenData?.access_token) {
       throw new Error("Failed to obtain access token from Instagram");
     }
@@ -174,7 +215,9 @@ export const handleInstaCallbackController = async (
       throw new Error(`Instagram API error: ${longLivedRes.statusText}`);
     }
 
-    const longLivedData = await longLivedRes.json();
+    const longLivedData =
+      (await longLivedRes.json()) as InstagramLongLivedTokenResponse &
+        InstagramAPIError;
     if (!longLivedData?.access_token) {
       throw new Error("Failed to obtain long-lived token");
     }

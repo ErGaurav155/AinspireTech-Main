@@ -1,11 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
 
-import { useThemeStyles } from "@/lib/theme";
+import { useThemeStyles } from "@rocketreplai/ui";
 
 interface LoginPageProps {
   onClose?: () => void;

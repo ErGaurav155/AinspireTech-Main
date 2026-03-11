@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -23,18 +23,15 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getChatbots } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
+  Button,
+  Orbs,
+  Spinner,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 
 interface ChatbotInfo {
   id: string;
@@ -46,20 +43,26 @@ interface ChatbotInfo {
     position: "bottom-right" | "bottom-left";
   };
 }
+interface ProductParams {
+  chatbotId: string;
+}
+type WebType = "wordpress" | "shopify" | "wix" | "html";
 
-export default function LeadIntegrationPage() {
+export default function LeadIntegrationPage({
+  params,
+}: {
+  params: Promise<ProductParams>;
+}) {
+  const { chatbotId } = use(params);
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("wordpress");
-
+  const [activeTab, setActiveTab] = useState<WebType>("wordpress");
   const loadChatbot = useCallback(async () => {
     if (!userId) return;
-
     try {
       setIsLoading(true);
       const data = await getChatbots(apiRequest);
@@ -158,6 +161,27 @@ export default function LeadIntegrationPage() {
         return { steps: [] };
     }
   };
+  const TAB_LABELS: Record<
+    WebType,
+    { label: string; icon: React.ElementType }
+  > = {
+    wordpress: {
+      label: "Wordpress",
+      icon: Globe,
+    },
+    shopify: {
+      label: `Shopify`,
+      icon: Smartphone,
+    },
+    wix: {
+      label: `Wix`,
+      icon: Chrome,
+    },
+    html: {
+      label: `HTML/Custom`,
+      icon: Laptop,
+    },
+  };
 
   if (isLoading) {
     return <Spinner label="Loading integration..." />;
@@ -200,7 +224,7 @@ export default function LeadIntegrationPage() {
       {isDark && <Orbs />}
       <div className={styles.container}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <div
               className={`w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center ${isDark ? "opacity-90" : ""}`}
@@ -217,7 +241,7 @@ export default function LeadIntegrationPage() {
             </div>
           </div>
           <Link
-            href={`/web/lead-generation/settings`}
+            href={`/web/${chatbotId}/settings`}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill}`}
           >
             <Settings className="h-4 w-4" />
@@ -227,7 +251,7 @@ export default function LeadIntegrationPage() {
 
         {/* Embed Code Card */}
         <div className={`${styles.card} p-6`}>
-          <div className="flex items-center gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-3 mb-4">
             <div
               className={`w-8 h-8 rounded-full ${styles.icon.purple} flex items-center justify-center`}
             >
@@ -307,41 +331,34 @@ export default function LeadIntegrationPage() {
 
           <Tabs
             value={activeTab}
-            onValueChange={setActiveTab}
+            onValueChange={(value) => setActiveTab(value as WebType)}
             className="space-y-4 mt-4"
           >
-            <TabsList
-              className={`${isDark ? "bg-white/[0.06]" : "bg-gray-100"} p-1 rounded-xl`}
-            >
-              <TabsTrigger
-                value="wordpress"
-                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
-              >
-                <Globe className="h-4 w-4" />
-                WordPress
-              </TabsTrigger>
-              <TabsTrigger
-                value="shopify"
-                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
-              >
-                <Smartphone className="h-4 w-4" />
-                Shopify
-              </TabsTrigger>
-              <TabsTrigger
-                value="wix"
-                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
-              >
-                <Chrome className="h-4 w-4" />
-                Wix
-              </TabsTrigger>
-              <TabsTrigger
-                value="html"
-                className={`flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm ${isDark ? "data-[state=active]:bg-white/[0.08] data-[state=active]:text-white text-white/60" : "text-gray-600"} rounded-lg px-3 py-2 text-sm`}
-              >
-                <Laptop className="h-4 w-4" />
-                HTML/Custom
-              </TabsTrigger>
-            </TabsList>
+            <div className={` flex items-center justify-center`}>
+              <nav className={`flex gap-6 overflow-x-auto p-2 `}>
+                {(Object.keys(TAB_LABELS) as WebType[]).map((tab) => {
+                  const Icon = TAB_LABELS[tab].icon;
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`flex items-center gap-2 pb-1 px-2 text-sm font-medium border-b-2 whitespace-nowrap transition-colors ${
+                        activeTab === tab
+                          ? styles.tab.active
+                          : styles.tab.inactive
+                      }`}
+                    >
+                      <Icon
+                        className={`h-4 w-4 ${
+                          activeTab === tab ? "text-blue-500" : "text-gray-400"
+                        }`}
+                      />
+                      {TAB_LABELS[tab].label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
 
             <TabsContent value={activeTab} className="space-y-4">
               <div
@@ -398,15 +415,15 @@ export default function LeadIntegrationPage() {
         <div
           className={`${isDark ? "bg-green-500/10 border border-green-500/20" : "bg-green-50 border border-green-200"} rounded-xl p-6`}
         >
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4">
             <div
-              className={`w-12 h-12 rounded-full ${isDark ? "bg-green-500/20" : "bg-green-100"} flex items-center justify-center`}
+              className={`w-12 h-12 rounded-full ${isDark ? "bg-green-500/20" : "bg-green-100"} flex   items-center justify-center`}
             >
               <CheckCircle
                 className={`h-6 w-6 ${isDark ? "text-green-400" : "text-green-600"}`}
               />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 ">
               <h3
                 className={`font-semibold ${isDark ? "text-green-400" : "text-green-800"} mb-1`}
               >

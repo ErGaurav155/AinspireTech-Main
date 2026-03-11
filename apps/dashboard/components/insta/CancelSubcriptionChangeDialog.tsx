@@ -1,15 +1,16 @@
 "use client";
 
 import { PricingPlan } from "@rocketreplai/shared";
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
+} from "@rocketreplai/ui";
+
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";

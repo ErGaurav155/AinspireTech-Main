@@ -118,20 +118,25 @@ export const getSubscriptionById = async (
   try {
     await connectToDatabase();
 
-    if (subcriptionType) {
-      const SubscriptionModel =
-        subcriptionType === "insta" ? InstaSubscription : WebSubscription;
-      const subscription = await SubscriptionModel.findOne({
+    let subscription;
+
+    if (subcriptionType === "insta") {
+      subscription = await InstaSubscription.findOne({
         subscriptionId,
         status: "active",
       });
-
-      if (!subscription) {
-        throw new Error(`Active ${subcriptionType} subscription not found`);
-      }
-
-      return subscription;
+    } else {
+      subscription = await WebSubscription.findOne({
+        subscriptionId,
+        status: "active",
+      });
     }
+
+    if (!subscription) {
+      throw new Error(`Active ${subcriptionType} subscription not found`);
+    }
+
+    return subscription;
   } catch (error: any) {
     console.error("Error fetching subscription:", error.message);
     throw new Error("Failed to fetch subscription");

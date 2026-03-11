@@ -2,11 +2,7 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { Label } from "@rocketreplai/ui/components/radix/label";
-import { Input } from "@rocketreplai/ui/components/radix/input";
-import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Badge, Button, Input, Label, Textarea } from "@rocketreplai/ui";
 
 interface TemplateFormProps {
   accountId: string;

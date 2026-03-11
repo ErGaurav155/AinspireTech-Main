@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Zap,
   TrendingUp,
-  Calendar,
   RefreshCw,
   AlertTriangle,
   CreditCard,
@@ -15,31 +14,23 @@ import {
   BarChart3,
   Coins,
   Clock,
-  ArrowUpRight,
-  Sparkles,
   Shield,
   Crown,
   Target,
   Bot,
-  Download,
-  ChevronRight,
 } from "lucide-react";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
+  Button,
+  EmptyState,
+  Orbs,
+  Spinner,
+  StatCard,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import {
   LineChart,
   Line,
@@ -51,8 +42,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
 } from "recharts";
 import { TokenPurchase } from "@/components/web/TokenPurchase";
 import {
@@ -62,12 +51,6 @@ import {
   resetFreeTokens,
 } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
-import { formatDistanceToNow } from "date-fns";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { StatCard } from "@/components/shared/StatCard";
 
 interface TokenStats {
   availableTokens: number;

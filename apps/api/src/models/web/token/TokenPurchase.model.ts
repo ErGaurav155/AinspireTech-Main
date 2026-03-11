@@ -49,15 +49,17 @@ const TokenPurchaseSchema = new Schema<ITokenPurchase>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Indexes
 TokenPurchaseSchema.index({ createdAt: 1 });
 TokenPurchaseSchema.index({ expiresAt: 1 });
 
-const TokenPurchase =
-  mongoose.models?.TokenPurchase ||
-  mongoose.model<ITokenPurchase>("TokenPurchase", TokenPurchaseSchema);
+const TokenPurchase = (mongoose.models?.TokenPurchase ||
+  mongoose.model<ITokenPurchase>(
+    "TokenPurchase",
+    TokenPurchaseSchema,
+  )) as Model<ITokenPurchase>;
 
 export default TokenPurchase;

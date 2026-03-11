@@ -5,8 +5,8 @@ import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
-import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Card, CardContent } from "@rocketreplai/ui";
+import { Button } from "@rocketreplai/ui";
 
 export function WebCTASection() {
   const { theme, resolvedTheme } = useTheme();

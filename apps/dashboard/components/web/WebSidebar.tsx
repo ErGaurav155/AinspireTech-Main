@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import Logo from "@/public/assets/img/logo.png";
+
 import {
   Home,
   Settings,
@@ -27,16 +29,12 @@ import {
   CreditCard,
 } from "lucide-react";
 import Image from "next/image";
-import Logo from "public/assets/img/logo.png";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
   getSubscriptions,
   getTokenBalance,
 } from "@/lib/services/web-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
 
 // Chatbot items
 const CHATBOT_ITEMS = [
@@ -496,7 +494,9 @@ export default function WebSidebar({
                         isActive(`${currentChatbot.href}/appointments`),
                       )}
                     />
-                    <span className="text-sm font-medium">Appointments</span>
+                    <span className="text-sm font-medium">
+                      Appointment Form
+                    </span>
                   </div>
                 </div>
                 {isActive(`${currentChatbot.href}/appointments`) && (
@@ -676,7 +676,10 @@ export default function WebSidebar({
                 ))}
               </ul>
               <Button
-                onClick={() => router.push("/web/pricing")}
+                onClick={() => {
+                  router.push("/web/pricing");
+                  if (window.innerWidth < 768) onToggle();
+                }}
                 className={styles.upgradeButton}
               >
                 <Crown className="h-3.5 w-3.5 mr-1.5" />
@@ -728,7 +731,14 @@ export default function WebSidebar({
           isOpen ? "translate-x-0 left-0 md:left-1" : "-translate-x-full left-0"
         } backdrop-blur-xl`}
       >
-        <button onClick={onToggle} className={styles.closeButton}>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={`${styles.closeButton} z-[60]`}
+        >
           <X className={styles.closeIcon} />
         </button>
         <SidebarContent />

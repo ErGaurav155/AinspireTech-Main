@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui";
 import {
   Check,
   Star,
@@ -26,8 +26,7 @@ import {
 
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { Card, CardContent } from "@rocketreplai/ui/components/radix/card";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { Card, CardContent } from "@rocketreplai/ui";
 
 const stats = [
   {
@@ -311,9 +310,8 @@ export default function AffiliateLandingPage() {
       className={`min-h-screen ${themeStyles.containerBg} transition-colors duration-300 relative bg-transparent  z-10`}
     >
       {/* Hero Section */}
-      <section className=" pb-20 px-4 relative overflow-hidden">
+      <section className="p-10 md:p-20 px-4 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/5 via-transparent to-[#B026FF]/5" />
-        <BreadcrumbsDefault />
 
         <div className="wrapper2 w-full mx-auto relative">
           <motion.div

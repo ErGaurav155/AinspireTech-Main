@@ -6,9 +6,9 @@ import Image from "next/image";
 import Logo from "public/assets/img/logo.png";
 import { Contact } from "lucide-react";
 import { useTheme } from "next-themes";
-import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
+import { ThemeToggle } from "@rocketreplai/ui";
 
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui";
 
 export function NavBar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -22,6 +22,7 @@ export function NavBar() {
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
+      buttonBg: isDark ? "bg-gray-800 " : "bg-gray-200",
       cardBg: isDark ? "bg-transparent" : "bg-white/50",
       textPrimary: isDark ? "text-gray-300" : "text-n-5",
       outlineButton: isDark
@@ -132,7 +133,9 @@ export function NavBar() {
           {/* Desktop Right Section */}
           <div className="flex items-center space-x-2 lg:space-x-4">
             {/* Theme Toggle */}
-            <ThemeToggle />
+            <div className={`${themeStyles.buttonBg} p-1 rounded-md`}>
+              <ThemeToggle />
+            </div>
 
             {/* Contact Us Button */}
             <Button

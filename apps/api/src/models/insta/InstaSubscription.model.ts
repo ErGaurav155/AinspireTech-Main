@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ISubscription extends Document {
   clerkId: string;
@@ -58,10 +58,10 @@ const SubscriptionSchema = new mongoose.Schema(
     timestamps: true,
   },
 );
-
-// Ensure the model is only created once in development
-const InstaSubscription =
-  mongoose.models?.InstaSubscription ||
-  mongoose.model("InstaSubscription", SubscriptionSchema);
+const InstaSubscription = (mongoose.models?.InstaSubscription ||
+  mongoose.model<ISubscription>(
+    "InstaSubscription",
+    SubscriptionSchema,
+  )) as Model<ISubscription>;
 
 export default InstaSubscription;

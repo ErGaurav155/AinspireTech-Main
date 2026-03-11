@@ -125,7 +125,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         status: "active",
       });
 
-      user.referredBy = affiliate._id;
+      user.referredBy = affiliate._id.toString();
       user.hasUsedReferral = true;
       await user.save();
 

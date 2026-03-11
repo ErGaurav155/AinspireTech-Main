@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IRateLimitWindow extends Document {
   windowStart: Date;
@@ -42,8 +42,10 @@ const RateLimitWindowSchema = new Schema<IRateLimitWindow>(
 RateLimitWindowSchema.index({ windowStart: -1 });
 RateLimitWindowSchema.index({ status: 1, windowStart: -1 });
 
-const RateLimitWindow =
-  mongoose.models?.RateLimitWindow ||
-  mongoose.model<IRateLimitWindow>("RateLimitWindow", RateLimitWindowSchema);
+const RateLimitWindow = (mongoose.models?.RateLimitWindow ||
+  mongoose.model<IRateLimitWindow>(
+    "RateLimitWindow",
+    RateLimitWindowSchema,
+  )) as Model<IRateLimitWindow>;
 
 export default RateLimitWindow;

@@ -32,10 +32,7 @@ import {
   getChatbots,
 } from "@/lib/services/web-actions.api";
 import { formatDistanceToNow } from "date-fns";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+import { Orbs, Spinner, useThemeStyles } from "@rocketreplai/ui";
 
 // Types
 interface LeadStats {
@@ -691,7 +688,7 @@ export default function DynamicOverviewPage() {
         >
           <div className="flex items-start gap-4">
             <div
-              className={`w-12 h-12 rounded-xl ${isDark ? `bg-${primaryColor}-500/20 border border-${primaryColor}-500/30` : `bg-${primaryColor}-100`} flex items-center justify-center`}
+              className={` hidden md:inline-flex w-12 h-12 rounded-xl ${isDark ? `bg-${primaryColor}-500/20 border border-${primaryColor}-500/30` : `bg-${primaryColor}-100`} flex items-center justify-center`}
             >
               <Sparkles
                 className={
@@ -703,7 +700,7 @@ export default function DynamicOverviewPage() {
             </div>
             <div className="flex-1">
               <h3
-                className={`text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
+                className={` text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
               >
                 {isLeadGeneration
                   ? "Pro Tip: Qualify Leads Faster"

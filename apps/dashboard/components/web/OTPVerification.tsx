@@ -8,18 +8,18 @@ import { XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+
+import { updateNumberByUserId } from "@/lib/services/user-actions.api";
+import { useApi } from "@/lib/useApi";
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { updateNumberByUserId } from "@/lib/services/user-actions.api";
-import { useApi } from "@/lib/useApi";
-import { useThemeStyles } from "@/lib/theme";
-
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 interface OTPVerificationProps {
   phone: string;
   onVerified: () => void;

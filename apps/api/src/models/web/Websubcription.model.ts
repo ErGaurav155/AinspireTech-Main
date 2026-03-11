@@ -84,8 +84,10 @@ SubscriptionSchema.index({ chatbotType: 1, status: 1 });
 SubscriptionSchema.index({ expiresAt: 1 });
 SubscriptionSchema.index({ status: 1, expiresAt: 1 });
 
-const WebSubscription =
-  mongoose.models?.WebSubscription ||
-  mongoose.model<ISubscription>("WebSubscription", SubscriptionSchema);
+const WebSubscription = (mongoose.models?.WebSubscription ||
+  mongoose.model<ISubscription>(
+    "WebSubscription",
+    SubscriptionSchema,
+  )) as Model<ISubscription>;
 
 export default WebSubscription;

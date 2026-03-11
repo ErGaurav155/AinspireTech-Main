@@ -27,19 +27,7 @@ import {
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
 import { tailwindHexColors } from "@rocketreplai/shared";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
+
 import {
   Activity,
   TrendingUp,
@@ -55,8 +43,20 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
+
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@rocketreplai/ui";
 
 export interface TemplateChartData {
   name: string;

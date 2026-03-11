@@ -13,27 +13,14 @@ import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
+
 import {
   getAllInstagramAccounts,
   deleteInstaAccount,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
+import { Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -185,13 +172,13 @@ export default function SettingsPage() {
         ? "flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors"
         : "flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors",
       emptyCard: isDark
-        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-8 text-center"
-        : "bg-white border border-gray-100 rounded-2xl p-8 text-center",
+        ? "bg-white/[0.04] flex flex-wrap border border-white/[0.08] rounded-2xl p-5 text-center"
+        : "bg-white flex flex-wrap border border-gray-100 rounded-2xl p-5 text-center",
       emptyText: isDark ? "text-white/40 mb-4" : "text-gray-500 mb-4",
       connectButton: isDark
         ? "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
         : "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors",
-      settingsHeader: "flex items-center justify-between mb-4",
+      settingsHeader: "flex flex-wrap items-center justify-between mb-4",
       saveButton: (disabled?: boolean) =>
         isDark
           ? `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
@@ -546,7 +533,9 @@ export default function SettingsPage() {
         {/* Global Settings Section */}
         <div>
           <div className={pageStyles.settingsHeader}>
-            <h2 className={`text-lg font-semibold mb-4 ${styles.text.primary}`}>
+            <h2
+              className={`md:text-lg font-semibold mb-4 ${styles.text.primary}`}
+            >
               Global Settings
             </h2>
             <button

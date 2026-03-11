@@ -4,6 +4,46 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import { getAuth } from "@clerk/express";
 
+interface InstagramMediaItem {
+  id: string;
+  media_type: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM";
+  media_url?: string;
+  thumbnail_url?: string;
+  permalink: string;
+  timestamp: string;
+  caption?: string;
+  like_count?: number;
+  comments_count?: number;
+}
+
+interface InstagramMediaResponse {
+  data: InstagramMediaItem[];
+  paging?: {
+    cursors?: { before: string; after: string };
+    next?: string;
+    previous?: string;
+  };
+}
+
+interface InstagramAPIError {
+  error?: {
+    message: string;
+    type?: string;
+    code?: number;
+    fbtrace_id?: string;
+  };
+}
+
+interface FormattedMedia {
+  id: string;
+  media_type: string;
+  media_url?: string;
+  permalink: string;
+  timestamp: string;
+  caption: string;
+  likes: number;
+  comments: number;
+}
 /**
  * GET /api/insta/media - Get Instagram media for account
  *
@@ -61,7 +101,7 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
     );
 
     if (!mediaResponse.ok) {
-      const errorData = await mediaResponse.json();
+      const errorData = (await mediaResponse.json()) as InstagramAPIError;
       console.error("Instagram API error:", errorData);
 
       // Update account meta rate limit status if Instagram's API says we're limited
@@ -83,7 +123,7 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
       });
     }
 
-    const mediaData = await mediaResponse.json();
+    const mediaData = (await mediaResponse.json()) as InstagramMediaResponse;
 
     // Update account last activity
     await InstagramAccount.updateOne(

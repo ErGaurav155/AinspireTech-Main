@@ -1,16 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import {
-  MessageCircle,
-  Play,
-  AtSign,
-  Heart,
-  Users,
-  Clock,
-  ShoppingBag,
-  Instagram,
-} from "lucide-react";
+import { MessageCircle, Play, AtSign, Instagram } from "lucide-react";
 import Image from "next/image";
 import featureImg from "public/assets/img/featureImg4.png";
 import featureImg2 from "public/assets/img/featureImg2.png";

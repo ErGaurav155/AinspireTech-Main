@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import Image from "next/image";
+import Default from "@/public/assets/img/default-img.jpg";
+
 import { useTheme } from "next-themes";
 import {
   ArrowLeft,
@@ -25,31 +27,14 @@ import {
   Shield,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import { Label } from "@rocketreplai/ui/components/radix/label";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import defaultImg from "public/assets/img/default-img.jpg";
+import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
+
 import {
   getInstaAccountById,
   updateAccountSettings,
   deleteInstaAccount,
   refreshInstagramToken,
 } from "@/lib/services/insta-actions.api";
-
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AccountDetails {
@@ -208,7 +193,7 @@ export default function AccountDetailsPage() {
         id: acc._id,
         instagramId: acc.instagramId,
         username: acc.username,
-        profilePicture: acc.profilePicture || defaultImg.src,
+        profilePicture: acc.profilePicture || Default,
         followersCount: acc.followersCount || 0,
         followingCount: acc.followingCount || 0,
         mediaCount: acc.mediaCount || 0,
@@ -372,7 +357,7 @@ export default function AccountDetailsPage() {
             </Link>
             <div className="flex items-center gap-3">
               <Image
-                src={hasError ? defaultImg.src : account.profilePicture}
+                src={hasError ? Default : account.profilePicture}
                 alt={account.username}
                 width={48}
                 height={48}

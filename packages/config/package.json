@@ -1,0 +1,18 @@
+{
+  "type": "module",
+  "name": "@rocketreplai/config",
+  "version": "1.0.0",
+  "private": true,
+  "exports": {
+    "./typescript/base": "./typescript/base.json",
+    "./typescript/nextjs": "./typescript/nextjs.json",
+    "./typescript/node": "./typescript/node.json",
+    "./tailwind/base": "./tailwind/base.config.ts",
+    "./tailwind/dashboard": "./tailwind/dashboard.config.ts",
+    "./tailwind/marketing": "./tailwind/marketing.config.ts",
+    "./eslint/next": "./eslint/next.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

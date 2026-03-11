@@ -18,5 +18,10 @@
         }
       ]
     }
-  ]
+  ],
+  "buildCommand": "cd ../.. && npx turbo run build --filter=dashboard",
+  "installCommand": "cd ../.. && npm ci",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "ignoreCommand": "npx turbo-ignore"
 }

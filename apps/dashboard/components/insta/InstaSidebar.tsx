@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import Logo from "@/public/assets/img/logo.png";
 import {
   Home,
   Settings,
@@ -21,16 +22,13 @@ import {
   X,
 } from "lucide-react";
 import Image from "next/image";
-import Logo from "public/assets/img/logo.png";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+
 import { useApi } from "@/lib/useApi";
 import {
   getSubscriptioninfo,
   getAllInstagramAccounts,
 } from "@/lib/services/insta-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 // Move navItems outside component to prevent recreation
 const NAV_ITEMS = [
@@ -94,13 +92,12 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       setAccounts(accountsResult.accounts || []);
     } catch {
       // silent fail
-    } finally {
-      setIsLoading(false);
     }
   }, [userId, apiRequest]);
 
   useEffect(() => {
     fetchData();
+    setIsLoading(false);
   }, [fetchData]);
 
   // Derive primary account info from fetched accounts
@@ -222,156 +219,94 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
     }),
     [isDark, styles],
   );
+  const SidebarContent = useMemo(() => {
+    const Content = () => (
+      <div className="flex flex-col h-full relative z-10">
+        {/* Logo */}
+        <div className={localStyles.logoContainer}>
+          <Link href="/insta" className="flex items-center gap-2.5">
+            <div className="relative h-9 w-9 flex-shrink-0">
+              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200" />
+              <div
+                className={`absolute inset-[3px] rounded-full ${
+                  isDark ? "bg-[#1A1A1E]" : "bg-white"
+                } flex items-center justify-center`}
+              >
+                <Image
+                  alt="Logo"
+                  src={Logo}
+                  width={18}
+                  height={18}
+                  className="object-contain"
+                />
+              </div>
+            </div>
+            <span className={localStyles.logoText}>
+              <span className={localStyles.logoRocket}>Rocket</span>
+              <span className={localStyles.logoReplai}>Replai</span>
+            </span>
+          </Link>
+        </div>
 
-  if (isLoading) {
-    return <div className={localStyles.loadingContainer}></div>;
-  }
+        {/* Account Selector */}
+        <div className="p-4 relative z-10">
+          <button
+            onClick={() => setIsAccountOpen(!isAccountOpen)}
+            className={localStyles.selectorButton}
+          >
+            <div className="flex items-center gap-3">
+              <div className={localStyles.selectorAvatar}>
+                {(accountName || "U")[0].toUpperCase()}
+              </div>
+              <div className="text-left min-w-0">
+                <p className={localStyles.selectorName}>
+                  {accountName || "My Account"}
+                </p>
+                <p className={localStyles.selectorHandle}>
+                  @{accountHandle || "connect account"}
+                </p>
+              </div>
+            </div>
+            <ChevronDown
+              className={`${localStyles.selectorChevron} ${
+                isAccountOpen ? "rotate-180" : ""
+              }`}
+            />
+          </button>
 
-  return (
-    <>
-      {isDark && <Orbs />}
-      {/* Unified sidebar - works the same on mobile and desktop */}
-      <div
-        className={`${localStyles.sidebar} ${
-          isOpen ? "translate-x-0 left-0 md:left-1" : "-translate-x-full left-0"
-        } backdrop-blur-lg`}
-      >
-        {/* Close button for mobile */}
-        <button onClick={onToggle} className={localStyles.closeButton}>
-          <X className={localStyles.closeIcon} />
-        </button>
+          {isAccountOpen && (
+            <div className={localStyles.dropdown}>
+              {/* Account limit info */}
+              <div className={localStyles.dropdownLimit}>
+                <p className={localStyles.dropdownLimitText}>
+                  {accounts.length} / {accountLimit} accounts used
+                </p>
+              </div>
 
-        <div className="flex flex-col h-full relative z-10">
-          {/* Logo */}
-          <div className={localStyles.logoContainer}>
-            <Link href="/insta" className="flex items-center gap-2.5">
-              <div className="relative h-9 w-9 flex-shrink-0">
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200" />
+              {/* List existing accounts */}
+              {accounts.map((acc, index) => (
                 <div
-                  className={`absolute inset-[3px] rounded-full ${
-                    isDark ? "bg-[#1A1A1E]" : "bg-white"
-                  } flex items-center justify-center`}
+                  key={acc._id}
+                  className={
+                    index === accounts.length - 1
+                      ? localStyles.dropdownItemLast
+                      : localStyles.dropdownItem
+                  }
                 >
-                  <Image
-                    alt="Logo"
-                    src={Logo}
-                    width={18}
-                    height={18}
-                    className="object-contain"
-                  />
-                </div>
-              </div>
-              <span className={localStyles.logoText}>
-                <span className={localStyles.logoRocket}>Rocket</span>
-                <span className={localStyles.logoReplai}>Replai</span>
-              </span>
-            </Link>
-          </div>
-
-          {/* Account Selector */}
-          <div className="p-4 relative z-10">
-            <button
-              onClick={() => setIsAccountOpen(!isAccountOpen)}
-              className={localStyles.selectorButton}
-            >
-              <div className="flex items-center gap-3">
-                <div className={localStyles.selectorAvatar}>
-                  {(accountName || "U")[0].toUpperCase()}
-                </div>
-                <div className="text-left min-w-0">
-                  <p className={localStyles.selectorName}>
-                    {accountName || "My Account"}
-                  </p>
-                  <p className={localStyles.selectorHandle}>
-                    @{accountHandle || "connect account"}
-                  </p>
-                </div>
-              </div>
-              <ChevronDown
-                className={`${localStyles.selectorChevron} ${
-                  isAccountOpen ? "rotate-180" : ""
-                }`}
-              />
-            </button>
-
-            {isAccountOpen && (
-              <div className={localStyles.dropdown}>
-                {/* Account limit info */}
-                <div className={localStyles.dropdownLimit}>
-                  <p className={localStyles.dropdownLimitText}>
-                    {accounts.length} / {accountLimit} accounts used
-                  </p>
-                </div>
-
-                {/* List existing accounts */}
-                {accounts.map((acc, index) => (
-                  <div
-                    key={acc._id}
-                    className={
-                      index === accounts.length - 1
-                        ? localStyles.dropdownItemLast
-                        : localStyles.dropdownItem
-                    }
-                  >
-                    <div className={localStyles.selectorAvatar}>
-                      {(acc.name || acc.username || "?")[0].toUpperCase()}
-                    </div>
-                    <span className="truncate">
-                      @{acc.username || acc.name || "account"}
-                    </span>
+                  <div className={localStyles.selectorAvatar}>
+                    {(acc.name || acc.username || "?")[0].toUpperCase()}
                   </div>
-                ))}
+                  <span className="truncate">
+                    @{acc.username || acc.name || "account"}
+                  </span>
+                </div>
+              ))}
 
-                {/* Add account — only if below limit */}
-                {accounts.length < accountLimit && (
-                  <Link
-                    href="/insta/accounts/add"
-                    className={localStyles.dropdownItem}
-                    onClick={() => {
-                      setIsAccountOpen(false);
-                      if (window.innerWidth < 768) {
-                        onToggle();
-                      }
-                    }}
-                  >
-                    <div className={localStyles.addIcon}>
-                      <Instagram
-                        className={`h-3.5 w-3.5 ${localStyles.addIconColor}`}
-                      />
-                    </div>
-                    Add Instagram Account
-                  </Link>
-                )}
-
-                {/* Show upgrade prompt if at limit and not subscribed */}
-                {accounts.length >= accountLimit && !isSubscribed && (
-                  <div className={localStyles.dropdownUpgrade}>
-                    <p className={localStyles.dropdownUpgradeTitle}>
-                      Account limit reached
-                    </p>
-                    <p className={localStyles.dropdownUpgradeDesc}>
-                      Upgrade to Pro to connect up to 3 accounts.
-                    </p>
-                    <Button
-                      onClick={() => {
-                        router.push("/insta/pricing");
-                        setIsAccountOpen(false);
-                        if (window.innerWidth < 768) {
-                          onToggle();
-                        }
-                      }}
-                      size="sm"
-                      className={localStyles.dropdownUpgradeButton}
-                    >
-                      <Crown className="h-3 w-3 mr-1" />
-                      Upgrade to Pro
-                    </Button>
-                  </div>
-                )}
-
+              {/* Add account — only if below limit */}
+              {accounts.length < accountLimit && (
                 <Link
-                  href="/insta/accounts"
-                  className={localStyles.dropdownItemLast}
+                  href="/insta/accounts/add"
+                  className={localStyles.dropdownItem}
                   onClick={() => {
                     setIsAccountOpen(false);
                     if (window.innerWidth < 768) {
@@ -379,72 +314,114 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                     }
                   }}
                 >
-                  <div className={localStyles.manageIcon}>
-                    <Users
-                      className={`h-3.5 w-3.5 ${localStyles.manageIconColor}`}
+                  <div className={localStyles.addIcon}>
+                    <Instagram
+                      className={`h-3.5 w-3.5 ${localStyles.addIconColor}`}
                     />
                   </div>
-                  Manage Accounts
+                  Add Instagram Account
                 </Link>
-              </div>
-            )}
-          </div>
+              )}
 
-          {/* Navigation */}
-          <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-            {NAV_ITEMS.map((item) => {
-              const active = isActive(item.href);
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.label + item.href}
-                  href={item.href}
-                  onClick={() => {
-                    if (window.innerWidth < 768) {
-                      onToggle();
-                    }
-                  }}
-                  className={localStyles.navLink(active)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={localStyles.navIcon(active)} />
-                    <span className={localStyles.navLabel}>{item.label}</span>
-                  </div>
-                  {item?.isNew && (
-                    <Badge className={localStyles.newBadge}>NEW</Badge>
-                  )}
-                  {active && (
-                    <div
-                      className={`w-1 h-6 rounded-full bg-pink-500 text-pink-300`}
-                    />
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Upgrade Section — only show for free users */}
-          {!isSubscribed && !pricingClose && (
-            <div className="p-4">
-              <div className={localStyles.upgradeCard}>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={localStyles.upgradeTitle}>
-                    Unlock more power 🚀
-                  </span>
+              {/* Show upgrade prompt if at limit and not subscribed */}
+              {accounts.length >= accountLimit && !isSubscribed && (
+                <div className={localStyles.dropdownUpgrade}>
+                  <p className={localStyles.dropdownUpgradeTitle}>
+                    Account limit reached
+                  </p>
+                  <p className={localStyles.dropdownUpgradeDesc}>
+                    Upgrade to Pro to connect up to 3 accounts.
+                  </p>
                   <Button
-                    onClick={() => setPricingClose(true)}
+                    onClick={() => {
+                      router.push("/insta/pricing");
+                      setIsAccountOpen(false);
+                      if (window.innerWidth < 768) {
+                        onToggle();
+                      }
+                    }}
                     size="sm"
-                    className={localStyles.upgradeClose}
+                    className={localStyles.dropdownUpgradeButton}
                   >
-                    X
+                    <Crown className="h-3 w-3 mr-1" />
+                    Upgrade to Pro
                   </Button>
                 </div>
-                <ul className="space-y-2 mb-4">
-                  {[
-                    "Unlimited DMs",
-                    "Unlimited Contacts",
-                    "Growth Features",
-                  ].map((feature) => (
+              )}
+
+              <Link
+                href="/insta/accounts"
+                className={localStyles.dropdownItemLast}
+                onClick={() => {
+                  setIsAccountOpen(false);
+                  if (window.innerWidth < 768) {
+                    onToggle();
+                  }
+                }}
+              >
+                <div className={localStyles.manageIcon}>
+                  <Users
+                    className={`h-3.5 w-3.5 ${localStyles.manageIconColor}`}
+                  />
+                </div>
+                Manage Accounts
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+          {NAV_ITEMS.map((item) => {
+            const active = isActive(item.href);
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.label + item.href}
+                href={item.href}
+                onClick={() => {
+                  if (window.innerWidth < 768) {
+                    onToggle();
+                  }
+                }}
+                className={localStyles.navLink(active)}
+              >
+                <div className="flex items-center gap-3">
+                  <Icon className={localStyles.navIcon(active)} />
+                  <span className={localStyles.navLabel}>{item.label}</span>
+                </div>
+                {item?.isNew && (
+                  <Badge className={localStyles.newBadge}>NEW</Badge>
+                )}
+                {active && (
+                  <div
+                    className={`w-1 h-6 rounded-full bg-pink-500 text-pink-300`}
+                  />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Upgrade Section — only show for free users */}
+        {!isSubscribed && !pricingClose && (
+          <div className="p-4">
+            <div className={localStyles.upgradeCard}>
+              <div className="flex items-center gap-2 mb-3">
+                <span className={localStyles.upgradeTitle}>
+                  Unlock more power 🚀
+                </span>
+                <Button
+                  onClick={() => setPricingClose(true)}
+                  size="sm"
+                  className={localStyles.upgradeClose}
+                >
+                  X
+                </Button>
+              </div>
+              <ul className="space-y-2 mb-4">
+                {["Unlimited DMs", "Unlimited Contacts", "Growth Features"].map(
+                  (feature) => (
                     <li
                       key={feature}
                       className="flex items-center gap-2 text-xs"
@@ -458,24 +435,81 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                         {feature}
                       </span>
                     </li>
-                  ))}
-                </ul>
-                <Button
-                  onClick={() => {
-                    router.push("/insta/pricing");
-                    if (window.innerWidth < 768) {
-                      onToggle();
-                    }
-                  }}
-                  className={localStyles.upgradeButton}
-                >
-                  <Crown className="h-3.5 w-3.5 mr-1.5" />
-                  Upgrade to Pro
-                </Button>
-              </div>
+                  ),
+                )}
+              </ul>
+              <Button
+                onClick={() => {
+                  router.push("/insta/pricing");
+                  if (window.innerWidth < 768) {
+                    onToggle();
+                  }
+                }}
+                className={localStyles.upgradeButton}
+              >
+                <Crown className="h-3.5 w-3.5 mr-1.5" />
+                Upgrade to Pro
+              </Button>
             </div>
-          )}
-        </div>
+          </div>
+        )}
+      </div>
+    );
+    return Content;
+  }, [
+    accountHandle,
+    accountLimit,
+    accountName,
+    accounts,
+    isAccountOpen,
+    isActive,
+    isDark,
+    isSubscribed,
+    localStyles,
+    onToggle,
+    pricingClose,
+    router,
+  ]);
+  if (isLoading) {
+    return (
+      <div
+        className={`fixed left-0 top-0 bottom-0 w-72 ${
+          isDark
+            ? "bg-[#1A1A1E] border-white/[0.06]"
+            : "bg-white border-gray-200"
+        } border-r flex items-center justify-center`}
+      >
+        <div
+          className={`w-5 h-5 border-2 border-t-transparent ${
+            isDark ? "border-purple-400" : "border-purple-500"
+          } rounded-full animate-spin`}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {isDark && <Orbs />}
+      {/* Unified sidebar - works the same on mobile and desktop */}
+      <div
+        className={`${localStyles.sidebar} ${
+          isOpen ? "translate-x-0 left-0 md:left-1" : "-translate-x-full left-0"
+        } backdrop-blur-xl`}
+      >
+        {/* Close button for mobile */}
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle();
+          }}
+          className={`${localStyles.closeButton} z-[60]`}
+        >
+          <X className={localStyles.closeIcon} />
+        </button>
+        <SidebarContent />
       </div>
 
       {/* Overlay for mobile when sidebar is open */}

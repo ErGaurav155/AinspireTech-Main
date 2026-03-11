@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useMemo, useEffect } from "react";
+import { useRouter, useParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import {
@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   CreditCard,
   RefreshCw,
+  GraduationCap,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -21,16 +22,21 @@ import {
   scrapeWebsite,
   processScrapedData,
 } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 
-export default function BuildLeadGenerationPage() {
+export default function BuildChatbotPage() {
   const router = useRouter();
+  const params = useParams();
+  const chatbotId = params.chatbotId as string;
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+
+  // Determine chatbot type from URL
+  const isLeadGeneration =
+    chatbotId === "lead-generation" || chatbotId?.includes("lead");
+  const isEducation =
+    chatbotId === "education" || chatbotId?.includes("education");
 
   const [step, setStep] = useState<"details" | "scraping" | "creating">(
     "details",
@@ -40,6 +46,21 @@ export default function BuildLeadGenerationPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Set chatbot type specific info
+  const chatbotType = isLeadGeneration
+    ? "chatbot-lead-generation"
+    : "chatbot-education";
+  const gradient = isLeadGeneration
+    ? "from-purple-500 to-pink-500"
+    : "from-green-500 to-emerald-500";
+  const headerTitle = isLeadGeneration
+    ? "Build Lead Generation Chatbot"
+    : "Build Education Chatbot";
+  const headerDesc = isLeadGeneration
+    ? "Train your chatbot with your website content to capture qualified leads"
+    : "Create an interactive MCQ education chatbot for students";
+  const buttonText = isLeadGeneration ? "Build Chatbot" : "Create Chatbot";
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -48,76 +69,94 @@ export default function BuildLeadGenerationPage() {
       return;
     }
 
-    if (!websiteUrl.trim()) {
-      setError("Please enter a website URL");
-      return;
-    }
+    // Only validate URL for lead generation chatbot
+    if (isLeadGeneration) {
+      if (!websiteUrl.trim()) {
+        setError("Please enter a website URL");
+        return;
+      }
 
-    // URL validation
-    if (!/^https?:\/\//i.test(websiteUrl.trim())) {
-      setError("URL must start with http:// or https://");
-      return;
-    }
+      // URL validation
+      if (!/^https?:\/\//i.test(websiteUrl.trim())) {
+        setError("URL must start with http:// or https://");
+        return;
+      }
 
-    try {
-      new URL(websiteUrl.trim());
-    } catch {
-      setError("Invalid URL format. Please enter a valid URL.");
-      return;
+      try {
+        new URL(websiteUrl.trim());
+      } catch {
+        setError("Invalid URL format. Please enter a valid URL.");
+        return;
+      }
     }
 
     setIsLoading(true);
     setError(null);
-    setStep("scraping");
+
+    // For education chatbot, skip to creating directly
+    if (isEducation) {
+      setStep("creating");
+    } else {
+      setStep("scraping");
+    }
 
     try {
-      // Create chatbot first
+      // Create chatbot
       setStep("creating");
 
       const chatbotData = await createWebChatbot(apiRequest, {
         name: chatbotName.trim(),
-        type: "chatbot-lead-generation",
-        websiteUrl: websiteUrl.trim(),
+        type: chatbotType,
+        websiteUrl: isLeadGeneration ? websiteUrl.trim() : undefined,
       });
 
       const chatbotId = chatbotData.chatbot.id;
 
-      // Now scrape the website
-      setStep("scraping");
+      // Only do scraping for lead generation chatbot
+      if (isLeadGeneration) {
+        setStep("scraping");
 
-      const scrapeResult = await scrapeWebsite(
-        apiRequest,
-        websiteUrl.trim(),
-        chatbotId,
-      );
-
-      if (scrapeResult.alreadyScrapped) {
-        toast({
-          title: "Website already scraped",
-          description: "Using existing website data",
-          duration: 3000,
-        });
-      } else if (scrapeResult.success) {
-        // Process scraped data
-        const processResult = await processScrapedData(apiRequest, {
-          ...scrapeResult.data,
+        const scrapeResult = await scrapeWebsite(
+          apiRequest,
+          websiteUrl.trim(),
           chatbotId,
-        });
+        );
 
-        if (!processResult.success) {
-          throw new Error("Data processing failed");
+        if (scrapeResult.alreadyScrapped) {
+          toast({
+            title: "Website already scraped",
+            description: "Using existing website data",
+            duration: 3000,
+          });
+        } else if (scrapeResult.success) {
+          // Process scraped data
+          const processResult = await processScrapedData(apiRequest, {
+            ...scrapeResult.data,
+            chatbotId,
+          });
+
+          if (!processResult.success) {
+            throw new Error("Data processing failed");
+          }
+        } else {
+          throw new Error("Scraping failed");
         }
-      } else {
-        throw new Error("Scraping failed");
       }
 
       toast({
-        title: "Chatbot built successfully!",
-        description: "Your lead generation chatbot is now ready",
+        title: "Chatbot created successfully!",
+        description: isLeadGeneration
+          ? "Your lead generation chatbot is now ready"
+          : "Your education chatbot is now ready",
         duration: 3000,
       });
 
-      router.push("/web/lead-generation/overview");
+      // Redirect to appropriate overview page
+      router.push(
+        isLeadGeneration
+          ? "/web/chatbot-lead-generation/overview"
+          : "/web/chatbot-education/overview",
+      );
     } catch (err: any) {
       setError(err.message || "Failed to build chatbot");
       setStep("details");
@@ -134,17 +173,18 @@ export default function BuildLeadGenerationPage() {
         <div className={`${styles.card} p-4 md:p-6 lg:p-8 rounded-3xl`}>
           <div className="text-center mb-8">
             <div
-              className={`w-16 h-16 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center mx-auto mb-4`}
+              className={`w-16 h-16 rounded-full bg-gradient-to-br ${gradient} flex items-center justify-center mx-auto mb-4`}
             >
-              <Bot className="h-8 w-8 text-white" />
+              {isLeadGeneration ? (
+                <Bot className="h-8 w-8 text-white" />
+              ) : (
+                <GraduationCap className="h-8 w-8 text-white" />
+              )}
             </div>
             <h1 className={`text-2xl font-bold ${styles.text.primary} mb-2`}>
-              Build Lead Generation Chatbot
+              {headerTitle}
             </h1>
-            <p className={`text-sm ${styles.text.secondary}`}>
-              Train your chatbot with your website content to capture qualified
-              leads
-            </p>
+            <p className={`text-sm ${styles.text.secondary}`}>{headerDesc}</p>
           </div>
 
           {step === "details" && (
@@ -159,34 +199,40 @@ export default function BuildLeadGenerationPage() {
                   type="text"
                   value={chatbotName}
                   onChange={(e) => setChatbotName(e.target.value)}
-                  placeholder="e.g., My Lead Gen Bot"
+                  placeholder={
+                    isLeadGeneration
+                      ? "e.g., My Lead Gen Bot"
+                      : "e.g., My Education Bot"
+                  }
                   className={`${styles.input} w-full rounded-lg p-2`}
                   required
                 />
               </div>
 
-              <div>
-                <label
-                  className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
-                >
-                  Website URL
-                </label>
-                <div
-                  className={`flex items-center gap-2 px-4 py-3 ${isDark ? "bg-white/[0.05] border border-white/[0.09]" : "bg-white border border-gray-200"} rounded-xl focus-within:ring-2 focus-within:ring-purple-500/50`}
-                >
-                  <Globe
-                    className={`h-5 w-5 ${isDark ? "text-white/40" : "text-gray-400"}`}
-                  />
-                  <input
-                    type="url"
-                    value={websiteUrl}
-                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                    placeholder="https://yourwebsite.com"
-                    className={`flex-1 text-sm ${isDark ? "text-white placeholder-white/25 bg-transparent" : "text-gray-700 placeholder-gray-400 bg-transparent"} focus:outline-none`}
-                    required
-                  />
+              {isLeadGeneration && (
+                <div>
+                  <label
+                    className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
+                  >
+                    Website URL
+                  </label>
+                  <div
+                    className={`flex items-center gap-2 px-4 py-3 ${isDark ? "bg-white/[0.05] border border-white/[0.09]" : "bg-white border border-gray-200"} rounded-xl focus-within:ring-2 focus-within:ring-purple-500/50`}
+                  >
+                    <Globe
+                      className={`h-5 w-5 ${isDark ? "text-white/40" : "text-gray-400"}`}
+                    />
+                    <input
+                      type="url"
+                      value={websiteUrl}
+                      onChange={(e) => setWebsiteUrl(e.target.value)}
+                      placeholder="https://yourwebsite.com"
+                      className={`flex-1 text-sm ${isDark ? "text-white placeholder-white/25 bg-transparent" : "text-gray-700 placeholder-gray-400 bg-transparent"} focus:outline-none`}
+                      required={isLeadGeneration}
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
 
               {error && (
                 <div
@@ -217,22 +263,35 @@ export default function BuildLeadGenerationPage() {
                       What happens next?
                     </p>
                     <ul className="space-y-1">
-                      <li
-                        className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
-                      >
-                        <span
-                          className={`w-1 h-1 ${isDark ? "bg-purple-400" : "bg-purple-400"} rounded-full`}
-                        />
-                        We will scrape your website to train the chatbot
-                      </li>
-                      <li
-                        className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
-                      >
-                        <span
-                          className={`w-1 h-1 ${isDark ? "bg-purple-400" : "bg-purple-400"} rounded-full`}
-                        />
-                        This may take 1-2 minutes depending on website size
-                      </li>
+                      {isLeadGeneration ? (
+                        <>
+                          <li
+                            className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
+                          >
+                            <span
+                              className={`w-1 h-1 ${isDark ? "bg-purple-400" : "bg-purple-400"} rounded-full`}
+                            />
+                            We will scrape your website to train the chatbot
+                          </li>
+                          <li
+                            className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
+                          >
+                            <span
+                              className={`w-1 h-1 ${isDark ? "bg-purple-400" : "bg-purple-400"} rounded-full`}
+                            />
+                            This may take 1-2 minutes depending on website size
+                          </li>
+                        </>
+                      ) : (
+                        <li
+                          className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
+                        >
+                          <span
+                            className={`w-1 h-1 ${isDark ? "bg-purple-400" : "bg-purple-400"} rounded-full`}
+                          />
+                          Your education chatbot will be created immediately
+                        </li>
+                      )}
                       <li
                         className={`text-xs ${isDark ? "text-purple-400/80" : "text-purple-600"} flex items-center gap-2`}
                       >
@@ -249,7 +308,7 @@ export default function BuildLeadGenerationPage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-medium rounded-xl transition-colors ${
+                className={`w-full py-3 bg-gradient-to-r ${gradient} hover:from-purple-600 hover:to-pink-600 text-white font-medium rounded-xl transition-colors ${
                   isLoading ? "opacity-50 cursor-not-allowed" : ""
                 }`}
               >
@@ -259,7 +318,7 @@ export default function BuildLeadGenerationPage() {
                     Processing...
                   </span>
                 ) : (
-                  "Build Chatbot"
+                  buttonText
                 )}
               </button>
             </form>
@@ -275,12 +334,16 @@ export default function BuildLeadGenerationPage() {
               >
                 {step === "scraping"
                   ? "Scraping Website..."
-                  : "Creating Chatbot..."}
+                  : isLeadGeneration
+                    ? "Creating Chatbot..."
+                    : "Creating Education Chatbot..."}
               </h3>
               <p className={`text-sm ${styles.text.secondary} mb-6`}>
                 {step === "scraping"
                   ? "Please wait while we analyze your website content. This may take 1-2 minutes."
-                  : "Setting up your chatbot with the scraped data."}
+                  : isLeadGeneration
+                    ? "Setting up your chatbot with the scraped data."
+                    : "Setting up your education chatbot with default configuration."}
               </p>
               <div
                 className={`flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}

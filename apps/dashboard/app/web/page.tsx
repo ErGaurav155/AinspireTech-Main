@@ -30,16 +30,14 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getChatbots, getTokenBalance } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
-import { GateScreen } from "@/components/shared/GateScreen";
-import { StatCard } from "@/components/shared/StatCard";
-import { EmptyState } from "@/components/shared/EmptyState";
-
+import {
+  GateScreen,
+  Orbs,
+  Spinner,
+  StatCard,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 interface ChatbotOverview {
   id: string;
   type: string;
@@ -352,7 +350,7 @@ export default function WebDashboardPage() {
               const buildRoute = getBuildRoute(chatbot.type);
 
               return (
-                <div key={chatbot.id} className={`${styles.card} p-6`}>
+                <div key={chatbot.type} className={`${styles.card} p-6`}>
                   <div className="flex items-start justify-between mb-4">
                     <div
                       className={`w-14 h-14 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}

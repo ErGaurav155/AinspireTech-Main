@@ -1,5 +1,5 @@
 import AvailableProduct from "@/components/web/AvailableProduct";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

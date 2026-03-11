@@ -17,28 +17,27 @@ import {
   CreditCard,
   Infinity as InfiniteIcon,
 } from "lucide-react";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
+
 import {
   calculateCustomTokenPrice,
   productSubscriptionDetails,
   tokenPlans,
 } from "@rocketreplai/shared";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import {
+  Badge,
+  BreadcrumbsDefault,
+  Button,
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  Switch,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@rocketreplai/ui";
 
 // Components
 
@@ -869,7 +868,7 @@ const PricingContent = () => {
           </div>
 
           <TabsContent value="chatbot" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2  gap-8 max-w-6xl mx-auto">
               {Object.values(productSubscriptionDetails).map(
                 renderChatbotPricingCard,
               )}

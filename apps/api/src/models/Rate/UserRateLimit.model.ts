@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IAccountUsage {
   instagramAccountId: string;
@@ -45,8 +45,10 @@ const UserRateLimitSchema = new Schema<IUserRateLimit>(
 UserRateLimitSchema.index({ clerkId: 1, windowStart: 1 }, { unique: true });
 UserRateLimitSchema.index({ windowStart: 1, tier: 1 });
 
-const RateUserRateLimit =
-  mongoose.models?.RateUserRateLimit ||
-  mongoose.model<IUserRateLimit>("RateUserRateLimit", UserRateLimitSchema);
+const RateUserRateLimit = (mongoose.models?.RateUserRateLimit ||
+  mongoose.model<IUserRateLimit>(
+    "RateUserRateLimit",
+    UserRateLimitSchema,
+  )) as Model<IUserRateLimit>;
 
 export default RateUserRateLimit;

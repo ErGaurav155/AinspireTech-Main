@@ -7,6 +7,8 @@ import React, {
   useMemo,
   useRef,
 } from "react";
+import Default from "@/public/assets/img/default-img.jpg";
+
 import {
   Plus,
   Instagram,
@@ -31,28 +33,14 @@ import {
   Target,
   TrendingUp,
 } from "lucide-react";
-import defaultImg from "public/assets/img/default-img.jpg";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
-import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
+
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
   cancelRazorPaySubscription,
@@ -65,11 +53,17 @@ import {
   SubscriptionInfo,
 } from "@/lib/services/insta-actions.api";
 
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import {
+  Button,
+  Orbs,
+  Spinner,
+  Textarea,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Spinner } from "@/components/shared/Spinner";
+import { toast } from "sonner";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -353,7 +347,7 @@ export default function Dashboard() {
           accountFollowCheck: dbAccount.accountFollowCheck || 0,
           accountDMSent: dbAccount.accountDMSent || 0,
           lastActivity: dbAccount.lastActivity || new Date().toISOString(),
-          profilePicture: dbAccount.profilePicture || defaultImg.src,
+          profilePicture: dbAccount.profilePicture || Default,
           followersCount: dbAccount.followersCount || 0,
           followingCount: dbAccount.followingCount || 0,
           mediaCount: dbAccount.mediaCount || 0,
@@ -1092,8 +1086,8 @@ export default function Dashboard() {
                           height={40}
                           src={
                             hasError.includes(account.id)
-                              ? defaultImg.src
-                              : account.profilePicture || defaultImg.src
+                              ? Default
+                              : account.profilePicture || Default
                           }
                           alt={account.username}
                           onError={() => handleImageError(account.id)}

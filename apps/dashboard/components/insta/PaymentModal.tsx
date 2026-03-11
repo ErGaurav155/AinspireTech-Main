@@ -21,15 +21,17 @@ import { PricingPlan } from "@rocketreplai/shared";
 import { useApi } from "@/lib/useApi";
 
 import {
+  Badge,
+  Button,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Separator } from "@rocketreplai/ui/components/radix/separator";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+  Separator,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 import { updateUserLimits } from "@/lib/services/user-actions.api";
@@ -42,8 +44,6 @@ import {
   sendSubscriptionEmailToOwner,
   sendSubscriptionEmailToUser,
 } from "@/lib/services/misc-actions.api";
-
-import { useThemeStyles } from "@/lib/theme";
 
 // Payment Modal Component
 interface PaymentModalProps {

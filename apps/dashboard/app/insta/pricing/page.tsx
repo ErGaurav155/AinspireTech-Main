@@ -26,22 +26,15 @@ import { useApi } from "@/lib/useApi";
 import PaymentModal from "@/components/insta/PaymentModal";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
 import { PricingPlan } from "@rocketreplai/shared";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Textarea } from "@rocketreplai/ui/components/radix/textarea";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
+  Badge,
+  Button,
+  Orbs,
+  Spinner,
+  Switch,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 
 import {
   cancelRazorPaySubscription,
@@ -53,9 +46,6 @@ import {
 import { getUserById } from "@/lib/services/user-actions.api";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // Types

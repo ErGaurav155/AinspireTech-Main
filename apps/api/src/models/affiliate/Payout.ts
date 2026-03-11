@@ -1,6 +1,18 @@
 // models/Payout.ts
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model } from "mongoose";
 
+export interface IPayout extends Document {
+  affiliateId: string;
+  amount: number;
+  period: string;
+  status: "processing" | "completed" | "failed";
+  paymentMethod: "bank" | "upi" | "paypal";
+  paymentDetails?: Record<string, unknown>;
+  transactionId?: string;
+  notes?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
 const PayoutSchema = new Schema(
   {
     affiliateId: {
@@ -31,8 +43,10 @@ const PayoutSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const AffiPayout = models?.AffiPayout || model("AffiPayout", PayoutSchema);
+const AffiPayout = (models?.AffiPayout ||
+  model<IPayout>("AffiPayout", PayoutSchema)) as Model<IPayout>;
+
 export default AffiPayout;

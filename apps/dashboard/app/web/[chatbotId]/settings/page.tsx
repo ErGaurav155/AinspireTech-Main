@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, use } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
@@ -23,21 +23,7 @@ import {
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getChatbots, updateWebChatbot } from "@/lib/services/web-actions.api";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface ChatbotSettings {
@@ -50,8 +36,15 @@ interface ChatbotSettings {
   collectEmail: boolean;
   requireName: boolean;
 }
-
-export default function LeadSettingsPage() {
+interface ProductParams {
+  chatbotId: string;
+}
+export default function LeadSettingsPage({
+  params,
+}: {
+  params: Promise<ProductParams>;
+}) {
+  const { chatbotId } = use(params);
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -92,7 +85,7 @@ export default function LeadSettingsPage() {
       // Position buttons
       positionButton: (isSelected: boolean) =>
         isDark
-          ? `flex items-center justify-center gap-2 p-3 border rounded-xl transition-colors ${
+          ? `flex items-center justify-center gap-1 md:gap-2 p-2 md:p-3 border rounded-xl transition-colors ${
               isSelected
                 ? "border-purple-500 bg-purple-500/10 text-purple-400"
                 : "border-white/[0.08] hover:border-purple-500/50 text-white/60"
@@ -189,20 +182,20 @@ export default function LeadSettingsPage() {
     try {
       setIsLoading(true);
       const data = await getChatbots(apiRequest);
-      const leadChatbot = data.chatbots?.find(
-        (bot: any) => bot.type === "chatbot-lead-generation",
+      const isChatbot = data.chatbots?.find(
+        (bot: any) => bot.type === chatbotId,
       );
 
-      if (leadChatbot) {
-        setChatbot(leadChatbot);
+      if (isChatbot) {
+        setChatbot(isChatbot);
         setSettings({
           welcomeMessage:
-            leadChatbot.settings?.welcomeMessage ||
+            isChatbot.settings?.welcomeMessage ||
             "Hi! How can I help you today?",
-          primaryColor: leadChatbot.settings?.primaryColor || "#8B5CF6",
-          position: leadChatbot.settings?.position || "bottom-right",
-          autoExpand: leadChatbot.settings?.autoExpand ?? true,
-          whatsappNumber: leadChatbot.phone,
+          primaryColor: isChatbot.settings?.primaryColor || "#8B5CF6",
+          position: isChatbot.settings?.position || "bottom-right",
+          autoExpand: isChatbot.settings?.autoExpand ?? true,
+          whatsappNumber: isChatbot.phone,
           collectPhone: true,
           collectEmail: true,
           requireName: true,
@@ -218,7 +211,7 @@ export default function LeadSettingsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [userId, apiRequest]);
+  }, [userId, apiRequest, chatbotId]);
 
   useEffect(() => {
     loadSettings();
@@ -229,7 +222,7 @@ export default function LeadSettingsPage() {
 
     setIsSaving(true);
     try {
-      await updateWebChatbot(apiRequest, chatbot.id, {
+      await updateWebChatbot(apiRequest, chatbotId, {
         settings: {
           welcomeMessage: settings.welcomeMessage,
           primaryColor: settings.primaryColor,
@@ -358,19 +351,19 @@ export default function LeadSettingsPage() {
                             primaryColor: e.target.value,
                           })
                         }
-                        className={styles.input}
+                        className={`${styles.input} w-[95%] md:w-[90%]  rounded-lg p-2`}
                         placeholder="#8B5CF6"
                       />
                     </div>
                   </div>
 
-                  <div>
+                  <div className="text-sm md:text-base font-light md:font-normal">
                     <label
                       className={`block text-sm font-medium ${isDark ? "text-white/80" : "text-gray-700"} mb-2`}
                     >
                       Widget Position
                     </label>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-wrap gap-1">
                       <button
                         onClick={() =>
                           setSettings({ ...settings, position: "bottom-right" })
@@ -441,7 +434,7 @@ export default function LeadSettingsPage() {
                       })
                     }
                     rows={3}
-                    className={styles.input}
+                    className={`${styles.input} w-[95%] md:w-[90%]  rounded-lg p-2`}
                     placeholder="Enter welcome message..."
                   />
                   <p
@@ -479,7 +472,7 @@ export default function LeadSettingsPage() {
                       })
                     }
                     placeholder="+1234567890"
-                    className={styles.input}
+                    className={`${styles.input} w-[95%] md:w-[90%]  rounded-lg p-2`}
                   />
                   <p
                     className={`text-xs mt-2 ${isDark ? "text-white/40" : "text-gray-400"}`}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import Default from "@/public/assets/img/default-img.jpg";
+
 import {
   Plus,
   Instagram,
@@ -10,39 +12,21 @@ import {
   Zap,
   RefreshCw,
   AlertCircle,
-  ChevronRight,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Loader2,
-  Sparkles,
-  Crown,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
+  Button,
+  Orbs,
+  Spinner,
+  Switch,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import defaultImg from "public/assets/img/default-img.jpg";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
   getInstaAccount,
@@ -50,11 +34,6 @@ import {
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
 import { useApi } from "@/lib/useApi";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 
 // Types
@@ -144,7 +123,7 @@ export default function AccountsPage() {
             id: acc._id,
             instagramId: acc.instagramId,
             username: acc.username,
-            profilePicture: acc.profilePicture || defaultImg.src,
+            profilePicture: acc.profilePicture || Default,
             followersCount: acc.followersCount || 0,
             mediaCount: acc.mediaCount || 0,
             isActive: acc.isActive || false,
@@ -612,7 +591,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
         <div className="flex items-center gap-4 flex-1">
           <div className="relative">
             <Image
-              src={hasError ? defaultImg.src : account.profilePicture}
+              src={hasError ? Default : account.profilePicture}
               alt={account.username}
               width={56}
               height={56}
@@ -732,7 +711,7 @@ const EmptyAccountsCard: React.FC<EmptyAccountsCardProps> = ({
   onAddAccount,
 }) => (
   <div className={`${styles.card} rounded-xl p-4`}>
-    <div className="p-12 text-center">
+    <div className="p-6 text-center">
       <div
         className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${pageStyles.iconPink}`}
       >

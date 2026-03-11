@@ -2,37 +2,32 @@
   "name": "rocketreplai",
   "version": "1.0.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --names \"MARKETING,DASHBOARD,API\" \"npm run dev:marketing\" \"npm run dev:dashboard\" \"npm run dev:api\"",
-    "dev:marketing": "cd apps/marketing && npm run dev",
-    "dev:dashboard": "cd apps/dashboard && npm run dev",
-    "dev:api": "cd apps/api && npm run dev",
-    "build": "npm run build:all",
-    "build:all": "npm run build:packages && npm run build:marketing && npm run build:dashboard && npm run build:api",
-    "build:packages": "npm run build:ui ",
-    "build:ui": "cd packages/ui && npm run build",
-    "build:marketing": "cd apps/marketing && npm run build",
-    "build:dashboard": "cd apps/dashboard && npm run build",
-    "build:api": "cd apps/api && npm run build",
-    "install:all": "npm install && cd packages/ui && npm install && cd ../../apps/marketing && npm install && cd ../dashboard && npm install && cd ../api && npm install",
-    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules apps/*/.next apps/*/dist packages/*/dist",
-    "deploy:marketing": "cd apps/marketing && vercel --prod",
-    "deploy:dashboard": "cd apps/dashboard && vercel --prod",
-    "deploy:api": "cd apps/api && vercel --prod",
-    "test": "echo \"No tests configured\"",
-    "lint": "npm run lint:marketing && npm run lint:dashboard",
-    "lint:marketing": "cd apps/marketing && npm run lint",
-    "lint:dashboard": "cd apps/dashboard && npm run lint",
-    "start": "concurrently --names \"MARKETING,DASHBOARD,API\" \"npm run start:marketing\" \"npm run start:dashboard\" \"npm run start:api\"",
-    "start:marketing": "cd apps/marketing && npm run start",
-    "start:dashboard": "cd apps/dashboard && npm run start",
-    "start:api": "cd apps/api && npm run start"
+    "dev": "turbo run dev",
+    "dev:dashboard": "turbo run dev --filter=dashboard",
+    "dev:admin": "turbo run dev --filter=admin",
+    "dev:marketing": "turbo run dev --filter=marketing",
+    "dev:api": "turbo run dev --filter=api",
+    "build": "turbo run build",
+    "build:dashboard": "turbo run build --filter=dashboard",
+    "build:admin": "turbo run build --filter=admin",
+    "build:marketing": "turbo run build --filter=marketing",
+    "build:api": "turbo run build --filter=api",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "clean:next": "rm -rf apps/*/.next",
+    "install:all": "npm install",
+    "fresh": "npm run clean && npm install",
+    "fresh:next": "npm run clean:next && npm install"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "turbo": "^2.8.13"
   }
 }

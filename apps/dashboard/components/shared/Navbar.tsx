@@ -7,22 +7,18 @@ import {
   Instagram,
   Bot,
   Menu,
-  X,
-  Sparkles,
-  MessageSquare,
-  Target,
-  GraduationCap,
   Coins,
   ChevronLeft,
   ChevronRight,
   HandshakeIcon,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import { ThemeToggle } from "@rocketreplai/ui/components/shared/theme-toggle";
+import {
+  BreadcrumbsDefault,
+  Button,
+  ThemeToggle,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 import { UserButton } from "@clerk/nextjs";
-import { useThemeStyles } from "@/lib/theme";
-
 interface NavbarProps {
   onSidebarToggle?: () => void;
   isSidebarOpen?: boolean;
@@ -109,11 +105,10 @@ export function Navbar({
               !isDark && `shadow-${isInstaDashboard ? "pink" : "purple"}-200`
             }`}
           >
-            <Link href={isInstaDashboard ? "/insta/support" : "/web/support"}>
+            <Link target="_blank" href="https://www.rocketreplai.com/contactUs">
               Support
             </Link>
           </Button>
-
           {/* Instagram Specific Actions */}
           {isInstaDashboard && (
             <>
@@ -148,7 +143,6 @@ export function Navbar({
               )}
             </>
           )}
-
           {/* Web Dashboard Specific Actions */}
           {isWebDashboard && (
             <>
@@ -179,10 +173,8 @@ export function Navbar({
               </Button>
             </>
           )}
-
           {/* Theme Toggle */}
           <ThemeToggle />
-
           {/* User Button */}
           <UserButton />
         </div>

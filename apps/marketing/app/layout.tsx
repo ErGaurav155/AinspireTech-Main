@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
-import { ThemeProvider } from "@rocketreplai/ui/components/shared/theme-provider";
+import { ThemeProvider } from "@rocketreplai/ui";
 import "./globals.css";
-import StarsBackground from "@rocketreplai/ui/components/shared/StarsBackground";
+import StarsBackground from "../../../packages/ui/src/components/shared/StarsBackground";
 
 const orbitron = Orbitron({
   subsets: ["latin"],

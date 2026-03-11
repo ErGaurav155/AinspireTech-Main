@@ -11,7 +11,7 @@ export interface IAppointmentQuestion {
 export interface IAppointmentQuestions extends Document {
   clerkId: string;
   chatbotType:
-    | "chatbot-customer-supportt"
+    | "chatbot-customer-support"
     | "chatbot-e-commerce"
     | "chatbot-lead-generation"
     | "chatbot-education";
@@ -39,17 +39,13 @@ const AppointmentQuestionSchema = new Schema<IAppointmentQuestion>(
       required: true,
       enum: ["text", "email", "tel", "date", "select", "textarea"],
     },
-    required: {
-      type: Boolean,
-      default: false,
-    },
+    required: { type: Boolean, default: false },
     options: {
       type: [String],
       validate: {
-        validator: function (options: string[] | undefined) {
-          // Only validate options if type is 'select'
+        validator: function (this: IAppointmentQuestion, options?: string[]) {
           if (this.type === "select") {
-            return options && options.length > 0;
+            return !!options && options.length > 0;
           }
           return true;
         },
@@ -62,10 +58,7 @@ const AppointmentQuestionSchema = new Schema<IAppointmentQuestion>(
 
 const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
   {
-    clerkId: {
-      type: String,
-      required: true,
-    },
+    clerkId: { type: String, required: true },
     chatbotType: {
       type: String,
       required: true,
@@ -80,27 +73,21 @@ const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
       type: [AppointmentQuestionSchema],
       required: true,
       validate: {
-        validator: function (questions: IAppointmentQuestion[]) {
-          return questions.length > 0;
-        },
+        validator: (q: IAppointmentQuestion[]) => q.length > 0,
         message: "At least one question is required",
       },
     },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
-// Indexes for optimized queries
 AppointmentQuestionsSchema.index({ chatbotType: 1 });
 AppointmentQuestionsSchema.index({ clerkId: 1 });
 
-const WebAppointmentQuestions =
-  mongoose.models?.WebAppointmentQuestions ||
+const WebAppointmentQuestions = (mongoose.models?.WebAppointmentQuestions ||
   mongoose.model<IAppointmentQuestions>(
     "WebAppointmentQuestions",
     AppointmentQuestionsSchema,
-  );
+  )) as Model<IAppointmentQuestions>;
 
 export default WebAppointmentQuestions;

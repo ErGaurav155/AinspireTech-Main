@@ -5,11 +5,11 @@ import TestimonialSection from "@/components/shared/Testimonial";
 import HeroSection from "@/components/web/Hero";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import DiscountBanner from "@rocketreplai/ui/components/shared/DiscountBanner";
 import { BusinessMessagingTemplate } from "@/components/shared/BusinessMessagingTemplate";
 import StickyScrollFeatures from "@/components/shared/EngagementToolsection";
 import { AIVoiceAgentShowcase } from "@/components/shared/OurProducts";
 import OutProduct from "@/components/shared/product";
+import DiscountBanner from "../../../../packages/ui/src/components/shared/DiscountBanner";
 
 const Home = () => {
   const [mounted, setMounted] = useState(false);

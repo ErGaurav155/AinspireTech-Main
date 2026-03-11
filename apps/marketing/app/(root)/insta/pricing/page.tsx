@@ -2,12 +2,10 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Check, Zap, BadgeCheck, X } from "lucide-react";
 import { useTheme } from "next-themes";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { BreadcrumbsDefault, Button, Switch } from "@rocketreplai/ui";
+
 import { PricingPlan } from "@rocketreplai/shared";
 import { useRouter } from "next/navigation";
-
 interface ThemeStyles {
   textPrimary: string;
   textSecondary: string;

@@ -3,20 +3,21 @@
 import { useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { PricingPlan } from "@rocketreplai/shared";
+
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+
 import {
+  Button,
+  Checkbox,
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
-import { Checkbox } from "@rocketreplai/ui/components/radix/checkbox";
-import { Label } from "@rocketreplai/ui/components/radix/label";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-
-import { useThemeStyles } from "@/lib/theme";
+  Label,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 
 interface AccountSelectionDialogProps {
   isOpen: boolean;

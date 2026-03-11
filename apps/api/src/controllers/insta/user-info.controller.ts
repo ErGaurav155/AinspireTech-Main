@@ -2,7 +2,24 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getAuth } from "@clerk/express";
+interface InstagramUserInfoResponse {
+  id: string;
+  username?: string;
+  account_type?: string;
+  media_count?: number;
+  followers_count?: number;
+  follows_count?: number;
+  profile_picture_url?: string;
+}
 
+export interface InstagramAPIError {
+  error?: {
+    message: string;
+    type?: string;
+    code?: number;
+    fbtrace_id?: string;
+  };
+}
 /**
  * GET /api/insta/user-info - Get Instagram user info
  *
@@ -79,7 +96,7 @@ export const getInstaUserInfoController = async (
     const response = await fetch(url);
 
     if (!response.ok) {
-      const errorData = await response.json();
+      const errorData = (await response.json()) as InstagramAPIError;
       console.error("Instagram API error:", errorData);
 
       // Update account meta rate limit status if Instagram's API says we're limited
@@ -102,7 +119,7 @@ export const getInstaUserInfoController = async (
       });
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as InstagramUserInfoResponse;
 
     // Update account information in database if we got new data
     const updateData: any = {

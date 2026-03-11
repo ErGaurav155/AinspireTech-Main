@@ -1,3 +1,5 @@
+# Environment Setup
+
 Create a new file named `.env.local` in the root of your project and add the following content:
 
 ```env
@@ -35,3 +37,109 @@ npm run dev
 
 // return completion.choices[0].message.content || "I didn't understand that.";
 // };
+nst STRUCTURE = `rocketreplai/                          ROOT
+├── .github/
+│   └── workflows/
+│       ├── deploy-admin.yml               NEW
+│       ├── deploy-dashboard.yml           NEW
+│       ├── deploy-marketing.yml           NEW
+│       └── deploy-api.yml                NEW
+├── apps/
+│   ├── admin/
+│   │   ├── app/
+│   │   │   ├── globals.css                REPLACE
+│   │   │   └── ... (keep all pages)
+│   │   ├── components/                    KEEP AS IS
+│   │   ├── lib/                           KEEP AS IS
+│   │   ├── public/                        KEEP AS IS
+│   │   ├── .env.local                     KEEP (never commit)
+│   │   ├── next.config.js                 REPLACE
+│   │   ├── package.json                   REPLACE
+│   │   ├── postcss.config.js              KEEP AS IS
+│   │   ├── tailwind.config.ts             REPLACE
+│   │   ├── tsconfig.json                  REPLACE
+│   │   ├── vercel.json                    REPLACE
+│   │   └── components.json                ❌ DELETE
+│   │
+│   ├── api/
+│   │   ├── src/                           KEEP ALL
+│   │   ├── package.json                   ADD @rocketreplai/shared
+│   │   ├── tsconfig.json                  REPLACE
+│   │   └── railway.toml                   NEW
+│   │
+│   ├── dashboard/
+│   │   ├── app/
+│   │   │   ├── globals.css                REPLACE
+│   │   │   └── ... (keep all pages)
+│   │   ├── components/                    KEEP AS IS
+│   │   ├── lib/                           KEEP AS IS
+│   │   ├── public/                        KEEP AS IS
+│   │   ├── .env.local                     KEEP (never commit)
+│   │   ├── next.config.js                 REPLACE
+│   │   ├── package.json                   REPLACE
+│   │   ├── postcss.config.js              KEEP AS IS
+│   │   ├── tailwind.config.ts             REPLACE
+│   │   ├── tsconfig.json                  REPLACE
+│   │   ├── vercel.json                    REPLACE
+│   │   └── components.json                ❌ DELETE
+│   │
+│   └── marketing/
+│       ├── app/
+│       │   ├── globals.css                REPLACE
+│       │   └── ... (keep all pages)
+│       ├── components/                    KEEP AS IS
+│       ├── lib/                           KEEP AS IS
+│       ├── public/                        KEEP AS IS
+│       ├── .env.local                     KEEP (never commit)
+│       ├── next.config.js                 REPLACE
+│       ├── package.json                   REPLACE
+│       ├── postcss.config.js              KEEP AS IS
+│       ├── tailwind.config.ts             REPLACE
+│       ├── tsconfig.json                  REPLACE
+│       ├── vercel.json                    REPLACE
+│       └── components.json                ❌ DELETE
+│
+├── packages/
+│   ├── config/                            📦 NEW PACKAGE
+│   │   ├── package.json                   NEW
+│   │   ├── eslint/
+│   │   │   └── next.js                    NEW
+│   │   ├── tailwind/
+│   │   │   ├── base.config.ts             NEW
+│   │   │   ├── dashboard.config.ts        NEW
+│   │   │   └── marketing.config.ts        NEW
+│   │   └── typescript/
+│   │       ├── base.json                  NEW
+│   │       ├── nextjs.json                NEW
+│   │       └── node.json                  NEW
+│   │
+│   ├── shared/                            📦 NEW PACKAGE
+│   │   ├── package.json                   NEW
+│   │   ├── tsconfig.json                  NEW
+│   │   └── src/
+│   │       ├── index.ts                   NEW
+│   │       ├── constants/
+│   │       │   └── index.ts               NEW
+│   │       ├── types/
+│   │       │   └── index.ts               NEW
+│   │       └── utils/
+│   │           └── index.ts               NEW
+│   │
+│   └── ui/                                EXISTING - MODIFY
+│       ├── package.json                   REWRITE
+│       ├── tsconfig.json                  REWRITE
+│       ├── src/
+│       │   ├── index.ts                   ENSURE ALL EXPORTS
+│       │   ├── globals.css                NEW
+│       │   ├── lib/
+│       │   │   └── utils.ts               KEEP AS IS
+│       │   └── components/                KEEP ALL FILES
+│       ├── components.json                KEEP (moved here)
+│       ├── next-env.d.ts                  ❌ DELETE
+│       └── next.config.js                 ❌ DELETE
+│
+├── .gitignore                             UPDATE
+├── .npmrc                                 NEW
+├── package.json                           UPDATE
+├── package-lock.json                      regenerated
+└── turbo.json                             NEW`;

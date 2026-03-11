@@ -3,12 +3,11 @@
 import { useEffect, useState } from "react";
 import InstaSidebar from "@/components/insta/InstaSidebar";
 import { Navbar } from "@/components/shared/Navbar";
-import { Toaster } from "@rocketreplai/ui/components/radix/toaster";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault, Spinner, Toaster } from "@rocketreplai/ui";
+
 import InstaBottomNavbar from "@/components/insta/InstaBottomNavbar";
 import { useSidebar } from "@/lib/useSidebar";
 import { useUser } from "@clerk/nextjs";
-import { Spinner } from "@/components/shared/Spinner";
 
 export default function InstaLayout({
   children,

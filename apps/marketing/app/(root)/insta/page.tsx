@@ -9,9 +9,8 @@ import InstaTestimonialsSection from "@/components/insta/InstaTestimonialSection
 import InstaHowItWorksSection from "@/components/insta/InstaWorkFlow";
 import { ClientShowcase } from "@/components/insta/ClientShowcase";
 import { FeatureShowcase } from "@/components/insta/FeatureShowcase";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import Faq from "@rocketreplai/ui/components/shared/Faq";
 import React, { useEffect, useState } from "react";
+import Faq from "../../../../../packages/ui/src/components/shared/Faq";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -28,8 +27,7 @@ export default function Home() {
     );
   }
   return (
-    <div className="min-h-screen max-w-7xl m-auto ">
-      <BreadcrumbsDefault />
+    <div className="min-h-screen max-w-7xl m-auto mt-5">
       {/* Hero Section */}
       <div className="container mx-auto px-4 pb-20">
         <InstagramAutomationHero />

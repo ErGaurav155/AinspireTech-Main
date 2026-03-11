@@ -5,7 +5,7 @@ import { use, useEffect, useMemo, useState } from "react";
 import { HeadsetIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { productDetails } from "@rocketreplai/shared";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+import { BreadcrumbsDefault } from "@rocketreplai/ui";
 
 interface ProductParams {
   id: string;

@@ -154,8 +154,10 @@ ConversationSchema.index({ clerkId: 1, status: 1 });
 // Add TTL index to automatically delete documents after 3 hours (10800 seconds)
 ConversationSchema.index({ createdAt: 1 }, { expireAfterSeconds: 1296000 });
 
-const WebConversation =
-  mongoose.models?.WebConversation ||
-  mongoose.model<IConversation>("WebConversation", ConversationSchema);
+const WebConversation = (mongoose.models?.WebConversation ||
+  mongoose.model<IConversation>(
+    "WebConversation",
+    ConversationSchema,
+  )) as Model<IConversation>;
 
 export default WebConversation;

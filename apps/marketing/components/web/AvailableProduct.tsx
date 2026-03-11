@@ -5,7 +5,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { HeadsetIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { productDetails } from "@rocketreplai/shared";
-import { Button } from "@rocketreplai/ui/components/radix/button";
+import { Button } from "@rocketreplai/ui";
 
 interface Product {
   productId: string;

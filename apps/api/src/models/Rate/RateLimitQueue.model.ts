@@ -1,6 +1,7 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IRateLimitQueue extends Document {
+  jobId?: string;
   clerkId: string;
   instagramAccountId: string;
   actionType:
@@ -30,6 +31,7 @@ export interface IRateLimitQueue extends Document {
 
 const RateLimitQueueSchema = new Schema<IRateLimitQueue>(
   {
+    jobId: { type: String },
     clerkId: { type: String, required: true, index: true },
     instagramAccountId: { type: String, required: true, index: true },
     actionType: {
@@ -66,8 +68,10 @@ RateLimitQueueSchema.index({ status: 1, priority: 1, createdAt: 1 });
 RateLimitQueueSchema.index({ windowStart: 1, status: 1 });
 RateLimitQueueSchema.index({ createdAt: 1 }, { expireAfterSeconds: 172800 }); // Auto-delete after 48 hours
 
-const RateLimitQueue =
-  mongoose.models?.RateLimitQueue ||
-  mongoose.model<IRateLimitQueue>("RateLimitQueue", RateLimitQueueSchema);
+const RateLimitQueue = (mongoose.models?.RateLimitQueue ||
+  mongoose.model<IRateLimitQueue>(
+    "RateLimitQueue",
+    RateLimitQueueSchema,
+  )) as Model<IRateLimitQueue>;
 
 export default RateLimitQueue;

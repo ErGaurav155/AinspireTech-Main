@@ -1,6 +1,21 @@
 // models/CommissionRecord.ts
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model } from "mongoose";
 
+export interface ICommissionRecord extends Document {
+  affiliateId: string;
+  referralId: string;
+  referredUserId: string;
+  amount: number;
+  period: string;
+  productType: "web-chatbot" | "insta-automation";
+  productName: string;
+  subscriptionType: "monthly" | "yearly";
+  status: "pending" | "paid";
+  payoutId?: string;
+  payoutDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 const CommissionRecordSchema = new Schema(
   {
     affiliateId: {
@@ -55,14 +70,17 @@ const CommissionRecordSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Index for faster queries
 CommissionRecordSchema.index({ affiliateId: 1, status: 1 });
 CommissionRecordSchema.index({ period: 1, status: 1 });
 
-const AffiCommissionRecord =
-  models?.AffiCommissionRecord ||
-  model("AffiCommissionRecord", CommissionRecordSchema);
+const AffiCommissionRecord = (models?.AffiCommissionRecord ||
+  model<ICommissionRecord>(
+    "AffiCommissionRecord",
+    CommissionRecordSchema,
+  )) as Model<ICommissionRecord>;
+
 export default AffiCommissionRecord;

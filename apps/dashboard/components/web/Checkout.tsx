@@ -9,29 +9,18 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import {
-  Loader2,
-  Zap,
-  CreditCard,
-  Bot,
-  Check,
-  Sparkles,
-  Crown,
-  Coins,
-  X,
-  AlertTriangle,
-} from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
+import { Loader2, Bot, Check, Sparkles, Crown, Coins } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-
+  Button,
+  Orbs,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
@@ -53,8 +42,6 @@ import {
   updateWebChatbot,
   verifyPurchaseTokens,
 } from "@/lib/services/web-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
 
 interface CheckoutProps {
   userId: string;

@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
+  "buildCommand": "cd ../.. && npx turbo run build --filter=marketing",
+  "installCommand": "cd ../.. && npm ci",
+  "outputDirectory": ".next",
   "framework": "nextjs",
-  "outputDirectory": ".next"
+  "ignoreCommand": "npx turbo-ignore"
 }

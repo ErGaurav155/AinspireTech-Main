@@ -9,8 +9,7 @@ import {
   Radio,
   Sparkles,
 } from "lucide-react";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import { Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 const automationTypes = [
   {

@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@rocketreplai/ui";
 import { motion } from "framer-motion";
 import { MessageSquare, Users, BarChart3, Shield, Zap } from "lucide-react";
 

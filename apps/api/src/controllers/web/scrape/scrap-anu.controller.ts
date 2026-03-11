@@ -2,27 +2,43 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import { getAuth } from "@clerk/express";
-import Chromium from "@sparticuz/chromium-min";
+import puppeteer, { Browser } from "puppeteer";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ScrapedPage {
   url: string;
   title: string;
   description: string;
   headings: {
-    [key: string]: string[];
+    h1: string[];
+    h2: string[];
+    h3: string[];
   };
   content: string;
   level: number;
 }
 
+interface DiscoveredUrl {
+  url: string;
+  level: number;
+}
+
+interface DiscoveryResult {
+  url: string;
+  links: string[];
+}
+
+// ─── WebScraper ───────────────────────────────────────────────────────────────
+
 class WebScraper {
-  private browser: any;
+  private browser: Browser;
   private visitedUrls: Set<string> = new Set();
   private scrapedPages: ScrapedPage[] = [];
-  private maxPages: number = 6;
-  private maxLevel: number = 3;
+  private maxPages = 6;
+  private maxLevel = 3;
 
-  constructor(browser: any) {
+  constructor(browser: Browser) {
     this.browser = browser;
   }
 
@@ -30,10 +46,7 @@ class WebScraper {
     url: string,
     level: number,
   ): Promise<ScrapedPage | null> {
-    if (this.visitedUrls.has(url)) {
-      return null;
-    }
-
+    if (this.visitedUrls.has(url)) return null;
     this.visitedUrls.add(url);
 
     try {
@@ -42,13 +55,10 @@ class WebScraper {
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       );
 
-      await page.goto(url, {
-        waitUntil: "load",
-        timeout: 30000,
-      });
+      await page.goto(url, { waitUntil: "load", timeout: 30000 });
 
       const scrapedData = await page.evaluate(() => {
-        const getMetaContent = (name: string) => {
+        const getMetaContent = (name: string): string => {
           const meta =
             document.querySelector(`meta[name="${name}"]`) ||
             document.querySelector(`meta[property="og:${name}"]`) ||
@@ -56,13 +66,17 @@ class WebScraper {
           return meta ? meta.getAttribute("content") || "" : "";
         };
 
-        const extractHeadings = () => {
-          const headings: { [key: string]: string[] } = {
+        const extractHeadings = (): {
+          h1: string[];
+          h2: string[];
+          h3: string[];
+        } => {
+          const headings: { h1: string[]; h2: string[]; h3: string[] } = {
             h1: [],
             h2: [],
             h3: [],
           };
-          ["h1", "h2", "h3"].forEach((tag) => {
+          (["h1", "h2", "h3"] as const).forEach((tag) => {
             headings[tag] = Array.from(document.querySelectorAll(tag))
               .map((el) => el.textContent?.trim() || "")
               .filter((text) => text.length > 0);
@@ -70,7 +84,7 @@ class WebScraper {
           return headings;
         };
 
-        const extractContent = () => {
+        const extractContent = (): string => {
           const mainContent =
             document.querySelector("main") ||
             document.querySelector("article") ||
@@ -79,16 +93,12 @@ class WebScraper {
             document.querySelector('[role="main"]') ||
             document.body;
 
-          let text = mainContent.innerText || mainContent.textContent || "";
-
+          let text =
+            (mainContent as HTMLElement).innerText ||
+            mainContent.textContent ||
+            "";
           text = text.replace(/\s+/g, " ").trim();
-
-          const maxLength = 800;
-          if (text.length > maxLength) {
-            text = text.substring(0, maxLength) + "...";
-          }
-
-          return text;
+          return text.length > 800 ? text.substring(0, 800) + "..." : text;
         };
 
         return {
@@ -101,18 +111,9 @@ class WebScraper {
       });
 
       await page.close();
+      console.log(`✅ Scraped: ${url} (level ${level})`);
 
-      const pageData: ScrapedPage = {
-        url: scrapedData.url,
-        title: scrapedData.title,
-        description: scrapedData.description,
-        headings: scrapedData.headings,
-        content: scrapedData.content,
-        level: level,
-      };
-
-      console.log(`✅ Scraped page: ${url} (level ${level}) `);
-      return pageData;
+      return { ...scrapedData, level };
     } catch (error) {
       console.error(`❌ Failed to scrape ${url}:`, error);
       return null;
@@ -130,8 +131,7 @@ class WebScraper {
 
   private isSameDomain(url: string, baseDomain: string): boolean {
     try {
-      const urlDomain = this.extractDomain(url);
-      return urlDomain === baseDomain;
+      return this.extractDomain(url) === baseDomain;
     } catch {
       return false;
     }
@@ -139,236 +139,130 @@ class WebScraper {
 
   private normalizeUrl(url: string): string {
     try {
-      const urlObj = new URL(url);
-      return urlObj.origin + urlObj.pathname;
+      const u = new URL(url);
+      return u.origin + u.pathname;
     } catch {
       return url;
     }
   }
 
-  private async discoverAllUrls(
-    startUrl: string,
-  ): Promise<{ url: string; level: number }[]> {
-    const baseDomain = this.extractDomain(startUrl);
-
-    const levelUrls: { [key: number]: { url: string; level: number }[] } = {
-      0: [{ url: this.normalizeUrl(startUrl), level: 0 }],
-      1: [],
-      2: [],
-      3: [],
-    };
-
-    const discoveredUrls = new Set<string>([this.normalizeUrl(startUrl)]);
-
-    let currentLevel = 0;
-
-    while (currentLevel <= this.maxLevel) {
-      const currentLevelUrls = levelUrls[currentLevel];
-
-      if (currentLevelUrls.length === 0) {
-        console.log(
-          `⏹️ No URLs found at level ${currentLevel}, stopping discovery`,
-        );
-        break;
-      }
-
-      console.log(
-        `🔍 Level ${currentLevel}: Processing ${currentLevelUrls.length} pages`,
-      );
-
-      const discoveryPromises = currentLevelUrls.map(({ url }) =>
-        this.scrapePageForDiscovery(url),
-      );
-      const discoveryResults = await Promise.allSettled(discoveryPromises);
-
-      let newUrlsCount = 0;
-
-      for (const result of discoveryResults) {
-        if (result.status === "fulfilled" && result.value) {
-          const { links } = result.value;
-
-          if (links && links.length > 0 && currentLevel < this.maxLevel) {
-            for (const link of links) {
-              const normalizedLink = this.normalizeUrl(link);
-
-              if (
-                this.isSameDomain(link, baseDomain) &&
-                !discoveredUrls.has(normalizedLink) &&
-                Object.values(levelUrls).flat().length + newUrlsCount <
-                  this.maxPages
-              ) {
-                discoveredUrls.add(normalizedLink);
-                levelUrls[currentLevel + 1].push({
-                  url: normalizedLink,
-                  level: currentLevel + 1,
-                });
-                newUrlsCount++;
-
-                if (Object.values(levelUrls).flat().length >= this.maxPages) {
-                  break;
-                }
-              }
-            }
-          }
-        }
-
-        if (Object.values(levelUrls).flat().length >= this.maxPages) {
-          break;
-        }
-      }
-
-      console.log(
-        `🔗 Level ${currentLevel + 1}: Discovered ${newUrlsCount} new URLs`,
-      );
-
-      currentLevel++;
-
-      if (
-        Object.values(levelUrls).flat().length >= this.maxPages ||
-        currentLevel > this.maxLevel
-      ) {
-        break;
-      }
-    }
-
-    const allUrls = Object.values(levelUrls).flat().slice(0, this.maxPages);
-
-    console.log(`🎯 Total URLs discovered: ${allUrls.length}`);
-
-    console.log("📋 Discovered URLs by level:");
-    for (let level = 0; level <= this.maxLevel; level++) {
-      const levelUrlsList = allUrls.filter((item) => item.level === level);
-      if (levelUrlsList.length > 0) {
-        console.log(`   Level ${level}: ${levelUrlsList.length} URLs`);
-        levelUrlsList.forEach((url) => console.log(`     - ${url.url}`));
-      }
-    }
-
-    return allUrls;
-  }
-
   private async scrapePageForDiscovery(
     url: string,
-  ): Promise<{ url: string; links: string[] } | null> {
+  ): Promise<DiscoveryResult | null> {
     try {
       const page = await this.browser.newPage();
       await page.setUserAgent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
       );
 
-      await page.goto(url, {
-        waitUntil: "load",
-        timeout: 20000,
-      });
+      await page.goto(url, { waitUntil: "load", timeout: 20000 });
 
-      const scrapedData = await page.evaluate(() => {
-        const extractLinks = () => {
-          return Array.from(document.querySelectorAll("a[href]"))
-            .map((a) => (a as HTMLAnchorElement).href)
-            .filter(
-              (href) =>
-                href &&
-                !href.startsWith("javascript:") &&
-                !href.startsWith("mailto:") &&
-                !href.startsWith("#") &&
-                !href.includes("tel:") &&
-                !href.includes("sms:"),
-            );
-        };
-
-        return {
-          url: window.location.href,
-          links: extractLinks(),
-        };
-      });
+      const result = await page.evaluate(() => ({
+        url: window.location.href,
+        links: Array.from(document.querySelectorAll("a[href]"))
+          .map((a) => (a as HTMLAnchorElement).href)
+          .filter(
+            (href) =>
+              href &&
+              !href.startsWith("javascript:") &&
+              !href.startsWith("mailto:") &&
+              !href.startsWith("#") &&
+              !href.includes("tel:") &&
+              !href.includes("sms:"),
+          ),
+      }));
 
       await page.close();
-      console.log(
-        `🔍 Discovery: ${url} - found ${scrapedData.links.length} links`,
-      );
-      return scrapedData;
+      console.log(`🔍 Discovery: ${url} — ${result.links.length} links found`);
+      return result;
     } catch (error) {
-      console.error(`❌ Failed to discover links from ${url}:`, error);
+      console.error(`❌ Failed discovery for ${url}:`, error);
       return null;
     }
   }
 
-  async scrapeWebsite(startUrl: string): Promise<ScrapedPage[]> {
-    console.log("🚀 Starting level-by-level concurrent scraping process...");
+  private async discoverAllUrls(startUrl: string): Promise<DiscoveredUrl[]> {
+    const baseDomain = this.extractDomain(startUrl);
+    const levelUrls: Record<number, DiscoveredUrl[]> = {
+      0: [{ url: this.normalizeUrl(startUrl), level: 0 }],
+      1: [],
+      2: [],
+      3: [],
+    };
+    const discoveredUrls = new Set<string>([this.normalizeUrl(startUrl)]);
+    let currentLevel = 0;
 
-    const allUrlsToScrape = await this.discoverAllUrls(startUrl);
-    console.log(`🎯 Will scrape ${allUrlsToScrape.length} URLs concurrently`);
+    while (currentLevel <= this.maxLevel) {
+      const currentLevelUrls = levelUrls[currentLevel];
+      if (!currentLevelUrls?.length) break;
+
+      console.log(`🔍 Level ${currentLevel}: ${currentLevelUrls.length} pages`);
+
+      const results = await Promise.allSettled(
+        currentLevelUrls.map(({ url }) => this.scrapePageForDiscovery(url)),
+      );
+
+      let newUrlsCount = 0;
+      const totalSoFar = () => Object.values(levelUrls).flat().length;
+
+      for (const result of results) {
+        if (result.status !== "fulfilled" || !result.value) continue;
+
+        if (currentLevel < this.maxLevel) {
+          for (const link of result.value.links) {
+            const normalized = this.normalizeUrl(link);
+            if (
+              this.isSameDomain(link, baseDomain) &&
+              !discoveredUrls.has(normalized) &&
+              totalSoFar() < this.maxPages
+            ) {
+              discoveredUrls.add(normalized);
+              levelUrls[currentLevel + 1].push({
+                url: normalized,
+                level: currentLevel + 1,
+              });
+              newUrlsCount++;
+            }
+            if (totalSoFar() >= this.maxPages) break;
+          }
+        }
+        if (totalSoFar() >= this.maxPages) break;
+      }
+
+      console.log(`🔗 Level ${currentLevel + 1}: ${newUrlsCount} new URLs`);
+      currentLevel++;
+      if (totalSoFar() >= this.maxPages) break;
+    }
+
+    const allUrls = Object.values(levelUrls).flat().slice(0, this.maxPages);
+    console.log(`🎯 Total URLs to scrape: ${allUrls.length}`);
+    return allUrls;
+  }
+
+  async scrapeWebsite(startUrl: string): Promise<ScrapedPage[]> {
+    console.log("🚀 Starting scrape...");
+    const urlsToScrape = await this.discoverAllUrls(startUrl);
 
     this.visitedUrls.clear();
 
-    const scrapePromises = allUrlsToScrape.map(({ url, level }) =>
-      this.scrapePage(url, level),
+    const results = await Promise.allSettled(
+      urlsToScrape.map(({ url, level }) => this.scrapePage(url, level)),
     );
 
-    console.log("🔄 Starting concurrent scraping of all pages...");
-    const scrapeResults = await Promise.allSettled(scrapePromises);
+    this.scrapedPages = results
+      .filter(
+        (r): r is PromiseFulfilledResult<ScrapedPage> =>
+          r.status === "fulfilled" && r.value !== null,
+      )
+      .map((r) => r.value);
 
-    const successfulScrapes: ScrapedPage[] = [];
-    for (const result of scrapeResults) {
-      if (result.status === "fulfilled" && result.value) {
-        successfulScrapes.push(result.value);
-      } else if (result.status === "rejected") {
-        console.error("❌ Page scraping failed:", result.reason);
-      }
-    }
-
-    this.scrapedPages = successfulScrapes;
-
-    console.log(
-      `🎉 Scraping completed: ${this.scrapedPages.length} pages successfully scraped`,
-    );
-
-    console.log("✅ Successfully scraped URLs by level:");
-    for (let level = 0; level <= this.maxLevel; level++) {
-      const levelPages = this.scrapedPages.filter(
-        (page) => page.level === level,
-      );
-      if (levelPages.length > 0) {
-        console.log(`   Level ${level}: ${levelPages.length} pages`);
-        levelPages.forEach((page) =>
-          console.log(`     - ${page.url} (${page.title})`),
-        );
-      }
-    }
-
+    console.log(`🎉 Done: ${this.scrapedPages.length} pages scraped`);
     return this.scrapedPages;
   }
 }
 
-// Cache for Chromium executable path
-let cachedExecutablePath: string | null = null;
-let downloadPromise: Promise<string> | null = null;
+// ─── Controller ───────────────────────────────────────────────────────────────
 
-async function getChromiumPath(): Promise<string> {
-  if (cachedExecutablePath) return cachedExecutablePath;
-
-  if (!downloadPromise) {
-    const CHROMIUM_PACK_URL = process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}/chromium-pack.tar`
-      : "/chromium-pack.tar";
-
-    downloadPromise = Chromium.executablePath(CHROMIUM_PACK_URL)
-      .then((path: string) => {
-        cachedExecutablePath = path;
-        console.log("Chromium path resolved:", path);
-        return path;
-      })
-      .catch((error: any) => {
-        console.error("Failed to get Chromium path:", error);
-        downloadPromise = null;
-        throw error;
-      });
-  }
-
-  return downloadPromise;
-}
-
-// POST /api/scrape/anu - Scrape website with advanced level-by-level scraping
 export const scrapAnuController = async (req: Request, res: Response) => {
   const { userId } = getAuth(req);
   const { url, chatbotId } = req.body;
@@ -380,10 +274,6 @@ export const scrapAnuController = async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   }
-
-  console.log("url:", url);
-  console.log("userId:", userId);
-  console.log("chatbotId:", chatbotId);
 
   try {
     await connectToDatabase();
@@ -405,7 +295,7 @@ export const scrapAnuController = async (req: Request, res: Response) => {
       return res.status(200).json({
         success: true,
         data: {
-          message: "Website already scraped, skipping process",
+          message: "Website already scraped",
           alreadyScrapped: true,
           data: {
             fileName: chatbot.scrappedFile || "",
@@ -414,24 +304,24 @@ export const scrapAnuController = async (req: Request, res: Response) => {
             chatbotId,
           },
         },
-
         timestamp: new Date().toISOString(),
       });
     }
 
+    // Normalize URL
     let inputUrl = url.trim();
     if (!/^https?:\/\//i.test(inputUrl)) {
       inputUrl = `http://${inputUrl}`;
     }
 
-    let parsedUrl: URL;
     let mainUrl: string;
     let domain: string;
     try {
-      parsedUrl = new URL(inputUrl);
-      domain = parsedUrl.hostname;
-      domain = domain.startsWith("www.") ? domain.substring(4) : domain;
-      mainUrl = `${parsedUrl.protocol}//${domain}`;
+      const parsed = new URL(inputUrl);
+      domain = parsed.hostname.startsWith("www.")
+        ? parsed.hostname.substring(4)
+        : parsed.hostname;
+      mainUrl = `${parsed.protocol}//${domain}`;
     } catch {
       return res.status(400).json({
         success: false,
@@ -440,40 +330,25 @@ export const scrapAnuController = async (req: Request, res: Response) => {
       });
     }
 
-    let browser: any = null;
+    // Launch puppeteer — works on Railway (full Linux) and localhost
+    let browser: Browser | null = null;
     try {
-      const isVercel = !!process.env.VERCEL_ENV;
-      let launchOptions: any = {
+      browser = await puppeteer.launch({
         headless: true,
-      };
+        args: [
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage", // important for Railway's limited /dev/shm
+          "--disable-gpu",
+          "--no-zygote",
+          "--single-process", // important for Railway containers
+        ],
+      });
 
-      if (isVercel) {
-        // Use puppeteer-core for Vercel
-        const chromium = (await import("@sparticuz/chromium-min")).default;
-        const executablePath = await getChromiumPath();
-        launchOptions = {
-          ...launchOptions,
-          args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-          executablePath,
-        };
-        console.log("🔧 Launching browser with Chromium on Vercel");
-        const puppeteer = await import("puppeteer-core");
-        browser = await puppeteer.launch(launchOptions);
-      } else {
-        // Use regular puppeteer for local development
-        launchOptions.args = ["--no-sandbox", "--disable-setuid-sandbox"];
-        console.log("🔧 Launching browser with local Puppeteer");
-        const puppeteer = await import("puppeteer");
-        browser = await puppeteer.launch(launchOptions);
-      }
+      console.log("✅ Browser launched");
 
-      console.log("✅ Browser launched successfully");
-
-      let scrapedPages: ScrapedPage[];
-
-      console.log("🔍 Starting LEVEL-BY-LEVEL CONCURRENT scraping mode");
       const scraper = new WebScraper(browser);
-      scrapedPages = await scraper.scrapeWebsite(mainUrl.toString());
+      const scrapedPages = await scraper.scrapeWebsite(mainUrl);
 
       if (scrapedPages.length === 0) {
         return res.status(400).json({
@@ -484,20 +359,13 @@ export const scrapAnuController = async (req: Request, res: Response) => {
       }
 
       const fileName = `${domain}_${Date.now()}`;
-
-      console.log(`✅ Scraping completed: ${scrapedPages.length} pages found`);
+      console.log(`✅ Scraped ${scrapedPages.length} pages`);
 
       return res.status(200).json({
         success: true,
         data: {
           success: true,
-          data: {
-            fileName,
-            domain,
-            userId,
-            chatbotId,
-            scrapedPages: scrapedPages,
-          },
+          data: { fileName, domain, userId, chatbotId, scrapedPages },
           message: "Scraping completed successfully.",
         },
         timestamp: new Date().toISOString(),

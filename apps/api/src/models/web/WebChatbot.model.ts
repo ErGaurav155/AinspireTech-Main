@@ -168,8 +168,7 @@ ChatbotSchema.index({ clerkId: 1, type: 1 }, { unique: true });
 ChatbotSchema.index({ clerkId: 1 });
 ChatbotSchema.index({ type: 1, isActive: 1 });
 
-const WebChatbot =
-  mongoose.models?.WebChatbot ||
-  mongoose.model<IChatbot>("WebChatbot", ChatbotSchema);
+const WebChatbot = (mongoose.models?.WebChatbot ||
+  mongoose.model<IChatbot>("WebChatbot", ChatbotSchema)) as Model<IChatbot>;
 
 export default WebChatbot;

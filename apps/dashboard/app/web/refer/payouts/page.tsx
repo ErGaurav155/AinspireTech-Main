@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import PayoutPage from "@/components/shared/PayoutPage";
-import { Spinner } from "@/components/shared/Spinner";
+import { Spinner } from "@rocketreplai/ui";
 
 export default function WebPayoutPage() {
   return (

@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 import WebSidebar from "@/components/web/WebSidebar";
 import { Navbar } from "@/components/shared/Navbar";
-import { Toaster } from "@rocketreplai/ui/components/radix/toaster";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import WebBottomNavbar from "@/components/web/WebBottomNavbar";
+
 import { useSidebar } from "@/lib/useSidebar";
 import { useUser } from "@clerk/nextjs";
-import { Spinner } from "@/components/shared/Spinner";
-
+import WebBottomNavbar from "@/components/web/WebBottomNavbar";
+import { BreadcrumbsDefault, Spinner, Toaster } from "@rocketreplai/ui";
 export default function WebLayout({ children }: { children: React.ReactNode }) {
   const { isOpen, toggle } = useSidebar(true); // Default open on desktop
   const { user, isLoaded } = useUser();

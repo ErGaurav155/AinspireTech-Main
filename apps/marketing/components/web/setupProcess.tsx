@@ -11,12 +11,7 @@ import {
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@rocketreplai/ui";
 import { useRouter } from "next/navigation";
 
 export function SetupProcess() {

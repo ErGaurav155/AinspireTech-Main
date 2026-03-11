@@ -1,0 +1,506 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   CSS CUSTOM PROPERTIES
+   Single source of truth for the entire design system.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Fonts ── */
+  --font-orbitron: "Orbitron", sans-serif;
+  --font-montserrat: "Montserrat", sans-serif;
+
+  /* ── Page / Surface backgrounds ── */
+  --bg-dark-page: #0f0f11;
+  --bg-dark-card: #1a1a1e;
+  --bg-dark-input: #252529;
+  --bg-light-page: #f8f9fa;
+  --bg-light-card: #f8f9fc;
+
+  /* ── Sidebar ── */
+  --sidebar-width: 18rem; /* 288px = w-72 */
+
+  /* ── Glass morphism colour tokens ── */
+  /* Card */
+  --glass-card-bg: rgba(255, 255, 255, 0.04);
+  --glass-card-border: rgba(255, 255, 255, 0.08);
+  --glass-card-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  /* Inner card (nested) */
+  --glass-inner-bg: rgba(255, 255, 255, 0.03);
+  --glass-inner-border: rgba(255, 255, 255, 0.06);
+  /* Sidebar */
+  --glass-sidebar-bg: rgba(8, 8, 14, 0.85);
+  --glass-sidebar-border: rgba(255, 255, 255, 0.05);
+  /* Top nav */
+  --glass-nav-bg: rgba(10, 10, 16, 0.75);
+  --glass-nav-border: rgba(255, 255, 255, 0.06);
+  /* Pill / badge */
+  --glass-pill-bg: rgba(255, 255, 255, 0.06);
+  --glass-pill-border: rgba(255, 255, 255, 0.09);
+  /* Input */
+  --glass-input-bg: rgba(255, 255, 255, 0.05);
+  --glass-input-border: rgba(255, 255, 255, 0.09);
+  /* Overlay (mobile sidebar backdrop) */
+  --glass-overlay-bg: rgba(0, 0, 0, 0.4);
+  --glass-overlay-blur: blur(4px);
+
+  /* ── Brand gradient stops ── */
+  --brand-pink: #ec4899;
+  --brand-rose: #f43f5e;
+  --brand-blue: #3b82f6;
+  --brand-purple: #a855f7;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE OVERRIDES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@layer base {
+  body {
+    font-family: var(--font-montserrat);
+    @apply min-h-screen transition-colors duration-300;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  html.light body {
+    @apply bg-light-default;
+  }
+
+  html.dark body {
+    @apply bg-anim;
+  }
+}
+/* ─────────────────────────────────────────────────────────────────────────────
+   KEYFRAME ANIMATIONS
+   Define once, use everywhere via @apply or className.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@keyframes grad-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%) rotate(25deg);
+  }
+  100% {
+    transform: translateX(200%) rotate(25deg);
+  }
+}
+
+@keyframes ai-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(96, 165, 250, 0);
+  }
+}
+
+@keyframes float-orb {
+  0%,
+  100% {
+    transform: translateY(0px) scale(1);
+  }
+  50% {
+    transform: translateY(-20px) scale(1.05);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   COMPONENT UTILITIES  (use with className, not style={{}})
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@layer components {
+  /* ── Glass card ── */
+  .glass-card {
+    background: var(--glass-card-bg);
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid var(--glass-card-border);
+    box-shadow: var(--glass-card-shadow);
+  }
+
+  /* ── Inner / nested card ── */
+  .glass-inner {
+    background: var(--glass-inner-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-inner-border);
+  }
+
+  /* ── Sidebar panel ── */
+  .glass-sidebar {
+    background: var(--glass-sidebar-bg);
+    backdrop-filter: blur(32px);
+    -webkit-backdrop-filter: blur(32px);
+    border-right: 1px solid var(--glass-sidebar-border);
+  }
+
+  /* ── Sticky top nav ── */
+  .glass-nav {
+    background: var(--glass-nav-bg);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border-bottom: 1px solid var(--glass-nav-border);
+  }
+
+  /* ── Pill / badge container ── */
+  .glass-pill {
+    background: var(--glass-pill-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-pill-border);
+  }
+
+  /* ── Text input field ── */
+  .glass-input {
+    background: var(--glass-input-bg);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid var(--glass-input-border);
+  }
+
+  /* ── Mobile overlay ── */
+  .glass-overlay {
+    background: var(--glass-overlay-bg);
+    backdrop-filter: var(--glass-overlay-blur);
+    -webkit-backdrop-filter: var(--glass-overlay-blur);
+  }
+
+  /* ─────────────────────────────────────
+     Crystal card — lift on hover
+     ───────────────────────────────────── */
+  .crystal-card {
+    transition:
+      transform 0.25s ease,
+      box-shadow 0.25s ease;
+  }
+  .crystal-card:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+  }
+
+  /* ─────────────────────────────────────
+     Shimmer sweep — animated highlight
+     ───────────────────────────────────── */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      transparent 100%
+    );
+    animation: shimmer-sweep 4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* ─────────────────────────────────────
+     Table / list row hover (dark theme)
+     ───────────────────────────────────── */
+  .trow {
+    transition: background 0.12s ease;
+  }
+  .trow:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  /* ─────────────────────────────────────
+     Ambient orb decoration
+     ───────────────────────────────────── */
+  .orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(48px);
+    animation: float-orb 8s ease-in-out infinite;
+  }
+  .orb-slow {
+    animation-duration: 12s;
+  }
+  .orb-fast {
+    animation-duration: 5s;
+  }
+
+  /* ─────────────────────────────────────
+     Animated gradient background
+     ───────────────────────────────────── */
+  .bg-anim {
+    background: linear-gradient(
+      135deg,
+      #08080e 0%,
+      #0d0d18 25%,
+      #080810 50%,
+      #0c0c16 75%,
+      #08080e 100%
+    );
+    background-size: 300% 300%;
+    animation: grad-shift 15s ease infinite;
+  }
+  .bg-light-default {
+    background: #f8f9fc;
+  }
+  /* ─────────────────────────────────────
+     AI pulsing border ring
+     ───────────────────────────────────── */
+  .ai-pulse {
+    animation: ai-pulse 2s ease-in-out infinite;
+  }
+
+  /* ─────────────────────────────────────
+     Page wrappers
+     ───────────────────────────────────── */
+  .page-dark {
+    @apply min-h-screen bg-[#0F0F11];
+  }
+  .page-light {
+    @apply min-h-screen bg-[#F8F9FA];
+  }
+
+  /* ─────────────────────────────────────
+     Sidebar layout shell
+     ───────────────────────────────────── */
+  .sidebar-open {
+    @apply md:ml-72;
+  }
+  .sidebar-close {
+    @apply md:ml-0;
+  }
+
+  /* ─────────────────────────────────────
+     Loading spinner
+     ───────────────────────────────────── */
+  .spinner {
+    @apply rounded-full border-2 border-t-transparent animate-spin;
+  }
+  .spinner-sm {
+    @apply w-5 h-5;
+  }
+  .spinner-md {
+    @apply w-8 h-8;
+  }
+  .spinner-lg {
+    @apply w-10 h-10;
+  }
+
+  /* ─────────────────────────────────────
+     Common page inner container
+     ───────────────────────────────────── */
+  .page-container {
+    @apply p-4 md:p-6 lg:p-8 max-w-7xl mx-auto space-y-6;
+  }
+
+  /* ─────────────────────────────────────
+     Section header row (title + actions)
+     ───────────────────────────────────── */
+  .section-header {
+    @apply flex flex-col md:flex-row md:items-center justify-between gap-4;
+  }
+
+  /* ─────────────────────────────────────
+     Light-mode stat / info card
+     ───────────────────────────────────── */
+  .stat-card-light {
+    @apply bg-white border border-gray-100 rounded-2xl p-4;
+  }
+
+  /* ─────────────────────────────────────
+     Scrollbar hiding (mobile carousels)
+     ───────────────────────────────────── */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TAILWIND LAYER — extra utilities not in the Tailwind preset
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@layer utilities {
+  /* Safe-area bottom for iPhone home indicator */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Text gradient helpers */
+  .text-gradient-pink {
+    @apply bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent;
+  }
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent;
+  }
+  .text-gradient-purple {
+    @apply bg-gradient-to-r from-purple-500 to-pink-500 bg-clip-text text-transparent;
+  }
+
+  /* Common transition speed */
+  .transition-fast {
+    transition-duration: 150ms;
+  }
+
+  .wrapper {
+    @apply max-w-5xl mx-auto px-5 md:px-10 w-full text-white;
+  }
+  .wrapper2 {
+    @apply max-w-7xl mx-auto    w-full text-white;
+  }
+  .gradient-text {
+    @apply bg-purple-gradient bg-cover bg-clip-text text-transparent;
+  }
+
+  /* ===== ALIGNMENTS */
+  .flex-center {
+    @apply flex justify-center items-center;
+  }
+
+  .flex-between {
+    @apply flex justify-between items-center;
+  }
+
+  /* ===== TYPOGRAPHY */
+  /* 44 */
+  .h1-semibold {
+    @apply text-[36px] font-semibold sm:text-[44px] leading-[120%] sm:leading-[56px];
+  }
+
+  /* 36 */
+  .h2-bold {
+    @apply text-[30px] font-bold md:text-[36px] leading-[110%];
+  }
+
+  /* 30 */
+  .h3-bold {
+    @apply font-bold text-[30px] leading-[140%];
+  }
+
+  /* 24 */
+  .p-24-bold {
+    @apply font-bold text-[24px] leading-[120%];
+  }
+
+  /* 20 */
+  .p-20-semibold {
+    @apply font-semibold text-[20px] leading-[140%];
+  }
+
+  .p-20-regular {
+    @apply font-normal text-[20px] leading-[140%];
+  }
+
+  /* 18 */
+  .p-18-semibold {
+    @apply font-semibold text-[18px] leading-[140%];
+  }
+
+  /* 16 */
+  .p-16-semibold {
+    @apply font-semibold text-[16px] leading-[140%];
+  }
+
+  .p-16-medium {
+    @apply font-medium text-[16px] leading-[140%];
+  }
+
+  .p-16-regular {
+    @apply font-normal text-[16px] leading-[140%];
+  }
+
+  /* 14 */
+  .p-14-medium {
+    @apply font-medium text-[14px] leading-[120%];
+  }
+
+  /* 10 */
+  .p-10-medium {
+    @apply font-medium text-[10px] leading-[140%];
+  }
+
+  /* =====  SHADCN OVERRIDES */
+  .button {
+    @apply py-4 px-6 flex-center gap-3 rounded-md p-16-semibold focus-visible:ring-offset-0 focus-visible:ring-transparent !important;
+  }
+
+  .select-trigger {
+    @apply flex items-center  gap-2 py-5 capitalize focus-visible:outline-none;
+  }
+
+  .success-toast {
+    @apply bg-green-100 text-green-900;
+  }
+
+  .error-toast {
+    @apply bg-red-100 text-red-900;
+  }
+
+  /* Chrome, Safari and Opera */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+}
+
+/* Button gradients */
+.btn-gradient-cyan {
+  background: linear-gradient(135deg, #00f0ff, #0ea5e9);
+  color: #000;
+  font-weight: 600;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-progress {
+  animation: progress 5s linear forwards;
+}

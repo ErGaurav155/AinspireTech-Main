@@ -10,8 +10,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { useThemeStyles } from "@/lib/theme";
+  useThemeStyles,
+} from "@rocketreplai/ui";
 import { Loader2 } from "lucide-react";
 
 interface ConfirmDialogProps {

@@ -11,10 +11,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { Checkbox } from "@rocketreplai/ui/components/radix/checkbox";
-import { Label } from "@rocketreplai/ui/components/radix/label";
-import { useThemeStyles } from "@/lib/theme";
+  Checkbox,
+  Label,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 import { Loader2, AlertTriangle } from "lucide-react";
 
 interface AccountSelectionDialogProps {

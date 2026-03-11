@@ -1,6 +1,5 @@
 // components/shared/AccountLimitDialog.tsx
 "use client";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,8 +9,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import { useThemeStyles } from "@/lib/theme";
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import { Crown, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
 

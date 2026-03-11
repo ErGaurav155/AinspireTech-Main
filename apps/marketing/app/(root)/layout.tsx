@@ -1,6 +1,6 @@
+import { Footer } from "@/components/shared/Footer";
 import { NavBar } from "@/components/shared/NavBar";
-import { Toaster } from "@rocketreplai/ui/components/radix/toaster";
-import { Footer } from "@rocketreplai/ui/components/shared/Footer";
+import { Toaster } from "@rocketreplai/ui";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {

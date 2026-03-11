@@ -16,19 +16,17 @@ import {
   ArrowRight,
   Instagram,
   Globe,
-  RefreshCw,
-  Shield,
-  AlertTriangle,
-  Sparkles,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { getAffiliateDashInfo } from "@/lib/services/affiliate-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
-import { EmptyState } from "@/components/shared/EmptyState";
 
+import { getAffiliateDashInfo } from "@/lib/services/affiliate-actions.api";
+import {
+  Button,
+  EmptyState,
+  Orbs,
+  Spinner,
+  toast,
+  useThemeStyles,
+} from "@rocketreplai/ui";
 interface ReferEarnPageProps {
   dashboardType: "insta" | "web";
 }

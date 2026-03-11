@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
-import { ThemeProvider } from "@rocketreplai/ui/components/shared/theme-provider";
+import { ThemeProvider } from "@rocketreplai/ui";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
-import { cn } from "@rocketreplai/shared";
+import { cn } from "@/lib/utils";
+import { ClerkThemeProvider } from "@rocketreplai/ui";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -27,31 +27,24 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ClerkProvider
-      appearance={{
-        variables: {
-          colorPrimary: "#ec4899",
-          fontFamily: "Montserrat, sans-serif",
-        },
-      }}
-    >
-      <html lang="en" suppressHydrationWarning>
-        <body
-          className={cn(
-            orbitron.variable,
-            montserrat.variable,
-            "font-montserrat min-h-screen text-foreground ",
-          )}
+    <html lang="en" suppressHydrationWarning>
+      <body
+        className={cn(
+          orbitron.variable,
+          montserrat.variable,
+          "font-montserrat min-h-screen text-foreground ",
+        )}
+      >
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem={false}
         >
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem={false}
-          >
+          <ClerkThemeProvider>
             <div className="relative z-10 min-h-screen">{children}</div>
-          </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+          </ClerkThemeProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

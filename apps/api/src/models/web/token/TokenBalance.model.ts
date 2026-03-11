@@ -62,11 +62,12 @@ const TokenBalanceSchema = new Schema<ITokenBalance>(
   },
   {
     timestamps: true,
-  }
+  },
 );
-
-const TokenBalance =
-  mongoose.models?.TokenBalance ||
-  mongoose.model<ITokenBalance>("TokenBalance", TokenBalanceSchema);
+const TokenBalance = (mongoose.models?.TokenBalance ||
+  mongoose.model<ITokenBalance>(
+    "TokenBalance",
+    TokenBalanceSchema,
+  )) as Model<ITokenBalance>;
 
 export default TokenBalance;

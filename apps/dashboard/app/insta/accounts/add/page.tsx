@@ -8,29 +8,21 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import Link from "next/link";
 import {
+  Alert,
+  AlertDescription,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import {
-  Alert,
-  AlertDescription,
-} from "@rocketreplai/ui/components/radix/alert";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
+  Orbs,
+  Spinner,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
@@ -39,9 +31,6 @@ import { getUserById } from "@/lib/services/user-actions.api";
 import { getInstaAccount } from "@/lib/services/insta-actions.api";
 import LoginPage from "@/components/insta/InstagramAutomationWizard";
 
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 
 export default function AddAccountPage() {

@@ -4,15 +4,6 @@ import { useState } from "react";
 
 import { Edit2, Trash2, BarChart3 } from "lucide-react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -22,7 +13,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Switch,
+} from "@rocketreplai/ui";
 
 interface Template {
   _id: string;

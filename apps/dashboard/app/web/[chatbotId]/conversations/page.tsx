@@ -27,23 +27,21 @@ import { useApi } from "@/lib/useApi";
 import { getConversations } from "@/lib/services/web-actions.api";
 import { formatDistanceToNow } from "date-fns";
 import {
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@rocketreplai/ui/components/radix/dialog";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@rocketreplai/ui/components/radix/dropdown-menu";
+  Orbs,
+  Spinner,
+  useThemeStyles,
+} from "@rocketreplai/ui";
+
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
 
 interface Conversation {
   id: string;

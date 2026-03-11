@@ -7,8 +7,7 @@ import WebTestimonialsSection from "@/components/web/WebTestimonialSection";
 import WebFeaturesGrid from "@/components/web/WebFeatureGrid";
 import { WebCTASection } from "@/components/web/WebCta";
 import { useEffect, useState } from "react";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import Faq from "@rocketreplai/ui/components/shared/Faq";
+import Faq from "../../../../../packages/ui/src/components/shared/Faq";
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
@@ -25,9 +24,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen max-w-7xl m-auto  ">
+    <div className="min-h-screen max-w-7xl m-auto mt-5  ">
       {/* Hero Section */}
-      <BreadcrumbsDefault />
       <AIAgentHero />
       <SetupProcess />
       <div className="container mx-auto px-4 py-20">

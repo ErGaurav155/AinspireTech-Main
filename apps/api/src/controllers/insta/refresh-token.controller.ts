@@ -2,7 +2,20 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getAuth } from "@clerk/express";
+interface InstagramRefreshTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
 
+interface InstagramAPIError {
+  error?: {
+    message: string;
+    type?: string;
+    code?: number;
+    fbtrace_id?: string;
+  };
+}
 /**
  * POST /api/insta/refresh-token - Refresh Instagram token
  *
@@ -98,7 +111,7 @@ export const refreshInstagramTokenController = async (
     const refreshRes = await fetch(refreshUrl.toString());
 
     if (!refreshRes.ok) {
-      const errorData = await refreshRes.json();
+      const errorData = (await refreshRes.json()) as InstagramAPIError;
       console.error("Instagram token refresh error:", errorData);
 
       // Update account meta rate limit status if Instagram's API says we're limited
@@ -119,7 +132,9 @@ export const refreshInstagramTokenController = async (
       });
     }
 
-    const refreshData = await refreshRes.json();
+    const refreshData =
+      (await refreshRes.json()) as InstagramRefreshTokenResponse &
+        InstagramAPIError;
 
     if (!refreshData.access_token) {
       return res.status(500).json({

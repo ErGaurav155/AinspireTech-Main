@@ -22,16 +22,12 @@ import {
 import { useApi } from "@/lib/useApi";
 import { useMemo } from "react";
 import { calculateCustomTokenPrice, tokenPlans } from "@rocketreplai/shared";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Slider } from "@rocketreplai/ui/components/radix/slider";
+
 import {
   purchaseTokens,
   verifyPurchaseTokens,
 } from "@/lib/services/web-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
+import { Button, Orbs, Slider, toast, useThemeStyles } from "@rocketreplai/ui";
 
 interface TokenPurchaseProps {
   onSuccess?: () => void;

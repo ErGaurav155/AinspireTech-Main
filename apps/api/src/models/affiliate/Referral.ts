@@ -1,5 +1,29 @@
 // models/Referral.ts
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model } from "mongoose";
+
+export interface IReferral extends Document {
+  affiliateId: string;
+  referredUserId: string;
+  productType: "web-chatbot" | "insta-automation";
+  subscriptionId: string;
+  subscriptionModel: "WebSubscription" | "InstaSubscription";
+  subscriptionType: "monthly" | "yearly";
+  chatbotType?: string;
+  instaPlan?: string;
+  subscriptionPrice: number;
+  commissionRate: number;
+  monthlyCommission?: number;
+  yearlyCommission?: number;
+  totalCommissionEarned: number;
+  monthsRemaining: number;
+  yearsRemaining: number;
+  status: "active" | "paused" | "completed" | "cancelled";
+  lastCommissionDate?: Date;
+  nextCommissionDate?: Date;
+  completionDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 const ReferralSchema = new Schema(
   {
@@ -83,15 +107,16 @@ const ReferralSchema = new Schema(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 // Compound index for unique referral per user per product
 ReferralSchema.index(
   { referredUserId: 1, productType: 1 },
-  { unique: true, partialFilterExpression: { status: "active" } }
+  { unique: true, partialFilterExpression: { status: "active" } },
 );
 
-const AffiReferral =
-  models?.AffiReferral || model("AffiReferral", ReferralSchema);
+const AffiReferral = (models?.AffiReferral ||
+  model<IReferral>("AffiReferral", ReferralSchema)) as Model<IReferral>;
+
 export default AffiReferral;

@@ -33,11 +33,13 @@ const TokenUsageSchema = new Schema<ITokenUsage>(
   },
   {
     timestamps: true,
-  }
+  },
 );
 
-const TokenUsage =
-  mongoose.models?.TokenUsage ||
-  mongoose.model<ITokenUsage>("TokenUsage", TokenUsageSchema);
+const TokenUsage = (mongoose.models?.TokenUsage ||
+  mongoose.model<ITokenUsage>(
+    "TokenUsage",
+    TokenUsageSchema,
+  )) as Model<ITokenUsage>;
 
 export default TokenUsage;

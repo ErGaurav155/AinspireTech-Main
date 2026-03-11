@@ -1,15 +1,15 @@
 "use client";
 
-import { Button } from "@rocketreplai/ui/components/radix/button";
 import {
+  BreadcrumbsDefault,
+  Button,
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
-import Faq from "@rocketreplai/ui/components/shared/Faq";
+} from "@rocketreplai/ui";
+
 import {
   ArrowRight,
   Shield,
@@ -25,6 +25,7 @@ import {
 import { useTheme } from "next-themes";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Faq from "../../../../../../packages/ui/src/components/shared/Faq";
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);

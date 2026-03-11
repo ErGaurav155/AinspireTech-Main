@@ -1,6 +1,32 @@
 // models/affiliate/Affiliate.ts
-import { Schema, model, models } from "mongoose";
+import { Schema, model, models, Document, Model } from "mongoose";
+export interface IPaymentDetails {
+  method: "bank" | "upi" | "paypal";
+  accountName?: string;
+  accountNumber?: string;
+  bankName?: string;
+  ifscCode?: string;
+  upiId?: string;
+  paypalEmail?: string;
+}
 
+export interface IAffiliate extends Document {
+  userId: string;
+  affiliateCode: string;
+  status: "active" | "suspended";
+  paymentDetails?: IPaymentDetails | null;
+  commissionRate: number;
+  monthlyMonths: number;
+  yearlyYears: number;
+  totalEarnings: number;
+  pendingEarnings: number;
+  paidEarnings: number;
+  totalReferrals: number;
+  activeReferrals: number;
+  lastPayoutDate?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
 const PaymentDetailsSchema = new Schema({
   method: {
     type: String,
@@ -82,5 +108,7 @@ const AffiliateSchema = new Schema(
   },
 );
 
-const Affiliate = models?.Affiliate || model("Affiliate", AffiliateSchema);
+const Affiliate = (models?.Affiliate ||
+  model<IAffiliate>("Affiliate", AffiliateSchema)) as Model<IAffiliate>;
+
 export default Affiliate;

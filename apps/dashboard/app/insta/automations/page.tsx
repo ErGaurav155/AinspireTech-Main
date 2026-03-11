@@ -24,33 +24,14 @@ import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@rocketreplai/ui/components/radix/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@rocketreplai/ui/components/radix/dropdown-menu";
 import {
   deleteTemplate,
   getAllInstagramAccounts,
   getInstaTemplates,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
+import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // Types
@@ -563,7 +544,7 @@ export default function AutomationsPage() {
 
         {displayedTemplates.length === 0 && !isLoading && (
           <div className={`${styles.card} rounded-xl `}>
-            <div className="p-16 text-center">
+            <div className="p-6 text-center">
               <div
                 className={`w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${pageStyles.iconPink}`}
               >

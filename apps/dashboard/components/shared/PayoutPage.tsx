@@ -11,19 +11,14 @@ import {
   Globe,
   Copy,
   CheckCircle2,
-  RefreshCw,
-  AlertTriangle,
 } from "lucide-react";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { toast } from "@rocketreplai/ui/components/radix/use-toast";
+import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import {
   getAffiliateDashInfo,
   requestPayout,
   saveAffiPaymentDetails,
 } from "@/lib/services/affiliate-actions.api";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface PayoutPageProps {

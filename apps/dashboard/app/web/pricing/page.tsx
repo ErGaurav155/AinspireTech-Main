@@ -27,23 +27,15 @@ import {
 } from "lucide-react";
 
 import {
+  Badge,
+  Button,
+  Orbs,
+  Spinner,
+  Switch,
   Tabs,
   TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@rocketreplai/ui/components/radix/tabs";
-import { Switch } from "@rocketreplai/ui/components/radix/switch";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@rocketreplai/ui/components/radix/card";
-import { Button } from "@rocketreplai/ui/components/radix/button";
-import { Badge } from "@rocketreplai/ui/components/radix/badge";
-import { Checkout } from "@/components/web/Checkout";
-import { BreadcrumbsDefault } from "@rocketreplai/ui/components/shared/breadcrumbs";
+  useThemeStyles,
+} from "@rocketreplai/ui";
 import {
   calculateCustomTokenPrice,
   productSubscriptionDetails,
@@ -51,9 +43,7 @@ import {
 } from "@rocketreplai/shared";
 import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
-import { useThemeStyles } from "@/lib/theme";
-import { Orbs } from "@/components/shared/Orbs";
-import { Spinner } from "@/components/shared/Spinner";
+import { Checkout } from "@/components/web/Checkout";
 
 // Types
 interface Subscription {
