@@ -181,8 +181,8 @@ export default function WebSidebar({
         : "absolute top-4 right-4 p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors md:hidden",
       closeIcon: isDark ? "h-4 w-4 text-white/60" : "h-4 w-4 text-gray-600",
       logoContainer: isDark
-        ? "p-5 border-b border-white/[0.06]"
-        : "p-5 border-b border-gray-100",
+        ? "p-3 border-b border-white/[0.06]"
+        : "p-3 border-b border-gray-100",
       logoText: isDark
         ? "text-xl font-black tracking-tight text-white"
         : "text-xl font-black tracking-tight",
@@ -281,27 +281,14 @@ export default function WebSidebar({
       <div className="flex flex-col h-full relative z-10">
         {/* Logo */}
         <div className={styles.logoContainer}>
-          <Link href="/web" className="flex items-center gap-2.5">
-            <div className="relative h-9 w-9 flex-shrink-0">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-md" />
-              <div
-                className={`absolute inset-[3px] rounded-full ${
-                  isDark ? "bg-[#1A1A1E]" : "bg-white"
-                } flex items-center justify-center`}
-              >
-                <Image
-                  alt="Logo"
-                  src={Logo}
-                  width={18}
-                  height={18}
-                  className="object-contain"
-                />
-              </div>
-            </div>
-            <span className={styles.logoText}>
-              <span className={styles.logoRocket}>Rocket</span>
-              <span className={styles.logoReplai}>Replai</span>
-            </span>
+          <Link href="/web" className="flex items-center ">
+            <Image
+              alt="Logo"
+              src={Logo}
+              // width={100}
+              // height={100}
+              className="object-cover h-14 w-full"
+            />
           </Link>
         </div>
 

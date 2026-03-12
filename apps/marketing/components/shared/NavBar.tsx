@@ -81,26 +81,14 @@ export function NavBar() {
       {/* Logo */}
       <div className="container max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <Link
-            href="/"
-            className="flex items-center"
-            onClick={() => handleNavClick("home")}
-          >
-            <div className="relative h-7 w-7 md:w-10 md:h-10 mr-1 md:mr-3">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#B026FF] animate-pulse"></div>
-              <div className="absolute inset-1 rounded-full bg-background flex items-center justify-center">
-                <Image
-                  alt="Logo"
-                  src={Logo}
-                  width={24}
-                  height={24}
-                  className="object-contain"
-                />
-              </div>
-            </div>
-            <h1 className="text-lg lg:text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-              Ainpire<span className="text-[#B026FF]">Tech</span>
-            </h1>
+          <Link href="/insta" className="flex items-center ">
+            <Image
+              alt="Logo"
+              src={Logo}
+              // width={100}
+              // height={100}
+              className="object-cover h-36 w-full"
+            />
           </Link>
 
           {/* Desktop Navigation */}

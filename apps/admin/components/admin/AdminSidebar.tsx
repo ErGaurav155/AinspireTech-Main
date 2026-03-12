@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
+import Logo from "@/public/assets/img/logo.png";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +21,7 @@ import {
 import { useApi } from "@/lib/useApi";
 import { verifyOwner } from "@/lib/services/admin-actions.api";
 import { AvatarCircle, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import Image from "next/image";
 const NAV_ITEMS = [
   { label: "Home", href: "/admin", icon: LayoutDashboard, color: "blue" },
   {
@@ -178,18 +180,15 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                   <X className={`h-4 w-4 ${styles.text.secondary}`} />
                 </button>
 
-                <div className={`p-5 border-b ${styles.divider}`}>
+                <div className={`p-3 border-b ${styles.divider}`}>
                   <Link href="/admin" className="flex items-center gap-2.5">
-                    <div className="relative h-9 w-9 flex-shrink-0">
-                      <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 shadow-lg" />
-                      <div className="absolute inset-[3px] rounded-full bg-white dark:bg-[#1A1A1E] flex items-center justify-center">
-                        <span className="text-white text-xs font-bold">A</span>
-                      </div>
-                    </div>
-                    <span className="text-xl font-black tracking-tight">
-                      <span className="text-blue-400">Ainpire</span>
-                      <span className="text-blue-500">Tech</span>
-                    </span>
+                    <Image
+                      alt="Logo"
+                      src={Logo}
+                      // width={100}
+                      // height={100}
+                      className="object-cover h-14 w-full"
+                    />
                   </Link>
                 </div>
 

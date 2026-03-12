@@ -133,7 +133,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         : `h-4 w-4 text-gray-600`,
 
       // Logo section
-      logoContainer: `p-5 border-b ${styles.divider}`,
+      logoContainer: `p-3 border-b ${styles.divider}`,
       logoText: `text-xl font-black tracking-tight ${isDark ? "text-white" : "text-gray-900"}`,
       logoRocket: isDark ? "text-pink-400" : "text-pink-500",
       logoReplai: isDark ? "text-purple-400" : "text-purple-600",
@@ -224,27 +224,14 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       <div className="flex flex-col h-full relative z-10">
         {/* Logo */}
         <div className={localStyles.logoContainer}>
-          <Link href="/insta" className="flex items-center gap-2.5">
-            <div className="relative h-9 w-9 flex-shrink-0">
-              <div className="absolute inset-0 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 shadow-md shadow-pink-200" />
-              <div
-                className={`absolute inset-[3px] rounded-full ${
-                  isDark ? "bg-[#1A1A1E]" : "bg-white"
-                } flex items-center justify-center`}
-              >
-                <Image
-                  alt="Logo"
-                  src={Logo}
-                  width={18}
-                  height={18}
-                  className="object-contain"
-                />
-              </div>
-            </div>
-            <span className={localStyles.logoText}>
-              <span className={localStyles.logoRocket}>Rocket</span>
-              <span className={localStyles.logoReplai}>Replai</span>
-            </span>
+          <Link href="/insta" className="flex items-center ">
+            <Image
+              alt="Logo"
+              src={Logo}
+              // width={100}
+              // height={100}
+              className="object-cover h-14 w-full"
+            />
           </Link>
         </div>
 
