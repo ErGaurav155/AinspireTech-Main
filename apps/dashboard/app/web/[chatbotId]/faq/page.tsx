@@ -22,6 +22,7 @@ import { useApi } from "@/lib/useApi";
 import { getFAQ, saveFAQ } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useParams, useRouter } from "next/navigation";
 
 interface FAQQuestion {
   id: string;
@@ -31,6 +32,9 @@ interface FAQQuestion {
 }
 
 export default function LeadFAQPage() {
+  const params = useParams();
+  const router = useRouter();
+  const chatbotId = params.chatbotId as string;
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -47,7 +51,13 @@ export default function LeadFAQPage() {
 
   const loadFAQ = useCallback(async () => {
     if (!userId) return;
-
+    if (
+      chatbotId !== "chatbot-lead-generation" &&
+      chatbotId !== "chatbot-education"
+    ) {
+      router.push("/web");
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await getFAQ(apiRequest, "chatbot-lead-generation");
@@ -185,7 +195,12 @@ export default function LeadFAQPage() {
   if (isLoading) {
     return <Spinner label="Loading FAQ..." />;
   }
-
+  if (
+    chatbotId !== "chatbot-lead-generation" &&
+    chatbotId !== "chatbot-education"
+  ) {
+    return null;
+  }
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}

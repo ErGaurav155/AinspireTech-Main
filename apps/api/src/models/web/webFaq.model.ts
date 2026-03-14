@@ -23,12 +23,7 @@ const FAQSchema = new Schema<IFAQ>(
     chatbotType: {
       type: String,
       required: true,
-      enum: [
-        "chatbot-customer-support",
-        "chatbot-e-commerce",
-        "chatbot-lead-generation",
-        "chatbot-education",
-      ],
+      enum: ["chatbot-lead-generation", "chatbot-education"],
     },
     questions: [
       {

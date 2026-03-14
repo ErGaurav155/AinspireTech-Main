@@ -32,6 +32,7 @@ import {
   toast,
   useThemeStyles,
 } from "@rocketreplai/ui";
+import { useParams, useRouter } from "next/navigation";
 
 interface ChatbotInfo {
   id: string;
@@ -43,18 +44,14 @@ interface ChatbotInfo {
     position: "bottom-right" | "bottom-left";
   };
 }
-interface ProductParams {
-  chatbotId: string;
-}
+
 type WebType = "wordpress" | "shopify" | "wix" | "html";
 
-export default function LeadIntegrationPage({
-  params,
-}: {
-  params: Promise<ProductParams>;
-}) {
-  const { chatbotId } = use(params);
+export default function LeadIntegrationPage() {
   const { userId } = useAuth();
+  const router = useRouter();
+  const params = useParams();
+  const chatbotId = params.chatbotId as string;
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
@@ -63,6 +60,13 @@ export default function LeadIntegrationPage({
   const [activeTab, setActiveTab] = useState<WebType>("wordpress");
   const loadChatbot = useCallback(async () => {
     if (!userId) return;
+    if (
+      chatbotId !== "chatbot-lead-generation" &&
+      chatbotId !== "chatbot-education"
+    ) {
+      router.push("/web");
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await getChatbots(apiRequest);
@@ -216,7 +220,12 @@ export default function LeadIntegrationPage({
       </div>
     );
   }
-
+  if (
+    chatbotId !== "chatbot-lead-generation" &&
+    chatbotId !== "chatbot-education"
+  ) {
+    return null;
+  }
   const instructions = getPlatformInstructions(activeTab);
 
   return (

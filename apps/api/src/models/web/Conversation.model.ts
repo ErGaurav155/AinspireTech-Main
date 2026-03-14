@@ -25,11 +25,7 @@ export interface IFormField {
   answer: string;
 }
 export interface IConversation extends Document {
-  chatbotType:
-    | "chatbot-customer-support"
-    | "chatbot-e-commerce"
-    | "chatbot-lead-generation"
-    | "chatbot-education";
+  chatbotType: "chatbot-lead-generation";
   clerkId: string;
   customerEmail?: string;
   customerName?: string;
@@ -100,12 +96,7 @@ const ConversationSchema = new Schema<IConversation>(
     chatbotType: {
       type: String,
       required: true,
-      enum: [
-        "chatbot-customer-support",
-        "chatbot-e-commerce",
-        "chatbot-lead-generation",
-        "chatbot-education",
-      ],
+      enum: ["chatbot-lead-generation"],
     },
 
     clerkId: {

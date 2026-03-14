@@ -176,7 +176,7 @@ export default function AddAccountPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button
                 onClick={handleConnectClick}
                 disabled={isConnecting}

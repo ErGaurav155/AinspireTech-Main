@@ -156,17 +156,6 @@ export default function WebSidebar({
     [selectedChatbot],
   );
 
-  const getChatbotDisplayName = useCallback(() => {
-    if (pathname.includes("/web/chatbot-lead-generation"))
-      return "Lead Generation";
-    if (pathname.includes("/web/chatbot-education")) return "Education";
-    if (pathname.includes("/web/tokens")) return "Token Dashboard";
-    if (pathname.includes("/web/analytics")) return "Analytics";
-    if (pathname.includes("/web/refer")) return "Refer & Earn";
-    if (pathname.includes("/web/settings")) return "Settings";
-    return initialChatbotName || currentChatbot?.label || "Select Chatbot";
-  }, [pathname, initialChatbotName, currentChatbot]);
-
   // Style constants based on theme
   const styles = useMemo(
     () => ({
@@ -357,7 +346,7 @@ export default function WebSidebar({
               {CHATBOT_ITEMS.map((bot) => (
                 <Link
                   key={bot.id}
-                  href={`${bot.href}/overview`}
+                  href={`${bot.href}`}
                   className={styles.dropdownItem}
                   onClick={() => {
                     setIsChatbotOpen(false);
@@ -439,25 +428,21 @@ export default function WebSidebar({
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto no-scrollbar">
           {/* Overview - Always shown */}
           <Link
-            href={`${currentChatbot.href}/overview`}
+            href={`${currentChatbot.href}`}
             onClick={() => {
               if (window.innerWidth < 768) onToggle();
             }}
-            className={styles.navLink(
-              isActive(`${currentChatbot.href}/overview`),
-            )}
+            className={styles.navLink(isActive(`${currentChatbot.href}`))}
           >
             <div className="flex items-center justify-between gap-3 w-full">
               <div className="flex items-center justify-start gap-3">
                 <LayoutDashboard
-                  className={styles.navIcon(
-                    isActive(`${currentChatbot.href}/overview`),
-                  )}
+                  className={styles.navIcon(isActive(`${currentChatbot.href}`))}
                 />
                 <span className="text-sm font-medium">Overview</span>
               </div>
             </div>
-            {isActive(`${currentChatbot.href}/overview`) && (
+            {isActive(`${currentChatbot.href}`) && (
               <div className={`w-1 h-6 rounded-full bg-purple-500`} />
             )}
           </Link>

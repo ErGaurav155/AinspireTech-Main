@@ -200,9 +200,9 @@ export default function WebDashboardPage() {
   const getChatbotRoute = (type: string) => {
     switch (type) {
       case "chatbot-lead-generation":
-        return "/web/chatbot-lead-generation/overview";
+        return "/web/chatbot-lead-generation";
       case "chatbot-education":
-        return "/web/chatbot-education/overview";
+        return "/web/chatbot-education";
       default:
         return "/web";
     }

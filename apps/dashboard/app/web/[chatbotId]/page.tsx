@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import {
   Target,
@@ -24,15 +24,19 @@ import {
   Sparkles,
   Bot,
   AlertTriangle,
+  Trash2,
+  Loader2,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
   getAnalytics,
   getConversations,
   getChatbots,
+  deleteChatbot,
 } from "@/lib/services/web-actions.api";
 import { formatDistanceToNow } from "date-fns";
-import { Orbs, Spinner, useThemeStyles } from "@rocketreplai/ui";
+import { Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 // Types
 interface LeadStats {
@@ -65,6 +69,7 @@ type StatsType = LeadStats | EducationStats | null;
 
 export default function DynamicOverviewPage() {
   const params = useParams();
+  const router = useRouter();
   const chatbotId = params.chatbotId as string;
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
@@ -79,14 +84,16 @@ export default function DynamicOverviewPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Determine chatbot type from ID - use useMemo to prevent recalculation
   const { isLeadGeneration, isEducation, chatbotType, displayInfo } =
     useMemo(() => {
       const isLead =
-        chatbotId === "lead-generation" || chatbotId?.includes("lead");
+        chatbotId === "chatbot-lead-generation" || chatbotId?.includes("lead");
       const isEdu =
-        chatbotId === "education" || chatbotId?.includes("education");
+        chatbotId === "chatbot-education" || chatbotId?.includes("education");
       const type = isLead
         ? "chatbot-lead-generation"
         : isEdu
@@ -217,6 +224,7 @@ export default function DynamicOverviewPage() {
 
     try {
       const data = await getChatbots(apiRequest);
+      console.log("chatbot:", data);
       const foundChatbot = data.chatbots?.find(
         (bot: any) => bot.type === chatbotType,
       );
@@ -342,7 +350,13 @@ export default function DynamicOverviewPage() {
   // Initial load - with proper dependencies
   useEffect(() => {
     if (!chatbotType || !isLoaded || !userId) return;
-
+    if (
+      chatbotId !== "chatbot-lead-generation" &&
+      chatbotId !== "chatbot-education"
+    ) {
+      router.push("/web");
+      return;
+    }
     const init = async () => {
       await Promise.all([loadChatbot(), loadData()]);
     };
@@ -362,7 +376,30 @@ export default function DynamicOverviewPage() {
     await loadData();
     setIsRefreshing(false);
   };
-
+  // ── Delete handler ───────────────────────────────────────────────────────
+  const handleDelete = async () => {
+    if (!chatbot) return;
+    setIsDeleting(true);
+    try {
+      await deleteChatbot(apiRequest, chatbot.type);
+      toast({
+        title: "Chatbot deleted",
+        description: "You can now create a new chatbot of this type",
+        duration: 3000,
+      });
+      setShowDeleteConfirm(false);
+      setChatbot(null);
+    } catch (err: any) {
+      toast({
+        title: "Delete failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   // Error state
   if (error) {
     return (
@@ -429,7 +466,12 @@ export default function DynamicOverviewPage() {
       </div>
     );
   }
-
+  if (
+    chatbotId !== "chatbot-lead-generation" &&
+    chatbotId !== "chatbot-education"
+  ) {
+    return null;
+  }
   const Icon = displayInfo.icon;
   const primaryColor = displayInfo.primaryColor;
 
@@ -456,16 +498,29 @@ export default function DynamicOverviewPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill} disabled:opacity-50`}
-          >
-            <RefreshCw
-              className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-            />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
-          </button>
+          <div className="flex items-center justify-center flex-wrap gap-2">
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border transition-colors text-sm font-medium ${
+                isDark
+                  ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  : "border-red-200 text-red-600 hover:bg-red-50"
+              }`}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Chatbot
+            </button>
+            <button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill} disabled:opacity-50`}
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
         </div>
 
         {/* Stats Grid */}
@@ -517,14 +572,14 @@ export default function DynamicOverviewPage() {
                 />
               )}
               <h3 className={`text-sm font-bold ${styles.text.primary}`}>
-                {isLeadGeneration ? "Recent Leads" : "Recent Student Responses"}
+                {isLeadGeneration ? "Recent Leads" : "Faq Management"}
               </h3>
             </div>
             <Link
               href={
                 isLeadGeneration
                   ? `/web/${chatbotId}/conversations`
-                  : `/web/${chatbotId}/responses`
+                  : `/web/${chatbotId}/faq`
               }
               className={`text-xs font-semibold flex items-center gap-1 hover:opacity-80 ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-500`}`}
             >
@@ -726,6 +781,18 @@ export default function DynamicOverviewPage() {
           </div>
         </div>
       </div>
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onOpenChange={setShowDeleteConfirm}
+        onConfirm={handleDelete}
+        title={`Delete "${chatbot?.name || "Chatbot"}"?`}
+        description="This will permanently remove all conversations, FAQ questions, and settings. This action cannot be undone."
+        confirmText="Yes, delete permanently"
+        cancelText="Cancel"
+        isDestructive={true}
+        isLoading={isDeleting}
+      />
     </div>
   );
 }

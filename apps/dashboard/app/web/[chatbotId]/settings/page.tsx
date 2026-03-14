@@ -25,6 +25,7 @@ import { useApi } from "@/lib/useApi";
 import { getChatbots, updateWebChatbot } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useParams, useRouter } from "next/navigation";
 
 interface ChatbotSettings {
   welcomeMessage: string;
@@ -36,15 +37,11 @@ interface ChatbotSettings {
   collectEmail: boolean;
   requireName: boolean;
 }
-interface ProductParams {
-  chatbotId: string;
-}
-export default function LeadSettingsPage({
-  params,
-}: {
-  params: Promise<ProductParams>;
-}) {
-  const { chatbotId } = use(params);
+
+export default function LeadSettingsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const chatbotId = params.chatbotId as string;
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -178,7 +175,13 @@ export default function LeadSettingsPage({
 
   const loadSettings = useCallback(async () => {
     if (!userId) return;
-
+    if (
+      chatbotId !== "chatbot-lead-generation" &&
+      chatbotId !== "chatbot-education"
+    ) {
+      router.push("/web");
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await getChatbots(apiRequest);
@@ -281,7 +284,12 @@ export default function LeadSettingsPage({
       </div>
     );
   }
-
+  if (
+    chatbotId !== "chatbot-lead-generation" &&
+    chatbotId !== "chatbot-education"
+  ) {
+    return null;
+  }
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}

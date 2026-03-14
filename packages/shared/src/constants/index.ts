@@ -234,33 +234,7 @@ export const productDetails: Record<
   }
 > = {
   // Chatbots
-  "chatbot-customer-support": {
-    productId: "chatbot-customer-support",
-    name: "Customer Support Chatbot",
-    video: "https://www.youtube.com/embed/0a-_PhsxoeI?si=Et53STN61GNxhXI6",
-    icon: "/icons/customer-support.png",
-    available: true,
-    description: {
-      bgcolor: "bg-red-800",
-      heading: "Simplify customer queries with advanced AI.",
-      subheading:
-        "Deliver instant, intelligent, and in-app support with AI-powered support chatbots.",
-    },
-  },
-  "chatbot-e-commerce": {
-    productId: "chatbot-e-commerce", // Product ID
-    name: "E-Commerce Chatbot",
-    video: "/assets/congratulation.webm",
-    icon: "/icons/e-commerce.png",
-    available: false,
 
-    description: {
-      bgcolor: "bg-green-700",
-      heading: "Boost sales with intelligent e-commerce assistants.",
-      subheading:
-        "Engage customers with personalized shopping experiences and product recommendations.",
-    },
-  },
   "chatbot-lead-generation": {
     productId: "chatbot-lead-generation", // Product ID
     name: "Lead Generation Chatbot",

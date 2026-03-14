@@ -96,9 +96,11 @@ interface QuestionAnswer {
 export async function sendWhatsAppInfo({
   data,
   userId,
+  number,
 }: {
   userId: string;
   data: QuestionAnswer[];
+  number: string;
 }) {
   try {
     await connectToDatabase();
@@ -113,10 +115,10 @@ export async function sendWhatsAppInfo({
       throw new Error("User not found");
     }
 
-    if (!user.phone) {
+    if (!number) {
       throw new Error("User phone number not available");
     }
-    PhoneNumber = user.phone;
+    PhoneNumber = Number(number);
     const result = await client.messages.create({
       from: `whatsapp:${process.env.NEXT_PUBLIC_TWILIO_NUMBER}`,
       to: `whatsapp:${PhoneNumber}`,

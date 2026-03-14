@@ -56,6 +56,7 @@ export const sendWhatsAppInfo = (
   data: {
     data: Array<{ answer: string }>;
     userId?: string;
+    chatbotType: string;
   },
 ): Promise<{ message: string; sid: string; to: string }> =>
   apiRequest("/misc/send-whatsapp-info", {
@@ -99,6 +100,7 @@ export const sendAppointmentNotification = async (
   apiRequest: ApiRequestFn,
   ownerEmail: string,
   appointmentData: Array<{ answer: string }>,
+  chatbotType: string,
   userId?: string,
 ): Promise<void> => {
   try {
@@ -111,6 +113,7 @@ export const sendAppointmentNotification = async (
       await sendWhatsAppInfo(apiRequest, {
         data: appointmentData,
         userId,
+        chatbotType,
       });
     }
   } catch (error) {

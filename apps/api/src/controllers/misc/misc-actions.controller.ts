@@ -7,6 +7,7 @@ import nodemailer from "nodemailer";
 import { Twilio } from "twilio";
 import { getRazorpay } from "@/utils/util";
 import MyAppointment from "@/models/MyAppointment.model";
+import WebChatbot from "@/models/web/WebChatbot.model";
 
 const twilioClient = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -239,7 +240,7 @@ export const sendWhatsAppInfoController = async (
   res: Response,
 ) => {
   try {
-    const { data, userId } = req.body;
+    const { data, userId, chatbotType } = req.body;
 
     if (!data || !Array.isArray(data)) {
       return res.status(400).json({
@@ -281,7 +282,20 @@ export const sendWhatsAppInfoController = async (
         });
       }
 
-      if (!user.phone) {
+      const chatbot = await WebChatbot.findOne({
+        clerkId: userId,
+        type: chatbotType,
+      }).exec();
+
+      if (!chatbot) {
+        return res.status(404).json({
+          success: false,
+          error: "Chatbot not found",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!chatbot.phone) {
         return res.status(400).json({
           success: false,
           error: "User phone number not available",
@@ -289,7 +303,7 @@ export const sendWhatsAppInfoController = async (
         });
       }
 
-      phoneNumber = user.phone;
+      phoneNumber = chatbot.phone;
     }
 
     // Format phone number for WhatsApp

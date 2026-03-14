@@ -122,16 +122,20 @@ app.get("/favicon.ico", (_, res) => {
 });
 
 // Root
-app.get("/", (_, res) => {
-  res.json({
-    success: true,
-    message: "Instagram Automation API",
-    version: "2.0.0",
-    environment: process.env.NODE_ENV || "development",
-    timestamp: new Date().toISOString(),
+// app.get("/", (_, res) => {
+//   res.json({
+//     success: true,
+//     message: "Instagram Automation API",
+//     version: "2.0.0",
+//     environment: process.env.NODE_ENV || "development",
+//     timestamp: new Date().toISOString(),
+//   });
+// });
+app.get("/", (req, res) => {
+  return res.status(403).json({
+    message: "Forbidden: Origin not allowed",
   });
 });
-
 // Railway Health Check (FAST — DO NOT TOUCH)
 app.get("/health", (_, res) => {
   res.status(200).json({

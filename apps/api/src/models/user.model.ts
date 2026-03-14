@@ -4,7 +4,6 @@ export interface IUser extends Document {
   clerkId: string;
   email: string;
   username?: string;
-  phone?: string; // ← ADD THIS
   totalReplies: number;
   replyLimit: number;
   accountLimit: number;
@@ -25,7 +24,6 @@ const UserSchema = new Schema<IUser>(
     totalReplies: { type: Number, default: 0 },
     replyLimit: { type: Number, default: 500 },
     accountLimit: { type: Number, default: 1 },
-    phone: { type: String }, // ← ADD THIS
     photo: { type: String },
     firstName: { type: String },
     lastName: { type: String },

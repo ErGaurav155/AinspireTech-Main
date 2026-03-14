@@ -6,6 +6,7 @@ import {
   sendAppointmentEmailToUser,
   sendWhatsAppInfo,
 } from "@/services/sendEmail.service";
+import WebChatbot from "@/models/web/WebChatbot.model";
 
 // POST /api/embed/conversation - Handle conversation creation
 export const handleConversationRequest = async (
@@ -50,7 +51,16 @@ export const handleConversationRequest = async (
         timestamp: new Date().toISOString(),
       });
     }
-
+    const chatbot = await WebChatbot.findOne({
+      clerkId: userId,
+      type: chatbotType,
+    });
+    if (!chatbot) {
+      return res.status(200).json({
+        message: "Chatbot Not Found",
+        timestamp: new Date().toISOString(),
+      });
+    }
     // Create conversation
     const newConversation = {
       chatbotType: chatbotType,
@@ -78,10 +88,11 @@ export const handleConversationRequest = async (
           data: formData,
         });
 
-        if (user.phone) {
+        if (chatbot.phone) {
           await sendWhatsAppInfo({
             data: formData,
             userId,
+            number: chatbot.phone,
           });
         }
       } catch (notificationError) {

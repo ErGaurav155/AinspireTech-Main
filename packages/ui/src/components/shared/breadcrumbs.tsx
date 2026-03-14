@@ -10,13 +10,13 @@ import { useMemo } from "react";
 // Theme map matching the dashboard's pattern
 function buildTheme(isDark: boolean) {
   return {
-    container: isDark ? "w-full px-4" : "w-full px-4",
+    container: isDark ? "w-full px-4 max-w-max" : "w-full px-4 max-w-max",
     breadcrumbFull: isDark
       ? "hidden lg:flex items-center gap-1 xl:gap-2 glass-pill rounded-full px-3 xl:px-6 py-2 text-sm whitespace-nowrap"
       : "hidden lg:flex items-center gap-1 xl:gap-2 bg-white border border-gray-100 shadow-sm rounded-full px-3 xl:px-6 py-2 text-sm whitespace-nowrap",
     breadcrumbCollapsed: isDark
       ? "flex lg:hidden items-center gap-2 md:glass-pill md:rounded-full py-2 px-3 text-sm overflow-hidden whitespace-nowrap"
-      : "flex lg:hidden items-center gap-2 bg-white md:glass-pill md:rounded-full shadow-sm px-3 py-2 text-sm overflow-hidden whitespace-nowrap",
+      : "flex lg:hidden items-center gap-2 md:glass-pill md:rounded-full px-3 py-2 text-sm overflow-hidden whitespace-nowrap",
     homeLink: isDark
       ? "text-white/70 hover:text-white font-medium transition-colors shrink-0"
       : "text-gray-700 hover:text-gray-900 font-medium transition-colors shrink-0",

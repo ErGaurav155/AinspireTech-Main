@@ -101,7 +101,7 @@ const LEAD_NAV_ITEMS = [
 const EDUCATION_NAV_ITEMS = [
   {
     label: "Home",
-    getHref: (chatbotHref: string) => `${chatbotHref}/overview`,
+    getHref: (chatbotHref: string) => `${chatbotHref}`,
     icon: LayoutDashboard,
     isNew: false,
   },
@@ -197,7 +197,7 @@ export default function WebBottomNavbar() {
                             href={
                               item.type === "global"
                                 ? item.href
-                                : `${item.href}/overview`
+                                : `${item.href}`
                             }
                             className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
                               isDark

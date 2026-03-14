@@ -23,8 +23,6 @@ export const listSubscriptionsController = async (
 
     // Define allowed chatbot types
     const allowedChatbotTypes = [
-      "chatbot-customer-support",
-      "chatbot-e-commerce",
       "chatbot-lead-generation",
       "chatbot-education",
     ];

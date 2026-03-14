@@ -1,22 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import {
-  Calendar,
-  Plus,
-  Save,
-  Trash2,
-  GripVertical,
-  AlertCircle,
-  Check,
-  X,
-  ChevronDown,
-  HelpCircle,
-  RefreshCw,
-  ArrowRight,
-} from "lucide-react";
+import { Calendar, Plus, Save, Trash2, X, HelpCircle } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
   getAppointmentQuestions,
@@ -32,6 +18,7 @@ import {
 } from "@rocketreplai/ui";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useParams, useRouter } from "next/navigation";
 
 interface AppointmentQuestion {
   id: number;
@@ -42,10 +29,12 @@ interface AppointmentQuestion {
 }
 
 export default function AppointmentQuestionsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const chatbotId = params.chatbotId as string;
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-
   const [questions, setQuestions] = useState<AppointmentQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -55,7 +44,10 @@ export default function AppointmentQuestionsPage() {
 
   const loadQuestions = useCallback(async () => {
     if (!userId) return;
-
+    if (chatbotId !== "chatbot-lead-generation") {
+      router.push("/web");
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await getAppointmentQuestions(
@@ -231,7 +223,9 @@ export default function AppointmentQuestionsPage() {
   if (isLoading) {
     return <Spinner label="Loading questions..." />;
   }
-
+  if (chatbotId !== "chatbot-lead-generation") {
+    return null;
+  }
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}

@@ -42,6 +42,7 @@ import {
 } from "@rocketreplai/ui";
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { useParams, useRouter } from "next/navigation";
 
 interface Conversation {
   id: string;
@@ -65,6 +66,9 @@ interface Conversation {
 }
 
 export default function LeadConversationsPage() {
+  const params = useParams();
+  const router = useRouter();
+  const chatbotId = params.chatbotId as string;
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -83,7 +87,10 @@ export default function LeadConversationsPage() {
 
   const loadConversations = useCallback(async () => {
     if (!userId) return;
-
+    if (chatbotId !== "chatbot-lead-generation") {
+      router.push("/web");
+      return;
+    }
     try {
       setIsLoading(true);
       const data = await getConversations(
@@ -215,7 +222,9 @@ export default function LeadConversationsPage() {
   if (isLoading) {
     return <Spinner label="Loading conversations..." />;
   }
-
+  if (chatbotId !== "chatbot-lead-generation") {
+    return null;
+  }
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}

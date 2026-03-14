@@ -3,14 +3,17 @@ import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import { getAuth } from "@clerk/express";
+import webFaq from "@/models/web/webFaq.model";
+import WebConversation from "@/models/web/Conversation.model";
+import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
 
 // GET /api/web/chatbot/:chatbot - Get specific chatbot
 export const getChatbotByIdController = async (req: Request, res: Response) => {
   try {
-    const { chatbot } = req.params;
-    const userId = getAuth(req);
-
-    if (!userId) {
+    const { chatbotId } = req.params;
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId || !chatbotId) {
       return res.status(401).json({
         success: false,
         error: "Unauthorized",
@@ -18,18 +21,10 @@ export const getChatbotByIdController = async (req: Request, res: Response) => {
       });
     }
 
-    if (!ObjectId.isValid(chatbot)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid chatbot ID",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     await connectToDatabase();
 
     const getchatbot = await WebChatbot.findOne({
-      _id: new ObjectId(chatbot),
+      type: chatbotId,
       clerkId: userId,
     });
 
@@ -59,21 +54,13 @@ export const getChatbotByIdController = async (req: Request, res: Response) => {
 // PUT /api/web/chatbot/:chatbot - Update chatbot
 export const updateChatbotController = async (req: Request, res: Response) => {
   try {
-    const { chatbot } = req.params;
-    const userId = getAuth(req);
-
-    if (!userId) {
+    const { chatbotId } = req.params;
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId || !chatbotId) {
       return res.status(401).json({
         success: false,
         error: "Unauthorized",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    if (!ObjectId.isValid(chatbot)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid chatbot ID",
         timestamp: new Date().toISOString(),
       });
     }
@@ -84,7 +71,7 @@ export const updateChatbotController = async (req: Request, res: Response) => {
 
     const result = await WebChatbot.updateOne(
       {
-        _id: new ObjectId(chatbot),
+        type: chatbotId,
         clerkId: userId,
       },
       {
@@ -123,10 +110,10 @@ export const updateChatbotController = async (req: Request, res: Response) => {
 // DELETE /api/web/chatbot/:chatbot - Delete chatbot
 export const deleteChatbotController = async (req: Request, res: Response) => {
   try {
-    const { chatbot } = req.params;
-    const userId = getAuth(req);
-
-    if (!userId) {
+    const { chatbotId } = req.params;
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId || !chatbotId) {
       return res.status(401).json({
         success: false,
         error: "Unauthorized",
@@ -134,18 +121,10 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    if (!ObjectId.isValid(chatbot)) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid chatbot ID",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     await connectToDatabase();
 
     const result = await WebChatbot.deleteOne({
-      _id: new ObjectId(chatbot),
+      type: chatbotId,
       clerkId: userId,
     });
 
@@ -156,6 +135,18 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     }
+    const deleteChatbotFaq = await webFaq.deleteMany({
+      clerkId: userId,
+      chatbotType: chatbotId,
+    });
+    const deleteChatbotConvo = await WebConversation.deleteMany({
+      clerkId: userId,
+      chatbotType: chatbotId,
+    });
+    const deleteChatbotAppo = await WebAppointmentQuestions.deleteMany({
+      clerkId: userId,
+      chatbotType: chatbotId,
+    });
 
     return res.status(200).json({
       success: true,

@@ -47,12 +47,12 @@ router.get("/conversations/:chatbotType", getConversationsByTypeController);
 router.get("/chatbot/list", getUserChatbotsController);
 // POST /api/web/chatbot/create - Create new chatbot
 router.post("/chatbot/create", createChatbotController);
-// GET /api/web/chatbot/:id - Get specific chatbot
-router.get("/chatbot/:chatbot", getChatbotByIdController);
-// PUT /api/web/chatbot/:id - Update chatbot
-router.put("/chatbot/:chatbot", updateChatbotController);
-// DELETE /api/web/chatbot/:id - Delete chatbot
-router.delete("/chatbot/:chatbot", deleteChatbotController);
+// GET /api/web/chatbot/:chatbotId - Get specific chatbot
+router.get("/chatbot/:chatbotId", getChatbotByIdController);
+// PUT /api/web/chatbot/:chatbotId - Update chatbot
+router.put("/chatbot/:chatbotId", updateChatbotController);
+// DELETE /api/web/chatbot/:chatbotId - Delete chatbot
+router.delete("/chatbot/:chatbotId", deleteChatbotController);
 
 //faq
 // GET /api/web/faq - Get FAQ

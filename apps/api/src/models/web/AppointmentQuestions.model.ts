@@ -10,11 +10,7 @@ export interface IAppointmentQuestion {
 
 export interface IAppointmentQuestions extends Document {
   clerkId: string;
-  chatbotType:
-    | "chatbot-customer-support"
-    | "chatbot-e-commerce"
-    | "chatbot-lead-generation"
-    | "chatbot-education";
+  chatbotType: "chatbot-lead-generation";
   questions: IAppointmentQuestion[];
   createdAt: Date;
   updatedAt: Date;
@@ -62,12 +58,7 @@ const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
     chatbotType: {
       type: String,
       required: true,
-      enum: [
-        "chatbot-customer-support",
-        "chatbot-e-commerce",
-        "chatbot-lead-generation",
-        "chatbot-education",
-      ],
+      enum: ["chatbot-lead-generation"],
     },
     questions: {
       type: [AppointmentQuestionSchema],
@@ -80,7 +71,10 @@ const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
   },
   { timestamps: true },
 );
-
+AppointmentQuestionsSchema.index(
+  { clerkId: 1, chatbotType: 1 },
+  { unique: true },
+);
 AppointmentQuestionsSchema.index({ chatbotType: 1 });
 AppointmentQuestionsSchema.index({ clerkId: 1 });
 
