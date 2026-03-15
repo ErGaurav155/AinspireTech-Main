@@ -13,9 +13,6 @@ import {
   TrendingUp,
   Calendar,
   CreditCard,
-  Coins,
-  RefreshCw,
-  AlertTriangle,
 } from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";

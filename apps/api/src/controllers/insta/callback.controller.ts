@@ -183,7 +183,7 @@ export const handleInstaCallbackController = async (
           grant_type: "authorization_code",
           redirect_uri:
             process.env.INSTAGRAM_REDIRECT_URI ||
-            "https://rocketreplai.com/insta/pricing",
+            "https://app.rocketreplai.com/insta/pricing",
           code: code as string,
         }),
       },

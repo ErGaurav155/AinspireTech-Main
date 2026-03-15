@@ -219,7 +219,6 @@ export default function DynamicOverviewPage() {
 
     try {
       const data = await getChatbots(apiRequest);
-      console.log("chatbot:", data);
       const foundChatbot = data.chatbots?.find(
         (bot: any) => bot.type === chatbotType,
       );
