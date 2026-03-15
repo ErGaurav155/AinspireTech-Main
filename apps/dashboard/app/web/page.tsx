@@ -407,7 +407,7 @@ export default function WebDashboardPage() {
                           Open Dashboard
                         </Link>
                         <Link
-                          href={`/web/${chatbot.type.split("-")[2]}/settings`}
+                          href={`/web/${chatbot.type}/settings`}
                           className={`p-2.5 rounded-xl transition-colors ${styles.pill}`}
                         >
                           <Settings className="h-4 w-4" />

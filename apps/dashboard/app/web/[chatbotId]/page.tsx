@@ -178,18 +178,13 @@ export default function DynamicOverviewPage() {
           ],
           actions: [
             {
-              href: `/web/${chatbotId}/responses`,
-              label: "Student Responses",
-              icon: Users,
-            },
-            {
-              href: `/web/${chatbotId}/questions`,
-              label: "MCQ Questions",
+              href: `/web/${chatbotId}/faq`,
+              label: "FAQ Questions",
               icon: BookOpen,
             },
             {
-              href: `/web/${chatbotId}/analytics`,
-              label: "Analytics",
+              href: `/web/${chatbotId}/settings`,
+              label: "Settings",
               icon: TrendingUp,
             },
             {

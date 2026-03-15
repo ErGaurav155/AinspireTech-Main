@@ -130,10 +130,7 @@ export default function WebBottomNavbar() {
     return [...EDUCATION_NAV_ITEMS, ...BASE_NAV_ITEMS];
   }, [activeChatbot.type, isOnChatbotPage]);
 
-  const isActive = useCallback(
-    (href: string) => pathname === href || pathname.startsWith(href),
-    [pathname],
-  );
+  const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
   const isMenuItemActive = useCallback(
     (item: (typeof MENU_ITEMS)[number]) => {

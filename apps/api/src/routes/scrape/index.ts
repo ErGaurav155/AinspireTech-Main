@@ -8,7 +8,7 @@ const router = Router();
 router.use(requireAuth());
 
 // GET /api/scrape/scrape-anu - Scrape website with advanced level-by-level scraping
-router.post("/scrap-anu", scrapAnuController);
+router.post("/scrape-anu", scrapAnuController);
 // POST /api/scrape/process-data - Process scraped data
 router.post("/process-data", processScrapedDataController);
 
