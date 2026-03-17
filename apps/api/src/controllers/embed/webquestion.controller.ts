@@ -13,6 +13,7 @@ export const getWebQuestionsController = async (
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -23,6 +24,7 @@ export const getWebQuestionsController = async (
 
     if (!chatbotType || !userId) {
       return res.status(400).json({
+        success: false,
         error: "Chatbot type and UserId are required",
         timestamp: new Date().toISOString(),
       });
@@ -39,18 +41,21 @@ export const getWebQuestionsController = async (
 
     if (!questions) {
       return res.status(404).json({
+        success: false,
         error: "No questions found for this user and chatbot type",
         timestamp: new Date().toISOString(),
       });
     }
 
     return res.status(200).json({
-      appointmentQuestions: questions,
+      success: true,
+      data: { appointmentQuestions: questions },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Appointment questions fetch error:", error);
     return res.status(500).json({
+      success: false,
       error: "Internal server error",
       timestamp: new Date().toISOString(),
     });

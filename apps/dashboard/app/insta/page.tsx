@@ -278,7 +278,7 @@ export default function Dashboard() {
       totalTemplates: accounts.reduce((s, a) => s + a.templatesCount, 0),
       totalReplies: accounts.reduce((s, a) => s + (a.accountReply || 0), 0),
       accountLimit: accounts[0]?.accountLimit || 1,
-      replyLimit: accounts[0]?.replyLimit || 500,
+      replyLimit: accounts[0]?.replyLimit || 200,
       engagementRate:
         accounts.length > 0
           ? accounts.reduce((s, a) => s + a.engagementRate, 0) / accounts.length
@@ -359,7 +359,7 @@ export default function Dashboard() {
           updatedAt: dbAccount.updatedAt,
           templatesCount: dbAccount.templatesCount || 0,
           repliesCount: totalReplies || 0,
-          replyLimit: replyLimit || 500,
+          replyLimit: replyLimit || 200,
           accountLimit: accountLimit || 1,
           totalAccounts: totalAccounts || 0,
           engagementRate: engagementRate || 0,
@@ -932,7 +932,7 @@ export default function Dashboard() {
               disabled={isRefreshing}
               className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg transition-colors ${
                 isDark
-                  ? "text-white/40 hover:text-pink-400 hover:bg-white/[0.06]"
+                  ? "text-white/40 hover:text-pink-400  hover:bg-white/[0.06]"
                   : "text-gray-500 hover:text-pink-500 hover:bg-pink-50"
               } ${isRefreshing ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -1060,7 +1060,7 @@ export default function Dashboard() {
                   isDark
                     ? "bg-pink-500/10 border border-pink-500/20 text-pink-400"
                     : "bg-pink-100 text-pink-600 border-pink-200"
-                } font-semibold flex items-center gap-1 hover:opacity-80`}
+                } font-semibold flex items-center gap-1 hover:opacity-80 p-1 rounded-md`}
               >
                 <Plus className="h-3.5 w-3.5" />
                 Add Account
@@ -1139,7 +1139,7 @@ export default function Dashboard() {
                         </button>
                       )}
                       <Link
-                        href={`/insta/accounts/${account.id}`}
+                        href={`/insta/accounts/${account.instagramId}`}
                         className={`text-xs px-4 py-1.5 rounded-full font-semibold transition-colors ${
                           isDark
                             ? "text-white/60 bg-white/[0.06] border border-white/[0.08] hover:bg-white/[0.09]"

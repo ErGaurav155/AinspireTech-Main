@@ -187,8 +187,7 @@ export default function AccountDetailsPage() {
     try {
       setIsLoading(true);
       const data = await getInstaAccountById(apiRequest, accountId);
-
-      const acc = data.account;
+      const acc = data.accountData;
       setAccount({
         id: acc._id,
         instagramId: acc.instagramId,

@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/config/database.config";
 import Conversation from "@/models/web/Conversation.model";
+import { getAuth } from "@clerk/express";
 
 // GET /api/web/conversations - Get conversations
 export const getConversationsController = async (
@@ -9,7 +10,7 @@ export const getConversationsController = async (
   res: Response,
 ) => {
   try {
-    const userId = req.headers["x-user-id"] as string;
+    const { userId } = getAuth(req);
     const chatbotId = req.query.chatbotId as string;
 
     if (!userId) {
@@ -25,14 +26,7 @@ export const getConversationsController = async (
     // Build query
     const query: any = { clerkId: userId };
     if (chatbotId) {
-      if (!mongoose.Types.ObjectId.isValid(chatbotId)) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid chatbot ID",
-          timestamp: new Date().toISOString(),
-        });
-      }
-      query.chatbotId = new mongoose.Types.ObjectId(chatbotId);
+      query.chatbotId = chatbotId;
     }
 
     const conversations = await Conversation.find(query)

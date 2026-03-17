@@ -61,7 +61,7 @@ export const getWebAnalyticsController = async (
   res: Response,
 ) => {
   try {
-    const chatbotType = (req as any).chatbotType;
+    const { chatbotType } = req.params;
 
     // Get userId from auth headers
     const { userId } = getAuth(req);

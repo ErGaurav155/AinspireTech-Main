@@ -89,7 +89,7 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
       } = evt.data;
 
       const totalReplies = (public_metadata?.totalReplies as number) || 0;
-      const replyLimit = (public_metadata?.replyLimit as number) || 500;
+      const replyLimit = (public_metadata?.replyLimit as number) || 200;
       const accountLimit = (public_metadata?.accountLimit as number) || 1;
       const timestamps = (public_metadata?.timestamps as boolean) || true;
 

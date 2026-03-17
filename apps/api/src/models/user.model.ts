@@ -22,7 +22,7 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     username: { type: String },
     totalReplies: { type: Number, default: 0 },
-    replyLimit: { type: Number, default: 500 },
+    replyLimit: { type: Number, default: 200 },
     accountLimit: { type: Number, default: 1 },
     photo: { type: String },
     firstName: { type: String },

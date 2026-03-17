@@ -103,8 +103,6 @@ export const processScrapedDataController = async (
       });
     }
 
-    console.log(`Processing data for chatbot: ${chatbot.name}`);
-
     const formattedData = formatScrapedData(scrapedPages);
 
     // Upload to Cloudinary

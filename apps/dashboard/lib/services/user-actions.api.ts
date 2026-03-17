@@ -181,7 +181,7 @@ export const getUserReplyLimit = async (
 ): Promise<number> => {
   try {
     const user = await getUserById(apiRequest, userId);
-    return user.replyLimit || 500;
+    return user.replyLimit || 200;
   } catch {
     return 500;
   }

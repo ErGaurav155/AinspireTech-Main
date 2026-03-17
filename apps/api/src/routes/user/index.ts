@@ -3,11 +3,8 @@ import {
   createUserController,
   getUserByIdController,
   updateUserNumberController,
-  updateUserController,
-  cleanupUserDataController,
   hasActiveSubscriptionsController,
   updateUserLimitsController,
-  resetFreeRepliesForAllUsersController,
   getAffiliateUserController,
   checkAndPrepareScrapeController,
 } from "@/controllers/user/user-actions.controller";
@@ -26,20 +23,11 @@ router.get("/:userId", getUserByIdController);
 // PUT /api/user/update-number - Update user phone number
 router.put("/update-number", updateUserNumberController);
 
-// PUT /api/user/update - Update user information
-router.put("/update", updateUserController);
-
-// DELETE /api/user/cleanup - Cleanup user data
-router.delete("/cleanup", cleanupUserDataController);
-
 // GET /api/user/active-subscriptions - Check active subscriptions
 router.get("/active-subscriptions", hasActiveSubscriptionsController);
 
 // PUT /api/user/update-limits - Update user limits
 router.put("/update-limits", updateUserLimitsController);
-
-// POST /api/user/reset-free-replies - Reset free replies (admin)
-router.post("/reset-free-replies", resetFreeRepliesForAllUsersController);
 
 // GET /api/user/affiliate/:userId - Get affiliate user
 router.get("/affiliate/:userId", getAffiliateUserController);

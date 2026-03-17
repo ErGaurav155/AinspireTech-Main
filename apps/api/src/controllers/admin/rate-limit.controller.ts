@@ -18,14 +18,14 @@ export const getWindowStatsController = async (req: Request, res: Response) => {
     }
     const stats = await getWindowStats();
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: stats,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error getting rate limit stats:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to get rate limit stats",
       timestamp: new Date().toISOString(),

@@ -294,8 +294,10 @@ export const handleInstaCallbackController = async (
 
       return res.status(200).json({
         success: true,
-        account: existingAccountWithUser,
-        message: "Account updated successfully",
+        data: {
+          account: existingAccountWithUser,
+          message: "Account updated successfully",
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -308,7 +310,7 @@ export const handleInstaCallbackController = async (
       return res.status(200).json({
         success: false,
         account: existingAccount,
-        message: "Duplicate Account Found",
+        error: "Duplicate Account Found",
         timestamp: new Date().toISOString(),
       });
     }
@@ -339,8 +341,7 @@ export const handleInstaCallbackController = async (
 
     return res.status(200).json({
       success: true,
-      account: newAccount,
-      message: "Account connected successfully",
+      data: { account: newAccount, message: "Account connected successfully" },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

@@ -15,6 +15,7 @@ import { getCurrentWindow } from "./rate-limit.service";
 import { getRazorpay } from "@/utils/util";
 import User from "@/models/user.model";
 import { redisHelpers } from "@/config/redis.config";
+import webFaq from "@/models/web/webFaq.model";
 
 export const TIER_LIMITS = {
   free: 100,
@@ -139,7 +140,7 @@ export async function updateUserLimits(
     }
 
     // Validate reply limit based on tier
-    if (tier === "free" && replyLimit > 100) {
+    if (tier === "free" && replyLimit > 200) {
       return {
         success: false,
         error: "Free users cannot have reply limit above 100",
@@ -273,6 +274,8 @@ export async function deleteUserData(clerkId: string) {
     // Web-related data
     WebSubscription.deleteMany({ clerkId }),
     WebConversation.deleteMany({ clerkId }),
+    WebChatbot.deleteMany({ clerkId }),
+    webFaq.deleteMany({ clerkId }),
     WebAppointmentQuestions.deleteMany({ clerkId }),
     // Instagram-related data
     InstaReplyTemplate.deleteMany({ userId: clerkId }),

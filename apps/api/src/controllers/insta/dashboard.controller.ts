@@ -50,7 +50,7 @@ export const getInstaDashboardController = async (
           accounts: [],
           totalReplies: 0,
           accountLimit: userData.accountLimit || 1,
-          replyLimit: userData.replyLimit || 100,
+          replyLimit: userData.replyLimit || 200,
           totalAccounts: 0,
         },
         timestamp: new Date().toISOString(),

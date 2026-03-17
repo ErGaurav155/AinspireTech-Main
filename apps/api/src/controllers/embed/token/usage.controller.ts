@@ -9,6 +9,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -20,6 +21,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
     // Validate required fields
     if (!userId || !chatbotType || tokensUsed === undefined) {
       return res.status(400).json({
+        success: false,
         error: "Missing required fields: userId, chatbotType, tokensUsed",
         timestamp: new Date().toISOString(),
       });
@@ -28,6 +30,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
     // Validate tokensUsed is a positive number
     if (typeof tokensUsed !== "number" || tokensUsed <= 0) {
       return res.status(400).json({
+        success: false,
         error: "tokensUsed must be a positive number",
         timestamp: new Date().toISOString(),
       });
@@ -46,6 +49,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
 
     if (!tokenResult.success) {
       return res.status(400).json({
+        success: false,
         error: "Failed to update token usage",
         timestamp: new Date().toISOString(),
       });
@@ -53,7 +57,6 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: "Token usage tracked successfully",
       data: {
         remainingTokens: tokenResult.remainingTokens,
         freeTokensRemaining: tokenResult.freeTokensRemaining,
@@ -76,6 +79,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
     }
 
     return res.status(500).json({
+      success: false,
       error: "Internal server error",
       timestamp: new Date().toISOString(),
     });

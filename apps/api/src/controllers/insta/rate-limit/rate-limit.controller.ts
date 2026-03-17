@@ -39,14 +39,14 @@ export const checkRateLimitController = async (req: Request, res: Response) => {
       isIncomingWebhook || false,
     );
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error checking rate limit:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to check rate limit",
       timestamp: new Date().toISOString(),
@@ -87,7 +87,7 @@ export const recordRateLimitController = async (
       metadata || {},
     );
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result,
       timestamp: new Date().toISOString(),
@@ -109,14 +109,14 @@ export const processQueueController = async (req: Request, res: Response) => {
 
     const result = await processQueuedCalls(limit);
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error processing queue:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to process queue",
       timestamp: new Date().toISOString(),
@@ -129,14 +129,14 @@ export const resetWindowController = async (req: Request, res: Response) => {
   try {
     const result = await resetHourlyWindow();
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: result,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error resetting window:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to reset window",
       timestamp: new Date().toISOString(),
@@ -152,14 +152,14 @@ export const getCurrentWindowController = async (
   try {
     const window = getCurrentWindow();
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: window,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error getting current window:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to get current window",
       timestamp: new Date().toISOString(),
@@ -172,14 +172,14 @@ export const getAppLimitController = async (req: Request, res: Response) => {
   try {
     const appLimit = await isAppLimitReached();
 
-    res.json({
+    return res.status(200).json({
       success: true,
       data: appLimit,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Error getting app limit:", error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: "Failed to get app limit",
       timestamp: new Date().toISOString(),

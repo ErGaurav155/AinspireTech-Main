@@ -75,11 +75,18 @@ export const getInstaAccountByIdController = async (
   res: Response,
 ) => {
   try {
-    const accountId = (req as any).accountId;
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const { accountId } = req.params;
     await connectToDatabase();
-
-    const account = await InstagramAccount.findById(accountId);
-
+    const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account) {
       return res.status(404).json({
         success: false,
@@ -140,13 +147,21 @@ export const updateInstaAccountController = async (
   res: Response,
 ) => {
   try {
-    const accountId = (req as any).accountId;
-    const { userId } = getAuth(req);
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const { accountId } = req.params;
 
-    if (!accountId || !userId) {
+    if (!accountId) {
       return res.status(404).json({
         success: false,
-        error: "userId not found",
+        error: "Account not found",
         timestamp: new Date().toISOString(),
       });
     }
@@ -184,8 +199,8 @@ export const updateInstaAccountController = async (
     if (trackDmUrlEnabled !== undefined)
       updateFields.trackDmUrlEnabled = trackDmUrlEnabled;
 
-    const account = await InstagramAccount.findByIdAndUpdate(
-      accountId,
+    const account = await InstagramAccount.findOneAndUpdate(
+      { instagramId: accountId },
       updateFields,
       { new: true },
     );
@@ -223,9 +238,18 @@ export const deleteInstaAccountController = async (
   res: Response,
 ) => {
   try {
-    const { userId } = getAuth(req);
+    const auth = getAuth(req);
+    const userId = auth?.userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const { accountId } = req.params;
-    if (!accountId || !userId) {
+    if (!accountId) {
       return res.status(404).json({
         success: false,
         error: "AccountId not found",
@@ -235,7 +259,10 @@ export const deleteInstaAccountController = async (
     await connectToDatabase();
 
     // First, get the account details before deleting
-    const account = await InstagramAccount.findById(accountId);
+    const account = await InstagramAccount.findOne({
+      userId: userId,
+      instagramId: accountId,
+    });
     if (!account) {
       return res.status(404).json({
         success: false,
@@ -245,7 +272,9 @@ export const deleteInstaAccountController = async (
     }
 
     // Delete account from database
-    const deletedAccount = await InstagramAccount.findByIdAndDelete(accountId);
+    const deletedAccount = await InstagramAccount.findOneAndDelete({
+      instagramId: accountId,
+    });
     if (!deletedAccount) {
       return res.status(404).json({
         success: false,

@@ -10,6 +10,7 @@ export const resetWebTokensController = async (req: Request, res: Response) => {
 
     if (!cronKey || cronKey !== process.env.CRON_SECRET) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid cron key",
         timestamp: new Date().toISOString(),
       });
@@ -43,8 +44,10 @@ export const resetWebTokensController = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: `Reset free tokens for ${resetCount} users`,
-      resetCount,
+      data: {
+        message: `Reset free tokens for ${resetCount} users`,
+        resetCount,
+      },
       timestamp: now.toISOString(),
     });
   } catch (error) {

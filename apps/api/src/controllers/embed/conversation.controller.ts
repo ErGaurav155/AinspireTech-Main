@@ -19,6 +19,7 @@ export const handleConversationRequest = async (
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -36,6 +37,7 @@ export const handleConversationRequest = async (
 
     if (!chatbotType || !userId || !messages) {
       return res.status(400).json({
+        success: false,
         error: "Missing required fields",
         timestamp: new Date().toISOString(),
       });
@@ -46,8 +48,9 @@ export const handleConversationRequest = async (
     // Get user
     const user = await getUserById(userId);
     if (!user) {
-      return res.status(200).json({
-        message: "User Not Found",
+      return res.status(404).json({
+        success: false,
+        error: "User Not Found",
         timestamp: new Date().toISOString(),
       });
     }
@@ -56,8 +59,9 @@ export const handleConversationRequest = async (
       type: chatbotType,
     });
     if (!chatbot) {
-      return res.status(200).json({
-        message: "Chatbot Not Found",
+      return res.status(404).json({
+        success: false,
+        error: "Chatbot Not Found",
         timestamp: new Date().toISOString(),
       });
     }
@@ -102,13 +106,17 @@ export const handleConversationRequest = async (
     }
 
     return res.status(200).json({
-      message: "Conversation created successfully",
-      conversationId: result._id,
+      success: true,
+      data: {
+        message: "Conversation created successfully",
+        conversationId: result._id,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Conversation creation error:", error);
     return res.status(500).json({
+      success: false,
       error: "Internal server error",
       timestamp: new Date().toISOString(),
     });

@@ -7,11 +7,12 @@ import {
 import { getWebAnalyticsController } from "@/controllers/web/analytics.controller";
 import { getConversationsController } from "@/controllers/web/conversations/conversations.controller";
 import { getConversationsByTypeController } from "@/controllers/web/conversations/chatbotType.controller";
-import { getUserChatbotsController } from "@/controllers/web/chatbot.controller";
-import { createChatbotController } from "@/controllers/web/create.controller";
+
 import {
+  createChatbotController,
   deleteChatbotController,
   getChatbotByIdController,
+  getUserChatbotsController,
   updateChatbotController,
 } from "@/controllers/web/chatbot/chatbot.controller";
 import {

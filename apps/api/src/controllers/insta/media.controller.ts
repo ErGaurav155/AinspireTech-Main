@@ -60,7 +60,7 @@ export const getInstaMediaController = async (req: Request, res: Response) => {
     if (!accountId || !userId) {
       return res.status(400).json({
         success: false,
-        error: "Account ID and User ID are required",
+        error: "Account ID or User ID are required",
         timestamp: new Date().toISOString(),
       });
     }

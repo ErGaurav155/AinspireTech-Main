@@ -129,7 +129,7 @@ export const handleInstagramWebhookController = async (
 
     // Always respond with 200 to Instagram to prevent retries
     if (!res.headersSent) {
-      res.status(200).json({
+      return res.status(200).json({
         success: false,
         error: "Webhook received but processing error",
         timestamp: new Date().toISOString(),

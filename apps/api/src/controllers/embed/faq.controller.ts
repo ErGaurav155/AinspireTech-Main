@@ -10,6 +10,7 @@ export const handleFaqRequest = async (req: Request, res: Response) => {
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -19,6 +20,7 @@ export const handleFaqRequest = async (req: Request, res: Response) => {
 
     if (!userId || !chatbotType) {
       return res.status(400).json({
+        success: false,
         error: "userId and chatbotType are required",
         timestamp: new Date().toISOString(),
       });
@@ -41,12 +43,13 @@ export const handleFaqRequest = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      faq,
+      data: faq,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
     console.error("FAQ fetch error:", error);
     return res.status(500).json({
+      success: false,
       error: "Failed to fetch FAQ: " + error.message,
       timestamp: new Date().toISOString(),
     });

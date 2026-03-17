@@ -59,7 +59,7 @@ interface InstagramAccount {
 }
 
 // Constants
-const FREE_PLAN_REPLY_LIMIT = 500;
+const FREE_PLAN_REPLY_LIMIT = 200;
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 
 export default function AccountsPage() {
@@ -393,7 +393,7 @@ export default function AccountsPage() {
       {isDark && <Orbs />}
       <div className={styles.container}>
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-wrap md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className={pageStyles.headerIcon}>
               <Instagram className="h-6 w-6 text-white" />
@@ -465,7 +465,8 @@ export default function AccountsPage() {
             <p
               className={`text-2xl font-bold ${isDark ? "text-purple-400" : "text-purple-600"}`}
             >
-              {stats.totalReplies} / {replyLimit}
+              {stats.totalReplies} /
+              {userInfo?.accountLimit > 1 ? "unlimited" : replyLimit}
             </p>
           </div>
 
@@ -489,7 +490,7 @@ export default function AccountsPage() {
           {accounts.length > 0 ? (
             accounts.map((account) => (
               <AccountCard
-                key={account.id}
+                key={account.instagramId}
                 account={account}
                 isDark={isDark}
                 styles={styles}
@@ -586,9 +587,9 @@ const AccountCard: React.FC<AccountCardProps> = ({
 
   return (
     <div className={`${styles.card} rounded-xl p-4`}>
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="flex flex-wrap gap-4">
         {/* Account Info */}
-        <div className="flex items-center gap-4 flex-1">
+        <div className="flex flex-wrap items-center gap-4 flex-1">
           <div className="relative">
             <Image
               src={hasError ? Default : account.profilePicture}
@@ -626,7 +627,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-4">
           <div className={pageStyles.accountStatItem}>
             <p className={pageStyles.accountStatValue}>
               {account.templatesCount}
@@ -654,7 +655,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Auto-reply Toggle */}
           <div className="flex items-center gap-2">
             <Switch
@@ -685,7 +686,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
 
           {/* Manage Button */}
           <Link
-            href={`/insta/accounts/${account.id}`}
+            href={`/insta/accounts/${account.instagramId}`}
             className={pageStyles.manageButton}
           >
             <Settings className="h-4 w-4" />

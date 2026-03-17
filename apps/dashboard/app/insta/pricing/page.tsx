@@ -184,7 +184,7 @@ function PricingWithSearchParams() {
     async (code: string): Promise<boolean> => {
       try {
         const response = await connectInstaAccount(apiRequest, code);
-        if (response.ok) {
+        if (response.account) {
           showToast(
             "Success!",
             "Instagram account connected successfully",

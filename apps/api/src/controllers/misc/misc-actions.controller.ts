@@ -1,11 +1,8 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
-import InstaSubscription from "@/models/insta/InstaSubscription.model";
-import Transaction from "@/models/transaction.model";
 import nodemailer from "nodemailer";
 import { Twilio } from "twilio";
-import { getRazorpay } from "@/utils/util";
 import MyAppointment from "@/models/MyAppointment.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 

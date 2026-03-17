@@ -43,7 +43,7 @@ async function handleInstaAccountLimit(userId: string) {
         $set: {
           accountLimit: 1,
           totalReplies: 0,
-          replyLimit: 500,
+          replyLimit: 200,
           updatedAt: new Date(),
         },
       },

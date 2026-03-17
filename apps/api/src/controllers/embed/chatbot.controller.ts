@@ -9,6 +9,7 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -18,6 +19,7 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
 
     if (!userInput || !userId || !agentId || !fileData) {
       return res.status(400).json({
+        success: false,
         error: "Message is required",
         timestamp: new Date().toISOString(),
       });
@@ -29,13 +31,17 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({
-      response: result.response,
-      tokens: result.tokens,
+      success: true,
+      data: {
+        response: result.response,
+        tokens: result.tokens,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
     console.error("Chatbot API error:", error);
     return res.status(500).json({
+      success: false,
       error: "Internal server error",
       timestamp: new Date().toISOString(),
     });

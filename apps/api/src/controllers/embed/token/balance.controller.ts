@@ -12,6 +12,7 @@ export const getTokenBalanceController = async (
 
     if (!apiKey || apiKey !== process.env.SECRET_KEY) {
       return res.status(401).json({
+        success: false,
         error: "Unauthorized: Invalid API key",
         timestamp: new Date().toISOString(),
       });
@@ -22,6 +23,7 @@ export const getTokenBalanceController = async (
 
     if (!userId) {
       return res.status(400).json({
+        success: false,
         error: "userId is required",
         timestamp: new Date().toISOString(),
       });
@@ -41,6 +43,7 @@ export const getTokenBalanceController = async (
   } catch (error) {
     console.error("Error fetching token balance:", error);
     return res.status(500).json({
+      success: false,
       error: "Internal server error",
       timestamp: new Date().toISOString(),
     });

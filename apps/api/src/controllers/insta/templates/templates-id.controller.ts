@@ -14,10 +14,10 @@ export const getInstaTemplateByIdController = async (
     const { userId } = getAuth(req);
     const { templateId } = req.params;
 
-    if (!userId) {
+    if (!userId || !templateId) {
       return res.status(400).json({
         success: false,
-        error: "User ID is required",
+        error: "User ID and TemplateId is required",
         timestamp: new Date().toISOString(),
       });
     }

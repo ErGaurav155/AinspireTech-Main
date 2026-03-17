@@ -450,7 +450,7 @@ export default function SettingsPage() {
 
           {account ? (
             <div className={pageStyles.accountCard}>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2 md:gap-4">
                 {/* Profile Picture */}
                 <div className={pageStyles.accountAvatar}>
                   {account.profilePicture ? (
@@ -468,7 +468,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Account Info */}
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 ">
                   <h3 className={pageStyles.accountName}>
                     {accountDisplayName}
                   </h3>
@@ -496,7 +496,7 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex items-center gap-2 flex-shrink-0">
+                <div className=" flex flex-wrap items-start gap-2 flex-shrink-0">
                   <button
                     onClick={handleReconnect}
                     className={pageStyles.reconnectButton}
@@ -585,7 +585,7 @@ export default function SettingsPage() {
               <>
                 <button
                   onClick={() => setShowDeleteDialog(true)}
-                  className={styles.pill}
+                  className={`${styles.pill} px-2 `}
                 >
                   Remove
                 </button>

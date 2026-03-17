@@ -199,13 +199,15 @@ export const processCommissionsController = async (
 
     return res.status(200).json({
       success: true,
-      message: `Processed ${processedCount} referrals with $${totalCommission.toFixed(
-        2,
-      )} total commission`,
-      processedCount,
-      totalCommission,
-      period: currentPeriod,
-      commissions: commissionsProcessed,
+      data: {
+        message: `Processed ${processedCount} referrals with $${totalCommission.toFixed(
+          2,
+        )} total commission`,
+        processedCount,
+        totalCommission,
+        period: currentPeriod,
+        commissions: commissionsProcessed,
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

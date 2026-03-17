@@ -2,17 +2,14 @@ import { Request, Response } from "express";
 import {
   createUser,
   getUserById,
-  updateUser,
   updatePhoneNumber,
   updateUserLimits,
-  deleteUserData,
   checkActiveSubscriptions,
-  resetFreeRepliesForAllUsers,
   getAffiliateUser,
   checkAndPrepareScrape,
 } from "../../services/user.service";
 import { getAuth } from "@clerk/express";
-import { getRedisClient, redisHelpers } from "@/config/redis.config";
+import { redisHelpers } from "@/config/redis.config";
 import {
   getCurrentWindow,
   getUserRateLimitStats,
@@ -93,12 +90,21 @@ export const updateUserNumberController = async (
   res: Response,
 ) => {
   try {
-    const { userId, newNumber } = req.body;
+    const { userId } = getAuth(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
-    if (!userId || !newNumber) {
+    const { newNumber } = req.body;
+
+    if (!newNumber) {
       return res.status(400).json({
         success: false,
-        error: "User ID and phone number are required",
+        error: "Phone number are required",
         timestamp: new Date().toISOString(),
       });
     }
@@ -129,101 +135,21 @@ export const updateUserNumberController = async (
   }
 };
 
-// PUT /api/user/update - Update user information
-export const updateUserController = async (req: Request, res: Response) => {
-  try {
-    const { clerkId, ...updateData } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({
-        success: false,
-        error: "clerkId is required",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const updatedUser = await updateUser(clerkId, updateData);
-
-    return res.status(200).json({
-      success: true,
-      data: updatedUser,
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("Error updating user:", error);
-
-    if (
-      error.message.includes("User not found") ||
-      error.message.includes("User update failed")
-    ) {
-      return res.status(404).json({
-        success: false,
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: error.message || "Failed to update user",
-      timestamp: new Date().toISOString(),
-    });
-  }
-};
-
-// DELETE /api/user/cleanup - Cleanup user data
-export const cleanupUserDataController = async (
-  req: Request,
-  res: Response,
-) => {
-  try {
-    const { clerkId } = req.body;
-
-    if (!clerkId) {
-      return res.status(400).json({
-        success: false,
-        error: "clerkId is required",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Use the service function for actual data cleanup
-    const result = await deleteUserData(clerkId);
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        result,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("Error in cleanupUserData:", error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || "Failed to cleanup user data",
-      timestamp: new Date().toISOString(),
-    });
-  }
-};
-
 // GET /api/user/active-subscriptions - Check if user has active subscriptions
 export const hasActiveSubscriptionsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
-    const { clerkId } = req.query;
-
-    if (!clerkId || typeof clerkId !== "string") {
-      return res.status(400).json({
+    const { userId } = getAuth(req);
+    if (!userId) {
+      return res.status(401).json({
         success: false,
-        error: "clerkId is required",
+        error: "Authentication required",
         timestamp: new Date().toISOString(),
       });
     }
-
-    const result = await checkActiveSubscriptions(clerkId);
+    const result = await checkActiveSubscriptions(userId);
 
     return res.status(200).json({
       success: true,
@@ -247,7 +173,6 @@ export const hasActiveSubscriptionsController = async (
 };
 
 // PUT /api/user/update-limits - Update user limits
-
 export const updateUserLimitsController = async (
   req: Request,
   res: Response,
@@ -339,33 +264,6 @@ export const updateUserLimitsController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to update user limits",
-      timestamp: new Date().toISOString(),
-    });
-  }
-};
-
-// POST /api/user/reset-free-replies - Reset free replies for all users (admin)
-export const resetFreeRepliesForAllUsersController = async (
-  req: Request,
-  res: Response,
-) => {
-  try {
-    const processedCount = await resetFreeRepliesForAllUsers();
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        message: `Total free replies reset for ${processedCount} users`,
-        processedCount,
-        timestamp: new Date().toISOString(),
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("Error resetting free replies:", error);
-    return res.status(500).json({
-      success: false,
-      error: error.message || "Failed to reset free replies",
       timestamp: new Date().toISOString(),
     });
   }
