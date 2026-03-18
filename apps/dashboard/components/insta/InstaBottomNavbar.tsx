@@ -43,6 +43,8 @@ const BOTTOM_NAV_ITEMS = [
 ] as const;
 
 interface InstagramAccount {
+  _id?: string;
+  instagramId?: string;
   username?: string;
   name?: string;
   profilePicture?: string;
@@ -162,9 +164,19 @@ export default function InstaBottomNavbar() {
         subscriptionResult.subscriptions.length > 0;
       setIsSubscribed(subscribed);
       setAccountLimit(subscribed ? 3 : 1);
-      setAccounts(accountsResult.accounts || []);
-    } catch {
-      // silent fail
+
+      // Handle different response structures for accounts
+      let accountsList: InstagramAccount[] = [];
+      if (accountsResult?.accounts && Array.isArray(accountsResult.accounts)) {
+        accountsList = accountsResult.accounts.map((item: any) => {
+          return item.accountInfo || item;
+        });
+      } else if (Array.isArray(accountsResult)) {
+        accountsList = accountsResult;
+      }
+      setAccounts(accountsList);
+    } catch (error) {
+      console.error("Error fetching data:", error);
     }
   }, [userId, apiRequest]);
 
@@ -214,7 +226,7 @@ export default function InstaBottomNavbar() {
         >
           {/* Current connected account row */}
           {hasAccount && (
-            <div className={localStyles.accountRow}>
+            <div key="current-account" className={localStyles.accountRow}>
               {accountAvatarUrl ? (
                 <Image
                   src={accountAvatarUrl}
@@ -234,40 +246,45 @@ export default function InstaBottomNavbar() {
           )}
 
           {/* Account limit indicator */}
-          <div className={localStyles.limitIndicator}>
+          <div key="account-limit" className={localStyles.limitIndicator}>
             <p className={localStyles.limitText}>
               {accounts.length} / {accountLimit} accounts used
             </p>
           </div>
 
-          {/* All accounts list */}
-          {accounts.map((acc, index) => (
-            <div
-              key={acc._id}
-              className={
-                index === accounts.length - 1
-                  ? localStyles.menuItemLast
-                  : localStyles.menuItem
-              }
-            >
-              <div className={localStyles.accountAvatar}>
-                {(acc.name || acc.username || "?")[0].toUpperCase()}
-              </div>
-              <span
+          {/* All accounts list - FIXED: Added unique keys */}
+          {accounts.map((acc, index) => {
+            // Generate a unique key from _id, instagramId, or index as last resort
+            const accountKey = acc._id || acc.instagramId || `account-${index}`;
+            return (
+              <div
+                key={accountKey}
                 className={
-                  isDark
-                    ? "text-sm text-white/70 truncate"
-                    : "text-sm text-gray-700 truncate"
+                  index === accounts.length - 1
+                    ? localStyles.menuItemLast
+                    : localStyles.menuItem
                 }
               >
-                @{acc.username || acc.name || "account"}
-              </span>
-            </div>
-          ))}
+                <div className={localStyles.accountAvatar}>
+                  {(acc.name || acc.username || "?")[0].toUpperCase()}
+                </div>
+                <span
+                  className={
+                    isDark
+                      ? "text-sm text-white/70 truncate"
+                      : "text-sm text-gray-700 truncate"
+                  }
+                >
+                  @{acc.username || acc.name || "account"}
+                </span>
+              </div>
+            );
+          })}
 
           {/* Add account — only if below limit */}
           {accounts.length < accountLimit && (
             <Link
+              key="add-account-link"
               href="/insta/accounts/add"
               onClick={() => setAccountMenuOpen(false)}
               className={localStyles.menuItem}
@@ -288,6 +305,7 @@ export default function InstaBottomNavbar() {
           {/* Manage accounts — only if one exists */}
           {hasAccount && (
             <Link
+              key="manage-accounts-link"
               href="/insta/accounts"
               onClick={() => setAccountMenuOpen(false)}
               className={localStyles.menuItemLast}
@@ -309,7 +327,7 @@ export default function InstaBottomNavbar() {
 
           {/* Upgrade prompt if at limit and not subscribed */}
           {accounts.length >= accountLimit && !isSubscribed && (
-            <div className={localStyles.upgradePrompt}>
+            <div key="upgrade-prompt" className={localStyles.upgradePrompt}>
               <p className={localStyles.upgradeTitle}>Account limit reached</p>
               <p className={localStyles.upgradeDesc}>
                 Upgrade to Pro for up to 3 accounts.
@@ -328,7 +346,7 @@ export default function InstaBottomNavbar() {
             const Icon = item.icon;
             return (
               <Link
-                key={item.label}
+                key={item.href} // FIXED: Use href as unique key
                 href={item.href}
                 className={localStyles.navItem(active)}
               >
@@ -346,6 +364,7 @@ export default function InstaBottomNavbar() {
 
           {/* Account button — 5th slot */}
           <button
+            key="account-button"
             onClick={() => setAccountMenuOpen((prev) => !prev)}
             className={localStyles.accountButton(accountMenuOpen)}
           >

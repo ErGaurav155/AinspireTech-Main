@@ -40,6 +40,7 @@ interface AccountDataType {
   username: string;
   isActive: boolean;
   autoReplyEnabled?: boolean;
+  profilePicture?: string;
 }
 
 interface ContentItem {
@@ -98,6 +99,19 @@ interface TemplateType {
 
 type SortOption = "newest" | "oldest" | "a-z" | "z-a";
 
+// API Response Types
+interface TemplatesResponse {
+  success?: boolean;
+  templates?: TemplateType[];
+  hasMore?: boolean;
+  totalCount?: number;
+  data?: {
+    templates?: TemplateType[];
+    hasMore?: boolean;
+    totalCount?: number;
+  };
+}
+
 // Constants
 const SORT_LABELS: Record<SortOption, string> = {
   newest: "Newest First",
@@ -134,6 +148,7 @@ export default function AutomationsPage() {
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(
     null,
   );
+  const [deletingTemplateName, setDeletingTemplateName] = useState<string>("");
   const loadMoreCountRef = useRef(0);
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
@@ -153,8 +168,8 @@ export default function AutomationsPage() {
         : "flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors shadow-sm shadow-pink-200",
       loadMoreButton: (disabled?: boolean) =>
         isDark
-          ? `flex items-center gap-2 px-6 py-2.5 bg-white/[0.06] border border-white/[0.09] backdrop-blur-[12px] text-white/70 hover:bg-white/[0.09] rounded-xl transition-colors disabled:opacity-50`
-          : `flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-50`,
+          ? `flex items-center gap-2 px-6 py-2.5 bg-white/[0.06] border border-white/[0.09] backdrop-blur-[12px] text-white/70 hover:bg-white/[0.09] rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed`
+          : `flex items-center gap-2 px-6 py-2.5 bg-white border border-gray-200 rounded-xl text-sm text-gray-600 hover:border-gray-300 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed`,
       sortMenu: isDark
         ? "absolute right-0 top-12 z-20 bg-white/[0.04] border border-white/[0.08] backdrop-blur-[24px] rounded-2xl shadow-lg py-2 w-48 overflow-hidden"
         : "absolute right-0 top-12 z-20 bg-white border border-gray-100 rounded-2xl shadow-lg shadow-black/5 py-2 w-48 overflow-hidden",
@@ -259,23 +274,47 @@ export default function AutomationsPage() {
     };
   }, [isDark]);
 
-  // Fetch accounts (unchanged)
+  // Fetch accounts
   useEffect(() => {
     if (!isLoaded || !userId) return;
 
     const fetchAccounts = async () => {
       try {
         const data = await getAllInstagramAccounts(apiRequest);
+        console.log("Accounts response:", data);
+
+        let accountsList: any[] = [];
+
+        // Handle different response structures
         if (data?.accounts && Array.isArray(data.accounts)) {
-          setAccounts(
-            data.accounts.map((acc: any) => ({
-              instagramId: acc.instagramId,
-              username: acc.username,
-              isActive: acc.isActive || false,
-              autoReplyEnabled: acc.autoReplyEnabled || false,
-            })),
-          );
+          accountsList = data.accounts;
+        } else if (data?.accounts && Array.isArray(data.accounts)) {
+          accountsList = data.accounts;
+        } else if (Array.isArray(data)) {
+          accountsList = data;
         }
+
+        const formattedAccounts = accountsList
+          .filter((item: any) => {
+            const accountInfo = item.accountInfo || item;
+            return accountInfo.isActive === true;
+          })
+          .map((item: any) => {
+            const accountInfo = item.accountInfo || item;
+            const instagramInfo = item.instagramInfo || {};
+
+            return {
+              instagramId: accountInfo.instagramId || instagramInfo.id || "",
+              username:
+                instagramInfo.username || accountInfo.username || "Unknown",
+              isActive: accountInfo.isActive || false,
+              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+              profilePicture:
+                instagramInfo.profile_picture_url || accountInfo.profilePicture,
+            };
+          });
+
+        setAccounts(formattedAccounts);
       } catch (error) {
         console.error("Error fetching accounts:", error);
       }
@@ -284,7 +323,7 @@ export default function AutomationsPage() {
     fetchAccounts();
   }, [userId, isLoaded, apiRequest]);
 
-  // Fetch templates (unchanged)
+  // Fetch templates
   const fetchTemplates = useCallback(
     async (reset = false) => {
       if (!userId) return;
@@ -295,14 +334,38 @@ export default function AutomationsPage() {
 
       setIsLoading(true);
       try {
-        const response = await getInstaTemplates(apiRequest, {
+        const response = (await getInstaTemplates(apiRequest, {
           filterAccount: "all",
           filterStatus: "all",
           loadMoreCount: loadMoreCountRef.current,
-        });
+        })) as TemplatesResponse;
 
-        if (response.templates && response.templates.length > 0) {
-          const formatted = response.templates.map((t: any) => ({
+        console.log("Templates response:", response);
+
+        let templatesList: TemplateType[] = [];
+        let hasMore = false;
+        let totalCount = 0;
+
+        // Handle different response structures
+        if (response?.templates && Array.isArray(response.templates)) {
+          templatesList = response.templates;
+          hasMore = response.hasMore || false;
+          totalCount = response.totalCount || templatesList.length;
+        } else if (
+          response?.data?.templates &&
+          Array.isArray(response.data.templates)
+        ) {
+          templatesList = response.data.templates;
+          hasMore = response.data.hasMore || false;
+          totalCount = response.data.totalCount || templatesList.length;
+        } else if (Array.isArray(response)) {
+          templatesList = response;
+          hasMore = false;
+          totalCount = templatesList.length;
+        }
+
+        if (templatesList.length > 0) {
+          const formatted = templatesList.map((t: any) => ({
             ...t,
             content: t.content || [{ text: "", link: "" }],
             reply: t.reply || [],
@@ -320,8 +383,8 @@ export default function AutomationsPage() {
             setTemplates((prev) => [...prev, ...formatted]);
           }
 
-          setHasMoreTemplates(response.hasMore);
-          setTotalTemplates(response.totalCount);
+          setHasMoreTemplates(hasMore);
+          setTotalTemplates(totalCount);
         } else {
           setTemplates([]);
           setHasMoreTemplates(false);
@@ -379,6 +442,10 @@ export default function AutomationsPage() {
           ...template,
           isActive: newActive,
         });
+        toast({
+          title: newActive ? "Automation activated" : "Automation deactivated",
+          duration: 3000,
+        });
       } catch {
         setTemplates((prev) =>
           prev.map((t) =>
@@ -402,6 +469,8 @@ export default function AutomationsPage() {
         setTemplates((prev) => prev.filter((t) => t._id !== templateId));
         setTotalTemplates((prev) => prev - 1);
         toast({ title: "Automation deleted", duration: 3000 });
+        setShowDeleteDialog(false);
+        setDeletingTemplateId(null);
       } catch (error) {
         console.error("Error deleting template:", error);
         toast({
@@ -660,6 +729,7 @@ export default function AutomationsPage() {
                     <button
                       onClick={() => {
                         setDeletingTemplateId(template._id);
+                        setDeletingTemplateName(template.name);
                         setShowDeleteDialog(true);
                       }}
                       className={pageStyles.actionButton("red")}
@@ -676,10 +746,10 @@ export default function AutomationsPage() {
                         }
                       }}
                       title="Delete Automation"
-                      description={`Are you sure you want to delete "${template.name}"? This action cannot be undone.`}
+                      description={`Are you sure you want to delete "${deletingTemplateName}"? This action cannot be undone.`}
                       confirmText="Delete"
                       isDestructive={true}
-                      isLoading={isLoading} // optional loading state
+                      isLoading={isLoading}
                     />
                   </>
                 </div>

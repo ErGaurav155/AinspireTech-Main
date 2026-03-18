@@ -27,7 +27,6 @@ import {
   createInstaTemplate,
   getAllInstagramAccounts,
   getInstaMedia,
-  getInstaTemplates,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
 import {
@@ -45,6 +44,9 @@ interface AccountDataType {
   instagramId: string;
   username: string;
   isActive: boolean;
+  profilePicture?: string;
+  followersCount?: number;
+  mediaCount?: number;
 }
 
 interface MediaItem {
@@ -948,6 +950,7 @@ export default function CreateAutomationPage() {
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [showMoreMedia, setShowMoreMedia] = useState(false);
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
@@ -1175,7 +1178,14 @@ export default function CreateAutomationPage() {
       setIsLoadingMedia(true);
       try {
         const data = await getInstaMedia(apiRequest, accountId);
-        setMedia(data.media || []);
+        // Handle different response structures
+        let mediaList: MediaItem[] = [];
+        if (data?.media && Array.isArray(data.media)) {
+          mediaList = data.media;
+        } else if (Array.isArray(data)) {
+          mediaList = data;
+        }
+        setMedia(mediaList);
       } catch (e) {
         console.error("Error fetching media:", e);
         setMedia([]);
@@ -1191,34 +1201,67 @@ export default function CreateAutomationPage() {
     if (!userId || !isLoaded) return;
 
     const fetchAccounts = async () => {
+      setIsLoading(true);
       try {
         const data = await getAllInstagramAccounts(apiRequest);
-        if (data?.accounts) {
-          const active = data.accounts.filter((a: any) => a.isActive);
-          setAccounts(
-            active.map((a: any) => ({
-              instagramId: a.instagramId,
-              username: a.username,
-              isActive: a.isActive,
-            })),
-          );
+        console.log("Raw accounts response:", data);
 
-          // Set first account only if not already set
-          if (active.length > 0 && !form.accountId) {
-            const first = active[0];
-            setForm((prev) => ({
-              ...prev,
-              accountUsername: first.username,
-              accountId: first.instagramId,
-            }));
-            // Fetch media for this account
-            if (automationType !== "dms") {
-              fetchMedia(first.instagramId);
-            }
+        let accountsList: any[] = [];
+
+        // Handle different response structures
+        if (data?.accounts && Array.isArray(data.accounts)) {
+          accountsList = data.accounts;
+        } else if (data?.accounts && Array.isArray(data.accounts)) {
+          accountsList = data.accounts;
+        } else if (Array.isArray(data)) {
+          accountsList = data;
+        }
+
+        // Filter active accounts and extract relevant info
+        const active = accountsList
+          .filter((item: any) => {
+            const accountInfo = item.accountInfo || item;
+            return accountInfo.isActive === true;
+          })
+          .map((item: any) => {
+            const accountInfo = item.accountInfo || item;
+            const instagramInfo = item.instagramInfo || {};
+
+            return {
+              instagramId: accountInfo.instagramId || instagramInfo.id || "",
+              username:
+                instagramInfo.username || accountInfo.username || "Unknown",
+              isActive: accountInfo.isActive || false,
+              profilePicture:
+                instagramInfo.profile_picture_url || accountInfo.profilePicture,
+              followersCount:
+                instagramInfo.followers_count ||
+                accountInfo.followersCount ||
+                0,
+              mediaCount:
+                instagramInfo.media_count || accountInfo.mediaCount || 0,
+            };
+          });
+
+        setAccounts(active);
+
+        // Set first account only if not already set
+        if (active.length > 0 && !form.accountId) {
+          const first = active[0];
+          setForm((prev) => ({
+            ...prev,
+            accountUsername: first.username,
+            accountId: first.instagramId,
+          }));
+          // Fetch media for this account
+          if (automationType !== "dms") {
+            fetchMedia(first.instagramId);
           }
         }
       } catch (e) {
         console.error("Error fetching accounts:", e);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -1497,7 +1540,7 @@ export default function CreateAutomationPage() {
     [media, showMoreMedia],
   );
 
-  if (!isLoaded) {
+  if (!isLoaded || isLoading) {
     return (
       <div className={pageStyles.loadingContainer}>
         <div className={pageStyles.loadingSpinner} />
@@ -1551,7 +1594,7 @@ export default function CreateAutomationPage() {
             />
 
             {/* Account selector */}
-            {accounts.length > 1 && (
+            {accounts.length > 0 && (
               <div className={pageStyles.card}>
                 <p
                   className={`text-xs font-medium mb-3 ${isDark ? "text-white/40" : "text-gray-500"}`}

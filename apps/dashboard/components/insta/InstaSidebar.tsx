@@ -50,6 +50,8 @@ const NAV_ITEMS = [
 ] as const;
 
 interface InstagramAccount {
+  _id?: string;
+  instagramId?: string;
   username?: string;
   name?: string;
   profilePicture?: string;
@@ -89,15 +91,27 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         subscriptionResult.subscriptions.length > 0;
       setIsSubscribed(subscribed);
       setAccountLimit(subscribed ? 3 : 1);
-      setAccounts(accountsResult.accounts || []);
-    } catch {
-      // silent fail
+
+      // Handle different response structures for accounts
+      let accountsList: InstagramAccount[] = [];
+      if (accountsResult?.accounts && Array.isArray(accountsResult.accounts)) {
+        accountsList = accountsResult.accounts.map((item: any) => {
+          // Extract account info based on your API structure
+          return item.accountInfo || item;
+        });
+      } else if (Array.isArray(accountsResult)) {
+        accountsList = accountsResult;
+      }
+      setAccounts(accountsList);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [userId, apiRequest]);
 
   useEffect(() => {
     fetchData();
-    setIsLoading(false);
   }, [fetchData]);
 
   // Derive primary account info from fetched accounts
@@ -146,10 +160,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       selectorChevron: `h-4 w-4 flex-shrink-0 ${styles.text.muted} transition-transform duration-200`,
 
       // Dropdown
-      // dropdown: `mt-2 ${styles.card} absolute left-4 right-4 p-0 overflow-hidden`,
       dropdown: isDark
-        ? "mt-2 glass-card border border-white/[0.08] rounded-xl shadow-lg overflow-hidden absolute left-4 right-4 bg-gray-900/70 backdrop-blur-3xl "
-        : "mt-2 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden absolute left-4 right-4",
+        ? "mt-2 glass-card border border-white/[0.08] rounded-xl shadow-lg overflow-hidden absolute left-4 right-4 bg-gray-900/70 backdrop-blur-3xl z-50"
+        : "mt-2 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden absolute left-4 right-4 z-50",
       dropdownLimit: `px-4 py-2 border-b ${styles.divider} ${isDark ? "bg-white/[0.03]" : "bg-gray-50"}`,
       dropdownLimitText: `text-xs ${styles.text.muted}`,
       dropdownItem: `flex items-center gap-3 px-4 py-3 border-b ${styles.divider} ${styles.rowHover} text-sm ${styles.text.primary}`,
@@ -219,19 +232,14 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
     }),
     [isDark, styles],
   );
+
   const SidebarContent = useMemo(() => {
     const Content = () => (
       <div className="flex flex-col h-full relative z-10">
         {/* Logo */}
         <div className={localStyles.logoContainer}>
-          <Link href="/insta" className="flex items-center ">
-            <Image
-              alt="Logo"
-              src={Logo}
-              // width={100}
-              // height={100}
-              className="object-cover h-14 w-full"
-            />
+          <Link href="/insta" className="flex items-center">
+            <Image alt="Logo" src={Logo} className="object-cover h-14 w-full" />
           </Link>
         </div>
 
@@ -270,24 +278,29 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 </p>
               </div>
 
-              {/* List existing accounts */}
-              {accounts.map((acc, index) => (
-                <div
-                  key={acc._id}
-                  className={
-                    index === accounts.length - 1
-                      ? localStyles.dropdownItemLast
-                      : localStyles.dropdownItem
-                  }
-                >
-                  <div className={localStyles.selectorAvatar}>
-                    {(acc.name || acc.username || "?")[0].toUpperCase()}
+              {/* List existing accounts - FIXED: Added unique keys */}
+              {accounts.map((acc, index) => {
+                // Generate a unique key from _id, instagramId, or index as last resort
+                const accountKey =
+                  acc._id || acc.instagramId || `account-${index}`;
+                return (
+                  <div
+                    key={accountKey}
+                    className={
+                      index === accounts.length - 1
+                        ? localStyles.dropdownItemLast
+                        : localStyles.dropdownItem
+                    }
+                  >
+                    <div className={localStyles.selectorAvatar}>
+                      {(acc.name || acc.username || "?")[0].toUpperCase()}
+                    </div>
+                    <span className="truncate">
+                      @{acc.username || acc.name || "account"}
+                    </span>
                   </div>
-                  <span className="truncate">
-                    @{acc.username || acc.name || "account"}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Add account — only if below limit */}
               {accounts.length < accountLimit && (
@@ -312,7 +325,10 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
 
               {/* Show upgrade prompt if at limit and not subscribed */}
               {accounts.length >= accountLimit && !isSubscribed && (
-                <div className={localStyles.dropdownUpgrade}>
+                <div
+                  key="upgrade-prompt"
+                  className={localStyles.dropdownUpgrade}
+                >
                   <p className={localStyles.dropdownUpgradeTitle}>
                     Account limit reached
                   </p>
@@ -408,9 +424,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
               </div>
               <ul className="space-y-2 mb-4">
                 {["Unlimited DMs", "Unlimited Contacts", "Growth Features"].map(
-                  (feature) => (
+                  (feature, index) => (
                     <li
-                      key={feature}
+                      key={`feature-${index}`} // FIXED: Added unique key for feature list
                       className="flex items-center gap-2 text-xs"
                     >
                       <div className={localStyles.upgradeFeatureIcon}>
@@ -457,6 +473,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
     pricingClose,
     router,
   ]);
+
   if (isLoading) {
     return (
       <div
@@ -485,7 +502,6 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         } backdrop-blur-xl`}
       >
         {/* Close button for mobile */}
-
         <button
           type="button"
           onClick={(e) => {

@@ -12,7 +12,7 @@ import {
   Crown,
   Sparkles,
 } from "lucide-react";
-import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import Script from "next/script";
