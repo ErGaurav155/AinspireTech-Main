@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import Image from "next/image";
+import Image, { StaticImageData } from "next/image";
 import Default from "@/public/assets/img/default-img.jpg";
 
 import { useTheme } from "next-themes";
@@ -37,17 +37,20 @@ import {
 } from "@/lib/services/insta-actions.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
+// Types
 interface AccountDetails {
   instagramId: string;
   username: string;
-  profilePicture: string;
+  profilePicture: string | StaticImageData;
   followersCount: number;
   followingCount: number;
   mediaCount: number;
+  accountType?: string;
   isActive: boolean;
   autoReplyEnabled: boolean;
   autoDMEnabled: boolean;
   followCheckEnabled: boolean;
+  requireFollowForFreeUsers?: boolean;
   accountReply: number;
   accountDMSent: number;
   accountFollowCheck: number;
@@ -55,8 +58,59 @@ interface AccountDetails {
   tokenExpiresAt?: string;
   isMetaRateLimited: boolean;
   metaCallsThisHour: number;
+  metaCallsRemaining?: number;
+  metaRateLimitResetAt?: string;
+  templatesCount: number;
   createdAt: string;
   updatedAt: string;
+  _id?: string;
+  userId?: string;
+}
+
+// API Response Types - Updated to match actual response
+interface AccountDetailsResponse {
+  success: boolean;
+  accountInfo: {
+    _id: string;
+    instagramId: string;
+    userId: string;
+    username: string;
+    profilePicture?: string;
+    followersCount: number;
+    followingCount: number;
+    mediaCount: number;
+    isActive: boolean;
+    autoReplyEnabled: boolean;
+    autoDMEnabled: boolean;
+    followCheckEnabled: boolean;
+    requireFollowForFreeUsers: boolean;
+    metaCallsThisHour: number;
+    isMetaRateLimited: boolean;
+    tokenExpiresAt?: string;
+    createdAt: string;
+    updatedAt: string;
+    templatesCount: number;
+    accountReply: number;
+    accountDMSent: number;
+    accountFollowCheck: number;
+    lastActivity: string;
+  };
+  instagramInfo: {
+    account_type: string;
+    followers_count: number;
+    follows_count: number;
+    id: string;
+    media_count: number;
+    username: string;
+    profile_picture_url?: string;
+  };
+  rateLimitInfo: {
+    isMetaRateLimited: boolean;
+    metaCallsRemaining: number;
+    metaCallsUsed: number;
+    metaRateLimitResetAt?: string;
+  };
+  timestamp: string;
 }
 
 export default function AccountDetailsPage() {
@@ -69,16 +123,20 @@ export default function AccountDetailsPage() {
   const { styles, isDark } = useThemeStyles();
 
   const [account, setAccount] = useState<AccountDetails | null>(null);
+  const [instagramInfo, setInstagramInfo] = useState<any>(null);
+  const [rateLimitInfo, setRateLimitInfo] = useState<any>(null);
   const [settings, setSettings] = useState({
     isActive: true,
     autoReplyEnabled: true,
     autoDMEnabled: true,
     followCheckEnabled: true,
+    requireFollowForFreeUsers: false,
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [isRefreshingToken, setIsRefreshingToken] = useState(false);
 
   // Page-specific styles (not in central theme)
   const pageStyles = useMemo(() => {
@@ -98,8 +156,8 @@ export default function AccountDetailsPage() {
           ? `bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
           : `bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
       statCard: isDark
-        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4"
-        : "bg-white border border-gray-100 rounded-2xl p-4",
+        ? "bg-white/[0.06] border border-white/[0.08] shadow-[0_8px_32px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.07)] backdrop-blur-[24px] backdrop-saturate-[180%] crystal-card shimmer-card relative overflow-hidden rounded-xl p-4"
+        : "bg-white border border-gray-100 shadow-sm hover:border-cyan-200 hover:shadow-md transition-all rounded-xl p-4",
       statIcon: (color: string) =>
         isDark ? `h-4 w-4 text-${color}-400` : `h-4 w-4 text-${color}-500`,
       statLabel: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
@@ -109,9 +167,7 @@ export default function AccountDetailsPage() {
       statWarning: isDark
         ? "text-xl font-bold text-red-400"
         : "text-xl font-bold text-red-600",
-      settingsSection: isDark
-        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
-        : "bg-white border border-gray-100 rounded-2xl p-6",
+
       sectionTitle: isDark
         ? "font-semibold text-white mb-4"
         : "font-semibold text-gray-800 mb-4",
@@ -185,35 +241,187 @@ export default function AccountDetailsPage() {
 
     try {
       setIsLoading(true);
-      const acc = await getInstaAccountById(apiRequest, accountId);
-      setAccount({
-        instagramId: acc.instagramId,
-        username: acc.username,
-        profilePicture: acc.profilePicture || Default,
-        followersCount: acc.followersCount || 0,
-        followingCount: acc.followingCount || 0,
-        mediaCount: acc.mediaCount || 0,
-        isActive: acc.isActive || false,
-        autoReplyEnabled: acc.autoReplyEnabled || false,
-        autoDMEnabled: acc.autoDMEnabled || false,
-        followCheckEnabled: acc.followCheckEnabled || false,
-        accountReply: acc.accountReply || 0,
-        accountDMSent: acc.accountDMSent || 0,
-        accountFollowCheck: acc.accountFollowCheck || 0,
-        lastActivity: acc.lastActivity || new Date().toISOString(),
-        tokenExpiresAt: acc.tokenExpiresAt,
-        isMetaRateLimited: acc.isMetaRateLimited || false,
-        metaCallsThisHour: acc.metaCallsThisHour || 0,
-        createdAt: acc.createdAt,
-        updatedAt: acc.updatedAt,
-      });
+      console.log("Fetching account with ID:", accountId);
 
-      setSettings({
-        isActive: acc.isActive || false,
-        autoReplyEnabled: acc.autoReplyEnabled || false,
-        autoDMEnabled: acc.autoDMEnabled || false,
-        followCheckEnabled: acc.followCheckEnabled || false,
-      });
+      const response = await getInstaAccountById(apiRequest, accountId);
+      console.log("===== RAW ACCOUNT DETAILS RESPONSE =====");
+      console.log("Response:", JSON.stringify(response, null, 2));
+      console.log("Response type:", typeof response);
+      console.log("Response keys:", Object.keys(response || {}));
+      console.log("========================================");
+
+      // Handle different response structures
+      if (response) {
+        // Case 1: Response has accountInfo, instagramInfo, rateLimitInfo directly (from your log)
+        if (
+          response.accountInfo &&
+          response.instagramInfo &&
+          response.rateLimitInfo
+        ) {
+          console.log(
+            "Case 1: Response has direct accountInfo, instagramInfo, rateLimitInfo",
+          );
+
+          const accountInfo = response.accountInfo;
+          const instaInfo = response.instagramInfo;
+          const rateInfo = response.rateLimitInfo;
+
+          setInstagramInfo(instaInfo);
+          setRateLimitInfo(rateInfo);
+
+          setAccount({
+            _id: accountInfo._id,
+            userId: accountInfo.userId,
+            instagramId: accountInfo.instagramId,
+            username: instaInfo.username || accountInfo.username || "Unknown",
+            profilePicture:
+              instaInfo.profile_picture_url ||
+              accountInfo.profilePicture ||
+              Default,
+            followersCount:
+              instaInfo.followers_count || accountInfo.followersCount || 0,
+            followingCount:
+              instaInfo.follows_count || accountInfo.followingCount || 0,
+            mediaCount: instaInfo.media_count || accountInfo.mediaCount || 0,
+            accountType: instaInfo.account_type || "",
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
+            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
+            tokenExpiresAt: accountInfo.tokenExpiresAt,
+            createdAt: accountInfo.createdAt,
+            updatedAt: accountInfo.updatedAt,
+            templatesCount: accountInfo.templatesCount || 0,
+            accountReply: accountInfo.accountReply || 0,
+            accountDMSent: accountInfo.accountDMSent || 0,
+            accountFollowCheck: accountInfo.accountFollowCheck || 0,
+            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
+          });
+
+          setSettings({
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+          });
+        }
+        // Case 2: Response has data property with nested structure
+        else if (
+          response.data &&
+          response.data.accountInfo &&
+          response.data.instagramInfo
+        ) {
+          console.log(
+            "Case 2: Response has data.accountInfo and data.instagramInfo",
+          );
+
+          const accountInfo = response.data.accountInfo;
+          const instaInfo = response.data.instagramInfo;
+          const rateInfo = response.data.rateLimitInfo;
+
+          setInstagramInfo(instaInfo);
+          setRateLimitInfo(rateInfo);
+
+          setAccount({
+            _id: accountInfo._id,
+            userId: accountInfo.userId,
+            instagramId: accountInfo.instagramId,
+            username: instaInfo.username || accountInfo.username || "Unknown",
+            profilePicture:
+              instaInfo.profile_picture_url ||
+              accountInfo.profilePicture ||
+              Default,
+            followersCount:
+              instaInfo.followers_count || accountInfo.followersCount || 0,
+            followingCount:
+              instaInfo.follows_count || accountInfo.followingCount || 0,
+            mediaCount: instaInfo.media_count || accountInfo.mediaCount || 0,
+            accountType: instaInfo.account_type || "",
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
+            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
+            tokenExpiresAt: accountInfo.tokenExpiresAt,
+            createdAt: accountInfo.createdAt,
+            updatedAt: accountInfo.updatedAt,
+            templatesCount: accountInfo.templatesCount || 0,
+            accountReply: accountInfo.accountReply || 0,
+            accountDMSent: accountInfo.accountDMSent || 0,
+            accountFollowCheck: accountInfo.accountFollowCheck || 0,
+            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
+          });
+
+          setSettings({
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+          });
+        }
+        // Case 3: Response is the account object itself
+        else if (response._id || response.instagramId) {
+          console.log("Case 3: Response is the account object itself");
+
+          const accountInfo = response;
+
+          setAccount({
+            _id: accountInfo._id,
+            userId: accountInfo.userId,
+            instagramId: accountInfo.instagramId,
+            username: accountInfo.username || "Unknown",
+            profilePicture: accountInfo.profilePicture || Default,
+            followersCount: accountInfo.followersCount || 0,
+            followingCount: accountInfo.followingCount || 0,
+            mediaCount: accountInfo.mediaCount || 0,
+            accountType: accountInfo.accountType || "",
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
+            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
+            tokenExpiresAt: accountInfo.tokenExpiresAt,
+            createdAt: accountInfo.createdAt,
+            updatedAt: accountInfo.updatedAt,
+            templatesCount: accountInfo.templatesCount || 0,
+            accountReply: accountInfo.accountReply || 0,
+            accountDMSent: accountInfo.accountDMSent || 0,
+            accountFollowCheck: accountInfo.accountFollowCheck || 0,
+            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
+          });
+
+          setSettings({
+            isActive: accountInfo.isActive || false,
+            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+            autoDMEnabled: accountInfo.autoDMEnabled || false,
+            followCheckEnabled: accountInfo.followCheckEnabled || false,
+            requireFollowForFreeUsers:
+              accountInfo.requireFollowForFreeUsers || false,
+          });
+        } else {
+          console.log("Unknown response structure:", response);
+          toast({
+            title: "Error",
+            description: "Unexpected API response structure",
+            variant: "destructive",
+            duration: 3000,
+          });
+        }
+      }
     } catch (error) {
       console.error("Error fetching account:", error);
       toast({
@@ -253,6 +461,9 @@ export default function AccountDetailsPage() {
         description: "Account settings updated successfully",
         duration: 3000,
       });
+
+      // Refresh account data to get updated settings
+      await fetchAccount();
     } catch (error) {
       toast({
         title: "Error",
@@ -293,6 +504,7 @@ export default function AccountDetailsPage() {
   const handleRefreshToken = async () => {
     if (!account) return;
 
+    setIsRefreshingToken(true);
     try {
       await refreshInstagramToken(apiRequest, account.instagramId);
       toast({
@@ -300,6 +512,9 @@ export default function AccountDetailsPage() {
         description: "Token refreshed successfully",
         duration: 3000,
       });
+
+      // Refresh account data to get updated token expiry
+      await fetchAccount();
     } catch (error) {
       toast({
         title: "Error",
@@ -307,6 +522,8 @@ export default function AccountDetailsPage() {
         variant: "destructive",
         duration: 3000,
       });
+    } finally {
+      setIsRefreshingToken(false);
     }
   };
 
@@ -346,7 +563,7 @@ export default function AccountDetailsPage() {
       {isDark && <Orbs />}
       <div className={styles.container}>
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-1">
           <div className="flex items-center gap-3">
             <Link href="/insta/accounts" className={pageStyles.backButton}>
               <ArrowLeft className="h-5 w-5" />
@@ -363,7 +580,10 @@ export default function AccountDetailsPage() {
               <div>
                 <h1 className={pageStyles.headerTitle}>@{account.username}</h1>
                 <p className={pageStyles.headerSub}>
-                  Instagram Account Settings
+                  {account.accountType
+                    ? account.accountType.replace("_", " ")
+                    : "Instagram"}{" "}
+                  Account
                 </p>
               </div>
             </div>
@@ -419,8 +639,13 @@ export default function AccountDetailsPage() {
                   : pageStyles.statValue
               }
             >
-              {account.metaCallsThisHour}
+              {account.metaCallsThisHour} / 200
             </p>
+            {rateLimitInfo && (
+              <p className={pageStyles.statLabel}>
+                {rateLimitInfo.metaCallsRemaining} remaining
+              </p>
+            )}
           </div>
         </div>
 
@@ -429,7 +654,7 @@ export default function AccountDetailsPage() {
           {/* Main Settings */}
           <div className="lg:col-span-2 space-y-4">
             {/* Account Status */}
-            <div className={pageStyles.settingsSection}>
+            <div className={pageStyles.statCard}>
               <h3 className={pageStyles.sectionTitle}>Account Status</h3>
 
               <div className="space-y-4">
@@ -498,11 +723,29 @@ export default function AccountDetailsPage() {
                     className={pageStyles.switchTrack}
                   />
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={pageStyles.settingLabel}>
+                      Require Follow for Free Users
+                    </p>
+                    <p className={pageStyles.settingDesc}>
+                      Only reply to users who follow you
+                    </p>
+                  </div>
+                  <Switch
+                    checked={settings.requireFollowForFreeUsers}
+                    onCheckedChange={(checked) =>
+                      handleSettingChange("requireFollowForFreeUsers", checked)
+                    }
+                    className={pageStyles.switchTrack}
+                  />
+                </div>
               </div>
             </div>
 
             {/* Token Status */}
-            <div className={pageStyles.tokenStatus}>
+            <div className={pageStyles.statCard}>
               <h3 className={pageStyles.sectionTitle}>Token Status</h3>
 
               <div className="space-y-3">
@@ -522,9 +765,12 @@ export default function AccountDetailsPage() {
                       {isTokenExpiring && (
                         <button
                           onClick={handleRefreshToken}
+                          disabled={isRefreshingToken}
                           className={pageStyles.tokenRefresh}
                         >
-                          <RefreshCw className="h-4 w-4" />
+                          <RefreshCw
+                            className={`h-4 w-4 ${isRefreshingToken ? "animate-spin" : ""}`}
+                          />
                         </button>
                       )}
                     </div>
@@ -547,14 +793,35 @@ export default function AccountDetailsPage() {
                     {account.isMetaRateLimited ? "Limited" : "Normal"}
                   </span>
                 </div>
+
+                {rateLimitInfo?.metaRateLimitResetAt &&
+                  account.isMetaRateLimited && (
+                    <div className={pageStyles.tokenRow}>
+                      <span className={pageStyles.tokenLabel}>Reset At</span>
+                      <span className={pageStyles.tokenLabel}>
+                        {new Date(
+                          rateLimitInfo.metaRateLimitResetAt,
+                        ).toLocaleString()}
+                      </span>
+                    </div>
+                  )}
               </div>
             </div>
           </div>
 
           {/* Sidebar */}
           <div className="space-y-4">
+            {/* Templates Count */}
+            <div className={pageStyles.statCard}>
+              <h3 className={pageStyles.sectionTitle}>Templates</h3>
+              <div className="text-center py-4">
+                <p className={pageStyles.statValue}>{account.templatesCount}</p>
+                <p className={pageStyles.statLabel}>Active Templates</p>
+              </div>
+            </div>
+
             {/* Activity Stats */}
-            <div className={pageStyles.activitySection}>
+            <div className={pageStyles.statCard}>
               <h3 className={pageStyles.sectionTitle}>Activity</h3>
 
               <div className="space-y-3">
@@ -586,11 +853,19 @@ export default function AccountDetailsPage() {
                     {new Date(account.lastActivity).toLocaleDateString()}
                   </span>
                 </div>
+                <div className={pageStyles.activityRow}>
+                  <span className={pageStyles.activityLabel}>
+                    Connected Since
+                  </span>
+                  <span className={pageStyles.activityValue}>
+                    {new Date(account.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
             </div>
 
             {/* Danger Zone */}
-            <div className={pageStyles.dangerZone}>
+            <div className={`${pageStyles.dangerZone} ${pageStyles.statCard}`}>
               <h3
                 className={`font-semibold mb-4 flex items-center gap-2 ${pageStyles.dangerTitle}`}
               >
@@ -607,7 +882,7 @@ export default function AccountDetailsPage() {
               </button>
               <p className={pageStyles.dangerText}>
                 This will permanently delete this Instagram account and all
-                associated data.
+                associated data including templates and automations.
               </p>
             </div>
           </div>
@@ -620,37 +895,10 @@ export default function AccountDetailsPage() {
         onOpenChange={setShowDeleteDialog}
         onConfirm={handleDeleteAccount}
         title="Delete Instagram Account"
-        description="Are you sure you want to delete @{account.username}? This will
-              permanently remove the account and all associated automations,
-              templates, and data. This action cannot be undone."
+        description={`Are you sure you want to delete @${account.username}? This will permanently remove the account and all associated automations, templates, and data. This action cannot be undone.`}
         confirmText="Delete Permanently"
         isDestructive={true}
       />
-      {/* <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent className={styles.dialogContent}>
-          <AlertDialogHeader>
-            <AlertDialogTitle className={styles.dialogTitle}>
-              Delete Instagram Account
-            </AlertDialogTitle>
-            <AlertDialogDescription className={styles.dialogDesc}>
-              Are you sure you want to delete @{account.username}? This will
-              permanently remove the account and all associated automations,
-              templates, and data. This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className={styles.dialogCancel}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDeleteAccount}
-              className={styles.dialogAction}
-            >
-              Delete Permanently
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> */}
     </div>
   );
 }

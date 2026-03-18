@@ -1,11 +1,10 @@
 import { Router } from "express";
 import { handleInstaCallbackController } from "@/controllers/insta/callback.controller";
-import { getInstaDashboardController } from "@/controllers/insta/dashboard.controller";
 import { getInstaMediaController } from "@/controllers/insta/media.controller";
 import { getInstaReplyLogsController } from "@/controllers/insta/replylogs.controller";
-import { getInstaUserInfoController } from "@/controllers/insta/user-info.controller";
 import {
   deleteInstaAccountController,
+  getAllInstaAccountsInfoController,
   getInstaAccountByIdController,
   updateInstaAccountController,
 } from "@/controllers/insta/accounts-id.controller";
@@ -16,14 +15,12 @@ import {
   getInstaTemplatesController,
 } from "@/controllers/insta/templates/templates.controller";
 import { bulkTemplateActionController } from "@/controllers/insta/templates/bulk.controller";
-import { getUserInstaAccountController } from "@/controllers/insta/get-account-controller";
 import { refreshInstagramTokenController } from "@/controllers/insta/refresh-token.controller";
 import {
   deleteInstaTemplateController,
   updateInstaTemplateController,
 } from "@/controllers/insta/templates/templates-id.controller";
 import { requireAuth } from "@clerk/express";
-import { getAllInstaAccountsController } from "@/controllers/insta/accounts.controller";
 
 const router = Router();
 
@@ -31,22 +28,17 @@ router.use(requireAuth());
 
 // GET /api/insta/callback - Handle Instagram OAuth callback
 router.get("/callback", handleInstaCallbackController);
-// GET /api/insta/dashboard - Get Instagram dashboard stats
-router.get("/dashboard", getInstaDashboardController);
 // GET /api/insta/media - Get Instagram media for account
 router.get("/media", getInstaMediaController);
 // GET /api/insta/replylogs - Get Instagram reply logs
 router.get("/replylogs", getInstaReplyLogsController);
-// GET /api/insta/user-info - Get Instagram user info
-router.get("/user-info", getInstaUserInfoController);
 // POST /api/insta/refresh-token - Refresh Instagram token
 router.post("/refresh-token", refreshInstagramTokenController);
 
 //accounts
-router.get("/accounts", getAllInstaAccountsController);
 
-// GET /api/insta/getAccount - Get Instagram accounts for user
-router.get("/getAccount", getUserInstaAccountController);
+// GET /api/insta/accounts - Get Instagram accounts for user
+router.get("/accounts", getAllInstaAccountsInfoController);
 // GET /api/insta/accounts/:accountId - Get specific Instagram account
 router.get("/accounts/:accountId", getInstaAccountByIdController);
 // PUT /api/insta/accounts/:accountId - Update Instagram account

@@ -3,7 +3,7 @@
 import { ApiRequestFn } from "../useApi";
 
 export const getInstaAccount = (apiRequest: ApiRequestFn): Promise<any> => {
-  return apiRequest("/insta/getAccount", {
+  return apiRequest("/insta/accounts", {
     method: "GET",
   });
 };
@@ -148,7 +148,7 @@ export const createInstaTemplate = (
 
 export const getAllInstagramAccounts = (
   apiRequest: ApiRequestFn,
-): Promise<{ accounts: InstagramAccount[] }> => {
+): Promise<{ accounts: any }> => {
   return apiRequest("/insta/accounts", {
     method: "GET",
   });
@@ -175,13 +175,6 @@ export function reconnectInstagramAccount() {
   // This should redirect to your Instagram OAuth flow
   window.location.href = "/api/instagram/connect";
 }
-// ==================== DASHBOARD FUNCTIONS ====================
-
-export const getDashboardData = (apiRequest: ApiRequestFn): Promise<any> => {
-  return apiRequest("/insta/dashboard", {
-    method: "GET",
-  });
-};
 
 // ==================== RATE LIMIT FUNCTIONS ====================
 
@@ -377,7 +370,7 @@ export const updateAccountSettings = (
     storyAutomationsEnabled?: boolean;
     trackDmUrlEnabled?: boolean;
   },
-): Promise<{ success: boolean; account: InstagramAccount }> => {
+): Promise<{ success: boolean; account: any }> => {
   return apiRequest(`/insta/accounts/${accountId}`, {
     method: "PUT",
     body: JSON.stringify(settings),

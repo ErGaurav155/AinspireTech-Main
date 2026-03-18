@@ -1030,7 +1030,7 @@ export const instagramFeatures = [
 
 export const TIER_LIMITS = {
   free: 200,
-  pro: 3000,
+  pro: 5000,
 };
 
 export type TierType = keyof typeof TIER_LIMITS;

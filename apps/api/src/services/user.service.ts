@@ -18,8 +18,8 @@ import { redisHelpers } from "@/config/redis.config";
 import webFaq from "@/models/web/webFaq.model";
 
 export const TIER_LIMITS = {
-  free: 100,
-  pro: 999999,
+  free: 200,
+  pro: 5000,
 };
 // Types
 export interface CreateUserParams {

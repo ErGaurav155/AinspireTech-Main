@@ -23,7 +23,7 @@ import {
 } from "@rocketreplai/ui";
 
 import Link from "next/link";
-import Image from "next/image";
+import Image, { StaticImageData } from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -40,9 +40,11 @@ import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 interface InstagramAccount {
   instagramId: string;
   username: string;
-  profilePicture: string;
+  profilePicture: string | StaticImageData;
   followersCount: number;
+  followingCount?: number;
   mediaCount: number;
+  accountType?: string;
   isActive: boolean;
   autoReplyEnabled: boolean;
   autoDMEnabled: boolean;
@@ -55,6 +57,66 @@ interface InstagramAccount {
   tokenExpiresAt?: string;
   isMetaRateLimited: boolean;
   createdAt: string;
+  rateLimitInfo?: {
+    metaCallsUsed: number;
+    metaCallsRemaining: number;
+    isMetaRateLimited: boolean;
+  };
+}
+
+// API Response Types - UPDATED to match actual API response
+interface InstagramAccountsResponse {
+  success: boolean;
+  accounts: Array<{
+    success: boolean;
+    accountInfo: {
+      _id: string;
+      instagramId: string;
+      userId: string;
+      username: string;
+      profilePicture?: string;
+      followersCount: number;
+      followingCount: number;
+      mediaCount: number;
+      isActive: boolean;
+      autoReplyEnabled: boolean;
+      autoDMEnabled: boolean;
+      followCheckEnabled: boolean;
+      requireFollowForFreeUsers: boolean;
+      metaCallsThisHour: number;
+      isMetaRateLimited: boolean;
+      tokenExpiresAt?: string;
+      createdAt: string;
+      updatedAt: string;
+      templatesCount: number;
+      accountReply?: number;
+      accountDMSent?: number;
+      accountFollowCheck?: number;
+      lastActivity?: string;
+    };
+    instagramInfo: {
+      account_type: string;
+      followers_count: number;
+      follows_count: number;
+      id: string;
+      media_count: number;
+      username: string;
+      profile_picture_url?: string;
+    };
+    rateLimitInfo: {
+      isMetaRateLimited: boolean;
+      metaCallsRemaining: number;
+      metaCallsUsed: number;
+    };
+  }>;
+  summary?: {
+    accountsWithErrors: number;
+    activeAccounts: number;
+    totalAccounts: number;
+    totalFollowers: number;
+    totalMedia: number;
+  };
+  timestamp: string;
 }
 
 // Constants
@@ -80,6 +142,13 @@ export default function AccountsPage() {
   const [isUpdatingAccount, setIsUpdatingAccount] = useState<string | null>(
     null,
   );
+  const [summary, setSummary] = useState<{
+    totalAccounts: number;
+    activeAccounts: number;
+    totalFollowers: number;
+    totalMedia: number;
+    accountsWithErrors: number;
+  } | null>(null);
 
   // Helper: Format last activity
   const formatLastActivity = useCallback((dateString: string): string => {
@@ -114,35 +183,129 @@ export default function AccountsPage() {
       setIsLoading(true);
       setError(null);
 
-      const response = await getInstaAccount(apiRequest);
-      console.log("formattedAccounts:", response);
+      const response = (await getInstaAccount(
+        apiRequest,
+      )) as InstagramAccountsResponse;
+      console.log("API Response:", response);
 
-      if (response?.accounts) {
+      // Check if response has accounts array directly (not nested in data)
+      if (
+        response?.success &&
+        response?.accounts &&
+        Array.isArray(response.accounts)
+      ) {
         const formattedAccounts: InstagramAccount[] = response.accounts.map(
-          (acc: any) => ({
-            instagramId: acc.instagramId,
-            username: acc.username,
-            profilePicture: acc.profilePicture || Default,
-            followersCount: acc.followersCount || 0,
-            mediaCount: acc.mediaCount || 0,
-            isActive: acc.isActive || false,
-            autoReplyEnabled: acc.autoReplyEnabled || false,
-            autoDMEnabled: acc.autoDMEnabled || false,
-            followCheckEnabled: acc.followCheckEnabled || false,
-            templatesCount: acc.templatesCount || 0,
-            accountReply: acc.accountReply || 0,
-            accountDMSent: acc.accountDMSent || 0,
-            accountFollowCheck: acc.accountFollowCheck || 0,
-            lastActivity: acc.lastActivity || new Date().toISOString(),
-            tokenExpiresAt: acc.tokenExpiresAt,
-            isMetaRateLimited: acc.isMetaRateLimited || false,
-            createdAt: acc.createdAt,
-          }),
+          (item) => {
+            // Use instagramInfo for API data (fresher), fallback to accountInfo
+            const instagramInfo = item.instagramInfo || {};
+            const accountInfo = item.accountInfo || {};
+
+            return {
+              // Core fields - prefer instagramInfo for username, accountInfo for others
+              instagramId: accountInfo.instagramId || instagramInfo.id || "",
+              username:
+                instagramInfo.username || accountInfo.username || "Unknown",
+              profilePicture:
+                instagramInfo.profile_picture_url ||
+                accountInfo.profilePicture ||
+                Default,
+              followersCount:
+                instagramInfo.followers_count ||
+                accountInfo.followersCount ||
+                0,
+              followingCount:
+                instagramInfo.follows_count || accountInfo.followingCount || 0,
+              mediaCount:
+                instagramInfo.media_count || accountInfo.mediaCount || 0,
+              accountType: instagramInfo.account_type || "",
+
+              // Account settings from accountInfo
+              isActive: accountInfo.isActive || false,
+              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+              autoDMEnabled: accountInfo.autoDMEnabled || false,
+              followCheckEnabled: accountInfo.followCheckEnabled || false,
+              templatesCount: accountInfo.templatesCount || 0,
+              accountReply: accountInfo.accountReply || 0,
+              accountDMSent: accountInfo.accountDMSent || 0,
+              accountFollowCheck: accountInfo.accountFollowCheck || 0,
+              lastActivity:
+                accountInfo.lastActivity || new Date().toISOString(),
+              tokenExpiresAt: accountInfo.tokenExpiresAt,
+              isMetaRateLimited: accountInfo.isMetaRateLimited || false,
+              createdAt: accountInfo.createdAt || new Date().toISOString(),
+
+              // Rate limit info
+              rateLimitInfo: item.rateLimitInfo || {
+                metaCallsUsed: 0,
+                metaCallsRemaining: 200,
+                isMetaRateLimited: false,
+              },
+            };
+          },
+        );
+
+        console.log("Formatted Accounts:", formattedAccounts);
+        setAccounts(formattedAccounts);
+
+        // Set summary data if available
+        if (response.summary) {
+          setSummary(response.summary);
+        }
+      }
+      // Check alternative structure (if data.accounts exists)
+      else if (response?.accounts && Array.isArray(response.accounts)) {
+        const formattedAccounts: InstagramAccount[] = response.accounts.map(
+          (item) => {
+            const instagramInfo = item.instagramInfo || {};
+            const accountInfo = item.accountInfo || {};
+
+            return {
+              instagramId: accountInfo.instagramId || instagramInfo.id || "",
+              username:
+                instagramInfo.username || accountInfo.username || "Unknown",
+              profilePicture:
+                instagramInfo.profile_picture_url ||
+                accountInfo.profilePicture ||
+                Default,
+              followersCount:
+                instagramInfo.followers_count ||
+                accountInfo.followersCount ||
+                0,
+              followingCount:
+                instagramInfo.follows_count || accountInfo.followingCount || 0,
+              mediaCount:
+                instagramInfo.media_count || accountInfo.mediaCount || 0,
+              accountType: instagramInfo.account_type || "",
+              isActive: accountInfo.isActive || false,
+              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
+              autoDMEnabled: accountInfo.autoDMEnabled || false,
+              followCheckEnabled: accountInfo.followCheckEnabled || false,
+              templatesCount: accountInfo.templatesCount || 0,
+              accountReply: accountInfo.accountReply || 0,
+              accountDMSent: accountInfo.accountDMSent || 0,
+              accountFollowCheck: accountInfo.accountFollowCheck || 0,
+              lastActivity:
+                accountInfo.lastActivity || new Date().toISOString(),
+              tokenExpiresAt: accountInfo.tokenExpiresAt,
+              isMetaRateLimited: accountInfo.isMetaRateLimited || false,
+              createdAt: accountInfo.createdAt || new Date().toISOString(),
+              rateLimitInfo: item.rateLimitInfo || {
+                metaCallsUsed: 0,
+                metaCallsRemaining: 200,
+                isMetaRateLimited: false,
+              },
+            };
+          },
         );
 
         setAccounts(formattedAccounts);
+        if (response.summary) {
+          setSummary(response.summary);
+        }
       } else {
+        console.log("No accounts found in response");
         setAccounts([]);
+        setSummary(null);
       }
     } catch (error) {
       console.error("Failed to fetch accounts:", error);
@@ -237,6 +400,9 @@ export default function AccountsPage() {
         description: "Token refreshed successfully",
         duration: 3000,
       });
+
+      // Refresh accounts data to get updated token expiry
+      await fetchAccounts();
     } catch (error) {
       toast({
         title: "Error",
@@ -264,8 +430,28 @@ export default function AccountsPage() {
     await fetchAccounts();
   };
 
-  // Calculate statistics
+  // Calculate statistics (fallback if summary not provided by API)
   const stats = useMemo(() => {
+    if (summary) {
+      return {
+        activeAccounts: summary.activeAccounts,
+        totalFollowers: summary.totalFollowers,
+        totalReplies: accounts.reduce((sum, acc) => sum + acc.accountReply, 0),
+        totalDMs: accounts.reduce((sum, acc) => sum + acc.accountDMSent, 0),
+        avgEngagement:
+          accounts.length > 0
+            ? (
+                accounts.reduce(
+                  (sum, acc) => sum + acc.accountReply + acc.accountDMSent,
+                  0,
+                ) /
+                accounts.length /
+                100
+              ).toFixed(1)
+            : "0",
+      };
+    }
+
     const activeAccounts = accounts.filter(
       (account) => account.isActive,
     ).length;
@@ -290,7 +476,7 @@ export default function AccountsPage() {
       totalDMs,
       avgEngagement,
     };
-  }, [accounts]);
+  }, [accounts, summary]);
 
   // Get account limits
   const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
@@ -437,9 +623,14 @@ export default function AccountsPage() {
               />
             </div>
             <p className={pageStyles.statValue}>
-              {accounts.length} / {accountLimit}
+              {summary?.totalAccounts || accounts.length} / {accountLimit}
             </p>
-            <p className={pageStyles.statSub}>{stats.activeAccounts} active</p>
+            <p className={pageStyles.statSub}>
+              {stats.activeAccounts} active{" "}
+              {summary?.accountsWithErrors
+                ? `(${summary.accountsWithErrors} errors)`
+                : ""}
+            </p>
           </div>
 
           <div className={`${styles.card} rounded-xl p-4`}>
@@ -451,6 +642,9 @@ export default function AccountsPage() {
             </div>
             <p className={pageStyles.statValue}>
               {stats.totalFollowers.toLocaleString()}
+            </p>
+            <p className={pageStyles.statSub}>
+              {summary?.totalMedia || 0} total posts
             </p>
           </div>
 
@@ -519,36 +713,6 @@ export default function AccountsPage() {
         accountLimit={subscriptions.length === 0 ? 1 : 3}
         dashboardType="insta"
       />
-      {/* Account Limit Dialog */}
-      {/* <AlertDialog
-        open={showAccountLimitDialog}
-        onOpenChange={setShowAccountLimitDialog}
-      >
-        <AlertDialogContent className={styles.dialogContent}>
-          <AlertDialogHeader>
-            <AlertDialogTitle className={styles.dialogTitle}>
-              Account Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className={styles.dialogDesc}>
-              You have reached the maximum number of accounts for your current
-              plan ({accounts.length}/{accountLimit}). To add more accounts,
-              please upgrade your subscription.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className={styles.dialogCancel}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              onClick={() => router.push("/insta/pricing")}
-              className={styles.button.primary}
-            >
-              <Crown className="h-4 w-4 mr-2" />
-              Upgrade Now
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> */}
     </div>
   );
 }
@@ -612,10 +776,19 @@ const AccountCard: React.FC<AccountCardProps> = ({
               >
                 {account.isActive ? "Active" : "Inactive"}
               </span>
+              {account.accountType && (
+                <span className="text-xs text-gray-400">
+                  {account.accountType.replace("_", " ")}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className={pageStyles.accountStats}>
                 {account.followersCount.toLocaleString()} followers
+              </span>
+              <span className={pageStyles.accountStatDivider} />
+              <span className={pageStyles.accountStats}>
+                {account.followingCount?.toLocaleString() || 0} following
               </span>
               <span className={pageStyles.accountStatDivider} />
               <span className={pageStyles.accountStats}>
@@ -651,6 +824,14 @@ const AccountCard: React.FC<AccountCardProps> = ({
             </p>
             <p className={pageStyles.accountStatLabel}>Active</p>
           </div>
+          {account.rateLimitInfo && (
+            <div className={pageStyles.accountStatItem}>
+              <p className={pageStyles.accountStatValue}>
+                {account.rateLimitInfo.metaCallsRemaining}
+              </p>
+              <p className={pageStyles.accountStatLabel}>API Calls Left</p>
+            </div>
+          )}
         </div>
 
         {/* Actions */}

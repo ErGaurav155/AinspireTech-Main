@@ -125,8 +125,8 @@ const addInstagramAccountToRateLimit = async (
       // Get user tier
       const tier = await getUserTier(clerkId);
       const TIER_LIMITS = {
-        free: 100,
-        pro: 999999,
+        free: 200,
+        pro: 5000,
       } as const;
 
       // Create new record if doesn't exist

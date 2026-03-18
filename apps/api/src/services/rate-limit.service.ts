@@ -15,8 +15,8 @@ const META_API_LIMIT_PER_ACCOUNT = 200;
 
 // Tier limits based on subscription
 const TIER_LIMITS = {
-  free: 100, // Free users: 100 calls/hour
-  pro: 2000, // Pro users: 2000 calls/hour
+  free: 200, // Free users: 100 calls/hour
+  pro: 5000, // Pro users: 2000 calls/hour
 } as const;
 
 type TierType = keyof typeof TIER_LIMITS;

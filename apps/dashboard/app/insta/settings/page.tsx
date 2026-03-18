@@ -31,13 +31,18 @@ interface AccountDataType {
   isActive: boolean;
   profilePicture?: string;
   followersCount?: number;
+  followingCount?: number;
   mediaCount?: number;
+  accountType?: string;
   tokenExpiresAt?: string;
   autoReplyEnabled: boolean;
   autoDMEnabled: boolean;
   followCheckEnabled: boolean;
+  requireFollowForFreeUsers?: boolean;
   storyAutomationsEnabled: boolean;
   trackDmUrlEnabled: boolean;
+  metaCallsThisHour?: number;
+  isMetaRateLimited?: boolean;
 }
 
 interface SettingsState {
@@ -45,7 +50,67 @@ interface SettingsState {
   autoReplyEnabled: boolean; // Comment Automations
   storyAutomationsEnabled: boolean; // Story Automations
   autoDMEnabled: boolean; // DM Automations
+  followCheckEnabled: boolean; // Follow Checks
+  requireFollowForFreeUsers: boolean; // Require Follow for Free Users
   trackDmUrlEnabled: boolean; // Track DM URL
+}
+
+// API Response Types
+interface InstagramAccountResponse {
+  success?: boolean;
+  accounts?: Array<{
+    success: boolean;
+    accountInfo: {
+      _id: string;
+      instagramId: string;
+      userId: string;
+      username: string;
+      profilePicture?: string;
+      followersCount: number;
+      followingCount: number;
+      mediaCount: number;
+      isActive: boolean;
+      autoReplyEnabled: boolean;
+      autoDMEnabled: boolean;
+      followCheckEnabled: boolean;
+      requireFollowForFreeUsers: boolean;
+      metaCallsThisHour: number;
+      isMetaRateLimited: boolean;
+      tokenExpiresAt?: string;
+      createdAt: string;
+      updatedAt: string;
+      templatesCount: number;
+      accountReply?: number;
+      accountDMSent?: number;
+      accountFollowCheck?: number;
+      lastActivity?: string;
+      storyAutomationsEnabled?: boolean;
+      trackDmUrlEnabled?: boolean;
+    };
+    instagramInfo: {
+      account_type: string;
+      followers_count: number;
+      follows_count: number;
+      id: string;
+      media_count: number;
+      username: string;
+      profile_picture_url?: string;
+    };
+    rateLimitInfo: {
+      isMetaRateLimited: boolean;
+      metaCallsRemaining: number;
+      metaCallsUsed: number;
+    };
+  }>;
+  data?: {
+    accounts?: Array<{
+      success: boolean;
+      accountInfo: any;
+      instagramInfo: any;
+      rateLimitInfo: any;
+    }>;
+  };
+  timestamp?: string;
 }
 
 // ─── Toggle Component (memoized) ─────────────────────────────────────────────
@@ -126,6 +191,8 @@ export default function SettingsPage() {
     autoReplyEnabled: true,
     storyAutomationsEnabled: true,
     autoDMEnabled: true,
+    followCheckEnabled: true,
+    requireFollowForFreeUsers: false,
     trackDmUrlEnabled: true,
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -208,6 +275,9 @@ export default function SettingsPage() {
           : `bg-red-500 hover:bg-red-600 text-white rounded-xl ${
               disabled ? "opacity-50 cursor-not-allowed" : ""
             }`,
+      statBadge: isDark
+        ? "text-xs bg-white/[0.06] px-2 py-1 rounded-full text-white/60"
+        : "text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600",
     }),
     [isDark],
   );
@@ -234,46 +304,71 @@ export default function SettingsPage() {
 
     setIsLoading(true);
     try {
-      const data = await getAllInstagramAccounts(apiRequest);
-      if (data?.accounts && data.accounts.length > 0) {
-        const activeAccount =
-          data.accounts.find((a: any) => a.isActive) || data.accounts[0];
+      const response = (await getAllInstagramAccounts(
+        apiRequest,
+      )) as InstagramAccountResponse;
+      console.log("Settings - Raw Response:", response);
+
+      let accountsArray: any[] = [];
+
+      // Handle different response structures
+      if (response?.accounts && Array.isArray(response.accounts)) {
+        accountsArray = response.accounts;
+      } else if (
+        response?.data?.accounts &&
+        Array.isArray(response.data.accounts)
+      ) {
+        accountsArray = response.data.accounts;
+      }
+
+      if (accountsArray.length > 0) {
+        // Get the first account (or find active one)
+        const accountData = accountsArray[0];
+        const accountInfo = accountData.accountInfo || {};
+        const instagramInfo = accountData.instagramInfo || {};
 
         const formattedAccount: AccountDataType = {
-          instagramId: activeAccount.instagramId,
-          username: activeAccount.username,
-          isActive: activeAccount.isActive || false,
-          profilePicture: activeAccount.profilePicture,
-          followersCount: activeAccount.followersCount,
-          mediaCount: activeAccount.mediaCount || 0,
-          tokenExpiresAt: activeAccount.tokenExpiresAt
-            ? new Date(activeAccount.tokenExpiresAt).toLocaleDateString(
-                "en-US",
-                {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                },
-              )
-            : "18 Apr 2026",
-          autoReplyEnabled: activeAccount.autoReplyEnabled ?? true,
-          autoDMEnabled: activeAccount.autoDMEnabled ?? true,
-          followCheckEnabled: activeAccount.followCheckEnabled ?? true,
-          storyAutomationsEnabled:
-            activeAccount.storyAutomationsEnabled ?? true,
-          trackDmUrlEnabled: activeAccount.trackDmUrlEnabled ?? true,
+          instagramId: accountInfo.instagramId || instagramInfo.id || "",
+          username: instagramInfo.username || accountInfo.username || "Unknown",
+          isActive: accountInfo.isActive || false,
+          profilePicture:
+            instagramInfo.profile_picture_url || accountInfo.profilePicture,
+          followersCount:
+            instagramInfo.followers_count || accountInfo.followersCount || 0,
+          followingCount:
+            instagramInfo.follows_count || accountInfo.followingCount || 0,
+          mediaCount: instagramInfo.media_count || accountInfo.mediaCount || 0,
+          accountType: instagramInfo.account_type || "",
+          tokenExpiresAt: accountInfo.tokenExpiresAt
+            ? new Date(accountInfo.tokenExpiresAt).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+              })
+            : "N/A",
+          autoReplyEnabled: accountInfo.autoReplyEnabled ?? true,
+          autoDMEnabled: accountInfo.autoDMEnabled ?? true,
+          followCheckEnabled: accountInfo.followCheckEnabled ?? true,
+          requireFollowForFreeUsers:
+            accountInfo.requireFollowForFreeUsers ?? false,
+          storyAutomationsEnabled: accountInfo.storyAutomationsEnabled ?? true,
+          trackDmUrlEnabled: accountInfo.trackDmUrlEnabled ?? true,
+          metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
+          isMetaRateLimited: accountInfo.isMetaRateLimited || false,
         };
 
         setAccount(formattedAccount);
 
         // Update settings from account
         setSettings({
-          isActive: activeAccount.isActive ?? true,
-          autoReplyEnabled: activeAccount.autoReplyEnabled ?? true,
-          storyAutomationsEnabled:
-            activeAccount.storyAutomationsEnabled ?? true,
-          autoDMEnabled: activeAccount.autoDMEnabled ?? true,
-          trackDmUrlEnabled: activeAccount.trackDmUrlEnabled ?? true,
+          isActive: accountInfo.isActive ?? true,
+          autoReplyEnabled: accountInfo.autoReplyEnabled ?? true,
+          storyAutomationsEnabled: accountInfo.storyAutomationsEnabled ?? true,
+          autoDMEnabled: accountInfo.autoDMEnabled ?? true,
+          followCheckEnabled: accountInfo.followCheckEnabled ?? true,
+          requireFollowForFreeUsers:
+            accountInfo.requireFollowForFreeUsers ?? false,
+          trackDmUrlEnabled: accountInfo.trackDmUrlEnabled ?? true,
         });
       } else {
         setAccount(null);
@@ -317,6 +412,9 @@ export default function SettingsPage() {
         title: "Settings saved successfully!",
         duration: 3000,
       });
+
+      // Refresh account data to reflect changes
+      await fetchAccount();
     } catch (error) {
       toast({
         title: "Failed to save settings",
@@ -328,12 +426,12 @@ export default function SettingsPage() {
     } finally {
       setIsSaving(false);
     }
-  }, [account, settings, apiRequest]);
+  }, [account, settings, apiRequest, fetchAccount]);
 
   const handleReconnect = useCallback(() => {
     // Redirect to Instagram OAuth flow
-    window.location.href = "/api/instagram/connect";
-  }, []);
+    router.push("/insta/accounts/add");
+  }, [router]);
 
   const handleDisable = useCallback(async () => {
     if (!account) return;
@@ -397,6 +495,23 @@ export default function SettingsPage() {
     [account?.username],
   );
 
+  // Check if token is expiring soon (within 7 days)
+  const isTokenExpiringSoon = useMemo(() => {
+    if (!account?.tokenExpiresAt || account.tokenExpiresAt === "N/A")
+      return false;
+
+    try {
+      const expiryDate = new Date(account.tokenExpiresAt);
+      const now = new Date();
+      const daysUntilExpiry = Math.ceil(
+        (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      return daysUntilExpiry <= 7;
+    } catch {
+      return false;
+    }
+  }, [account?.tokenExpiresAt]);
+
   // Memoized settings cards configuration
   const settingsCards = useMemo(
     () => [
@@ -425,6 +540,18 @@ export default function SettingsPage() {
           "Your account-level DM automation. If disabled, no automated direct messages will be sent.",
       },
       {
+        key: "followCheckEnabled" as const,
+        title: "Follow Checks",
+        description:
+          "Check if a user follows you before sending automated DMs.",
+      },
+      {
+        key: "requireFollowForFreeUsers" as const,
+        title: "Require Follow for Free Users",
+        description:
+          "Only send automated replies to users who follow your account.",
+      },
+      {
         key: "trackDmUrlEnabled" as const,
         title: "Track DM URL",
         description:
@@ -435,7 +562,7 @@ export default function SettingsPage() {
   );
 
   if (!isLoaded || isLoading) {
-    return <Spinner />;
+    return <Spinner label="Loading settings..." />;
   }
 
   return (
@@ -451,37 +578,63 @@ export default function SettingsPage() {
           {account ? (
             <div className={pageStyles.accountCard}>
               <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {/* Profile Picture */}
-                <div className={pageStyles.accountAvatar}>
-                  {account.profilePicture ? (
-                    <Image
-                      src={account.profilePicture}
-                      alt={account.username}
-                      width={64}
-                      height={64}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    accountInitial
-                  )}
-                </div>
-
                 {/* Account Info */}
-                <div className="flex-1 ">
-                  <h3 className={pageStyles.accountName}>
-                    {accountDisplayName}
-                  </h3>
-                  <p className={pageStyles.accountUsername}>
-                    @{account.username}
-                  </p>
-                  <div className="flex items-center gap-4 mt-1">
-                    <p className={pageStyles.accountStats}>
-                      Media Count: {account.mediaCount}
-                    </p>
+                <div className="flex-1 flex flex-wrap items-center gap-3 mt-2">
+                  {/* Profile Picture */}
+                  <div className="flex flex-wrap items-center gap-3 mt-2">
+                    <div className={`${pageStyles.accountAvatar} `}>
+                      {account.profilePicture ? (
+                        <Image
+                          src={account.profilePicture}
+                          alt={account.username}
+                          width={64}
+                          height={64}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        accountInitial
+                      )}
+                    </div>
+                    <div>
+                      <h3 className={pageStyles.accountName}>
+                        {accountDisplayName}
+                      </h3>
+                      <p className={pageStyles.accountUsername}>
+                        @{account.username}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 mt-2">
+                    <span className={pageStyles.statBadge}>
+                      {account.followersCount?.toLocaleString() || 0} followers
+                    </span>
+                    <span className={pageStyles.statBadge}>
+                      {account.followingCount?.toLocaleString() || 0} following
+                    </span>
+                    <span className={pageStyles.statBadge}>
+                      {account.mediaCount} posts
+                    </span>
+                    {account.accountType && (
+                      <span className={pageStyles.statBadge}>
+                        {account.accountType.replace("_", " ")}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 mt-2">
                     <p className={pageStyles.accountStats}>
                       Token Expires: {account.tokenExpiresAt}
+                      {isTokenExpiringSoon && (
+                        <span className="ml-2 text-amber-400">
+                          (Expiring soon)
+                        </span>
+                      )}
                     </p>
+                    {account.metaCallsThisHour !== undefined && (
+                      <p className={pageStyles.accountStats}>
+                        API Calls: {account.metaCallsThisHour}/200
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5 mt-2">
                     <span
@@ -492,25 +645,29 @@ export default function SettingsPage() {
                     >
                       {account.isActive ? "Active" : "Inactive"}
                     </span>
+                    {account.isMetaRateLimited && (
+                      <span className="ml-2 text-xs text-red-400">
+                        (Rate Limited)
+                      </span>
+                    )}
                   </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className=" flex flex-wrap items-start gap-2 flex-shrink-0">
-                  <button
-                    onClick={handleReconnect}
-                    className={pageStyles.reconnectButton}
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Reconnect
-                  </button>
-                  <button
-                    onClick={handleDisable}
-                    className={pageStyles.disableButton}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Disable
-                  </button>
+                  {/* Action Buttons */}
+                  <div className="flex flex-wrap items-start gap-2 flex-shrink-0">
+                    <button
+                      onClick={handleReconnect}
+                      className={pageStyles.reconnectButton}
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Reconnect
+                    </button>
+                    <button
+                      onClick={handleDisable}
+                      className={pageStyles.disableButton}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      {account.isActive ? "Disable" : "Enable"}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -540,8 +697,8 @@ export default function SettingsPage() {
             </h2>
             <button
               onClick={handleSaveChanges}
-              disabled={isSaving}
-              className={pageStyles.saveButton(isSaving)}
+              disabled={isSaving || !account}
+              className={pageStyles.saveButton(isSaving || !account)}
             >
               {isSaving ? "Saving..." : "Save Changes"}
             </button>
@@ -585,7 +742,7 @@ export default function SettingsPage() {
               <>
                 <button
                   onClick={() => setShowDeleteDialog(true)}
-                  className={`${styles.pill} px-2 `}
+                  className={`${styles.pill} px-2`}
                 >
                   Remove
                 </button>
