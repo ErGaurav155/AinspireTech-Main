@@ -11,8 +11,8 @@ import {
   getWindowStatsController,
 } from "@/controllers/admin/rate-limit.controller";
 import { getAppLimitController } from "@/controllers/insta/rate-limit/rate-limit.controller";
-import { getInstaAccountsController } from "@/controllers/insta/get-account-controller";
 import { getAllChatbotsController } from "@/controllers/admin/web-chatbots.controller";
+import { getInstaAccountsController } from "@/controllers/admin/insta-accounts.controller";
 
 const router = Router();
 

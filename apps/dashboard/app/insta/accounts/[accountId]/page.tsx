@@ -38,7 +38,6 @@ import {
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 interface AccountDetails {
-  id: string;
   instagramId: string;
   username: string;
   profilePicture: string;
@@ -186,10 +185,8 @@ export default function AccountDetailsPage() {
 
     try {
       setIsLoading(true);
-      const data = await getInstaAccountById(apiRequest, accountId);
-      const acc = data.accountData;
+      const acc = await getInstaAccountById(apiRequest, accountId);
       setAccount({
-        id: acc._id,
         instagramId: acc.instagramId,
         username: acc.username,
         profilePicture: acc.profilePicture || Default,

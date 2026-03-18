@@ -4,7 +4,6 @@ import { getInstaDashboardController } from "@/controllers/insta/dashboard.contr
 import { getInstaMediaController } from "@/controllers/insta/media.controller";
 import { getInstaReplyLogsController } from "@/controllers/insta/replylogs.controller";
 import { getInstaUserInfoController } from "@/controllers/insta/user-info.controller";
-import { getAllInstaAccountsController } from "@/controllers/insta/accounts.controller";
 import {
   deleteInstaAccountController,
   getInstaAccountByIdController,
@@ -17,14 +16,14 @@ import {
   getInstaTemplatesController,
 } from "@/controllers/insta/templates/templates.controller";
 import { bulkTemplateActionController } from "@/controllers/insta/templates/bulk.controller";
-
-import { getInstaAccountsController } from "@/controllers/insta/get-account-controller";
+import { getUserInstaAccountController } from "@/controllers/insta/get-account-controller";
 import { refreshInstagramTokenController } from "@/controllers/insta/refresh-token.controller";
 import {
   deleteInstaTemplateController,
   updateInstaTemplateController,
 } from "@/controllers/insta/templates/templates-id.controller";
 import { requireAuth } from "@clerk/express";
+import { getAllInstaAccountsController } from "@/controllers/insta/accounts.controller";
 
 const router = Router();
 
@@ -44,12 +43,10 @@ router.get("/user-info", getInstaUserInfoController);
 router.post("/refresh-token", refreshInstagramTokenController);
 
 //accounts
-// GET /api/insta/accounts - Get Instagram accounts for user
 router.get("/accounts", getAllInstaAccountsController);
+
 // GET /api/insta/getAccount - Get Instagram accounts for user
-router.get("/getAccount", getInstaAccountsController);
-// POST /api/insta/accounts - Create or update Instagram account
-// router.post("/accounts", createUpdateInstaAccountController);
+router.get("/getAccount", getUserInstaAccountController);
 // GET /api/insta/accounts/:accountId - Get specific Instagram account
 router.get("/accounts/:accountId", getInstaAccountByIdController);
 // PUT /api/insta/accounts/:accountId - Update Instagram account
@@ -63,6 +60,7 @@ router.delete("/accounts/:accountId", deleteInstaAccountController);
 router.get("/subscription/list", listInstaSubscriptionsController);
 
 //templates
+
 // GET /api/insta/templates - Get Instagram templates
 router.get("/templates", getInstaTemplatesController);
 // POST /api/insta/templates - Create Instagram template

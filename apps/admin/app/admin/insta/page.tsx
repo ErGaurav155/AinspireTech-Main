@@ -37,7 +37,6 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 interface InstaAccount {
-  _id: string;
   instagramId: string;
   userId: string;
   username: string;
@@ -133,7 +132,6 @@ export default function AdminInstagramPage() {
 
       const transformed: CombinedAccount[] = instaAccounts.accounts.map(
         (acc: InstaAccount) => ({
-          id: acc._id,
           instagramId: acc.instagramId,
           username: acc.username,
           user: userMap.get(acc.userId),

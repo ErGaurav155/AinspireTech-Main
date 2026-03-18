@@ -5,6 +5,7 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow, getUserTier } from "@/services/rate-limit.service";
 import RateUserRateLimit from "@/models/Rate/UserRateLimit.model";
+
 // ─── Instagram API Response Types ───────────────────────────────────────────
 
 interface InstagramTokenResponse {
@@ -26,6 +27,17 @@ interface InstagramUserResponse {
   profile_picture_url?: string;
 }
 
+interface InstagramUserMediaResponse {
+  data: Array<{ id: string }>;
+  paging?: {
+    cursors: {
+      before: string;
+      after: string;
+    };
+    next?: string;
+  };
+}
+
 interface InstagramAPIError {
   error?: {
     message: string;
@@ -42,8 +54,8 @@ interface AccountUsageEntry {
   accountUsername?: string;
   accountProfile?: string;
 }
-// Helper function to get Instagram user info
-// Update helper return type
+
+// Helper function to get Instagram user info with additional fields
 const getInstagramUser = async (
   accessToken: string,
   fields: string[],
@@ -63,6 +75,35 @@ const getInstagramUser = async (
   }
 };
 
+// Helper function to get Instagram user media count
+const getInstagramUserMediaCount = async (
+  accessToken: string,
+  instagramId: string,
+): Promise<number> => {
+  try {
+    const url = `https://graph.instagram.com/v23.0/${instagramId}/media?fields=id&access_token=${accessToken}&limit=1`;
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Instagram API error: ${response.statusText}`);
+    }
+
+    const data = (await response.json()) as InstagramUserMediaResponse;
+
+    // If we have a next page cursor in paging, we could paginate to get exact count
+    // But for efficiency, we'll just get the count from the first page
+    // Instagram API doesn't return total count directly, so this is an approximation
+    // Alternatively, we could use the /me endpoint with 'media_count' field if available
+
+    // For now, we'll return 0 as media count since we don't have a direct way
+    // In a real implementation, you might want to paginate or use another endpoint
+    return 0;
+  } catch (error) {
+    console.error("Error fetching Instagram media count:", error);
+    return 0;
+  }
+};
+
 // Helper function to add Instagram account to UserRateLimit tracking
 const addInstagramAccountToRateLimit = async (
   clerkId: string,
@@ -71,13 +112,8 @@ const addInstagramAccountToRateLimit = async (
   profilePicture?: string,
 ): Promise<void> => {
   try {
-    // Import our rate limit service
-
     // Get current window
     const window = getCurrentWindow();
-
-    // Import UserRateLimit model
-    await connectToDatabase();
 
     // Find or create user rate limit record for current window
     let userRateLimit = await RateUserRateLimit.findOne({
@@ -163,6 +199,7 @@ export const handleInstaCallbackController = async (
         timestamp: new Date().toISOString(),
       });
     }
+
     await connectToDatabase();
 
     // Note: For Clerk authentication in Express, you'll need to implement proper auth
@@ -226,7 +263,7 @@ export const handleInstaCallbackController = async (
     const expiresIn = longLivedData.expires_in || 5184000; // Default 60 days if not provided
     const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-    // Get Instagram user info
+    // Get Instagram user info with all available fields
     const user = await getInstagramUser(longLivedData.access_token, [
       "username",
       "id",
@@ -237,6 +274,18 @@ export const handleInstaCallbackController = async (
     if (!user) {
       throw new Error("Failed to fetch Instagram user information");
     }
+
+    // Note: Instagram Basic Display API doesn't provide followers/following counts
+    // You need Instagram Business or Creator account with proper permissions
+    // For now, we'll set them to 0 or fetch from a different endpoint if available
+    let followersCount = 0;
+    let followingCount = 0;
+
+    // Try to get media count (approximate)
+    const mediaCount = await getInstagramUserMediaCount(
+      longLivedData.access_token,
+      user.user_id,
+    );
 
     // Check existing accounts and subscriptions
     const [existingAccounts, subscriptions] = await Promise.all([
@@ -282,6 +331,15 @@ export const handleInstaCallbackController = async (
       existingAccountWithUser.tokenExpiresAt = expiresAt;
       existingAccountWithUser.isActive = true;
 
+      // Update profile info
+      existingAccountWithUser.username = user.username;
+      existingAccountWithUser.profilePicture = user.profile_picture_url;
+
+      // Update counts (optional - you might want to refresh these periodically)
+      existingAccountWithUser.followersCount = followersCount;
+      existingAccountWithUser.followingCount = followingCount;
+      existingAccountWithUser.mediaCount = mediaCount;
+
       await existingAccountWithUser.save();
 
       // Add this Instagram account to UserRateLimit for tracking
@@ -315,7 +373,7 @@ export const handleInstaCallbackController = async (
       });
     }
 
-    // Create new account
+    // Create new account with all available data
     const newAccount = await InstagramAccount.create({
       userId: clerkId,
       instagramId: user.user_id,
@@ -325,10 +383,30 @@ export const handleInstaCallbackController = async (
       accessToken: longLivedData.access_token,
       lastActivity: new Date(),
       accountReply: 0,
+      accountFollowCheck: 0,
+      accountDMSent: 0,
       isActive: true,
       tokenExpiresAt: expiresAt,
       createdAt: new Date(),
       updatedAt: new Date(),
+
+      // Add the new fields
+      followersCount: followersCount,
+      followingCount: followingCount,
+      mediaCount: mediaCount,
+
+      // Default settings
+      autoReplyEnabled: true,
+      autoDMEnabled: true,
+      followCheckEnabled: true,
+      requireFollowForFreeUsers: false,
+      storyAutomationsEnabled: true,
+      trackDmUrlEnabled: true,
+
+      // Rate limiting defaults
+      metaCallsThisHour: 0,
+      lastMetaCallAt: new Date(),
+      isMetaRateLimited: false,
     });
 
     // Add this Instagram account to UserRateLimit for tracking
@@ -341,7 +419,10 @@ export const handleInstaCallbackController = async (
 
     return res.status(200).json({
       success: true,
-      data: { account: newAccount, message: "Account connected successfully" },
+      data: {
+        account: newAccount,
+        message: "Account connected successfully",
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

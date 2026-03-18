@@ -38,7 +38,6 @@ import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 
 // Types
 interface InstagramAccount {
-  id: string;
   instagramId: string;
   username: string;
   profilePicture: string;
@@ -116,11 +115,11 @@ export default function AccountsPage() {
       setError(null);
 
       const response = await getInstaAccount(apiRequest);
+      console.log("formattedAccounts:", response);
 
       if (response?.accounts) {
         const formattedAccounts: InstagramAccount[] = response.accounts.map(
           (acc: any) => ({
-            id: acc._id,
             instagramId: acc.instagramId,
             username: acc.username,
             profilePicture: acc.profilePicture || Default,
@@ -187,7 +186,7 @@ export default function AccountsPage() {
     field: string,
     value: boolean,
   ) => {
-    const account = accounts.find((acc) => acc.id === accountId);
+    const account = accounts.find((acc) => acc.instagramId === accountId);
     if (!account) return;
 
     setIsUpdatingAccount(accountId);
@@ -195,7 +194,7 @@ export default function AccountsPage() {
     // Optimistic UI update
     setAccounts((prev) =>
       prev.map((acc) =>
-        acc.id === accountId ? { ...acc, [field]: value } : acc,
+        acc.instagramId === accountId ? { ...acc, [field]: value } : acc,
       ),
     );
 
@@ -214,7 +213,7 @@ export default function AccountsPage() {
       // Revert on error
       setAccounts((prev) =>
         prev.map((acc) =>
-          acc.id === accountId ? { ...acc, [field]: !value } : acc,
+          acc.instagramId === accountId ? { ...acc, [field]: !value } : acc,
         ),
       );
 
@@ -495,8 +494,8 @@ export default function AccountsPage() {
                 isDark={isDark}
                 styles={styles}
                 pageStyles={pageStyles}
-                isUpdating={isUpdatingAccount === account.id}
-                hasError={hasError.includes(account.id)}
+                isUpdating={isUpdatingAccount === account.instagramId}
+                hasError={hasError.includes(account.instagramId)}
                 onToggleAccount={handleToggleAccount}
                 onRefreshToken={handleRefreshToken}
                 onImageError={handleImageError}
@@ -596,7 +595,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
               alt={account.username}
               width={56}
               height={56}
-              onError={() => onImageError(account.id)}
+              onError={() => onImageError(account.instagramId)}
               className="w-14 h-14 rounded-full object-cover border-2 border-gray-100 dark:border-white/[0.08]"
             />
             <span className={pageStyles.accountAvatar(account.isActive)} />
@@ -661,7 +660,11 @@ const AccountCard: React.FC<AccountCardProps> = ({
             <Switch
               checked={account.autoReplyEnabled}
               onCheckedChange={(checked) =>
-                onToggleAccount(account.id, "autoReplyEnabled", checked)
+                onToggleAccount(
+                  account.instagramId,
+                  "autoReplyEnabled",
+                  checked,
+                )
               }
               disabled={isUpdating}
               className={pageStyles.switchTrack}
