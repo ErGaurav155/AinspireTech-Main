@@ -255,31 +255,6 @@ export default function AddAccountPage() {
         accountLimit={accountLimit}
         dashboardType="insta"
       />
-      {/* <AlertDialog open={showLimitDialog} onOpenChange={setShowLimitDialog}>
-        <AlertDialogContent className={styles.dialogContent}>
-          <AlertDialogHeader>
-            <AlertDialogTitle className={styles.dialogTitle}>
-              Account Limit Reached
-            </AlertDialogTitle>
-            <AlertDialogDescription className={styles.dialogDesc}>
-              You have reached the maximum number of accounts ({totalAccounts}/
-              {accountLimit}) for your current plan. To add more accounts,
-              please upgrade your subscription.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className={styles.dialogCancel}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              onClick={() => router.push("/insta/pricing")}
-              className={styles.button.primary}
-            >
-              Upgrade Plan
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> */}
 
       {/* Instagram OAuth Dialog */}
       {isConnecting && (

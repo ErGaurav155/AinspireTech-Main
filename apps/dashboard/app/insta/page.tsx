@@ -346,7 +346,6 @@ export default function Dashboard() {
 
       // Use getInstaAccount which returns all accounts
       const response = await getInstaAccount(apiRequest);
-      console.log("Dashboard - Raw Accounts Response:", response);
 
       let accountsArray: any[] = [];
 
@@ -429,7 +428,6 @@ export default function Dashboard() {
         },
       );
 
-      console.log("Dashboard - Formatted Accounts:", completeAccounts);
       setUserAccounts(completeAccounts);
       return completeAccounts;
     } catch (err) {
@@ -947,7 +945,7 @@ export default function Dashboard() {
                     : "border-gray-200 text-gray-700 hover:bg-gray-50"
                 }`}
               >
-                <Link href="/insta/overview">
+                <Link href="/insta">
                   <PlayCircle className="h-4 w-4" />
                   View Dashboard
                 </Link>

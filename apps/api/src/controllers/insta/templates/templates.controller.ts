@@ -58,10 +58,42 @@ export const getInstaTemplatesController = async (
     const totalCount = await ReplyTemplate.countDocuments(query);
     const hasMore = skip + limit < totalCount;
 
+    // Format templates to match frontend expectations
+    const formattedTemplates = templates.map((template) => ({
+      _id: template._id,
+      name: template.name,
+      userId: template.userId,
+      accountId: template.accountId,
+      accountUsername: template.accountUsername,
+      content: template.content,
+      reply: template.reply,
+      triggers: template.triggers,
+      isFollow: template.isFollow,
+      priority: template.priority,
+      mediaId: template.mediaId,
+      mediaUrl: template.mediaUrl,
+      mediaType: template.mediaType,
+      isActive: template.isActive,
+      usageCount: template.usageCount || 0,
+      lastUsed: template.lastUsed,
+      successRate: template.successRate || 0,
+      delaySeconds: template.delaySeconds || 0,
+      delayOption: template.delayOption || "immediate",
+      automationType: template.automationType || "comments",
+      anyPostOrReel: template.anyPostOrReel || false,
+      anyKeyword: template.anyKeyword || false,
+      welcomeMessage: template.welcomeMessage,
+      publicReply: template.publicReply,
+      askFollow: template.askFollow,
+      askEmail: template.askEmail,
+      askPhone: template.askPhone,
+      followUpDMs: template.followUpDMs,
+    }));
+
     return res.status(200).json({
       success: true,
       data: {
-        templates,
+        templates: formattedTemplates,
         pagination: {
           total: totalCount,
           page,
@@ -81,7 +113,6 @@ export const getInstaTemplatesController = async (
     });
   }
 };
-
 // POST /api/insta/templates - Create Instagram template
 export const createInstaTemplateController = async (
   req: Request,
@@ -92,31 +123,35 @@ export const createInstaTemplateController = async (
     const { userId } = getAuth(req);
     const {
       accountId,
+      accountUsername,
       mediaId,
       mediaUrl,
+      mediaType,
       name,
       content,
       reply,
       triggers,
       priority,
       delaySeconds,
+      delayOption,
       isFollow,
-      triggerType = "keywords",
-      caseSensitive = false,
-      excludeOwnComments = true,
-      excludeRepliedUsers = true,
-      excludeKeywords = [],
-      replyProbability = 100,
-      maxRetries = 3,
-      retryDelay = 60,
+      automationType,
+      anyPostOrReel,
+      anyKeyword,
+      welcomeMessage,
+      publicReply,
+      askFollow,
+      askEmail,
+      askPhone,
+      followUpDMs,
+      isActive,
     } = req.body;
-
+    console.log("req.body:", req.body);
     // Validation
-    if (!userId || !accountId || !name || !content || !reply || !mediaId) {
+    if (!userId || !accountId || !name) {
       return res.status(400).json({
         success: false,
-        error:
-          "Required fields: userId, accountId, name, content, reply, mediaId",
+        error: "Required fields: userId, accountId, name",
         timestamp: new Date().toISOString(),
       });
     }
@@ -135,80 +170,26 @@ export const createInstaTemplateController = async (
       });
     }
 
-    // Ensure content is array with required fields
-    if (
-      !Array.isArray(content) ||
-      content.length === 0 ||
-      content.some(
-        (item: any) =>
-          !item.text ||
-          typeof item.text !== "string" ||
-          !item.link ||
-          typeof item.link !== "string",
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Content must be a non-empty array of { text, link, buttonTitle? } objects",
-        timestamp: new Date().toISOString(),
+    // Check for duplicate mediaId for this account (only if mediaId exists and not "any")
+    if (mediaId && mediaId !== "any") {
+      const existingTemplate = await ReplyTemplate.findOne({
+        accountId,
+        mediaId,
+        userId,
       });
+
+      if (existingTemplate) {
+        return res.status(409).json({
+          success: false,
+          error: "A template already exists for this post",
+          existingTemplate: {
+            _id: existingTemplate._id,
+            name: existingTemplate.name,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
-
-    // Ensure reply is array
-    if (!Array.isArray(reply) || reply.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "Reply must be a non-empty array of strings",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Check for duplicate mediaId for this account
-    const existingTemplate = await ReplyTemplate.findOne({
-      accountId,
-      mediaId,
-      userId,
-    });
-
-    if (existingTemplate) {
-      return res.status(409).json({
-        success: false,
-        error: "A template already exists for this post",
-        existingTemplate: {
-          _id: existingTemplate._id,
-          name: existingTemplate.name,
-        },
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Normalize triggers if provided
-    let formattedTriggers: string[] = [];
-    if (triggers && Array.isArray(triggers)) {
-      formattedTriggers = triggers.map((t: string) => t.trim().toLowerCase());
-    } else if (triggers && typeof triggers === "string") {
-      formattedTriggers = triggers
-        .split(",")
-        .map((t: string) => t.trim().toLowerCase());
-    }
-
-    // Normalize reply
-    const formattedReply = Array.isArray(reply)
-      ? reply.map((r: string) => r.trim())
-      : [String(reply).trim()];
-
-    // Normalize content
-    const formattedContent = content.map((item: any) => ({
-      text: item.text.trim(),
-      link: item.link.trim(),
-      buttonTitle: item.buttonTitle?.trim() || "Get Access",
-    }));
-
-    // Normalize excludeKeywords
-    const formattedExcludeKeywords = Array.isArray(excludeKeywords)
-      ? excludeKeywords.map((k: string) => k.trim().toLowerCase())
-      : [];
 
     // Get user tier for settingsByTier
     const userTier = await getUserTier(userId);
@@ -216,14 +197,12 @@ export const createInstaTemplateController = async (
     // Default settings by tier
     const settingsByTier = {
       free: {
-        enabled: true,
         requireFollow: false,
         skipFollowCheck: true,
         directLink: true,
         maxUsesPerDay: 50,
       },
       pro: {
-        enabled: true,
         requireFollow: true,
         useAdvancedFlow: true,
         maxRetries: 3,
@@ -231,62 +210,102 @@ export const createInstaTemplateController = async (
       },
     };
 
-    // Create new template
+    // Create new template with all fields
     const template = await ReplyTemplate.create({
       userId,
       accountId,
+      accountUsername: accountUsername || account.username,
       name: name.trim(),
-      description: req.body.description?.trim() || "",
-      mediaId,
-      mediaUrl: mediaUrl?.trim() || "",
-      replyTexts: formattedReply,
-      replyProbability: Math.min(100, Math.max(0, replyProbability)),
-      dmFlowEnabled: true,
-      dmContents: [
-        {
-          stage: "initial",
-          message: isFollow
-            ? "Hey thanks a ton for the comment! 😊 Now simply tap below and I will send you the access right now!"
-            : "Thanks for your comment! Tap below to get instant access!",
-          buttonText: isFollow ? "Send me the access" : "Get Access",
-          buttonPayload: isFollow
-            ? `CHECK_FOLLOW_${mediaId}`
-            : `GET_ACCESS_${mediaId}`,
-          requiresFollow: !!isFollow,
-          delaySeconds: delaySeconds || 0,
-        },
-        {
-          stage: "follow_reminder",
-          message:
-            'I noticed you have not followed us yet. It would mean a lot if you visit our profile and hit follow, then tap "I am following" to unlock your link!',
-          buttonText: "I am following",
-          buttonPayload: `VERIFY_FOLLOW_${mediaId}`,
-          requiresFollow: true,
-          delaySeconds: 0,
-        },
-        {
-          stage: "final_link",
-          message: "Awesome! Thanks for following! {{content_text}}",
-          requiresFollow: false,
-          delaySeconds: 0,
-        },
-      ],
-      triggerType: triggerType || "all_comments",
-      triggers: formattedTriggers,
-      caseSensitive: !!caseSensitive,
-      excludeOwnComments: !!excludeOwnComments,
-      excludeRepliedUsers: !!excludeRepliedUsers,
-      excludeKeywords: formattedExcludeKeywords,
-      replyDelay: delaySeconds || 5,
-      maxRetries: maxRetries || 3,
-      retryDelay: retryDelay || 60,
+      mediaId: anyPostOrReel ? "any" : mediaId || "",
+      mediaUrl: mediaUrl || "",
+      mediaType: mediaType || "",
+
+      // Core DM content
+      content: content || [{ text: "", link: "", buttonTitle: "Get Access" }],
+
+      // Comment replies
+      reply: reply || [],
+
+      // Triggers
+      triggers: triggers || [],
+
+      // Legacy follow flag
+      isFollow: isFollow || false,
+
+      // Timing
+      delaySeconds: delaySeconds || 0,
+      delayOption: delayOption || "immediate",
+
+      // Status
+      isActive: isActive !== undefined ? isActive : true,
+      priority: priority || 5,
+
+      // Statistics
       usageCount: 0,
       successfulUses: 0,
       lastUsed: null,
+      successRate: 0,
+
+      // Legacy tier settings
       settingsByTier,
-      isActive: true,
-      priority: priority || 5,
-      isFollow: !!isFollow,
+
+      // New automation fields
+      automationType: automationType || "comments",
+      anyPostOrReel: anyPostOrReel || false,
+      anyKeyword: anyKeyword || false,
+
+      // Welcome message
+      welcomeMessage: welcomeMessage || {
+        enabled: false,
+        text: "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
+        buttonTitle: "Send me the link",
+      },
+
+      // Public reply
+      publicReply: publicReply || {
+        enabled: false,
+        replies: [
+          "Replied in DMs 📨",
+          "Coming your way 🧲",
+          "Check your DM 📩",
+        ],
+        tagType: "none",
+      },
+
+      // Ask follow
+      askFollow: askFollow || {
+        enabled: false,
+        message:
+          "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲",
+        visitProfileBtn: "Visit Profile",
+        followingBtn: "I'm following ✅",
+      },
+
+      // Ask email
+      askEmail: askEmail || {
+        enabled: false,
+        openingMessage:
+          "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your email address first. Please share it in the chat.",
+        retryMessage:
+          "Please enter a correct email address, e.g. info@gmail.com",
+        sendDmIfNoEmail: true,
+      },
+
+      // Ask phone
+      askPhone: askPhone || {
+        enabled: false,
+        openingMessage:
+          "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
+        retryMessage: "Please enter a correct phone number, e.g. +1234567890",
+        sendDmIfNoPhone: true,
+      },
+
+      // Follow-up DMs
+      followUpDMs: followUpDMs || {
+        enabled: false,
+        messages: [],
+      },
+
       createdAt: new Date(),
       updatedAt: new Date(),
     });

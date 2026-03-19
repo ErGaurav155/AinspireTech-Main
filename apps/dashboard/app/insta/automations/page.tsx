@@ -4,18 +4,11 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   Plus,
   Search,
-  SlidersHorizontal,
-  Instagram,
-  MoreHorizontal,
   Edit2,
   Trash2,
-  BarChart3,
-  MessageSquare,
   ChevronDown,
   Zap,
   Clock,
-  CheckCircle2,
-  XCircle,
   ArrowUpDown,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -281,7 +274,6 @@ export default function AutomationsPage() {
     const fetchAccounts = async () => {
       try {
         const data = await getAllInstagramAccounts(apiRequest);
-        console.log("Accounts response:", data);
 
         let accountsList: any[] = [];
 
@@ -339,8 +331,6 @@ export default function AutomationsPage() {
           filterStatus: "all",
           loadMoreCount: loadMoreCountRef.current,
         })) as TemplatesResponse;
-
-        console.log("Templates response:", response);
 
         let templatesList: TemplateType[] = [];
         let hasMore = false;
@@ -646,9 +636,12 @@ export default function AutomationsPage() {
 
         <div className="space-y-3">
           {displayedTemplates.map((template) => (
-            <div key={template._id} className={pageStyles.automationCard}>
-              <div className="flex items-center gap-4">
-                <div className={pageStyles.automationMedia}>
+            <div
+              key={template._id}
+              className={`${pageStyles.automationCard} flex-wrap`}
+            >
+              <div className="flex flex-wrap items-center gap-4 w-full">
+                <div className={`${pageStyles.automationMedia}`}>
                   {template.mediaUrl ? (
                     <Image
                       src={template.mediaUrl}
@@ -666,16 +659,15 @@ export default function AutomationsPage() {
                     </div>
                   )}
                 </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className={pageStyles.automationTitle}>
-                      {template.name}
-                    </h3>
-                    <span className={pageStyles.automationType}>
-                      {getAutomationType(template)}
-                    </span>
-                  </div>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h3 className={pageStyles.automationTitle}>
+                    {template.name}
+                  </h3>
+                  <span className={pageStyles.automationType}>
+                    {getAutomationType(template)}
+                  </span>
+                </div>
+                <div className="flex flex-wrap flex-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <span className={pageStyles.automationMeta}>
                       @{template.accountUsername}
@@ -695,7 +687,7 @@ export default function AutomationsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex flex-wrap items-center gap-3 flex-shrink-0">
                   <div className={pageStyles.statusBadge(template.isActive)}>
                     <span className={pageStyles.statusDot(template.isActive)} />
                     {template.isActive ? "Active" : "Inactive"}
@@ -712,7 +704,7 @@ export default function AutomationsPage() {
                         width: 18,
                         height: 18,
                         top: 2,
-                        left: template.isActive ? 20 : 2,
+                        left: template.isActive ? 0 : 2,
                         position: "absolute",
                         transition: "left 0.2s",
                       }}
@@ -720,7 +712,7 @@ export default function AutomationsPage() {
                   </button>
 
                   <Link
-                    href={`/insta/automations/edit/${template._id}`}
+                    href={`/insta/automations/add/${template.automationType}?id=${template._id}`}
                     className={pageStyles.actionButton("gray")}
                   >
                     <Edit2 className="h-4 w-4" />
@@ -755,7 +747,7 @@ export default function AutomationsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.06] flex-wrap">
+              <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.06] ">
                 {template.welcomeMessage?.enabled && (
                   <span className={pageStyles.featureBadge("blue")}>
                     Welcome Message

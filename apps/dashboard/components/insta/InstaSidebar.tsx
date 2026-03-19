@@ -228,7 +228,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         ? `bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm`
         : `bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm`,
 
-      loadingContainer: `fixed left-0 top-0 bottom-0 w-72 border-r ${styles.divider} flex items-center justify-center`,
+      loadingContainer: `fixed left-0 top-0 bottom-0 w-72  ${styles.divider} flex items-center justify-center`,
     }),
     [isDark, styles],
   );
@@ -475,23 +475,8 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   ]);
 
   if (isLoading) {
-    return (
-      <div
-        className={`fixed left-0 top-0 bottom-0 w-72 ${
-          isDark
-            ? "bg-[#1A1A1E] border-white/[0.06]"
-            : "bg-white border-gray-200"
-        } border-r flex items-center justify-center`}
-      >
-        <div
-          className={`w-5 h-5 border-2 border-t-transparent ${
-            isDark ? "border-purple-400" : "border-purple-500"
-          } rounded-full animate-spin`}
-        />
-      </div>
-    );
+    return <div className={localStyles.loadingContainer}></div>;
   }
-
   return (
     <>
       {isDark && <Orbs />}

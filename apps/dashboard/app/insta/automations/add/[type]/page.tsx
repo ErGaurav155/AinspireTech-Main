@@ -21,12 +21,13 @@ import {
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   createInstaTemplate,
   getAllInstagramAccounts,
   getInstaMedia,
+  getInstaTemplateById,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
 import {
@@ -38,7 +39,7 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AccountDataType {
   instagramId: string;
@@ -58,6 +59,65 @@ interface MediaItem {
   caption?: string;
 }
 
+interface TemplateData {
+  _id: string;
+  name: string;
+  accountId: string;
+  accountUsername: string;
+  mediaId: string;
+  mediaUrl: string;
+  mediaType: string;
+  anyPostOrReel: boolean;
+  anyKeyword: boolean;
+  triggers: string[];
+  content: Array<{ text: string; link: string; buttonTitle: string }>;
+  reply: string[];
+  isFollow: boolean;
+  priority: number;
+  delayOption: "immediate" | "3min" | "5min" | "10min";
+  delaySeconds?: number;
+  automationType: string;
+  isActive: boolean;
+  welcomeMessage?: {
+    enabled: boolean;
+    text: string;
+    buttonTitle: string;
+  };
+  publicReply?: {
+    enabled: boolean;
+    replies: string[];
+    tagType: "none" | "user" | "account";
+  };
+  askFollow?: {
+    enabled: boolean;
+    message: string;
+    visitProfileBtn: string;
+    followingBtn: string;
+  };
+  askEmail?: {
+    enabled: boolean;
+    openingMessage: string;
+    retryMessage: string;
+    sendDmIfNoEmail: boolean;
+  };
+  askPhone?: {
+    enabled: boolean;
+    openingMessage: string;
+    retryMessage: string;
+    sendDmIfNoPhone: boolean;
+  };
+  followUpDMs?: {
+    enabled: boolean;
+    messages: Array<{
+      condition: string;
+      waitTime: number;
+      waitUnit: "minutes" | "hours";
+      message: string;
+      links: { url: string; buttonTitle: string }[];
+    }>;
+  };
+}
+
 interface AutomationForm {
   name: string;
   accountUsername: string;
@@ -69,7 +129,6 @@ interface AutomationForm {
   anyKeyword: boolean;
   keywords: string[];
   keywordInput: string;
-  excludeKeywords: string[];
   excludeKeywordInput: string;
   dmImage: File | null;
   dmImagePreview: string;
@@ -106,7 +165,59 @@ interface AutomationForm {
   priority: number;
 }
 
-// ─── Phone Preview Component ──────────────────────────────────────────────────
+// ─── Default form values ──────────────────────────────────────────────────────
+
+const DEFAULT_FORM: AutomationForm = {
+  name: "",
+  accountUsername: "",
+  accountId: "",
+  anyPostOrReel: false,
+  mediaId: "",
+  mediaUrl: "",
+  mediaType: "",
+  anyKeyword: false,
+  keywords: [],
+  keywordInput: "",
+  excludeKeywordInput: "",
+  dmImage: null,
+  dmImagePreview: "",
+  dmMessage: "",
+  dmLinks: [],
+  welcomeMessage: false,
+  welcomeText:
+    "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
+  welcomeButtonTitle: "Send me the link",
+  publicReply: false,
+  publicReplies: [
+    "Replied in DMs 📨",
+    "Coming your way 🧲",
+    "Check your DM 📩",
+  ],
+  tagType: "none",
+  askFollow: false,
+  askFollowMessage:
+    "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲",
+  visitProfileBtn: "Visit Profile",
+  followingBtn: "I'm following ✅",
+  askEmail: false,
+  emailOpeningMessage:
+    "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your email address first. Please share it in the chat.",
+  emailRetryMessage:
+    "Please enter a correct email address, e.g. info@gmail.com",
+  emailNoValidAction: "send",
+  askPhone: false,
+  phoneOpeningMessage:
+    "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
+  phoneRetryMessage: "Please enter a correct phone number, e.g. +1234567890",
+  phoneNoValidAction: "send",
+  followUpDMs: false,
+  followUpMessages: [],
+  delayOption: "immediate",
+  isActive: false,
+  priority: 5,
+};
+
+// ─── Phone Preview ────────────────────────────────────────────────────────────
 
 function PhonePreview({
   form,
@@ -340,7 +451,6 @@ function StoryScreen({
           {accountUsername || "your_account"}
         </span>
       </div>
-
       <div className="flex-1 flex items-center justify-center text-white">
         {form.mediaUrl ? (
           <Image
@@ -353,7 +463,6 @@ function StoryScreen({
           <p className="text-sm">Select a specific story</p>
         )}
       </div>
-
       <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
         <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-3 py-2 flex items-center gap-2">
           <span className="text-xs text-white/60">Send message...</span>
@@ -532,11 +641,8 @@ function DMScreen({
       buttonText?: string;
       isDoubleButton?: boolean;
     }[] = [];
-
-    if (automationType === "stories") {
+    if (automationType === "stories")
       msgs.push({ from: "user", text: "Leave a keyword", isButton: true });
-    }
-
     if (form.welcomeMessage && form.welcomeText) {
       msgs.push({
         from: "bot",
@@ -549,7 +655,6 @@ function DMScreen({
         text: form.welcomeButtonTitle || "Send me the link",
       });
     }
-
     if (form.askFollow && form.askFollowMessage) {
       msgs.push({
         from: "bot",
@@ -563,7 +668,6 @@ function DMScreen({
         text: form.followingBtn || "I'm following ✅",
       });
     }
-
     if (form.askEmail && form.emailOpeningMessage) {
       msgs.push({ from: "bot", text: form.emailOpeningMessage });
       msgs.push({ from: "user", text: "test.gmail.com" });
@@ -572,7 +676,6 @@ function DMScreen({
         msgs.push({ from: "user", text: "test@gmail.com" });
       }
     }
-
     if (form.askPhone && form.phoneOpeningMessage) {
       msgs.push({ from: "bot", text: form.phoneOpeningMessage });
       msgs.push({ from: "user", text: "123456789" });
@@ -581,7 +684,6 @@ function DMScreen({
         msgs.push({ from: "user", text: "+1234567890" });
       }
     }
-
     if (form.dmMessage) {
       msgs.push({
         from: "bot",
@@ -590,14 +692,11 @@ function DMScreen({
         buttonText: form.dmLinks[0]?.buttonTitle || "Get Access",
       });
     }
-
-    if (msgs.length === 0) {
+    if (msgs.length === 0)
       msgs.push({
         from: "bot",
         text: "Configure your DM message to see the preview...",
       });
-    }
-
     return msgs;
   }, [
     automationType,
@@ -694,7 +793,7 @@ function DMScreen({
   );
 }
 
-// ─── UI Components ────────────────────────────────────────────────────────────
+// ─── UI helpers ───────────────────────────────────────────────────────────────
 
 function Toggle({
   checked,
@@ -712,19 +811,12 @@ function Toggle({
       type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className={`relative rounded-full transition-colors flex-shrink-0 ${
-        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-      } ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
+      className={`relative rounded-full transition-colors flex-shrink-0 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
       style={{ width: 44, height: 24 }}
     >
       <span
         className="absolute bg-white rounded-full shadow-sm transition-all"
-        style={{
-          width: 18,
-          height: 18,
-          top: 3,
-          left: checked ? 23 : 3,
-        }}
+        style={{ width: 18, height: 18, top: 3, left: checked ? 23 : 3 }}
       />
     </button>
   );
@@ -751,7 +843,6 @@ function CharCounter({
         : isDark
           ? "#4B5563"
           : "#d1d5db";
-
   return (
     <div className="flex items-center gap-1.5">
       <svg width="20" height="20">
@@ -783,8 +874,6 @@ function CharCounter({
   );
 }
 
-// ─── Edit Link Modal ──────────────────────────────────────────────────────────
-
 function EditLinkModal({
   link,
   onSave,
@@ -798,17 +887,13 @@ function EditLinkModal({
 }) {
   const [url, setUrl] = useState(link.url);
   const [title, setTitle] = useState(link.buttonTitle);
-  const { styles } = useThemeStyles(); // for modal overlay classes
-
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className={`${
-          isDark ? "bg-[#1A1A1E]" : "bg-white"
-        } rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl`}
+        className={`${isDark ? "bg-[#1A1A1E]" : "bg-white"} rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -845,12 +930,8 @@ function EditLinkModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-                isDark
-                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
-                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
-              }`}
-              placeholder="e.g. AInspiretech"
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${isDark ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50" : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"}`}
+              placeholder="e.g. Get Access"
             />
           </div>
           <div>
@@ -864,12 +945,8 @@ function EditLinkModal({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
-                isDark
-                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
-                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
-              }`}
-              placeholder="https://ainspiretech.com"
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${isDark ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50" : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"}`}
+              placeholder="https://example.com"
             />
           </div>
         </div>
@@ -887,70 +964,25 @@ function EditLinkModal({
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CreateAutomationPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const automationType =
     (params?.type as "comments" | "stories" | "dms") || "comments";
-  const editId = (params?.id as string) || null;
+  // ✅ editId drives all edit-vs-create branching
+  const editId = searchParams?.get("id") || null;
+  const isEditMode = !!editId;
 
-  const [form, setForm] = useState<AutomationForm>({
-    name: "",
-    accountUsername: "",
-    accountId: "",
-    anyPostOrReel: false,
-    mediaId: "",
-    mediaUrl: "",
-    mediaType: "",
-    anyKeyword: false,
-    keywords: [],
-    keywordInput: "",
-    excludeKeywords: [],
-    excludeKeywordInput: "",
-    dmImage: null,
-    dmImagePreview: "",
-    dmMessage: "",
-    dmLinks: [],
-    welcomeMessage: false,
-    welcomeText:
-      "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
-    welcomeButtonTitle: "Send me the link",
-    publicReply: false,
-    publicReplies: [
-      "Replied in DMs 📨",
-      "Coming your way 🧲",
-      "Check your DM 📩",
-    ],
-    tagType: "none",
-    askFollow: false,
-    askFollowMessage:
-      "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲",
-    visitProfileBtn: "Visit Profile",
-    followingBtn: "I'm following ✅",
-    askEmail: false,
-    emailOpeningMessage:
-      "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your email address first. Please share it in the chat.",
-    emailRetryMessage:
-      "Please enter a correct email address, e.g. info@gmail.com",
-    emailNoValidAction: "send",
-    askPhone: false,
-    phoneOpeningMessage:
-      "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
-    phoneRetryMessage: "Please enter a correct phone number, e.g. +1234567890",
-    phoneNoValidAction: "send",
-    followUpDMs: false,
-    followUpMessages: [],
-    delayOption: "immediate",
-    isActive: true,
-    priority: 5,
-  });
+  const [form, setForm] = useState<AutomationForm>(DEFAULT_FORM);
 
   const [accounts, setAccounts] = useState<AccountDataType[]>([]);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [showMoreMedia, setShowMoreMedia] = useState(false);
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isGoingLive, setIsGoingLive] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
@@ -966,17 +998,16 @@ export default function CreateAutomationPage() {
   const router = useRouter();
   const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
-
   const { styles, isDark } = useThemeStyles();
 
-  // Page‑specific styles (everything that isn’t in the central theme)
-  const pageStyles = useMemo(() => {
-    return {
+  // ─── Page styles ──────────────────────────────────────────────────────────
+
+  const pageStyles = useMemo(
+    () => ({
       page: isDark ? "min-h-screen relative overflow-hidden" : "min-h-screen",
       container: "flex flex-1",
-      leftPreview: isDark
-        ? "hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]"
-        : "hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]",
+      leftPreview:
+        "hidden lg:flex sticky top-28 items-start justify-center w-[320px] xl:w-[420px] flex-shrink-0 pt-12 px-8 h-[calc(100vh-77px)]",
       rightContent: "flex-1 overflow-y-auto w-full",
       actionBar:
         "flex items-center justify-end w-full gap-2 px-4 md:px-6 max-w-2xl mx-auto py-4",
@@ -1010,16 +1041,8 @@ export default function CreateAutomationPage() {
       mediaGrid: "grid grid-cols-4 gap-2 mb-2",
       mediaItem: (isSelected: boolean) =>
         isDark
-          ? `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${
-              isSelected
-                ? "ring-2 ring-pink-500 ring-offset-2 ring-offset-[#1A1A1E]"
-                : "hover:opacity-90"
-            }`
-          : `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${
-              isSelected
-                ? "ring-2 ring-pink-500 ring-offset-1"
-                : "hover:opacity-90"
-            }`,
+          ? `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-pink-500 ring-offset-2 ring-offset-[#1A1A1E]" : "hover:opacity-90"}`
+          : `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-pink-500 ring-offset-1" : "hover:opacity-90"}`,
       mediaVideoBadge:
         "absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded",
       mediaLoadMore: isDark
@@ -1031,16 +1054,8 @@ export default function CreateAutomationPage() {
       accountGrid: "flex gap-2 flex-wrap",
       accountButton: (isSelected: boolean) =>
         isDark
-          ? `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-              isSelected
-                ? "bg-pink-500/10 border-2 border-pink-500 text-pink-400"
-                : "bg-white/[0.06] border border-white/[0.08] text-white/60 hover:border-pink-500/50"
-            }`
-          : `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${
-              isSelected
-                ? "bg-pink-50 border-2 border-pink-300 text-pink-600"
-                : "bg-gray-50 border border-gray-200 text-gray-600 hover:border-gray-300"
-            }`,
+          ? `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${isSelected ? "bg-pink-500/10 border-2 border-pink-500 text-pink-400" : "bg-white/[0.06] border border-white/[0.08] text-white/60 hover:border-pink-500/50"}`
+          : `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${isSelected ? "bg-pink-50 border-2 border-pink-300 text-pink-600" : "bg-gray-50 border border-gray-200 text-gray-600 hover:border-gray-300"}`,
       accountAvatar:
         "w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold",
       keywordInput: isDark
@@ -1088,9 +1103,8 @@ export default function CreateAutomationPage() {
       linkInput: isDark
         ? "w-full px-3 py-2 bg-white/[0.05] border border-white/[0.08] rounded-lg text-sm text-white placeholder:text-white/25 focus:outline-none focus:ring-1 focus:ring-pink-500"
         : "w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-pink-300",
-      addLinkButton: isDark
-        ? "flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600"
-        : "flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600",
+      addLinkButton:
+        "flex-1 py-2 bg-pink-500 text-white text-sm rounded-lg hover:bg-pink-600",
       cancelButton: isDark
         ? "px-3 py-2 text-white/60 text-sm rounded-lg hover:bg-white/[0.06]"
         : "px-3 py-2 text-gray-500 text-sm rounded-lg hover:bg-gray-100",
@@ -1113,32 +1127,14 @@ export default function CreateAutomationPage() {
           : `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isEditing ? "border-pink-300" : "border-gray-200"}`,
       tagButton: (isSelected: boolean) =>
         isDark
-          ? `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
-              isSelected
-                ? "border-2 border-pink-400 text-pink-400 bg-pink-500/10"
-                : "border border-white/[0.08] text-white/60 hover:border-pink-500/50"
-            }`
-          : `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
-              isSelected
-                ? "border-2 border-pink-400 text-pink-600 bg-pink-50"
-                : "border border-gray-200 text-gray-600 hover:border-gray-300"
-            }`,
+          ? `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${isSelected ? "border-2 border-pink-400 text-pink-400 bg-pink-500/10" : "border border-white/[0.08] text-white/60 hover:border-pink-500/50"}`
+          : `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${isSelected ? "border-2 border-pink-400 text-pink-600 bg-pink-50" : "border border-gray-200 text-gray-600 hover:border-gray-300"}`,
       delayButton: (isSelected: boolean) =>
         isDark
-          ? `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
-              isSelected
-                ? "bg-pink-500 text-white"
-                : "text-white/40 hover:text-white/60"
-            }`
-          : `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
-              isSelected
-                ? "bg-pink-500 text-white"
-                : "text-gray-400 hover:text-gray-600"
-            }`,
-      crownIcon: isDark ? "h-4 w-4 text-yellow-400" : "h-4 w-4 text-yellow-400",
-      loadingContainer: isDark
-        ? "min-h-screen flex items-center justify-center bg-[#0F0F11]"
-        : "min-h-screen flex items-center justify-center bg-[#F8F9FA]",
+          ? `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${isSelected ? "bg-pink-500 text-white" : "text-white/40 hover:text-white/60"}`
+          : `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${isSelected ? "bg-pink-500 text-white" : "text-gray-400 hover:text-gray-600"}`,
+      crownIcon: "h-4 w-4 text-yellow-400",
+      loadingContainer: "min-h-screen flex items-center justify-center",
       loadingSpinner: isDark
         ? "w-5 h-5 border-2 border-t-transparent border-pink-400 rounded-full animate-spin"
         : "w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin",
@@ -1164,27 +1160,23 @@ export default function CreateAutomationPage() {
       addFollowUpButton: isDark
         ? "w-full py-2.5 border-2 border-dashed border-pink-500/30 rounded-xl text-sm text-pink-400 font-medium hover:bg-pink-500/10 transition-colors"
         : "w-full py-2.5 border-2 border-dashed border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors",
-      // Empty state
       emptyIcon: isDark ? "text-white/20" : "text-gray-300",
       emptyText: isDark ? "text-white/35" : "text-gray-500",
-    };
-  }, [isDark]);
+    }),
+    [isDark],
+  );
 
-  // Memoized fetch media function
+  // ─── Fetch media ──────────────────────────────────────────────────────────
+
   const fetchMedia = useCallback(
     async (accountId: string) => {
       if (!accountId || automationType === "dms") return;
-
       setIsLoadingMedia(true);
       try {
         const data = await getInstaMedia(apiRequest, accountId);
-        // Handle different response structures
         let mediaList: MediaItem[] = [];
-        if (data?.media && Array.isArray(data.media)) {
-          mediaList = data.media;
-        } else if (Array.isArray(data)) {
-          mediaList = data;
-        }
+        if (data?.media && Array.isArray(data.media)) mediaList = data.media;
+        else if (Array.isArray(data)) mediaList = data;
         setMedia(mediaList);
       } catch (e) {
         console.error("Error fetching media:", e);
@@ -1196,7 +1188,102 @@ export default function CreateAutomationPage() {
     [apiRequest, automationType],
   );
 
-  // Separate effect for fetching accounts - runs once
+  // ─── Fetch template for edit mode ─────────────────────────────────────────
+  //
+  // ✅ Runs ONLY when editId is present. Populates every field from the
+  //    saved template so the user sees their existing config on open.
+
+  const fetchTemplateForEdit = useCallback(async () => {
+    if (!editId) return;
+    setIsLoadingTemplate(true);
+    try {
+      const response = await getInstaTemplateById(apiRequest, editId);
+      const template = (response?.template || response) as TemplateData;
+
+      setForm({
+        name: template.name || "",
+        accountUsername: template.accountUsername || "",
+        accountId: template.accountId || "",
+        anyPostOrReel: template.anyPostOrReel || false,
+        mediaId: template.mediaId || "",
+        mediaUrl: template.mediaUrl || "",
+        mediaType: template.mediaType || "",
+        anyKeyword: template.anyKeyword || false,
+        keywords: template.triggers || [],
+        keywordInput: "",
+        excludeKeywordInput: "",
+        dmImage: null,
+        dmImagePreview: "",
+        dmMessage: template.content?.[0]?.text || "",
+        dmLinks:
+          template.content
+            ?.map((c) => ({
+              url: c.link || "",
+              buttonTitle: c.buttonTitle || "Get Access",
+            }))
+            .filter((l) => l.url) || [],
+        welcomeMessage: template.welcomeMessage?.enabled || false,
+        welcomeText:
+          template.welcomeMessage?.text ||
+          "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
+        welcomeButtonTitle:
+          template.welcomeMessage?.buttonTitle || "Send me the link",
+        publicReply: template.publicReply?.enabled || false,
+        publicReplies: template.publicReply?.replies?.length
+          ? template.publicReply.replies
+          : ["Replied in DMs 📨", "Coming your way 🧲", "Check your DM 📩"],
+        tagType: template.publicReply?.tagType || "none",
+        askFollow: template.askFollow?.enabled || false,
+        askFollowMessage:
+          template.askFollow?.message ||
+          "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲",
+        visitProfileBtn: template.askFollow?.visitProfileBtn || "Visit Profile",
+        followingBtn: template.askFollow?.followingBtn || "I'm following ✅",
+        askEmail: template.askEmail?.enabled || false,
+        emailOpeningMessage:
+          template.askEmail?.openingMessage ||
+          "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your email address first. Please share it in the chat.",
+        emailRetryMessage:
+          template.askEmail?.retryMessage ||
+          "Please enter a correct email address, e.g. info@gmail.com",
+        emailNoValidAction: template.askEmail?.sendDmIfNoEmail
+          ? "send"
+          : "nosend",
+        askPhone: template.askPhone?.enabled || false,
+        phoneOpeningMessage:
+          template.askPhone?.openingMessage ||
+          "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
+        phoneRetryMessage:
+          template.askPhone?.retryMessage ||
+          "Please enter a correct phone number, e.g. +1234567890",
+        phoneNoValidAction: template.askPhone?.sendDmIfNoPhone
+          ? "send"
+          : "nosend",
+        followUpDMs: template.followUpDMs?.enabled || false,
+        followUpMessages: template.followUpDMs?.messages || [],
+        delayOption: template.delayOption || "immediate",
+        isActive: template.isActive || false,
+        priority: template.priority || 5,
+      });
+
+      // If there was a media selection, load the account's media grid
+      if (template.accountId && automationType !== "dms") {
+        fetchMedia(template.accountId);
+      }
+    } catch (error) {
+      console.error("Error loading template for edit:", error);
+      toast({
+        title: "Failed to load automation",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsLoadingTemplate(false);
+    }
+  }, [editId, apiRequest, automationType, fetchMedia]);
+
+  // ─── Fetch accounts ───────────────────────────────────────────────────────
+
   useEffect(() => {
     if (!userId || !isLoaded) return;
 
@@ -1204,59 +1291,40 @@ export default function CreateAutomationPage() {
       setIsLoading(true);
       try {
         const data = await getAllInstagramAccounts(apiRequest);
-        console.log("Raw accounts response:", data);
-
         let accountsList: any[] = [];
-
-        // Handle different response structures
-        if (data?.accounts && Array.isArray(data.accounts)) {
+        if (data?.accounts && Array.isArray(data.accounts))
           accountsList = data.accounts;
-        } else if (data?.accounts && Array.isArray(data.accounts)) {
-          accountsList = data.accounts;
-        } else if (Array.isArray(data)) {
-          accountsList = data;
-        }
+        else if (Array.isArray(data)) accountsList = data;
 
-        // Filter active accounts and extract relevant info
         const active = accountsList
           .filter((item: any) => {
-            const accountInfo = item.accountInfo || item;
-            return accountInfo.isActive === true;
+            const acc = item.accountInfo || item;
+            return acc.isActive === true;
           })
           .map((item: any) => {
-            const accountInfo = item.accountInfo || item;
-            const instagramInfo = item.instagramInfo || {};
-
+            const acc = item.accountInfo || item;
+            const ig = item.instagramInfo || {};
             return {
-              instagramId: accountInfo.instagramId || instagramInfo.id || "",
-              username:
-                instagramInfo.username || accountInfo.username || "Unknown",
-              isActive: accountInfo.isActive || false,
-              profilePicture:
-                instagramInfo.profile_picture_url || accountInfo.profilePicture,
-              followersCount:
-                instagramInfo.followers_count ||
-                accountInfo.followersCount ||
-                0,
-              mediaCount:
-                instagramInfo.media_count || accountInfo.mediaCount || 0,
+              instagramId: acc.instagramId || ig.id || "",
+              username: ig.username || acc.username || "Unknown",
+              isActive: acc.isActive || false,
+              profilePicture: ig.profile_picture_url || acc.profilePicture,
+              followersCount: ig.followers_count || acc.followersCount || 0,
+              mediaCount: ig.media_count || acc.mediaCount || 0,
             };
           });
 
         setAccounts(active);
 
-        // Set first account only if not already set
-        if (active.length > 0 && !form.accountId) {
+        // In create mode, auto-select first account and load its media
+        if (active.length > 0 && !isEditMode) {
           const first = active[0];
           setForm((prev) => ({
             ...prev,
             accountUsername: first.username,
             accountId: first.instagramId,
           }));
-          // Fetch media for this account
-          if (automationType !== "dms") {
-            fetchMedia(first.instagramId);
-          }
+          if (automationType !== "dms") fetchMedia(first.instagramId);
         }
       } catch (e) {
         console.error("Error fetching accounts:", e);
@@ -1266,37 +1334,45 @@ export default function CreateAutomationPage() {
     };
 
     fetchAccounts();
-  }, [
-    userId,
-    isLoaded,
-    apiRequest,
-    automationType,
-    form.accountId,
-    fetchMedia,
-  ]);
+  }, [userId, isLoaded, apiRequest, automationType, isEditMode, fetchMedia]);
 
-  // Separate effect for when account changes via dropdown
+  // ─── Load template when in edit mode ─────────────────────────────────────
+
   useEffect(() => {
-    if (form.accountId && automationType !== "dms") {
+    if (isEditMode) {
+      fetchTemplateForEdit();
+    }
+  }, [isEditMode, fetchTemplateForEdit]);
+
+  // ─── Reload media when account changes (create mode only) ─────────────────
+
+  useEffect(() => {
+    if (form.accountId && automationType !== "dms" && !isEditMode) {
       fetchMedia(form.accountId);
     }
-  }, [form.accountId, automationType, fetchMedia]);
+  }, [form.accountId, automationType, fetchMedia, isEditMode]);
 
-  const handleAccountChange = useCallback((acc: AccountDataType) => {
-    setForm((prev) => ({
-      ...prev,
-      accountUsername: acc.username,
-      accountId: acc.instagramId,
-      mediaId: "",
-      mediaUrl: "",
-      mediaType: "",
-    }));
-  }, []);
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleAccountChange = useCallback(
+    (acc: AccountDataType) => {
+      setForm((prev) => ({
+        ...prev,
+        accountUsername: acc.username,
+        accountId: acc.instagramId,
+        mediaId: "",
+        mediaUrl: "",
+        mediaType: "",
+      }));
+      // When account changes in edit mode, reload media for new account
+      if (automationType !== "dms") fetchMedia(acc.instagramId);
+    },
+    [automationType, fetchMedia],
+  );
 
   const addKeyword = useCallback(() => {
     if (form.keywordInput.trim()) {
       const kw = form.keywordInput.trim().toLowerCase();
-
       if (!form.keywords.includes(kw)) {
         setForm((f) => ({
           ...f,
@@ -1394,6 +1470,8 @@ export default function CreateAutomationPage() {
     }));
   }, []);
 
+  // ─── Save handler ──────────────────────────────────────────────────────────
+
   const handleSave = useCallback(
     async (goLive = false) => {
       if (!form.name.trim()) {
@@ -1425,25 +1503,25 @@ export default function CreateAutomationPage() {
       setter(true);
 
       try {
-        const content = [
-          {
-            text: form.dmMessage,
-            link: form.dmLinks[0]?.url || "",
-            buttonTitle: form.dmLinks[0]?.buttonTitle || "Get Access",
-          },
-          ...form.dmLinks.slice(1).map((l) => ({
-            text: "",
-            link: l.url,
-            buttonTitle: l.buttonTitle,
-          })),
-        ].filter((c) => c.text || c.link);
+        const content =
+          form.dmMessage || form.dmLinks.length > 0
+            ? [
+                {
+                  text: form.dmMessage || "",
+                  link: form.dmLinks[0]?.url || "",
+                  buttonTitle: form.dmLinks[0]?.buttonTitle || "Get Access",
+                },
+                ...form.dmLinks.slice(1).map((l) => ({
+                  text: "",
+                  link: l.url,
+                  buttonTitle: l.buttonTitle,
+                })),
+              ].filter((c) => c.text || c.link)
+            : [];
 
         const payload = {
           name: form.name,
-          content:
-            content.length > 0
-              ? content
-              : [{ text: form.dmMessage || "", link: "", buttonTitle: "" }],
+          content,
           reply: form.publicReplies.filter(Boolean),
           triggers:
             automationType === "stories"
@@ -1451,17 +1529,11 @@ export default function CreateAutomationPage() {
               : form.anyKeyword
                 ? []
                 : form.keywords.filter(Boolean),
-          excludeKeywords:
-            automationType === "stories"
-              ? form.excludeKeywords.filter(Boolean)
-              : [],
           isFollow: form.askFollow,
           priority: form.priority,
-          accountUsername: form.accountUsername,
-          mediaId: form.anyPostOrReel ? "" : form.mediaId,
+          mediaId: form.anyPostOrReel ? "any" : form.mediaId,
           mediaUrl: form.mediaUrl,
           mediaType: form.mediaType,
-          isActive: goLive ? true : form.isActive,
           delaySeconds:
             form.delayOption === "3min"
               ? 180
@@ -1470,7 +1542,11 @@ export default function CreateAutomationPage() {
                 : form.delayOption === "10min"
                   ? 600
                   : 0,
-          automationType,
+          delayOption: form.delayOption,
+          automationType: automationType,
+          anyPostOrReel: form.anyPostOrReel,
+          anyKeyword: form.anyKeyword,
+          isActive: goLive ? true : form.isActive,
           welcomeMessage: {
             enabled: form.welcomeMessage,
             text: form.welcomeText,
@@ -1503,13 +1579,14 @@ export default function CreateAutomationPage() {
             enabled: form.followUpDMs,
             messages: form.followUpMessages,
           },
-          delayOption: form.delayOption,
         };
 
-        if (editId) {
+        if (isEditMode && editId) {
+          // ✅ UPDATE — patch the existing template
           await updateTemplate(apiRequest, editId, payload);
           toast({ title: "Automation updated!", duration: 3000 });
         } else {
+          // ✅ CREATE — brand new template
           await createInstaTemplate(
             apiRequest,
             form.accountId,
@@ -1521,8 +1598,10 @@ export default function CreateAutomationPage() {
             duration: 3000,
           });
         }
+
         router.push("/insta/automations");
       } catch (error) {
+        console.error("Error saving template:", error);
         toast({
           title: "Failed to save",
           variant: "destructive",
@@ -1532,7 +1611,7 @@ export default function CreateAutomationPage() {
         setter(false);
       }
     },
-    [form, automationType, editId, apiRequest, router],
+    [form, automationType, isEditMode, editId, apiRequest, router],
   );
 
   const visibleMedia = useMemo(
@@ -1540,13 +1619,17 @@ export default function CreateAutomationPage() {
     [media, showMoreMedia],
   );
 
-  if (!isLoaded || isLoading) {
+  // ─── Loading gate ─────────────────────────────────────────────────────────
+
+  if (!isLoaded || isLoading || isLoadingTemplate) {
     return (
       <div className={pageStyles.loadingContainer}>
         <div className={pageStyles.loadingSpinner} />
       </div>
     );
   }
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div className={pageStyles.page}>
@@ -1565,13 +1648,21 @@ export default function CreateAutomationPage() {
         {/* Right: Form */}
         <div className={pageStyles.rightContent}>
           <div className={pageStyles.actionBar}>
+            {/* Edit mode indicator */}
+            {isEditMode && (
+              <span
+                className={`text-xs px-3 py-1.5 rounded-full ${isDark ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-blue-50 border border-blue-200 text-blue-600"}`}
+              >
+                ✏️ Editing existing automation
+              </span>
+            )}
             <button
               onClick={() => handleSave(false)}
               disabled={isSaving || isGoingLive}
               className={pageStyles.saveButton(isSaving || isGoingLive)}
             >
               <Bookmark className="h-4 w-4" />
-              {isSaving ? "Saving..." : "Save"}
+              {isSaving ? "Saving..." : isEditMode ? "Update" : "Save"}
             </button>
             <button
               onClick={() => handleSave(true)}
@@ -1579,7 +1670,11 @@ export default function CreateAutomationPage() {
               className={pageStyles.goLiveButton(isSaving || isGoingLive)}
             >
               <Activity className="h-4 w-4" />
-              {isGoingLive ? "Going Live..." : "Go Live"}
+              {isGoingLive
+                ? "Going Live..."
+                : isEditMode
+                  ? "Update & Go Live"
+                  : "Go Live"}
             </button>
           </div>
 
@@ -1620,7 +1715,7 @@ export default function CreateAutomationPage() {
               </div>
             )}
 
-            {/* Step 1: Select Post/Story (NOT for DMs) */}
+            {/* Step 1: Select Post/Story */}
             {automationType !== "dms" && (
               <div className={pageStyles.card}>
                 <div className="flex items-center gap-3 mb-4">
@@ -1631,7 +1726,6 @@ export default function CreateAutomationPage() {
                       : "Select Instagram Posts or Reel"}
                   </h3>
                 </div>
-
                 <div className="flex items-center justify-between mb-4">
                   <span
                     className={`text-sm ${isDark ? "text-white/60" : "text-gray-600"}`}
@@ -1652,7 +1746,6 @@ export default function CreateAutomationPage() {
                     isDark={isDark}
                   />
                 </div>
-
                 {!form.anyPostOrReel && (
                   <>
                     {isLoadingMedia ? (
@@ -1726,7 +1819,7 @@ export default function CreateAutomationPage() {
               </div>
             )}
 
-            {/* Step 2: Trigger Keywords (NOT for DMs) */}
+            {/* Step 2: Trigger Keywords */}
             <div className={pageStyles.card}>
               <div className="flex items-center gap-3 mb-4">
                 <div className={pageStyles.stepNumber}>
@@ -1734,8 +1827,6 @@ export default function CreateAutomationPage() {
                 </div>
                 <h3 className={pageStyles.stepTitle}>Set Trigger Keywords</h3>
               </div>
-
-              {/* ANY KEYWORD TOGGLE */}
               {(automationType === "comments" ||
                 automationType === "stories") && (
                 <div className="flex items-center justify-between mb-4">
@@ -1751,29 +1842,22 @@ export default function CreateAutomationPage() {
                   />
                 </div>
               )}
-
-              {/* KEYWORD INPUT SECTION */}
               {(automationType === "dms" ||
                 ((automationType === "comments" ||
                   automationType === "stories") &&
                   !form.anyKeyword)) && (
                 <>
-                  {/* INPUT */}
                   <div className={pageStyles.keywordInput}>
                     <input
                       type="text"
                       placeholder="Type & Hit ↵ Enter to add Keyword"
                       value={form.keywordInput}
                       onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          keywordInput: e.target.value,
-                        }))
+                        setForm((f) => ({ ...f, keywordInput: e.target.value }))
                       }
                       onKeyDown={handleKeywordInput}
                       className={pageStyles.keywordField}
                     />
-
                     {form.keywordInput && (
                       <button
                         type="button"
@@ -1784,8 +1868,6 @@ export default function CreateAutomationPage() {
                       </button>
                     )}
                   </div>
-
-                  {/* KEYWORD TAGS */}
                   {form.keywords.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-3">
                       {form.keywords.map((kw) => (
@@ -1814,7 +1896,6 @@ export default function CreateAutomationPage() {
                 </div>
                 <h3 className={pageStyles.stepTitle}>Send DM</h3>
               </div>
-
               {!form.dmImagePreview ? (
                 <div
                   onClick={() => fileInputRef.current?.click()}
@@ -1858,7 +1939,6 @@ export default function CreateAutomationPage() {
                   </button>
                 </div>
               )}
-
               <div
                 className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden mb-1`}
               >
@@ -1882,7 +1962,6 @@ export default function CreateAutomationPage() {
                   />
                 </div>
               </div>
-
               {form.dmLinks.map((link, i) => (
                 <div key={i} className={pageStyles.linkItem}>
                   <LinkIcon className={pageStyles.linkIcon} />
@@ -1904,7 +1983,6 @@ export default function CreateAutomationPage() {
                   </button>
                 </div>
               ))}
-
               {showLinkForm ? (
                 <div className={pageStyles.linkForm}>
                   <div className="space-y-2">
@@ -1966,7 +2044,6 @@ export default function CreateAutomationPage() {
                   isDark={isDark}
                 />
               </div>
-
               {form.welcomeMessage && (
                 <div className={pageStyles.sectionContent}>
                   <div
@@ -2018,7 +2095,7 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            {/* Publicly Reply To Comments */}
+            {/* Public Reply (comments only) */}
             {automationType === "comments" && (
               <div className={pageStyles.cardNoPadding}>
                 <div className={pageStyles.sectionToggle}>
@@ -2034,7 +2111,6 @@ export default function CreateAutomationPage() {
                     isDark={isDark}
                   />
                 </div>
-
                 {form.publicReply && (
                   <div className={pageStyles.sectionContent}>
                     {form.publicReplies.map((reply, i) => (
@@ -2078,7 +2154,6 @@ export default function CreateAutomationPage() {
                         </button>
                       </div>
                     ))}
-
                     <button
                       onClick={addPublicReply}
                       className={pageStyles.addLinkTrigger}
@@ -2086,7 +2161,6 @@ export default function CreateAutomationPage() {
                       <Plus className="h-4 w-4" />
                       Add Public Reply
                     </button>
-
                     <div>
                       <p
                         className={`text-sm mb-2 mt-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
@@ -2133,7 +2207,6 @@ export default function CreateAutomationPage() {
                   isDark={isDark}
                 />
               </div>
-
               {form.askFollow && (
                 <div className={pageStyles.sectionContent}>
                   <div
@@ -2161,7 +2234,6 @@ export default function CreateAutomationPage() {
                       />
                     </div>
                   </div>
-
                   <div
                     className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
                   >
@@ -2185,7 +2257,6 @@ export default function CreateAutomationPage() {
                       }
                     />
                   </div>
-
                   <div
                     className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
                   >
@@ -2226,7 +2297,6 @@ export default function CreateAutomationPage() {
                   isDark={isDark}
                 />
               </div>
-
               {form.askEmail && (
                 <div className={pageStyles.sectionContent}>
                   <div>
@@ -2261,7 +2331,6 @@ export default function CreateAutomationPage() {
                       </div>
                     </div>
                   </div>
-
                   <div>
                     <p
                       className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
@@ -2294,7 +2363,6 @@ export default function CreateAutomationPage() {
                       </div>
                     </div>
                   </div>
-
                   <div>
                     <p
                       className={`text-xs mb-2 ${isDark ? "text-white/40" : "text-gray-500"}`}
@@ -2332,7 +2400,7 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            {/* Ask Phone (for Stories) */}
+            {/* Ask Phone (stories only) */}
             {automationType === "stories" && (
               <div className={pageStyles.cardNoPadding}>
                 <div className={pageStyles.sectionToggle}>
@@ -2349,7 +2417,6 @@ export default function CreateAutomationPage() {
                     isDark={isDark}
                   />
                 </div>
-
                 {form.askPhone && (
                   <div className={pageStyles.sectionContent}>
                     <div>
@@ -2384,7 +2451,6 @@ export default function CreateAutomationPage() {
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <p
                         className={`text-xs font-medium mb-2 ${isDark ? "text-white/60" : "text-gray-600"}`}
@@ -2417,7 +2483,6 @@ export default function CreateAutomationPage() {
                         </div>
                       </div>
                     </div>
-
                     <div>
                       <p
                         className={`text-xs mb-2 ${isDark ? "text-white/40" : "text-gray-500"}`}
@@ -2474,7 +2539,6 @@ export default function CreateAutomationPage() {
                   isDark={isDark}
                 />
               </div>
-
               {form.followUpDMs && (
                 <div className={pageStyles.sectionContent}>
                   {form.followUpMessages.map((msg, i) => (
@@ -2490,7 +2554,6 @@ export default function CreateAutomationPage() {
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>
-
                       <select
                         value={msg.condition}
                         onChange={(e) => {
@@ -2574,7 +2637,6 @@ export default function CreateAutomationPage() {
                       >
                         Between 5 min and 23 hours • Wait for 1 hr
                       </p>
-
                       <textarea
                         value={msg.message}
                         onChange={(e) => {
@@ -2595,14 +2657,12 @@ export default function CreateAutomationPage() {
                         max={1000}
                         isDark={isDark}
                       />
-
                       <button className={pageStyles.followUpAddLink}>
                         <Plus className="h-4 w-4" />
                         Add Link
                       </button>
                     </div>
                   ))}
-
                   <button
                     onClick={addFollowUpMessage}
                     className={pageStyles.addFollowUpButton}

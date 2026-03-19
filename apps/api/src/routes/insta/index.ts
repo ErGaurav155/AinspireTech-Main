@@ -18,6 +18,7 @@ import { bulkTemplateActionController } from "@/controllers/insta/templates/bulk
 import { refreshInstagramTokenController } from "@/controllers/insta/refresh-token.controller";
 import {
   deleteInstaTemplateController,
+  getInstaTemplateByIdController,
   updateInstaTemplateController,
 } from "@/controllers/insta/templates/templates-id.controller";
 import { requireAuth } from "@clerk/express";
@@ -59,6 +60,9 @@ router.get("/templates", getInstaTemplatesController);
 router.post("/templates", createInstaTemplateController);
 // POST /api/insta/templates/bulk - Bulk template actions
 router.post("/templates/bulk", bulkTemplateActionController);
+
+// GET /api/insta/templates/:templateId - Update template
+router.get("/templates/:templateId", getInstaTemplateByIdController);
 // PUT /api/insta/templates/:templateId - Update template
 router.put("/templates/:templateId", updateInstaTemplateController);
 // DELETE /api/insta/templates/:templateId - Delete template

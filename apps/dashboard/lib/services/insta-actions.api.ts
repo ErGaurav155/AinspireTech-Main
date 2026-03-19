@@ -56,7 +56,14 @@ export const deleteTemplate = (
     method: "DELETE",
   });
 };
-
+export const getInstaTemplateById = (
+  apiRequest: ApiRequestFn,
+  templateId: string,
+): Promise<any> => {
+  return apiRequest(`/insta/templates/${templateId}`, {
+    method: "GET",
+  });
+};
 interface GetTemplatesParams {
   accountId?: string;
   loadMoreCount?: number;
@@ -94,7 +101,6 @@ export const getInstaTemplates = (
     method: "GET",
   });
 };
-
 export const createInstaTemplate = (
   apiRequest: ApiRequestFn,
   accountId: string,
@@ -108,42 +114,128 @@ export const createInstaTemplate = (
     priority: number;
     mediaId: string;
     mediaUrl: string;
+    mediaType?: string;
     delaySeconds?: number;
-    settingsByTier?: TemplateSettingsByTier;
+    delayOption?: "immediate" | "3min" | "5min" | "10min";
+    automationType?: "comments" | "stories" | "dms" | "live";
+    anyPostOrReel?: boolean;
+    anyKeyword?: boolean;
+    welcomeMessage?: {
+      enabled: boolean;
+      text: string;
+      buttonTitle: string;
+    };
+    publicReply?: {
+      enabled: boolean;
+      replies: string[];
+      tagType: "none" | "user" | "account";
+    };
+    askFollow?: {
+      enabled: boolean;
+      message: string;
+      visitProfileBtn: string;
+      followingBtn: string;
+    };
+    askEmail?: {
+      enabled: boolean;
+      openingMessage: string;
+      retryMessage: string;
+      sendDmIfNoEmail: boolean;
+    };
+    askPhone?: {
+      enabled: boolean;
+      openingMessage: string;
+      retryMessage: string;
+      sendDmIfNoPhone: boolean;
+    };
+    followUpDMs?: {
+      enabled: boolean;
+      messages: Array<{
+        condition: string;
+        waitTime: number;
+        waitUnit: "minutes" | "hours";
+        message: string;
+        links: { url: string; buttonTitle: string }[];
+      }>;
+    };
+    isActive?: boolean;
   },
-): Promise<{ template: TemplateType }> => {
+): Promise<{ template: any }> => {
   const payload = {
     accountId,
     accountUsername,
-    name: templateData.name,
-    content: templateData.content.filter((c: any) => c.text.trim() !== ""),
-    reply: templateData.reply.filter((r: any) => r.trim() !== ""),
-    triggers: templateData.triggers.filter((t: any) => t.trim() !== ""),
-    isFollow: templateData.isFollow,
-    priority: templateData.priority,
-    mediaId: templateData.mediaId,
-    mediaUrl: templateData.mediaUrl,
+    name: templateData.name.trim(),
+    content: templateData.content.filter((c) => c.text?.trim() !== ""),
+    reply: templateData.reply.filter((r) => r?.trim() !== ""),
+    triggers: templateData.triggers?.filter((t) => t?.trim() !== "") || [],
+    isFollow: templateData.isFollow || false,
+    priority: templateData.priority || 5,
+    mediaId: templateData.mediaId || "",
+    mediaUrl: templateData.mediaUrl || "",
+    mediaType: templateData.mediaType || "",
     delaySeconds: templateData.delaySeconds || 0,
-    settingsByTier: templateData.settingsByTier || {
-      free: {
-        requireFollow: false,
-        skipFollowCheck: true,
-        directLink: true,
-      },
-      pro: {
-        requireFollow: true,
-        useAdvancedFlow: true,
-        maxRetries: 3,
-      },
+    delayOption: templateData.delayOption || "immediate",
+    automationType: templateData.automationType || "comments",
+    anyPostOrReel: templateData.anyPostOrReel || false,
+    anyKeyword: templateData.anyKeyword || false,
+    isActive:
+      templateData.isActive !== undefined ? templateData.isActive : true,
+
+    // Welcome Message
+    welcomeMessage: templateData.welcomeMessage || {
+      enabled: false,
+      text: "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
+      buttonTitle: "Send me the link",
+    },
+
+    // Public Reply
+    publicReply: templateData.publicReply || {
+      enabled: false,
+      replies: ["Replied in DMs 📨", "Coming your way 🧲", "Check your DM 📩"],
+      tagType: "none",
+    },
+
+    // Ask Follow
+    askFollow: templateData.askFollow || {
+      enabled: false,
+      message:
+        "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲",
+      visitProfileBtn: "Visit Profile",
+      followingBtn: "I'm following ✅",
+    },
+
+    // Ask Email
+    askEmail: templateData.askEmail || {
+      enabled: false,
+      openingMessage:
+        "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your email address first. Please share it in the chat.",
+      retryMessage: "Please enter a correct email address, e.g. info@gmail.com",
+      sendDmIfNoEmail: true,
+    },
+
+    // Ask Phone
+    askPhone: templateData.askPhone || {
+      enabled: false,
+      openingMessage:
+        "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
+      retryMessage: "Please enter a correct phone number, e.g. +1234567890",
+      sendDmIfNoPhone: true,
+    },
+
+    // Follow Up DMs
+    followUpDMs: templateData.followUpDMs || {
+      enabled: false,
+      messages: [],
     },
   };
+
+  console.log("Sending payload to server:", payload);
 
   return apiRequest("/insta/templates", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 };
-
 // ==================== ACCOUNT FUNCTIONS ====================
 
 export const getAllInstagramAccounts = (

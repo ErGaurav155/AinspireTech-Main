@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-import { RefreshCw, XCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { RefreshCw, XCircle, AlertTriangle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
@@ -20,10 +20,9 @@ import {
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
 import { Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
-
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AccountDataType {
   instagramId: string;
@@ -46,16 +45,15 @@ interface AccountDataType {
 }
 
 interface SettingsState {
-  isActive: boolean; // Global Automations
-  autoReplyEnabled: boolean; // Comment Automations
-  storyAutomationsEnabled: boolean; // Story Automations
-  autoDMEnabled: boolean; // DM Automations
-  followCheckEnabled: boolean; // Follow Checks
-  requireFollowForFreeUsers: boolean; // Require Follow for Free Users
-  trackDmUrlEnabled: boolean; // Track DM URL
+  isActive: boolean;
+  autoReplyEnabled: boolean;
+  storyAutomationsEnabled: boolean;
+  autoDMEnabled: boolean;
+  followCheckEnabled: boolean;
+  requireFollowForFreeUsers: boolean;
+  trackDmUrlEnabled: boolean;
 }
 
-// API Response Types
 interface InstagramAccountResponse {
   success?: boolean;
   accounts?: Array<{
@@ -80,10 +78,6 @@ interface InstagramAccountResponse {
       createdAt: string;
       updatedAt: string;
       templatesCount: number;
-      accountReply?: number;
-      accountDMSent?: number;
-      accountFollowCheck?: number;
-      lastActivity?: string;
       storyAutomationsEnabled?: boolean;
       trackDmUrlEnabled?: boolean;
     };
@@ -103,17 +97,48 @@ interface InstagramAccountResponse {
     };
   }>;
   data?: {
-    accounts?: Array<{
-      success: boolean;
-      accountInfo: any;
-      instagramInfo: any;
-      rateLimitInfo: any;
-    }>;
+    accounts?: any[];
   };
   timestamp?: string;
 }
 
-// ─── Toggle Component (memoized) ─────────────────────────────────────────────
+// ─── Helper: extract settings from a raw accountInfo object ──────────────────
+//
+// Using explicit checks (`=== true` / `=== false`) instead of `??` so we
+// never silently fall through to a default when the field exists but is false.
+
+function extractSettings(accountInfo: any): SettingsState {
+  return {
+    isActive:
+      typeof accountInfo.isActive === "boolean" ? accountInfo.isActive : true,
+    autoReplyEnabled:
+      typeof accountInfo.autoReplyEnabled === "boolean"
+        ? accountInfo.autoReplyEnabled
+        : true,
+    storyAutomationsEnabled:
+      typeof accountInfo.storyAutomationsEnabled === "boolean"
+        ? accountInfo.storyAutomationsEnabled // ✅ honours false from DB
+        : true,
+    autoDMEnabled:
+      typeof accountInfo.autoDMEnabled === "boolean"
+        ? accountInfo.autoDMEnabled
+        : true,
+    followCheckEnabled:
+      typeof accountInfo.followCheckEnabled === "boolean"
+        ? accountInfo.followCheckEnabled
+        : true,
+    requireFollowForFreeUsers:
+      typeof accountInfo.requireFollowForFreeUsers === "boolean"
+        ? accountInfo.requireFollowForFreeUsers
+        : false,
+    trackDmUrlEnabled:
+      typeof accountInfo.trackDmUrlEnabled === "boolean"
+        ? accountInfo.trackDmUrlEnabled // ✅ honours false from DB
+        : true,
+  };
+}
+
+// ─── Toggle ───────────────────────────────────────────────────────────────────
 
 const Toggle = React.memo(function Toggle({
   checked,
@@ -138,18 +163,13 @@ const Toggle = React.memo(function Toggle({
     >
       <span
         className="absolute bg-white rounded-full shadow-sm transition-all"
-        style={{
-          width: 18,
-          height: 18,
-          top: 3,
-          left: checked ? 23 : 3,
-        }}
+        style={{ width: 18, height: 18, top: 3, left: checked ? 23 : 3 }}
       />
     </button>
   );
 });
 
-// ─── Settings Card Component (memoized) ──────────────────────────────────────
+// ─── SettingsCard — pure controlled component, zero local state ───────────────
 
 const SettingsCard = React.memo(function SettingsCard({
   title,
@@ -165,6 +185,7 @@ const SettingsCard = React.memo(function SettingsCard({
   isDark: boolean;
 }) {
   const { styles } = useThemeStyles();
+
   return (
     <div className={styles.card}>
       <div className="p-5">
@@ -182,7 +203,7 @@ const SettingsCard = React.memo(function SettingsCard({
   );
 });
 
-// ─── Main Settings Page ───────────────────────────────────────────────────────
+// ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function SettingsPage() {
   const [account, setAccount] = useState<AccountDataType | null>(null);
@@ -201,22 +222,18 @@ export default function SettingsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { userId, isLoaded } = useAuth();
-  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { apiRequest } = useApi();
   const abortControllerRef = useRef<AbortController | null>(null);
-
   const { styles, isDark } = useThemeStyles();
 
-  // Page‑specific styles (not in central theme)
   const pageStyles = useMemo(
     () => ({
       accountCard: isDark
         ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-6"
         : "bg-white border border-gray-100 rounded-2xl p-6",
-      accountAvatar: isDark
-        ? "w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden"
-        : "w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden",
+      accountAvatar:
+        "w-16 h-16 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-2xl font-bold flex-shrink-0 overflow-hidden",
       accountName: isDark
         ? "text-base font-semibold text-white"
         : "text-base font-semibold text-gray-800",
@@ -224,36 +241,50 @@ export default function SettingsPage() {
         ? "text-sm text-white/40"
         : "text-sm text-gray-500",
       accountStats: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
-      accountStatusDot: (isActive: boolean) =>
-        isDark
-          ? `w-2 h-2 rounded-full ${isActive ? "bg-green-400" : "bg-gray-500"}`
-          : `w-2 h-2 rounded-full ${isActive ? "bg-green-500" : "bg-gray-400"}`,
-      accountStatusText: (isActive: boolean) =>
-        isDark
-          ? `text-sm font-medium ${isActive ? "text-green-400" : "text-white/40"}`
-          : `text-sm font-medium ${isActive ? "text-green-600" : "text-gray-500"}`,
+      accountStatusDot: (active: boolean) =>
+        `w-2 h-2 rounded-full ${
+          isDark
+            ? active
+              ? "bg-green-400"
+              : "bg-gray-500"
+            : active
+              ? "bg-green-500"
+              : "bg-gray-400"
+        }`,
+      accountStatusText: (active: boolean) =>
+        `text-sm font-medium ${
+          isDark
+            ? active
+              ? "text-green-400"
+              : "text-white/40"
+            : active
+              ? "text-green-600"
+              : "text-gray-500"
+        }`,
       reconnectButton: isDark
         ? "flex items-center gap-2 px-4 py-2 bg-white/[0.06] border border-white/[0.09] backdrop-blur-[12px] text-white/70 hover:bg-white/[0.09] rounded-xl text-sm transition-colors"
         : "flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 hover:bg-gray-50 transition-colors",
-      disableButton: isDark
-        ? "flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors"
-        : "flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors",
+      disableButton: (active: boolean) =>
+        `flex items-center gap-2 px-4 py-2 ${
+          active
+            ? isDark
+              ? "bg-gray-800 hover:bg-gray-700"
+              : "bg-gray-900 hover:bg-black"
+            : isDark
+              ? "bg-green-600 hover:bg-green-500"
+              : "bg-green-500 hover:bg-green-600"
+        } text-white rounded-xl text-sm font-medium transition-colors`,
       emptyCard: isDark
         ? "bg-white/[0.04] flex flex-wrap border border-white/[0.08] rounded-2xl p-5 text-center"
         : "bg-white flex flex-wrap border border-gray-100 rounded-2xl p-5 text-center",
       emptyText: isDark ? "text-white/40 mb-4" : "text-gray-500 mb-4",
-      connectButton: isDark
-        ? "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
-        : "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors",
+      connectButton:
+        "inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors",
       settingsHeader: "flex flex-wrap items-center justify-between mb-4",
       saveButton: (disabled?: boolean) =>
-        isDark
-          ? `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
-              disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`
-          : `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
-              disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`,
+        `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
+          disabled ? "opacity-50 cursor-not-allowed" : ""
+        }`,
       removeCard: isDark
         ? "bg-red-500/10 border border-red-500/20 rounded-2xl p-6"
         : "bg-red-50 border border-red-200 rounded-2xl p-6",
@@ -264,17 +295,6 @@ export default function SettingsPage() {
       removeText: isDark
         ? "text-sm text-red-400/80 leading-relaxed"
         : "text-sm text-red-600 leading-relaxed",
-      removeButton: isDark
-        ? "flex-shrink-0 px-6 py-2.5 bg-red-500/80 hover:bg-red-500 text-white rounded-xl text-sm font-medium transition-colors"
-        : "flex-shrink-0 px-6 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-medium transition-colors",
-      dialogAction: (disabled?: boolean) =>
-        isDark
-          ? `bg-red-500/80 hover:bg-red-500 text-white rounded-xl ${
-              disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`
-          : `bg-red-500 hover:bg-red-600 text-white rounded-xl ${
-              disabled ? "opacity-50 cursor-not-allowed" : ""
-            }`,
       statBadge: isDark
         ? "text-xs bg-white/[0.06] px-2 py-1 rounded-full text-white/60"
         : "text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600",
@@ -282,24 +302,20 @@ export default function SettingsPage() {
     [isDark],
   );
 
-  // Cleanup on unmount
+  // ── Cleanup ────────────────────────────────────────────────────────────────
+
   useEffect(() => {
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
+      abortControllerRef.current?.abort();
     };
   }, []);
 
-  // Memoized fetch function
+  // ── Fetch account ──────────────────────────────────────────────────────────
+
   const fetchAccount = useCallback(async () => {
     if (!userId || !isLoaded) return;
 
-    // Cancel previous request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-
+    abortControllerRef.current?.abort();
     abortControllerRef.current = new AbortController();
 
     setIsLoading(true);
@@ -307,11 +323,7 @@ export default function SettingsPage() {
       const response = (await getAllInstagramAccounts(
         apiRequest,
       )) as InstagramAccountResponse;
-      console.log("Settings - Raw Response:", response);
-
       let accountsArray: any[] = [];
-
-      // Handle different response structures
       if (response?.accounts && Array.isArray(response.accounts)) {
         accountsArray = response.accounts;
       } else if (
@@ -322,15 +334,15 @@ export default function SettingsPage() {
       }
 
       if (accountsArray.length > 0) {
-        // Get the first account (or find active one)
         const accountData = accountsArray[0];
         const accountInfo = accountData.accountInfo || {};
         const instagramInfo = accountData.instagramInfo || {};
 
+        // Log the raw values so we can verify DB values are coming through
         const formattedAccount: AccountDataType = {
           instagramId: accountInfo.instagramId || instagramInfo.id || "",
           username: instagramInfo.username || accountInfo.username || "Unknown",
-          isActive: accountInfo.isActive || false,
+          isActive: accountInfo.isActive ?? true,
           profilePicture:
             instagramInfo.profile_picture_url || accountInfo.profilePicture,
           followersCount:
@@ -346,37 +358,43 @@ export default function SettingsPage() {
                 year: "numeric",
               })
             : "N/A",
-          autoReplyEnabled: accountInfo.autoReplyEnabled ?? true,
-          autoDMEnabled: accountInfo.autoDMEnabled ?? true,
-          followCheckEnabled: accountInfo.followCheckEnabled ?? true,
+          // ✅ explicit boolean check — never coerces false → true
+          autoReplyEnabled:
+            typeof accountInfo.autoReplyEnabled === "boolean"
+              ? accountInfo.autoReplyEnabled
+              : true,
+          autoDMEnabled:
+            typeof accountInfo.autoDMEnabled === "boolean"
+              ? accountInfo.autoDMEnabled
+              : true,
+          followCheckEnabled:
+            typeof accountInfo.followCheckEnabled === "boolean"
+              ? accountInfo.followCheckEnabled
+              : true,
           requireFollowForFreeUsers:
-            accountInfo.requireFollowForFreeUsers ?? false,
-          storyAutomationsEnabled: accountInfo.storyAutomationsEnabled ?? true,
-          trackDmUrlEnabled: accountInfo.trackDmUrlEnabled ?? true,
+            typeof accountInfo.requireFollowForFreeUsers === "boolean"
+              ? accountInfo.requireFollowForFreeUsers
+              : false,
+          storyAutomationsEnabled:
+            typeof accountInfo.storyAutomationsEnabled === "boolean"
+              ? accountInfo.storyAutomationsEnabled
+              : true,
+          trackDmUrlEnabled:
+            typeof accountInfo.trackDmUrlEnabled === "boolean"
+              ? accountInfo.trackDmUrlEnabled
+              : true,
           metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
           isMetaRateLimited: accountInfo.isMetaRateLimited || false,
         };
 
         setAccount(formattedAccount);
-
-        // Update settings from account
-        setSettings({
-          isActive: accountInfo.isActive ?? true,
-          autoReplyEnabled: accountInfo.autoReplyEnabled ?? true,
-          storyAutomationsEnabled: accountInfo.storyAutomationsEnabled ?? true,
-          autoDMEnabled: accountInfo.autoDMEnabled ?? true,
-          followCheckEnabled: accountInfo.followCheckEnabled ?? true,
-          requireFollowForFreeUsers:
-            accountInfo.requireFollowForFreeUsers ?? false,
-          trackDmUrlEnabled: accountInfo.trackDmUrlEnabled ?? true,
-        });
+        // ✅ use extractSettings helper so both paths use identical logic
+        setSettings(extractSettings(accountInfo));
       } else {
         setAccount(null);
       }
     } catch (error: any) {
-      // Don't show error if request was aborted
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
-
       console.error("Error fetching account:", error);
       toast({
         title: "Failed to load account",
@@ -389,12 +407,12 @@ export default function SettingsPage() {
     }
   }, [userId, isLoaded, apiRequest]);
 
-  // Fetch account data
   useEffect(() => {
     fetchAccount();
   }, [fetchAccount]);
 
-  // Memoized handlers
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleSettingChange = useCallback(
     (key: keyof SettingsState, value: boolean) => {
       setSettings((prev) => ({ ...prev, [key]: value }));
@@ -407,15 +425,30 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      await updateAccountSettings(apiRequest, account.instagramId, settings);
-      toast({
-        title: "Settings saved successfully!",
-        duration: 3000,
-      });
+      // ✅ The PUT controller returns the full updated document.
+      //    Use it directly — don't re-fetch, which risks reading stale/
+      //    missing fields from getAllInstagramAccounts.
+      const result = await updateAccountSettings(
+        apiRequest,
+        account.instagramId,
+        settings,
+      );
 
-      // Refresh account data to reflect changes
-      await fetchAccount();
+      const savedAccount = result?.account || result;
+
+      if (savedAccount && typeof savedAccount === "object") {
+        // Update settings from the authoritative saved document
+        const savedSettings = extractSettings(savedAccount);
+        setSettings(savedSettings);
+        setAccount((prev) => (prev ? { ...prev, ...savedSettings } : null));
+      } else {
+        // Fallback: trust what we sent
+        setAccount((prev) => (prev ? { ...prev, ...settings } : null));
+      }
+
+      toast({ title: "Settings saved successfully!", duration: 3000 });
     } catch (error) {
+      console.error("Error saving settings:", error);
       toast({
         title: "Failed to save settings",
         description:
@@ -423,34 +456,40 @@ export default function SettingsPage() {
         variant: "destructive",
         duration: 3000,
       });
+      // Revert to server state on error
+      fetchAccount();
     } finally {
       setIsSaving(false);
     }
   }, [account, settings, apiRequest, fetchAccount]);
 
   const handleReconnect = useCallback(() => {
-    // Redirect to Instagram OAuth flow
     router.push("/insta/accounts/add");
   }, [router]);
 
-  const handleDisable = useCallback(async () => {
+  const handleToggleAccountStatus = useCallback(async () => {
     if (!account) return;
+
+    const newStatus = !account.isActive;
+    // Optimistic update
+    setAccount((prev) => (prev ? { ...prev, isActive: newStatus } : null));
+    setSettings((prev) => ({ ...prev, isActive: newStatus }));
 
     try {
       await updateAccountSettings(apiRequest, account.instagramId, {
         ...settings,
-        isActive: false,
+        isActive: newStatus,
       });
-
-      setAccount((prev) => (prev ? { ...prev, isActive: false } : null));
-      setSettings((prev) => ({ ...prev, isActive: false }));
       toast({
-        title: "Account disabled",
+        title: newStatus ? "Account enabled" : "Account disabled",
         duration: 3000,
       });
     } catch (error) {
+      // Revert on error
+      setAccount((prev) => (prev ? { ...prev, isActive: !newStatus } : null));
+      setSettings((prev) => ({ ...prev, isActive: !newStatus }));
       toast({
-        title: "Failed to disable account",
+        title: "Failed to update account status",
         variant: "destructive",
         duration: 3000,
       });
@@ -459,16 +498,13 @@ export default function SettingsPage() {
 
   const handleRemoveAccount = useCallback(async () => {
     if (!account) return;
-
     setIsRemoving(true);
     try {
       await deleteInstaAccount(apiRequest, account.instagramId);
-      toast({
-        title: "Account removed successfully",
-        duration: 3000,
-      });
+      toast({ title: "Account removed successfully", duration: 3000 });
       router.push("/insta/dashboard");
     } catch (error) {
+      console.error("Error removing account:", error);
       toast({
         title: "Failed to remove account",
         description:
@@ -478,10 +514,12 @@ export default function SettingsPage() {
       });
     } finally {
       setIsRemoving(false);
+      setShowDeleteDialog(false);
     }
   }, [account, apiRequest, router]);
 
-  // Memoized derived values
+  // ── Derived ────────────────────────────────────────────────────────────────
+
   const accountInitial = useMemo(
     () => account?.username?.[0]?.toUpperCase() || "A",
     [account?.username],
@@ -495,24 +533,20 @@ export default function SettingsPage() {
     [account?.username],
   );
 
-  // Check if token is expiring soon (within 7 days)
   const isTokenExpiringSoon = useMemo(() => {
     if (!account?.tokenExpiresAt || account.tokenExpiresAt === "N/A")
       return false;
-
     try {
-      const expiryDate = new Date(account.tokenExpiresAt);
-      const now = new Date();
-      const daysUntilExpiry = Math.ceil(
-        (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      const daysLeft = Math.ceil(
+        (new Date(account.tokenExpiresAt).getTime() - Date.now()) /
+          (1000 * 60 * 60 * 24),
       );
-      return daysUntilExpiry <= 7;
+      return daysLeft <= 7;
     } catch {
       return false;
     }
   }, [account?.tokenExpiresAt]);
 
-  // Memoized settings cards configuration
   const settingsCards = useMemo(
     () => [
       {
@@ -561,15 +595,15 @@ export default function SettingsPage() {
     [],
   );
 
-  if (!isLoaded || isLoading) {
-    return <Spinner label="Loading settings..." />;
-  }
+  // ── Render ─────────────────────────────────────────────────────────────────
+
+  if (!isLoaded || isLoading) return <Spinner label="Loading settings..." />;
 
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
-        {/* Instagram Account Section */}
+        {/* Account section */}
         <div>
           <h2 className={`text-lg font-semibold mb-4 ${styles.text.primary}`}>
             Instagram Account
@@ -577,12 +611,10 @@ export default function SettingsPage() {
 
           {account ? (
             <div className={pageStyles.accountCard}>
-              <div className="flex flex-wrap items-center gap-2 md:gap-4">
-                {/* Account Info */}
-                <div className="flex-1 flex flex-wrap items-center gap-3 mt-2">
-                  {/* Profile Picture */}
-                  <div className="flex flex-wrap items-center gap-3 mt-2">
-                    <div className={`${pageStyles.accountAvatar} `}>
+              <div className="flex flex-wrap flex-col lg:flex-row items-center gap-2 md:gap-4">
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    <div className={pageStyles.accountAvatar}>
                       {account.profilePicture ? (
                         <Image
                           src={account.profilePicture}
@@ -605,7 +637,8 @@ export default function SettingsPage() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex flex-wrap items-center gap-3 mt-2">
+
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
                     <span className={pageStyles.statBadge}>
                       {account.followersCount?.toLocaleString() || 0} followers
                     </span>
@@ -621,7 +654,8 @@ export default function SettingsPage() {
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-4 mt-2">
+
+                  <div className="flex flex-wrap items-center gap-4 mt-2">
                     <p className={pageStyles.accountStats}>
                       Token Expires: {account.tokenExpiresAt}
                       {isTokenExpiringSoon && (
@@ -636,6 +670,7 @@ export default function SettingsPage() {
                       </p>
                     )}
                   </div>
+
                   <div className="flex items-center gap-1.5 mt-2">
                     <span
                       className={pageStyles.accountStatusDot(account.isActive)}
@@ -651,23 +686,23 @@ export default function SettingsPage() {
                       </span>
                     )}
                   </div>
-                  {/* Action Buttons */}
-                  <div className="flex flex-wrap items-start gap-2 flex-shrink-0">
-                    <button
-                      onClick={handleReconnect}
-                      className={pageStyles.reconnectButton}
-                    >
-                      <RefreshCw className="h-4 w-4" />
-                      Reconnect
-                    </button>
-                    <button
-                      onClick={handleDisable}
-                      className={pageStyles.disableButton}
-                    >
-                      <XCircle className="h-4 w-4" />
-                      {account.isActive ? "Disable" : "Enable"}
-                    </button>
-                  </div>
+                </div>
+
+                <div className="flex flex-wrap items-start gap-2 flex-shrink-0">
+                  <button
+                    onClick={handleReconnect}
+                    className={pageStyles.reconnectButton}
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                    Reconnect
+                  </button>
+                  <button
+                    onClick={handleToggleAccountStatus}
+                    className={pageStyles.disableButton(account.isActive)}
+                  >
+                    <XCircle className="h-4 w-4" />
+                    {account.isActive ? "Disable" : "Enable"}
+                  </button>
                 </div>
               </div>
             </div>
@@ -687,7 +722,7 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Global Settings Section */}
+        {/* Settings section */}
         <div>
           <div className={pageStyles.settingsHeader}>
             <h2
@@ -718,10 +753,10 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Remove Account Section */}
+        {/* Remove account section */}
         {account && (
           <div className={pageStyles.removeCard}>
-            <div className="flex items-start gap-4">
+            <div className="flex flex-wrap flex-col md:flex-row items-start gap-4">
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle
@@ -739,28 +774,26 @@ export default function SettingsPage() {
                   associated with this account will be permanently deleted.
                 </p>
               </div>
-              <>
-                <button
-                  onClick={() => setShowDeleteDialog(true)}
-                  className={`${styles.pill} px-2`}
-                >
-                  Remove
-                </button>
-
-                <ConfirmDialog
-                  open={showDeleteDialog}
-                  onOpenChange={setShowDeleteDialog}
-                  onConfirm={handleRemoveAccount}
-                  title="Remove Instagram Account"
-                  description={`Are you absolutely sure? This will permanently delete the account @${account?.username} and all associated data. This action cannot be undone.`}
-                  confirmText="Remove Account"
-                  isDestructive={true}
-                  isLoading={isRemoving}
-                />
-              </>
+              <button
+                onClick={() => setShowDeleteDialog(true)}
+                className={`${styles.pill} px-2`}
+              >
+                Remove
+              </button>
             </div>
           </div>
         )}
+
+        <ConfirmDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          onConfirm={handleRemoveAccount}
+          title="Remove Instagram Account"
+          description={`Are you absolutely sure? This will permanently delete the account @${account?.username} and all associated data. This action cannot be undone.`}
+          confirmText="Remove Account"
+          isDestructive={true}
+          isLoading={isRemoving}
+        />
       </div>
     </div>
   );

@@ -186,7 +186,6 @@ export default function AccountsPage() {
       const response = (await getInstaAccount(
         apiRequest,
       )) as InstagramAccountsResponse;
-      console.log("API Response:", response);
 
       // Check if response has accounts array directly (not nested in data)
       if (
@@ -244,7 +243,6 @@ export default function AccountsPage() {
           },
         );
 
-        console.log("Formatted Accounts:", formattedAccounts);
         setAccounts(formattedAccounts);
 
         // Set summary data if available
@@ -303,7 +301,6 @@ export default function AccountsPage() {
           setSummary(response.summary);
         }
       } else {
-        console.log("No accounts found in response");
         setAccounts([]);
         setSummary(null);
       }
@@ -839,21 +836,15 @@ const AccountCard: React.FC<AccountCardProps> = ({
           {/* Auto-reply Toggle */}
           <div className="flex items-center gap-2">
             <Switch
-              checked={account.autoReplyEnabled}
+              checked={account.isActive}
               onCheckedChange={(checked) =>
-                onToggleAccount(
-                  account.instagramId,
-                  "autoReplyEnabled",
-                  checked,
-                )
+                onToggleAccount(account.instagramId, "isActive", checked)
               }
               disabled={isUpdating}
               className={pageStyles.switchTrack}
             />
-            <span
-              className={`text-xs hidden lg:inline ${pageStyles.textMuted}`}
-            >
-              Auto-reply
+            <span className={`text-xs inline ${pageStyles.textMuted}`}>
+              Automation
             </span>
           </div>
 

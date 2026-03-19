@@ -110,7 +110,7 @@ export const getAllInstaAccountsInfoController = async (
     // Find all Instagram accounts for this user
     const accounts = await InstagramAccount.find({
       userId: userId,
-      isActive: true, // Only fetch active accounts
+      // isActive: true, // Only fetch active accounts
     }).sort({ createdAt: -1 });
 
     if (!accounts || accounts.length === 0) {
@@ -242,6 +242,8 @@ export const getAllInstaAccountsInfoController = async (
             autoReplyEnabled: account.autoReplyEnabled,
             autoDMEnabled: account.autoDMEnabled,
             followCheckEnabled: account.followCheckEnabled,
+            storyAutomationsEnabled: account.storyAutomationsEnabled,
+            trackDmUrlEnabled: account.trackDmUrlEnabled,
             requireFollowForFreeUsers: account.requireFollowForFreeUsers,
             metaCallsThisHour: account.metaCallsThisHour,
             isMetaRateLimited: false,
