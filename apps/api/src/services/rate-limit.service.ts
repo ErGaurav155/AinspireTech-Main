@@ -602,7 +602,7 @@ export async function resetHourlyWindow(): Promise<{
         status: "completed",
         updatedAt: new Date(),
       },
-      { upsert: true },
+      { upsert: true, new: true },
     );
 
     // Process queued items ONE BY ONE

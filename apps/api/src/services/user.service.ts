@@ -182,7 +182,7 @@ export async function updateUserLimits(
           updatedAt: new Date(),
         },
       },
-      { upsert: true },
+      { upsert: true, new: true },
     );
 
     // Update Instagram account settings based on tier

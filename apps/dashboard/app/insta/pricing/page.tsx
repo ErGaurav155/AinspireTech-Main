@@ -250,6 +250,7 @@ function PricingWithSearchParams() {
 
         // Fetch subscription info
         const subscription = await getSubscriptioninfo(apiRequest);
+        console.log("subscription:", subscription);
         if (
           subscription.subscriptions &&
           subscription.subscriptions.length > 0
@@ -1098,41 +1099,6 @@ function PricingWithSearchParams() {
         isDestructive={true}
         isLoading={isCancelling}
       />
-      {/* <AlertDialog
-        open={showCancelConfirmDialog}
-        onOpenChange={setShowCancelConfirmDialog}
-      >
-        <AlertDialogContent className={styles.dialogContent}>
-          <AlertDialogHeader>
-            <AlertDialogTitle className={styles.dialogTitle}>
-              Confirm Cancellation
-            </AlertDialogTitle>
-            <AlertDialogDescription className={styles.dialogDesc}>
-              Are you sure you want to cancel your subscription? Your plan will
-              revert to the Free plan which only allows 1 Instagram account.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className={styles.dialogCancel}>
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmedCancellation}
-              disabled={isCancelling}
-              className={styles.dialogAction}
-            >
-              {isCancelling ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                "Yes, Cancel Subscription"
-              )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog> */}
 
       {/* Account Selection Dialog for Cancellation */}
       <AccountSelectionDialog
