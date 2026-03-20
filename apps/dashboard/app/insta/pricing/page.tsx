@@ -66,7 +66,7 @@ const instagramPricingPlans: PricingPlan[] = [
     monthlyPrice: 500,
     yearlyPrice: 5000,
     account: 3,
-    limit: 50000000,
+    limit: 5000,
     features: [
       "3 Instagram Accounts",
       "Unlimited Automations",
