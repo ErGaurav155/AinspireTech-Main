@@ -41,7 +41,7 @@ const RateLimitWindowSchema = new Schema<IRateLimitWindow>(
 
 RateLimitWindowSchema.index({ windowStart: -1 });
 RateLimitWindowSchema.index({ status: 1, windowStart: -1 });
-
+RateLimitWindowSchema.index({ createdAt: 1 }, { expireAfterSeconds: 43200 });
 const RateLimitWindow = (mongoose.models?.RateLimitWindow ||
   mongoose.model<IRateLimitWindow>(
     "RateLimitWindow",

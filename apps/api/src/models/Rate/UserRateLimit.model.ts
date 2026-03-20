@@ -44,6 +44,7 @@ const UserRateLimitSchema = new Schema<IUserRateLimit>(
 // Compound index for fast lookups
 UserRateLimitSchema.index({ clerkId: 1, windowStart: 1 }, { unique: true });
 UserRateLimitSchema.index({ windowStart: 1, tier: 1 });
+UserRateLimitSchema.index({ createdAt: 1 }, { expireAfterSeconds: 43200 });
 
 const RateUserRateLimit = (mongoose.models?.RateUserRateLimit ||
   mongoose.model<IUserRateLimit>(

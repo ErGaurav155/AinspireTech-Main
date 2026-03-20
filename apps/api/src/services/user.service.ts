@@ -182,22 +182,6 @@ export async function updateUserLimits(
       { upsert: true },
     );
 
-    // Update all future windows if tier changed
-    // This ensures consistency across window boundaries
-    await RateUserRateLimit.updateMany(
-      {
-        clerkId: userId,
-        windowStart: { $gt: currentWindowStart },
-      },
-      {
-        $set: {
-          tier,
-          tierLimit,
-          updatedAt: new Date(),
-        },
-      },
-    );
-
     // Update Instagram account settings based on tier
     if (tier === "free") {
       // For free users, disable follow verification for existing accounts
