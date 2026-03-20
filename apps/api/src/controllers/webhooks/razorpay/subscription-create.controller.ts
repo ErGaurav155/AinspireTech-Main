@@ -15,7 +15,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const notes = subscriptionData?.notes || {};
   const subscriptionType = notes.subscriptionType;
   const clerkId = notes.buyerId;
-  const chatbotType = notes.chatbotType;
+  const chatbotType = notes.productId;
   const referralCode = notes.referralCode;
   const plan = subscriptionData.plan_id;
   const billingCycle = subscriptionData.period === 1 ? "monthly" : "yearly";
@@ -27,7 +27,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   let existingSubscription = null;
 
-  if (subscriptionType === "instagram") {
+  if (subscriptionType === "insta") {
     existingSubscription = await InstaSubscription.findOne({
       subscriptionId: subscriptionData.id,
     });
@@ -61,7 +61,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   let newSubscription;
 
-  if (subscriptionType === "instagram") {
+  if (subscriptionType === "insta") {
     newSubscription = await InstaSubscription.create(commonData);
   } else {
     newSubscription = await WebSubscription.create({
@@ -89,12 +89,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         billingCycle === "yearly" ? subscriptionPrice * commissionRate : 0;
 
       const productType =
-        subscriptionType === "instagram" ? "insta-automation" : "web-chatbot";
+        subscriptionType === "insta" ? "insta-automation" : "web-chatbot";
 
       const subscriptionModel =
-        subscriptionType === "instagram"
-          ? "InstaSubscription"
-          : "WebSubscription";
+        subscriptionType === "insta" ? "InstaSubscription" : "WebSubscription";
 
       referralRecord = await AffiReferral.create({
         affiliateId: affiliate._id,
