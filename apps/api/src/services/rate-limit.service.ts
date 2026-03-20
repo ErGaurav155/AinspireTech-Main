@@ -5,8 +5,8 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import RateLimitQueue from "@/models/Rate/RateLimitQueue.model";
 import RateLimitWindow from "@/models/Rate/RateLimitWindow.model";
-import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import { redisHelpers } from "@/config/redis.config";
+import RateUserRateLimit from "@/models/Rate/UserRateLimit.model";
 
 const APP_HOURLY_GLOBAL_LIMIT = parseInt(
   process.env.APP_HOURLY_GLOBAL_LIMIT || "20000",
@@ -297,6 +297,28 @@ export async function recordCall(
   };
 }
 
+interface AccountUsageEntry {
+  instagramAccountId: string;
+  callsMade: number;
+  lastCallAt: Date;
+  accountUsername?: string;
+  accountProfile?: string;
+}
+
+interface AccountUsageEntry {
+  instagramAccountId: string;
+  callsMade: number;
+  lastCallAt: Date;
+  accountUsername?: string;
+  accountProfile?: string;
+}
+
+/**
+ * Update database records for rate limiting
+ * - Increments total calls for the window
+ * - Increments specific account's call count
+ * - Creates new window with all accounts if it doesn't exist
+ */
 async function updateDatabaseRecords(
   clerkId: string,
   accountId: string,
@@ -309,22 +331,87 @@ async function updateDatabaseRecords(
 
     const tierLimit = TIER_LIMITS[tier];
 
-    await UserRateLimit.findOneAndUpdate(
-      { clerkId, windowStart },
-      {
-        $inc: { totalCallsMade: 1 },
-        $set: {
-          tier,
-          tierLimit,
-          windowStart,
-        },
-        $setOnInsert: {
-          isAutomationPaused: false,
-        },
-      },
-      { upsert: true, new: true },
-    );
+    // Get all Instagram accounts for this user (for account tracking)
+    const userAccounts = await InstagramAccount.find({
+      userId: clerkId,
+      isActive: true,
+    });
 
+    // Prepare account usage array for new window creation
+    const accountUsageList: AccountUsageEntry[] = userAccounts.map((acc) => ({
+      instagramAccountId: acc.instagramId,
+      callsMade: acc.instagramId === accountId ? 1 : 0, // Set current account to 1 if it's the one making the call
+      lastCallAt: new Date(),
+      accountUsername: acc.username,
+      accountProfile: acc.profilePicture,
+    }));
+
+    // Try to find existing record for this window
+    let userRateLimit = await RateUserRateLimit.findOne({
+      clerkId,
+      windowStart,
+    });
+
+    if (userRateLimit) {
+      // Existing window found - increment counts
+
+      // Increment total calls made
+      userRateLimit.totalCallsMade += 1;
+
+      // Find and update the specific account's usage
+      const accountIndex = userRateLimit.accountUsage.findIndex(
+        (acc: AccountUsageEntry) => acc.instagramAccountId === accountId,
+      );
+
+      if (accountIndex !== -1) {
+        // Account exists - increment its calls
+        userRateLimit.accountUsage[accountIndex].callsMade += 1;
+        userRateLimit.accountUsage[accountIndex].lastCallAt = new Date();
+      } else {
+        // Account not found in tracking - add it
+        // Get the account details from database
+        const account = userAccounts.find(
+          (acc) => acc.instagramId === accountId,
+        );
+        userRateLimit.accountUsage.push({
+          instagramAccountId: accountId,
+          callsMade: 1,
+          lastCallAt: new Date(),
+          accountUsername: account?.username,
+          accountProfile: account?.profilePicture,
+        });
+      }
+
+      // Update tier info if changed
+      userRateLimit.tier = tier;
+      userRateLimit.tierLimit = tierLimit;
+      userRateLimit.updatedAt = new Date();
+
+      await userRateLimit.save();
+
+      console.log(
+        `✅ Updated existing window for user ${clerkId}: totalCalls=${userRateLimit.totalCallsMade}, account ${accountId} calls incremented`,
+      );
+    } else {
+      // No existing window - create new one with all accounts
+      userRateLimit = await RateUserRateLimit.create({
+        clerkId,
+        windowStart,
+        totalCallsMade: 1, // Start with 1 for this call
+        tier: tier,
+        tierLimit: tierLimit,
+        isAutomationPaused: false,
+        accountUsage: accountUsageList, // Includes the current account with 1 call, others with 0
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `✅ Created new window for user ${clerkId}: totalCalls=1, added ${userAccounts.length} accounts to tracking`,
+      );
+    }
+
+    // Update meta calls for Instagram account if needed
     if (metaCalls > 0) {
       await InstagramAccount.updateOne(
         { instagramId: accountId },
@@ -334,11 +421,13 @@ async function updateDatabaseRecords(
         },
       );
     }
+
+    return userRateLimit;
   } catch (error) {
     console.error("Error updating database records:", error);
+    throw error;
   }
 }
-
 /**
  * Queue a webhook for later processing
  */
@@ -723,7 +812,7 @@ export async function getWindowStats(windowStart?: Date) {
     };
   }
 
-  const userLimits = await UserRateLimit.find({
+  const userLimits = await RateUserRateLimit.find({
     windowStart: targetWindowStart,
   });
 

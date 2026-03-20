@@ -130,19 +130,14 @@ export async function updateUserLimits(
   try {
     await connectToDatabase();
 
-    // Determine tier based on account limit
     let tier: "free" | "pro" = "free";
-    let tierLimit = TIER_LIMITS.free; // Default to free tier limit
+    let tierLimit = TIER_LIMITS.free;
 
     if (accountLimit === 3) {
       tier = "pro";
-      tierLimit = TIER_LIMITS.pro; // 999999 for unlimited
-    } else {
-      tier = "free";
-      tierLimit = TIER_LIMITS.free;
+      tierLimit = TIER_LIMITS.pro;
     }
 
-    // Validate reply limit based on tier
     if (tier === "free" && replyLimit > 200) {
       return {
         success: false,
@@ -168,26 +163,63 @@ export async function updateUserLimits(
       };
     }
 
-    // Update all active windows for this user
+    // Get all Instagram accounts for this user
+    const userAccounts = await InstagramAccount.find({
+      userId: userId,
+      isActive: true,
+    });
+
     const { start: currentWindowStart } = getCurrentWindow();
 
-    // Update UserRateLimit for current window
-    await RateUserRateLimit.findOneAndUpdate(
-      { clerkId: userId, windowStart: currentWindowStart },
-      {
-        $set: {
-          tier,
-          tierLimit,
-          isAutomationPaused: false,
-          updatedAt: new Date(),
-        },
-      },
-      { upsert: true, new: true },
-    );
+    // Prepare account usage array for upsert
+    const accountUsageList = userAccounts.map((acc) => ({
+      instagramAccountId: acc.instagramId,
+      callsMade: 0,
+      lastCallAt: new Date(),
+      accountUsername: acc.username,
+      accountProfile: acc.profilePicture,
+    }));
+
+    // Update UserRateLimit with retry logic and account sync
+    let retries = 2;
+    let updated = false;
+
+    while (retries > 0 && !updated) {
+      try {
+        const result = await RateUserRateLimit.findOneAndUpdate(
+          { clerkId: userId, windowStart: currentWindowStart },
+          {
+            $set: {
+              tier,
+              tierLimit,
+              isAutomationPaused: false,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: {
+              totalCallsMade: 0,
+              accountUsage: accountUsageList,
+              createdAt: new Date(),
+            },
+          },
+          {
+            upsert: true,
+            new: true,
+          },
+        );
+
+        updated = true;
+      } catch (error: any) {
+        if (error.code === 11000 && retries > 1) {
+          retries--;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+        throw error;
+      }
+    }
 
     // Update Instagram account settings based on tier
     if (tier === "free") {
-      // For free users, disable follow verification for existing accounts
       await InstagramAccount.updateMany(
         { userId },
         {
@@ -195,26 +227,41 @@ export async function updateUserLimits(
           updatedAt: new Date(),
         },
       );
+    } else if (tier === "pro") {
+      // For pro users, you might want to enable certain features
+      await InstagramAccount.updateMany(
+        { userId },
+        {
+          requireFollowForFreeUsers: true,
+          updatedAt: new Date(),
+        },
+      );
     }
 
     try {
-      // Clear Redis cache for user tier using helpers
+      // Clear Redis cache for user tier
       await redisHelpers.del(`user:tier:${userId}`);
 
       // Clear user calls cache for current window
       const userKey = `user:calls:${userId}:${currentWindowStart.toISOString()}`;
       await redisHelpers.del(userKey);
+
+      // Also clear any cached account lists
+      await redisHelpers.del(`user:accounts:${userId}`);
+
+      console.log(`✅ Cleared Redis cache for user ${userId}`);
     } catch (redisError) {
       console.warn("Could not clear Redis cache:", redisError);
-      // Continue anyway
     }
 
-    // Log the limit update
     console.log(`📊 User ${userId} limits updated:`, {
       tier,
       tierLimit,
       replyLimit,
       accountLimit,
+      totalAccounts: userAccounts.length,
+      currentWindow: currentWindowStart,
+      futureWindowsUpdated: updated,
       updatedAt: new Date(),
     });
 
