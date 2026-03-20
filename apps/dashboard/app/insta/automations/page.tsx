@@ -640,7 +640,7 @@ export default function AutomationsPage() {
               key={template._id}
               className={`${pageStyles.automationCard} flex-wrap`}
             >
-              <div className="flex flex-wrap items-center gap-4 w-full">
+              <div className="flex flex-wrap flex-row  items-center gap-4 w-full">
                 <div className={`${pageStyles.automationMedia}`}>
                   {template.mediaUrl ? (
                     <Image
@@ -659,7 +659,7 @@ export default function AutomationsPage() {
                     </div>
                   )}
                 </div>
-                <div className="flex flex-wrap items-center gap-2 mb-1">
+                <div className="flex flex-wrap items-center gap-2 mb-1 w-full">
                   <h3 className={pageStyles.automationTitle}>
                     {template.name}
                   </h3>
@@ -667,7 +667,7 @@ export default function AutomationsPage() {
                     {getAutomationType(template)}
                   </span>
                 </div>
-                <div className="flex flex-wrap flex-1 min-w-0">
+                <div className="flex flex-wrap flex-1 w-full">
                   <div className="flex items-center gap-3">
                     <span className={pageStyles.automationMeta}>
                       @{template.accountUsername}
