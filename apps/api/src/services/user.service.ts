@@ -16,6 +16,9 @@ import { getRazorpay } from "@/utils/util";
 import User from "@/models/user.model";
 import { redisHelpers } from "@/config/redis.config";
 import webFaq from "@/models/web/webFaq.model";
+import TokenBalance from "@/models/web/token/TokenBalance.model";
+import TokenPurchase from "@/models/web/token/TokenPurchase.model";
+import TokenUsage from "@/models/web/token/TokenUsage.model";
 
 export const TIER_LIMITS = {
   free: 200,
@@ -261,6 +264,10 @@ export async function deleteUserData(clerkId: string) {
     WebChatbot.deleteMany({ clerkId }),
     webFaq.deleteMany({ clerkId }),
     WebAppointmentQuestions.deleteMany({ clerkId }),
+    TokenBalance.deleteMany({ userId: clerkId }),
+    TokenPurchase.deleteMany({ userId: clerkId }),
+    TokenUsage.deleteMany({ userId: clerkId }),
+
     // Instagram-related data
     InstaReplyTemplate.deleteMany({ userId: clerkId }),
     InstaReplyLog.deleteMany({ userId: clerkId }),
