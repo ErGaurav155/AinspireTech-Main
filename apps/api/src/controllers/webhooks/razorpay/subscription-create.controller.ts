@@ -1,4 +1,5 @@
-// app/api/webhooks/subscription/route.ts or similar Express route file
+// app/api/webhooks/subscription/route.ts (or Express route file)
+
 import { Request, Response } from "express";
 import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
@@ -12,7 +13,6 @@ import AffiReferral from "@/models/affiliate/Referral";
 async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionData = payload.subscription?.entity;
   const notes = subscriptionData?.notes || {};
-
   const subscriptionType = notes.subscriptionType;
   const clerkId = notes.buyerId;
   const chatbotType = notes.chatbotType;
@@ -20,43 +20,33 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const plan = subscriptionData.plan_id;
   const billingCycle = subscriptionData.period === 1 ? "monthly" : "yearly";
 
-  // Get user
   const user = await User.findOne({ clerkId });
   if (!user) {
     throw new Error("User not found");
   }
 
-  // Check for existing subscription
   let existingSubscription = null;
+
   if (subscriptionType === "instagram") {
     existingSubscription = await InstaSubscription.findOne({
-      clerkId,
-      chatbotType,
-      status: "active",
+      subscriptionId: subscriptionData.id,
     });
   } else {
     existingSubscription = await WebSubscription.findOne({
-      clerkId,
-      chatbotType,
-      status: "active",
+      subscriptionId: subscriptionData.id,
     });
   }
 
   if (existingSubscription) {
-    throw new Error(
-      `Active subscription already exists for this ${subscriptionType} chatbot type`,
-    );
+    return existingSubscription;
   }
 
-  // Calculate expiry date (from current_end in webhook)
   const expiresAt = subscriptionData.current_end
     ? new Date(subscriptionData.current_end * 1000)
     : new Date();
 
-  // Get plan price
-  let subscriptionPrice = subscriptionData.amount / 100; // Convert from paise to rupees
+  const subscriptionPrice = subscriptionData.amount / 100;
 
-  // Common subscription data
   const commonData = {
     clerkId,
     chatbotType,
@@ -69,8 +59,8 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     updatedAt: new Date(),
   };
 
-  // Create subscription based on type
   let newSubscription;
+
   if (subscriptionType === "instagram") {
     newSubscription = await InstaSubscription.create(commonData);
   } else {
@@ -81,8 +71,8 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     });
   }
 
-  // Handle referral if exists
   let referralRecord = null;
+
   if (referralCode && !user.hasUsedReferral) {
     const affiliate = await Affiliate.findOne({
       affiliateCode: referralCode,
@@ -91,8 +81,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
     if (affiliate && affiliate.userId.toString() !== clerkId.toString()) {
       const commissionRate = affiliate.commissionRate || 0.3;
+
       const monthlyCommission =
         billingCycle === "monthly" ? subscriptionPrice * commissionRate : 0;
+
       const yearlyCommission =
         billingCycle === "yearly" ? subscriptionPrice * commissionRate : 0;
 
@@ -143,7 +135,6 @@ async function handleSubscriptionCharged(
   subscriptionId: string,
   nextBillingDate: Date,
 ) {
-  // Try to update in both models
   const [instaUpdate, webUpdate] = await Promise.all([
     InstaSubscription.findOneAndUpdate(
       { subscriptionId },
@@ -176,22 +167,20 @@ async function handleSubscriptionCharged(
   }
 }
 
-// Razorpay webhook handler endpoint (like the second code)
+// Razorpay webhook controller
 export const razorpaySubsCreateOrChargeWebhookController = async (
   req: Request,
   res: Response,
 ) => {
   try {
-    // Get raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
     const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
 
-    // Verify Razorpay signature
     const razorpaySignature = req.headers["x-razorpay-signature"] as string;
+
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      console.error("RAZORPAY_WEBHOOK_SECRET not configured");
       return res.status(500).json({
         success: false,
         error: "Webhook configuration error",
@@ -205,7 +194,6 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
       .digest("hex");
 
     if (expectedSignature !== razorpaySignature) {
-      console.error("Invalid Razorpay webhook signature");
       return res.status(401).json({
         success: false,
         error: "Invalid signature",
@@ -222,22 +210,27 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
 
     switch (event) {
       case "subscription.activated":
-        await handleWebhookSubscriptionCreate(payload);
-        break;
+      case "subscription.charged": {
+        const exists =
+          (await InstaSubscription.findOne({ subscriptionId })) ||
+          (await WebSubscription.findOne({ subscriptionId }));
 
-      case "subscription.charged":
-        const chargeAt = subscription.charge_at;
-        const nextBillingDate = new Date(chargeAt * 1000);
+        if (!exists) {
+          await handleWebhookSubscriptionCreate(payload);
+        }
+
+        const nextBillingDate = subscription?.current_end
+          ? new Date(subscription.current_end * 1000)
+          : new Date();
+
         await handleSubscriptionCharged(subscriptionId, nextBillingDate);
+
         break;
+      }
 
       default:
         console.log(`Unhandled Razorpay event: ${event}`);
-        return res.status(400).json({
-          success: false,
-          error: "Unhandled event type",
-          timestamp: new Date().toISOString(),
-        });
+        break;
     }
 
     return res.status(200).json({
@@ -251,6 +244,7 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
     });
   } catch (error: any) {
     console.error("Razorpay webhook error:", error);
+
     return res.status(500).json({
       success: false,
       error: "Webhook handler failed",
