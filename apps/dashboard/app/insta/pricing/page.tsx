@@ -1058,7 +1058,7 @@ function PricingWithSearchParams() {
             setIsSubscribed(true);
             setIsUpgrading(false);
             setIsPaymentModalOpen(false);
-            router.push("/insta/dashboard");
+            router.push("/insta");
           }}
         />
       )}

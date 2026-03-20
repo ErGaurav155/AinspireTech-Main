@@ -502,7 +502,7 @@ export default function SettingsPage() {
     try {
       await deleteInstaAccount(apiRequest, account.instagramId);
       toast({ title: "Account removed successfully", duration: 3000 });
-      router.push("/insta/dashboard");
+      router.push("/insta");
     } catch (error) {
       console.error("Error removing account:", error);
       toast({

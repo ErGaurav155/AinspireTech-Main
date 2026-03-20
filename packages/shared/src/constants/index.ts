@@ -20,7 +20,7 @@ export const API_ROUTES = {
   INSTA_ACCOUNT: (id: string) => `/insta/accounts/${id}`,
   INSTA_TEMPLATES: (accountId: string) =>
     `/insta/accounts/${accountId}/templates`,
-  INSTA_DASHBOARD: "/insta/dashboard",
+  INSTA_DASHBOARD: "/insta/overview",
   INSTA_SUBSCRIPTION_LIST: "/insta/subscription/list",
 
   // Razorpay

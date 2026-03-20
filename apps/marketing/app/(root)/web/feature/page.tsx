@@ -227,7 +227,7 @@ export default function Home() {
                   className="btn-gradient-cyan text-lg px-8 hover:opacity-90 transition-opacity"
                   asChild
                 >
-                  <Link href="/insta/dashboard">
+                  <Link href="/insta">
                     Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
