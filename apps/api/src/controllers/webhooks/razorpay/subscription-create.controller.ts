@@ -13,15 +13,17 @@ import AffiReferral from "@/models/affiliate/Referral";
 async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionData = payload.subscription?.entity;
   const notes = subscriptionData?.notes || {};
+  console.log("notes:", notes);
+
   const subscriptionType = notes.subscriptionType;
   const clerkId = notes.buyerId;
   const chatbotType = notes.productId;
   const referralCode = notes.referralCode;
   const plan = subscriptionData.plan_id;
-  const billingCycle = subscriptionData.period === 1 ? "monthly" : "yearly";
+  const billingCycle = notes.billingCycle;
   console.log("subscriptionData:", subscriptionData);
 
-  const user = await User.findOne({ clerkId });
+  const user = await User.findOne({ clerkId: clerkId });
   if (!user) {
     throw new Error("User not found");
   }

@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
-import nodemailer from "nodemailer";
+import { Resend } from "resend";
 import { Twilio } from "twilio";
 import MyAppointment from "@/models/MyAppointment.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
@@ -11,7 +11,9 @@ const twilioClient = new Twilio(
   process.env.TWILIO_AUTH_TOKEN,
 );
 
-// POST /api/misc/send-subscription-email-owner - Send subscription email to owner
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// OWNER EMAIL
 export const sendSubscriptionEmailToOwnerController = async (
   req: Request,
   res: Response,
@@ -22,67 +24,38 @@ export const sendSubscriptionEmailToOwnerController = async (
     if (!email || !userId || !subscriptionId) {
       return res.status(400).json({
         success: false,
-        error: "email, userDbId, and subscriptionId are required",
+        error: "email, userId, subscriptionId required",
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Validate email configuration
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      return res.status(500).json({
-        success: false,
-        error: "Email configuration is missing",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: "notifications@rocketreplai.com",
       to: email,
       subject: "New Subscription Alert",
-      text: `Congratulations! A customer has subscribed. UserID: ${userId}, SubscriptionID: ${subscriptionId}`,
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #3B82F6;">🎉 New Subscription Alert</h2>
-          <p>A new customer has subscribed to your service!</p>
-          <div style="background-color: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>User ID:</strong> ${userId}</p>
-            <p><strong>Subscription ID:</strong> ${subscriptionId}</p>
-            <p><strong>Timestamp:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          <p>Please check your dashboard for more details.</p>
+        <div style="font-family: Arial; padding: 20px;">
+          <h2>🎉 New Subscription</h2>
+          <p>User ID: ${userId}</p>
+          <p>Subscription ID: ${subscriptionId}</p>
+          <p>${new Date().toLocaleString()}</p>
         </div>
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     return res.status(200).json({
       success: true,
-      data: {
-        message: "Subscription email sent to owner successfully",
-      },
-      timestamp: new Date().toISOString(),
+      message: "Email sent",
     });
   } catch (error: any) {
-    console.error("Error sending subscription email to owner:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to send subscription email to owner",
-      timestamp: new Date().toISOString(),
+      error: error.message,
     });
   }
 };
 
-// POST /api/misc/send-subscription-email-user - Send subscription email to user
+// USER EMAIL
 export const sendSubscriptionEmailToUserController = async (
   req: Request,
   res: Response,
@@ -93,69 +66,37 @@ export const sendSubscriptionEmailToUserController = async (
     if (!email || !userId || !agentId || !subscriptionId) {
       return res.status(400).json({
         success: false,
-        error: "email, userDbId, agentId, and subscriptionId are required",
-        timestamp: new Date().toISOString(),
+        error: "Missing fields",
       });
     }
 
-    // Validate email configuration
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      return res.status(500).json({
-        success: false,
-        error: "Email configuration is missing",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: "notifications@rocketreplai.com",
       to: email,
-      subject: "Subscription Confirmation",
-      text: `Congratulations! You have subscribed to AgentID: ${agentId}, UserID: ${userId}, SubscriptionID: ${subscriptionId}. Please add code widget provided on webchatbot dashboard to your website code so it easily appears on your website.`,
+      subject: "Subscription Confirmed",
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #10B981;">✅ Subscription Confirmed!</h2>
-          <p>Thank you for subscribing to our service!</p>
-          <div style="background-color: #f0f9ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Agent ID:</strong> ${agentId}</p>
-            <p><strong>Your User ID:</strong> ${userId}</p>
-            <p><strong>Subscription ID:</strong> ${subscriptionId}</p>
-            <p><strong>Subscription Date:</strong> ${new Date().toLocaleDateString()}</p>
-          </div>
-          <p><strong>Next Steps:</strong> Please add the code widget provided on your webchatbot dashboard to your website code so the chatbot appears on your website.</p>
-          <p style="margin-top: 20px; color: #6B7280;">If you have any questions, please contact our support team.</p>
+        <div style="font-family: Arial; padding: 20px;">
+          <h2>✅ Subscription Confirmed</h2>
+          <p>Agent ID: ${agentId}</p>
+          <p>User ID: ${userId}</p>
+          <p>Subscription ID: ${subscriptionId}</p>
         </div>
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     return res.status(200).json({
       success: true,
-      data: {
-        message: "Subscription email sent to user successfully",
-      },
-      timestamp: new Date().toISOString(),
+      message: "Email sent",
     });
   } catch (error: any) {
-    console.error("Error sending subscription email to user:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to send subscription email to user",
-      timestamp: new Date().toISOString(),
+      error: error.message,
     });
   }
 };
 
-// POST /api/misc/send-appointment-email - Send appointment email to user
+// APPOINTMENT EMAIL
 export const sendAppointmentEmailToUserController = async (
   req: Request,
   res: Response,
@@ -166,71 +107,39 @@ export const sendAppointmentEmailToUserController = async (
     if (!email || !data || !Array.isArray(data)) {
       return res.status(400).json({
         success: false,
-        error: "email and data array are required",
-        timestamp: new Date().toISOString(),
+        error: "Invalid input",
       });
     }
-
-    // Validate email configuration
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      return res.status(500).json({
-        success: false,
-        error: "Email configuration is missing",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const transporter = nodemailer.createTransport({
-      service: "Gmail",
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
 
     const name = data[0]?.answer || "Not provided";
     const userEmail = data[1]?.answer || "Not provided";
-    const details = data[3]?.answer || "No additional details";
+    const details = data[3]?.answer || "No details";
 
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
+    await resend.emails.send({
+      from: "notifications@rocketreplai.com",
       to: email,
       subject: "New Appointment Booked",
-      text: `New appointment booked! Name: ${name}, Email: ${userEmail}, Details: ${details}. Please go to dashboard to get detailed appointment information.`,
       html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #8B5CF6;">📅 New Appointment Booked</h2>
-          <p>A new appointment has been booked through your chatbot!</p>
-          <div style="background-color: #f5f3ff; padding: 15px; border-radius: 8px; margin: 20px 0;">
-            <p><strong>Name:</strong> ${name}</p>
-            <p><strong>Email:</strong> ${userEmail}</p>
-            <p><strong>Details:</strong> ${details}</p>
-            <p><strong>Booking Time:</strong> ${new Date().toLocaleString()}</p>
-          </div>
-          <p>Please check your dashboard for complete appointment details and follow-up actions.</p>
+        <div style="font-family: Arial; padding: 20px;">
+          <h2>📅 Appointment Booked</h2>
+          <p>Name: ${name}</p>
+          <p>Email: ${userEmail}</p>
+          <p>Details: ${details}</p>
         </div>
       `,
-    };
-
-    await transporter.sendMail(mailOptions);
+    });
 
     return res.status(200).json({
       success: true,
-      data: {
-        message: "Appointment email sent successfully",
-      },
-      timestamp: new Date().toISOString(),
+      message: "Appointment email sent",
     });
   } catch (error: any) {
-    console.error("Error sending appointment email:", error);
     return res.status(500).json({
       success: false,
-      error: error.message || "Failed to send appointment email",
-      timestamp: new Date().toISOString(),
+      error: error.message,
     });
   }
 };
-
 // POST /api/misc/send-whatsapp-info - Send WhatsApp notification
 export const sendWhatsAppInfoController = async (
   req: Request,
