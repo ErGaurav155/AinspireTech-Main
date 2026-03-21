@@ -1647,7 +1647,7 @@ export default function CreateAutomationPage() {
 
         {/* Right: Form */}
         <div className={pageStyles.rightContent}>
-          <div className={pageStyles.actionBar}>
+          <div className={`${pageStyles.actionBar} flex-wrap`}>
             {/* Edit mode indicator */}
             {isEditMode && (
               <span

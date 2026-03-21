@@ -285,6 +285,9 @@ export default function SettingsPage() {
         `px-6 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors ${
           disabled ? "opacity-50 cursor-not-allowed" : ""
         }`,
+      removeButton: isDark
+        ? "w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-500/30 text-red-400 rounded-xl hover:bg-red-500/10 transition-colors"
+        : "w-full flex items-center justify-center gap-2 px-4 py-2 border border-red-200 text-red-600 rounded-xl hover:bg-red-50 transition-colors",
       removeCard: isDark
         ? "bg-red-500/10 border border-red-500/20 rounded-2xl p-6"
         : "bg-red-50 border border-red-200 rounded-2xl p-6",
@@ -776,7 +779,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => setShowDeleteDialog(true)}
-                className={`${styles.pill} px-2`}
+                className={` ${pageStyles.removeButton} px-2`}
               >
                 Remove
               </button>

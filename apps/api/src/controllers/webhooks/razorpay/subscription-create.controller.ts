@@ -19,6 +19,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const referralCode = notes.referralCode;
   const plan = subscriptionData.plan_id;
   const billingCycle = subscriptionData.period === 1 ? "monthly" : "yearly";
+  console.log("subscriptionData:", subscriptionData);
 
   const user = await User.findOne({ clerkId });
   if (!user) {
@@ -173,7 +174,7 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
   try {
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
     const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-
+    console.log("body:", body);
     const razorpaySignature = req.headers["x-razorpay-signature"] as string;
 
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
@@ -203,6 +204,7 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
     const payload = body.payload;
     const subscription = payload.subscription?.entity;
     const subscriptionId = subscription?.id;
+    console.log("payload:", payload);
 
     await connectToDatabase();
 
@@ -212,6 +214,7 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
         const exists =
           (await InstaSubscription.findOne({ subscriptionId })) ||
           (await WebSubscription.findOne({ subscriptionId }));
+        console.log("exists:", exists);
 
         if (!exists) {
           await handleWebhookSubscriptionCreate(payload);
