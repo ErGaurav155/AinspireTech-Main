@@ -7,8 +7,8 @@ export const hourlyWindowResetController = async (
   res: Response,
 ) => {
   try {
-    // Verify cron job secret for security
-    const cronSecret = req.headers["x-cron-secret"];
+    // Verify cron job secret
+    const cronSecret = req.headers["x-cron-secret"] as string;
     const expectedSecret = process.env.CRON_SECRET;
 
     if (!expectedSecret) {

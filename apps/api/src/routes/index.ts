@@ -20,7 +20,7 @@ const router = Router();
 // Register all routes
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
-router.use("/cron", cronRoutes);
+router.use("/cron", embedCors, cronRoutes);
 router.use("/embed", embedCors, embedRoutes);
 router.use("/health", healthRoutes);
 router.use("/insta", instaRoutes);

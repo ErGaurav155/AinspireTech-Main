@@ -5,7 +5,11 @@ export const embedCors = (req: Request, res: Response, next: NextFunction) => {
   // Allow all origins for embed routes during development
   // In production, restrict to specific domains
   const origin = req.headers.origin || "";
-
+  // SKIP CORS entirely for cron routes (they use secret header, not browser)
+  if (req.path.startsWith("/api/cron/")) {
+    // No CORS headers for cron endpoints
+    return next();
+  }
   if (req.path === "/appointments") {
     // For appointment endpoint, allow localhost:3000 and your production domain
     const allowedOrigins = [

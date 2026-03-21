@@ -95,6 +95,7 @@ app.use(
       "Cookie",
       "x-cron-key",
       "x-api-key",
+      "x-cron-secret",
     ],
     optionsSuccessStatus: 200, // Some legacy browsers choke on 204
     preflightContinue: false, // Don't pass preflight to next handlers
@@ -121,16 +122,6 @@ app.get("/favicon.ico", (_, res) => {
   res.status(204).end();
 });
 
-// Root
-// app.get("/", (_, res) => {
-//   res.json({
-//     success: true,
-//     message: "Instagram Automation API",
-//     version: "2.0.0",
-//     environment: process.env.NODE_ENV || "development",
-//     timestamp: new Date().toISOString(),
-//   });
-// });
 app.get("/", (req, res) => {
   return res.status(403).json({
     message: "Forbidden: Origin not allowed",
