@@ -15,11 +15,15 @@ const META_API_LIMIT_PER_ACCOUNT = 200;
 
 // Tier limits based on subscription
 const TIER_LIMITS = {
-  free: 200, // Free users: 100 calls/hour
-  pro: 5000, // Pro users: 2000 calls/hour
+  free: 200,
+  pro: 5000,
 } as const;
 
 type TierType = keyof typeof TIER_LIMITS;
+
+// Flag to track if app limit is reached and automation is paused
+let isAutomationPaused = false;
+let lastPauseCheck = Date.now();
 
 export function getCurrentWindow() {
   const now = new Date();
@@ -68,7 +72,6 @@ export async function getUserTier(clerkId: string): Promise<TierType> {
     const tier = subscription ? "pro" : "free";
 
     try {
-      // Cache for 10 minutes
       await redisHelpers.set(cacheKey, tier, 600);
     } catch (cacheError) {
       // Ignore cache errors
@@ -82,12 +85,79 @@ export async function getUserTier(clerkId: string): Promise<TierType> {
 }
 
 /**
- * NEW INTELLIGENT QUEUEING LOGIC:
- * 1. Check user tier limit first
- * 2. If user limit NOT exceeded → process directly (no queue)
- * 3. If user limit exceeded → check app limit
- * 4. If app limit NOT exceeded → still process directly (no queue)
- * 5. Only queue if BOTH app limit reached
+ * Check if app limit is reached - pauses automation
+ */
+export async function isAppLimitReached(): Promise<{
+  reached: boolean;
+  current: number;
+  limit: number;
+  percentage: number;
+  automationPaused: boolean;
+}> {
+  const window = getCurrentWindow();
+  let current = 0;
+
+  try {
+    const globalKey = `global:calls:${window.key}`;
+    const currentStr = await redisHelpers.get(globalKey);
+    current = parseInt(currentStr || "0");
+  } catch (redisError) {
+    console.warn("Could not get app limit from Redis");
+  }
+
+  const reached = current >= APP_HOURLY_GLOBAL_LIMIT;
+  const percentage = (current / APP_HOURLY_GLOBAL_LIMIT) * 100;
+
+  // Update automation pause flag
+  if (reached && !isAutomationPaused) {
+    isAutomationPaused = true;
+    lastPauseCheck = Date.now();
+    console.log(
+      `🚨 APP LIMIT REACHED! Automation paused. ${current}/${APP_HOURLY_GLOBAL_LIMIT} calls`,
+    );
+  } else if (!reached && isAutomationPaused) {
+    isAutomationPaused = false;
+    console.log(
+      `✅ APP LIMIT CLEARED! Automation resumed. ${current}/${APP_HOURLY_GLOBAL_LIMIT} calls`,
+    );
+  }
+
+  return {
+    reached,
+    current,
+    limit: APP_HOURLY_GLOBAL_LIMIT,
+    percentage,
+    automationPaused: isAutomationPaused,
+  };
+}
+
+/**
+ * Get current automation status
+ */
+export async function getAutomationStatus(): Promise<{
+  isPaused: boolean;
+  reason: string;
+  currentCalls: number;
+  limit: number;
+  resetTime: Date;
+}> {
+  const appLimit = await isAppLimitReached();
+  const window = getCurrentWindow();
+
+  return {
+    isPaused: appLimit.reached,
+    reason: appLimit.reached ? "App hourly limit reached" : "Normal operation",
+    currentCalls: appLimit.current,
+    limit: appLimit.limit,
+    resetTime: window.end,
+  };
+}
+
+/**
+ * INTELLIGENT QUEUEING LOGIC:
+ * 1. Check app limit first - if reached, queue immediately
+ * 2. If app limit not reached, check user tier limit
+ * 3. Only process if both limits allow
  */
 export async function canMakeCall(
   clerkId: string,
@@ -102,43 +172,51 @@ export async function canMakeCall(
 }> {
   try {
     const window = getCurrentWindow();
-    const tier = await getUserTier(clerkId);
-    const tierLimit = TIER_LIMITS[tier];
 
-    // Check app global limit
+    // FIRST: Check app global limit
     const globalKey = `global:calls:${window.key}`;
     const globalCallsStr = await redisHelpers.get(globalKey);
     const globalCalls = parseInt(globalCallsStr || "0");
 
+    // If app limit reached, queue all incoming webhooks
     if (globalCalls >= APP_HOURLY_GLOBAL_LIMIT) {
+      console.log(
+        `⏸️ App limit reached (${globalCalls}/${APP_HOURLY_GLOBAL_LIMIT}), queueing webhook`,
+      );
       return {
         allowed: false,
         reason: "app_global_limit_reached",
-        tier,
-        shouldQueue: isIncomingWebhook, // Only queue if it's an incoming webhook
+        shouldQueue: isIncomingWebhook,
       };
     }
+
+    // SECOND: Check user tier limit
+    const tier = await getUserTier(clerkId);
+    const tierLimit = TIER_LIMITS[tier];
     const userKey = `user:calls:${clerkId}:${window.key}`;
     const userCallsStr = await redisHelpers.get(userKey);
     const userCalls = parseInt(userCallsStr || "0");
 
-    // ✅ NEW LOGIC: If user limit NOT exceeded, allow immediately
-    if (userCalls < tierLimit) {
+    // If user limit exceeded, queue if incoming webhook
+    if (userCalls >= tierLimit) {
+      console.log(
+        `⏸️ User ${clerkId} limit reached (${userCalls}/${tierLimit}), queueing webhook`,
+      );
       return {
-        allowed: true,
-        remaining: tierLimit - userCalls,
+        allowed: false,
+        reason: "user_limit_reached",
         tier,
-        shouldQueue: false,
+        shouldQueue: isIncomingWebhook,
+        remaining: 0,
       };
     }
 
-    // ❌ Both limits exceeded - queue if incoming webhook
+    // All limits OK - allow processing
     return {
-      allowed: false,
-      reason: "app_global_limit_reached",
+      allowed: true,
+      remaining: tierLimit - userCalls,
       tier,
-      shouldQueue: isIncomingWebhook,
-      remaining: 0,
+      shouldQueue: false,
     };
   } catch (error) {
     console.error("Error in canMakeCall:", error);
@@ -153,8 +231,6 @@ export async function canMakeCall(
 
 /**
  * Record a call - ONLY for incoming webhooks
- * Returns immediately if can process
- * Queues only if app limit reached
  */
 export async function recordCall(
   clerkId: string,
@@ -182,7 +258,7 @@ export async function recordCall(
   const window = getCurrentWindow();
   const canMake = await canMakeCall(clerkId, accountId, true);
 
-  // ✅ NEW: If allowed, process immediately without queueing
+  // If allowed, process immediately without queueing
   if (canMake.allowed) {
     try {
       // Update counters in Redis
@@ -236,7 +312,7 @@ export async function recordCall(
         }
       }
 
-      // Update database asynchronously (don't wait)
+      // Update database asynchronously
       updateDatabaseRecords(
         clerkId,
         accountId,
@@ -271,7 +347,7 @@ export async function recordCall(
     }
   }
 
-  // ❌ Not allowed and should queue
+  // Not allowed and should queue
   if (canMake.shouldQueue) {
     const queueId = await queueWebhook({
       clerkId,
@@ -289,7 +365,7 @@ export async function recordCall(
     };
   }
 
-  // ❌ Not allowed and shouldn't queue
+  // Not allowed and shouldn't queue
   return {
     success: false,
     reason: canMake.reason,
@@ -305,19 +381,8 @@ interface AccountUsageEntry {
   accountProfile?: string;
 }
 
-interface AccountUsageEntry {
-  instagramAccountId: string;
-  callsMade: number;
-  lastCallAt: Date;
-  accountUsername?: string;
-  accountProfile?: string;
-}
-
 /**
  * Update database records for rate limiting
- * - Increments total calls for the window
- * - Increments specific account's call count
- * - Creates new window with all accounts if it doesn't exist
  */
 async function updateDatabaseRecords(
   clerkId: string,
@@ -331,7 +396,7 @@ async function updateDatabaseRecords(
 
     const tierLimit = TIER_LIMITS[tier];
 
-    // Get all Instagram accounts for this user (for account tracking)
+    // Get all Instagram accounts for this user
     const userAccounts = await InstagramAccount.find({
       userId: clerkId,
       isActive: true,
@@ -340,76 +405,72 @@ async function updateDatabaseRecords(
     // Prepare account usage array for new window creation
     const accountUsageList: AccountUsageEntry[] = userAccounts.map((acc) => ({
       instagramAccountId: acc.instagramId,
-      callsMade: acc.instagramId === accountId ? 1 : 0, // Set current account to 1 if it's the one making the call
+      callsMade: acc.instagramId === accountId ? 1 : 0,
       lastCallAt: new Date(),
       accountUsername: acc.username,
       accountProfile: acc.profilePicture,
     }));
 
-    // Try to find existing record for this window
-    let userRateLimit = await RateUserRateLimit.findOne({
-      clerkId,
-      windowStart,
-    });
+    // Use findOneAndUpdate with upsert to avoid duplicate key errors
+    let retries = 3;
+    let userRateLimit = null;
 
-    if (userRateLimit) {
-      // Existing window found - increment counts
-
-      // Increment total calls made
-      userRateLimit.totalCallsMade += 1;
-
-      // Find and update the specific account's usage
-      const accountIndex = userRateLimit.accountUsage.findIndex(
-        (acc: AccountUsageEntry) => acc.instagramAccountId === accountId,
-      );
-
-      if (accountIndex !== -1) {
-        // Account exists - increment its calls
-        userRateLimit.accountUsage[accountIndex].callsMade += 1;
-        userRateLimit.accountUsage[accountIndex].lastCallAt = new Date();
-      } else {
-        // Account not found in tracking - add it
-        // Get the account details from database
-        const account = userAccounts.find(
-          (acc) => acc.instagramId === accountId,
+    while (retries > 0 && !userRateLimit) {
+      try {
+        userRateLimit = await RateUserRateLimit.findOneAndUpdate(
+          { clerkId, windowStart },
+          [
+            {
+              $set: {
+                tier,
+                tierLimit,
+                updatedAt: new Date(),
+              },
+            },
+            {
+              $inc: { totalCallsMade: 1 },
+            },
+            {
+              $setOnInsert: {
+                isAutomationPaused: false,
+                createdAt: new Date(),
+                accountUsage: accountUsageList,
+              },
+            },
+          ],
+          {
+            upsert: true,
+            new: true,
+          },
         );
-        userRateLimit.accountUsage.push({
-          instagramAccountId: accountId,
-          callsMade: 1,
-          lastCallAt: new Date(),
-          accountUsername: account?.username,
-          accountProfile: account?.profilePicture,
-        });
+      } catch (error: any) {
+        if (error.code === 11000 && retries > 1) {
+          retries--;
+          await new Promise((resolve) => setTimeout(resolve, 100));
+          continue;
+        }
+        throw error;
       }
+    }
 
-      // Update tier info if changed
-      userRateLimit.tier = tier;
-      userRateLimit.tierLimit = tierLimit;
-      userRateLimit.updatedAt = new Date();
-
-      await userRateLimit.save();
-
-      console.log(
-        `✅ Updated existing window for user ${clerkId}: totalCalls=${userRateLimit.totalCallsMade}, account ${accountId} calls incremented`,
-      );
-    } else {
-      // No existing window - create new one with all accounts
-      userRateLimit = await RateUserRateLimit.create({
-        clerkId,
-        windowStart,
-        totalCallsMade: 1, // Start with 1 for this call
-        tier: tier,
-        tierLimit: tierLimit,
-        isAutomationPaused: false,
-        accountUsage: accountUsageList, // Includes the current account with 1 call, others with 0
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      });
-
-      console.log(
-        `✅ Created new window for user ${clerkId}: totalCalls=1, added ${userAccounts.length} accounts to tracking`,
+    if (!userRateLimit) {
+      throw new Error(
+        "Failed to create/update rate limit record after retries",
       );
     }
+
+    // After the main update, increment the specific account's calls
+    await RateUserRateLimit.updateOne(
+      {
+        clerkId,
+        windowStart,
+        "accountUsage.instagramAccountId": accountId,
+      },
+      {
+        $inc: { "accountUsage.$.callsMade": 1 },
+        $set: { "accountUsage.$.lastCallAt": new Date() },
+      },
+    );
 
     // Update meta calls for Instagram account if needed
     if (metaCalls > 0) {
@@ -422,12 +483,17 @@ async function updateDatabaseRecords(
       );
     }
 
+    console.log(
+      `✅ Updated database records for user ${clerkId}, account ${accountId}`,
+    );
+
     return userRateLimit;
   } catch (error) {
     console.error("Error updating database records:", error);
     throw error;
   }
 }
+
 /**
  * Queue a webhook for later processing
  */
@@ -480,6 +546,7 @@ export async function queueWebhook(data: {
       console.warn("Could not add to Redis queue:", redisError);
     }
 
+    console.log(`📦 Webhook queued: ${jobId} (Reason: ${data.reason})`);
     return jobId;
   } catch (error) {
     console.error("Error queueing webhook:", error);
@@ -488,9 +555,9 @@ export async function queueWebhook(data: {
 }
 
 /**
- * Process queued webhooks ONE BY ONE when new window starts
+ * Process queued webhooks - ONLY called during hourly window reset
  */
-export async function processQueuedCalls(limit: number = 50): Promise<{
+export async function processQueuedCalls(limit: number = 100): Promise<{
   processed: number;
   failed: number;
   skipped: number;
@@ -498,17 +565,21 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
 }> {
   const window = getCurrentWindow();
   const queueKey = `queue:pending:${window.key}`;
-
   let processed = 0;
   let failed = 0;
   let skipped = 0;
+
+  console.log(`🔄 Starting queue processing for window ${window.label}`);
 
   try {
     let remaining = (await redisHelpers.llen(queueKey)) || 0;
 
     if (remaining === 0) {
+      console.log(`ℹ️ No queued items to process for window ${window.label}`);
       return await processQueuedCallsFromDatabase(limit);
     }
+
+    console.log(`📋 Found ${remaining} queued items to process`);
 
     for (let i = 0; i < limit && remaining > 0; i++) {
       const item = await redisHelpers.rpop(queueKey);
@@ -532,13 +603,16 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
               },
             );
             processed++;
+            console.log(`✅ Processed queued webhook: ${job.jobId}`);
           } else {
             await handleFailedWebhook(job, result.error);
             failed++;
           }
         } else {
+          // Put back in queue for next window
           await redisHelpers.lpush(queueKey, item);
           skipped++;
+          console.log(`⏸️ Skipped webhook ${job.jobId} - limits still reached`);
           break;
         }
       } catch (error) {
@@ -549,6 +623,9 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
       remaining = (await redisHelpers.llen(queueKey)) || 0;
     }
 
+    console.log(
+      `📊 Queue processing complete: processed=${processed}, failed=${failed}, skipped=${skipped}, remaining=${remaining}`,
+    );
     return { processed, failed, skipped, remaining };
   } catch (error) {
     console.error("Error in processQueuedCalls:", error);
@@ -556,7 +633,7 @@ export async function processQueuedCalls(limit: number = 50): Promise<{
   }
 }
 
-async function processQueuedCallsFromDatabase(limit: number = 50) {
+async function processQueuedCallsFromDatabase(limit: number = 100) {
   let processed = 0;
   let failed = 0;
   let skipped = 0;
@@ -569,6 +646,12 @@ async function processQueuedCallsFromDatabase(limit: number = 50) {
     })
       .limit(limit)
       .sort({ createdAt: 1 });
+
+    if (pendingJobs.length === 0) {
+      return { processed, failed, skipped, remaining: 0 };
+    }
+
+    console.log(`📋 Found ${pendingJobs.length} queued items in database`);
 
     for (const job of pendingJobs) {
       try {
@@ -593,6 +676,7 @@ async function processQueuedCallsFromDatabase(limit: number = 50) {
             job.updatedAt = new Date();
             await job.save();
             processed++;
+            console.log(`✅ Processed queued webhook from DB: ${job.jobId}`);
           } else {
             job.retryCount += 1;
             if (job.retryCount >= job.maxRetries) {
@@ -624,6 +708,10 @@ async function processQueuedCallsFromDatabase(limit: number = 50) {
     const remaining = await RateLimitQueue.countDocuments({
       status: "pending",
     });
+
+    console.log(
+      `📊 DB Queue processing: processed=${processed}, failed=${failed}, skipped=${skipped}, remaining=${remaining}`,
+    );
     return { processed, failed, skipped, remaining };
   } catch (error) {
     console.error("Error in database fallback processing:", error);
@@ -662,8 +750,14 @@ async function handleFailedWebhook(job: any, error?: string) {
         queueItem.errorMessage = error;
         queueItem.processingCompletedAt = new Date();
         queueItem.updatedAt = new Date();
+        console.log(
+          `❌ Webhook ${job.jobId} failed permanently after ${queueItem.retryCount} retries`,
+        );
       } else {
         queueItem.updatedAt = new Date();
+        console.log(
+          `⚠️ Webhook ${job.jobId} failed (retry ${queueItem.retryCount}/${queueItem.maxRetries})`,
+        );
       }
 
       await queueItem.save();
@@ -673,30 +767,81 @@ async function handleFailedWebhook(job: any, error?: string) {
   }
 }
 
+// Flag to track if window reset is in progress
+let isWindowResetting = false;
+let lastResetWindowHour = -1;
+
+/**
+ * Reset hourly window - called by Railway cron job
+ */
 export async function resetHourlyWindow(): Promise<{
   success: boolean;
   message: string;
   processed: number;
   resetAccounts: number;
 }> {
-  const previousWindow = getCurrentWindow();
+  const currentWindow = getCurrentWindow();
+  const currentHour = currentWindow.start.getUTCHours();
+
+  // Check if we already reset this window
+  if (lastResetWindowHour === currentHour) {
+    console.log(
+      `⏭️ Skipping window reset for ${currentWindow.label} - already reset`,
+    );
+    return {
+      success: true,
+      message: `Window already reset for ${currentWindow.label}`,
+      processed: 0,
+      resetAccounts: 0,
+    };
+  }
+
+  // Prevent concurrent resets
+  if (isWindowResetting) {
+    console.log("⏭️ Skipping window reset - already in progress");
+    return {
+      success: false,
+      message: "Window reset already in progress",
+      processed: 0,
+      resetAccounts: 0,
+    };
+  }
+
+  isWindowResetting = true;
 
   try {
     await connectToDatabase();
 
-    await RateLimitWindow.findOneAndUpdate(
-      { windowStart: previousWindow.start },
-      {
-        windowEnd: previousWindow.end,
-        status: "completed",
-        updatedAt: new Date(),
-      },
-      { upsert: true, new: true },
+    console.log(`🕐 Starting hourly window reset for ${currentWindow.label}`);
+
+    // Get the previous window (the one that just ended)
+    const previousWindowStart = new Date(
+      currentWindow.start.getTime() - 60 * 60 * 1000,
     );
 
-    // Process queued items ONE BY ONE
+    // Mark previous window as completed if it exists
+    const previousWindow = await RateLimitWindow.findOne({
+      windowStart: previousWindowStart,
+    });
+
+    if (previousWindow) {
+      await RateLimitWindow.updateOne(
+        { _id: previousWindow._id },
+        {
+          status: "completed",
+          updatedAt: new Date(),
+        },
+      );
+      console.log(
+        `✅ Completed window for ${previousWindowStart.toISOString()}`,
+      );
+    }
+
+    // PROCESS QUEUED ITEMS - this is where queue processing happens
+    console.log(`📦 Processing queued items from previous window...`);
     const queueResult = await processQueuedCalls(100);
 
+    // Reset account meta call counters
     const accounts = await InstagramAccount.find({});
     let resetAccounts = 0;
 
@@ -711,7 +856,6 @@ export async function resetHourlyWindow(): Promise<{
       account.isMetaRateLimited = false;
       account.metaRateLimitResetAt = undefined;
       await account.save();
-
       resetAccounts++;
     }
 
@@ -719,35 +863,54 @@ export async function resetHourlyWindow(): Promise<{
       isActive: true,
     });
 
-    const newWindow = new RateLimitWindow({
-      windowStart: previousWindow.start,
-      windowEnd: previousWindow.end,
-      globalCalls: 0,
-      appLimit: APP_HOURLY_GLOBAL_LIMIT,
-      accountsProcessed: 0,
-      isAutomationPaused: false,
-      status: "active",
-      metadata: {
-        totalAccounts: activeAccounts,
-      },
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    // Check if new window already exists
+    const existingWindow = await RateLimitWindow.findOne({
+      windowStart: currentWindow.start,
     });
 
-    await newWindow.save();
+    if (!existingWindow) {
+      // Create new window
+      const newWindow = new RateLimitWindow({
+        windowStart: currentWindow.start,
+        windowEnd: currentWindow.end,
+        globalCalls: 0,
+        appLimit: APP_HOURLY_GLOBAL_LIMIT,
+        accountsProcessed: 0,
+        isAutomationPaused: false,
+        status: "active",
+        metadata: {
+          totalAccounts: activeAccounts,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
+      await newWindow.save();
+      console.log(`✅ Created new window for ${currentWindow.label}`);
+    }
+
+    // Reset automation paused flag
+    isAutomationPaused = false;
+
+    // Update the last reset window hour
+    lastResetWindowHour = currentHour;
+
+    // Clear Redis counters for the new window
     try {
-      const keys = await redisHelpers.keys(`*:${previousWindow.key}`);
+      const keys = await redisHelpers.keys(`*:${currentWindow.key}`);
       if (keys.length > 0) await redisHelpers.del(...keys);
     } catch (redisError) {
       console.warn("Could not clear Redis counters:", redisError);
     }
 
-    console.log(`🔄 Window reset completed for ${previousWindow.label}`);
+    console.log(`✅ Window reset completed for ${currentWindow.label}`);
+    console.log(
+      `📊 Processed ${queueResult.processed} queued items, ${queueResult.failed} failed, ${queueResult.skipped} skipped`,
+    );
 
     return {
       success: true,
-      message: `Window reset completed for ${previousWindow.label}`,
+      message: `Window reset completed for ${currentWindow.label}`,
       processed: queueResult.processed,
       resetAccounts,
     };
@@ -760,9 +923,12 @@ export async function resetHourlyWindow(): Promise<{
       processed: 0,
       resetAccounts: 0,
     };
+  } finally {
+    isWindowResetting = false;
   }
 }
 
+// ... rest of the functions (getWindowStats, getUserRateLimitStats remain the same)
 export async function getWindowStats(windowStart?: Date) {
   await connectToDatabase();
 
@@ -980,32 +1146,5 @@ export async function getUserRateLimitStats(clerkId: string): Promise<{
     usagePercentage: tierLimit > 0 ? (callsMade / tierLimit) * 100 : 0,
     queuedItems,
     nextReset,
-  };
-}
-
-export async function isAppLimitReached(): Promise<{
-  reached: boolean;
-  current: number;
-  limit: number;
-  percentage: number;
-}> {
-  const window = getCurrentWindow();
-  let current = 0;
-
-  try {
-    const globalKey = `global:calls:${window.key}`;
-    const currentStr = await redisHelpers.get(globalKey);
-    current = parseInt(currentStr || "0");
-  } catch (redisError) {
-    console.warn("Could not get app limit from Redis");
-  }
-
-  const percentage = (current / APP_HOURLY_GLOBAL_LIMIT) * 100;
-
-  return {
-    reached: current >= APP_HOURLY_GLOBAL_LIMIT,
-    current,
-    limit: APP_HOURLY_GLOBAL_LIMIT,
-    percentage,
   };
 }

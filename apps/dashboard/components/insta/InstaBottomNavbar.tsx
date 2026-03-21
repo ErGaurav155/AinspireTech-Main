@@ -9,6 +9,7 @@ import {
   Users,
   Settings,
   Plus,
+  Crown,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
@@ -17,7 +18,7 @@ import {
   getSubscriptioninfo,
   getAllInstagramAccounts,
 } from "@/lib/services/insta-actions.api";
-import { useThemeStyles } from "@rocketreplai/ui";
+import { Button, useThemeStyles } from "@rocketreplai/ui";
 
 const BOTTOM_NAV_ITEMS = [
   {
@@ -242,6 +243,32 @@ export default function InstaBottomNavbar() {
                 <p className={localStyles.accountName}>{accountName}</p>
                 <p className={localStyles.accountHandle}>@{accountHandle}</p>
               </div>
+              {isSubscribed && (
+                <Button
+                  asChild
+                  className={`
+              text-sm font-semibold rounded-md p-1
+              transition-all duration-300
+              ${
+                isDark
+                  ? `
+               text-orange-300
+                shadow-[0_0_10px_rgba(210, 138, 29, 0.4)]
+                 `
+                  : `
+                 text-orange-700
+        
+                 shadow-sm
+               `
+              }
+             `}
+                >
+                  <span className="flex items-center gap-1">
+                    <Crown className="w-4 h-4 text-orange-400 animate-pulse" />
+                    Pro
+                  </span>
+                </Button>
+              )}
             </div>
           )}
 

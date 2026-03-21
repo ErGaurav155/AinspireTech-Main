@@ -262,6 +262,32 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 </p>
               </div>
             </div>
+            {isSubscribed && (
+              <Button
+                asChild
+                className={`
+              text-sm font-semibold rounded-md p-1
+              transition-all duration-300
+              ${
+                isDark
+                  ? `
+               text-orange-300
+                shadow-[0_0_10px_rgba(210, 138, 29, 0.4)]
+                 `
+                  : `
+                 text-orange-700
+        
+                 shadow-sm
+               `
+              }
+             `}
+              >
+                <span className="flex items-center gap-1">
+                  <Crown className="w-4 h-4 text-orange-400 animate-pulse" />
+                  Pro
+                </span>
+              </Button>
+            )}
             <ChevronDown
               className={`${localStyles.selectorChevron} ${
                 isAccountOpen ? "rotate-180" : ""

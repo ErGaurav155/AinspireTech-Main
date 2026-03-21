@@ -95,8 +95,8 @@ async function connectServices() {
         console.error("⚠️ Failed to start workers:", workerError.message);
       }
 
-      // Start background tasks
-      startBackgroundTasks();
+      // Start ONLY stats logging - hourly reset handled by Railway cron
+      startStatsLogging();
     } else {
       console.log("⚠️ Redis not available - continuing without it");
     }
@@ -108,68 +108,14 @@ async function connectServices() {
   console.log("✅ Service initialization complete");
 }
 
-function startBackgroundTasks() {
-  console.log("🔄 Starting background tasks...");
+// Only stats logging - no hourly reset or queue processing
+function startStatsLogging() {
+  console.log("📊 Starting stats logging...");
 
-  let hasRecentActivity = false;
-  let lastActivityCheck = Date.now();
-
-  // Queue processor
-  setInterval(async () => {
-    try {
-      const { processQueuedCalls, getCurrentWindow } =
-        await import("./services/rate-limit.service");
-      const { redisHelpers } = await import("./config/redis.config");
-
-      const window = getCurrentWindow();
-      const queueKey = `queue:pending:${window.key}`;
-      const queueLength = await redisHelpers.llen(queueKey);
-
-      if (queueLength && queueLength > 0) {
-        hasRecentActivity = true;
-        lastActivityCheck = Date.now();
-
-        const result = await processQueuedCalls();
-        if (result.processed > 0) {
-          console.log(
-            `🔄 Processed ${result.processed} webhooks, ${result.remaining} remaining`,
-          );
-        }
-      }
-    } catch (error: any) {
-      console.debug("Queue processor error (non-fatal):", error.message);
-    }
-  }, 30000);
-
-  // Hourly window reset
-  setInterval(async () => {
-    try {
-      const now = new Date();
-      if (now.getUTCMinutes() === 0 && now.getUTCSeconds() < 10) {
-        const { resetHourlyWindow } =
-          await import("./services/rate-limit.service");
-
-        console.log("🕐 Hourly window reset");
-        const result = await resetHourlyWindow();
-        console.log(`✅ ${result.message}`);
-
-        hasRecentActivity = false;
-        lastActivityCheck = Date.now();
-      }
-    } catch (error: any) {
-      console.debug("Window reset error (non-fatal):", error.message);
-    }
-  }, 10000);
-
-  // Stats logging
+  // Stats logging - runs every 15 minutes
   setInterval(
     async () => {
       try {
-        const timeSinceLastActivity = Date.now() - lastActivityCheck;
-        if (timeSinceLastActivity > 15 * 60 * 1000) {
-          return;
-        }
-
         const { getCurrentWindow, isAppLimitReached } =
           await import("./services/rate-limit.service");
 
@@ -188,7 +134,7 @@ function startBackgroundTasks() {
     15 * 60 * 1000,
   );
 
-  console.log("✅ Background tasks started");
+  console.log("✅ Stats logging started");
 }
 
 // Start server

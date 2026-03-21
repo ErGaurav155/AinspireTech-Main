@@ -945,9 +945,9 @@ export default function Dashboard() {
                     : "border-gray-200 text-gray-700 hover:bg-gray-50"
                 }`}
               >
-                <Link href="/insta">
+                <Link href="/insta/accounts">
                   <PlayCircle className="h-4 w-4" />
-                  View Dashboard
+                  View Accounts
                 </Link>
               </Button>
             </div>

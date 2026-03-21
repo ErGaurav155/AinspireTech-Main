@@ -68,7 +68,7 @@ export const listInstaSubscriptions = async (userId: string) => {
   try {
     await connectToDatabase();
 
-    const subscriptions = await InstaSubscription.find({
+    const subscriptions = await InstaSubscription.findOne({
       clerkId: userId,
       chatbotType: "Insta-Automation-Pro",
       status: "active",

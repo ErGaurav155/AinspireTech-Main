@@ -5,7 +5,6 @@ import {
   processQueueController,
   resetWindowController,
   getCurrentWindowController,
-  getAppLimitController,
 } from "@/controllers/insta/rate-limit/rate-limit.controller";
 const router = Router();
 // Rate limit routes

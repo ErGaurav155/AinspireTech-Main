@@ -18,11 +18,11 @@ export const listInstaSubscriptionsController = async (
       });
     }
 
-    const subscriptions = await listInstaSubscriptions(userId);
+    const subscription = await listInstaSubscriptions(userId);
     return res.status(200).json({
       success: true,
       data: {
-        subscriptions: subscriptions.length > 0 ? subscriptions[0] : [],
+        subscriptions: subscription ? [subscription] : [],
       },
       timestamp: new Date().toISOString(),
     });

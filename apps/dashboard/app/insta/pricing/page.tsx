@@ -16,7 +16,6 @@ import {
 } from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 
@@ -250,7 +249,6 @@ function PricingWithSearchParams() {
 
         // Fetch subscription info
         const subscription = await getSubscriptioninfo(apiRequest);
-        console.log("subscription:", subscription);
         if (
           subscription.subscriptions &&
           subscription.subscriptions.length > 0
@@ -758,7 +756,7 @@ function PricingWithSearchParams() {
                       : pageStyles.buttonDisabled
                   }
                 >
-                  {currentSubscription ? "Current Plan" : "Your Current Plan"}
+                  {currentSubscription ? "Free Plan" : "Your Current Plan"}
                 </Button>
               </SignedIn>
             </div>
