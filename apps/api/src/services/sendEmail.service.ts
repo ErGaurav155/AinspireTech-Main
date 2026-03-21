@@ -1,9 +1,11 @@
+import { Resend } from "resend";
 import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
-import nodemailer from "nodemailer";
-
 import { Twilio } from "twilio";
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ================= OWNER EMAIL =================
 export const sendSubscriptionEmailToOwner = async ({
   email,
   userDbId,
@@ -13,24 +15,22 @@ export const sendSubscriptionEmailToOwner = async ({
   userDbId: string;
   subscriptionId: string;
 }) => {
-  const transporter = nodemailer.createTransport({
-    service: "Gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  await resend.emails.send({
+    from: "notifications@rocketreplai.com",
     to: email,
     subject: "New Subscription Alert",
-    text: `Congratulations! A customer has subscribed. UserID: ${userDbId}, SubscriptionID: ${subscriptionId}`,
-  };
-
-  await transporter.sendMail(mailOptions);
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color:#3B82F6;">🎉 New Subscription</h2>
+        <p><strong>User ID:</strong> ${userDbId}</p>
+        <p><strong>Subscription ID:</strong> ${subscriptionId}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+      </div>
+    `,
+  });
 };
 
+// ================= USER EMAIL =================
 export const sendSubscriptionEmailToUser = async ({
   email,
   userDbId,
@@ -42,26 +42,27 @@ export const sendSubscriptionEmailToUser = async ({
   agentId: string;
   subscriptionId: string;
 }) => {
-  const transporter = nodemailer.createTransport({
-    service: "Gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
-
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  await resend.emails.send({
+    from: "notifications@rocketreplai.com",
     to: email,
-    subject: "New Subscription Alert",
-    text: `Congratulations! You has subscribed To AgentID:${agentId}, UserID: ${userDbId}, SubscriptionID: ${subscriptionId}. Please add code widget provided on webchatbot dashboard to your website code so it easily appears on your website.`,
-  };
-
-  await transporter.sendMail(mailOptions);
+    subject: "Subscription Confirmed",
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color:#10B981;">✅ Subscription Confirmed</h2>
+        <p><strong>Agent ID:</strong> ${agentId}</p>
+        <p><strong>User ID:</strong> ${userDbId}</p>
+        <p><strong>Subscription ID:</strong> ${subscriptionId}</p>
+        <p>Please add the widget code from your dashboard to your website.</p>
+      </div>
+    `,
+  });
 };
+
+// ================= APPOINTMENT EMAIL =================
 interface QuestionAns {
   answer: string;
 }
+
 export const sendAppointmentEmailToUser = async ({
   email,
   data,
@@ -69,22 +70,24 @@ export const sendAppointmentEmailToUser = async ({
   email: string;
   data: QuestionAns[];
 }) => {
-  const transporter = nodemailer.createTransport({
-    service: "Gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-  });
+  const name = data?.[0]?.answer || "Not provided";
+  const userEmail = data?.[1]?.answer || "Not provided";
+  const details = data?.[3]?.answer || "No details";
 
-  const mailOptions = {
-    from: process.env.EMAIL_USER,
+  await resend.emails.send({
+    from: "notifications@rocketreplai.com",
     to: email,
-    subject: "New Subscription Alert",
-    text: `Congratulations! SomeOne Booked New Appointment. name:${data[0].answer}, email:${data[1].answer}, other details are: ${data[3].answer}. Please go to dashboard to get detailed appointment information`,
-  };
-
-  await transporter.sendMail(mailOptions);
+    subject: "New Appointment Booked",
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 20px;">
+        <h2 style="color:#8B5CF6;">📅 New Appointment</h2>
+        <p><strong>Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${userEmail}</p>
+        <p><strong>Details:</strong> ${details}</p>
+        <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
+      </div>
+    `,
+  });
 };
 const client = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
