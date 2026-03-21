@@ -808,7 +808,7 @@ export default function Dashboard() {
         {/* ── Active Subscription Banner ──────────────────────────────────── */}
         {subscriptions.length > 0 && (
           <div
-            className={`rounded-2xl p-4 flex items-center justify-between gap-4 ${
+            className={`rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 ${
               isDark
                 ? "bg-green-500/10 border border-green-500/20"
                 : "bg-green-50 border border-green-200"
