@@ -381,9 +381,10 @@ interface AccountUsageEntry {
   accountProfile?: string;
 }
 
-/**
+/*
  * Update database records for rate limiting
  */
+
 async function updateDatabaseRecords(
   clerkId: string,
   accountId: string,
@@ -411,7 +412,7 @@ async function updateDatabaseRecords(
       accountProfile: acc.profilePicture,
     }));
 
-    // Use findOneAndUpdate with upsert to avoid duplicate key errors
+    // Update UserRateLimit with retry logic
     let retries = 3;
     let userRateLimit = null;
 
@@ -419,25 +420,19 @@ async function updateDatabaseRecords(
       try {
         userRateLimit = await RateUserRateLimit.findOneAndUpdate(
           { clerkId, windowStart },
-          [
-            {
-              $set: {
-                tier,
-                tierLimit,
-                updatedAt: new Date(),
-              },
+          {
+            $inc: { totalCallsMade: 1 },
+            $set: {
+              tier,
+              tierLimit,
+              updatedAt: new Date(),
             },
-            {
-              $inc: { totalCallsMade: 1 },
+            $setOnInsert: {
+              isAutomationPaused: false,
+              createdAt: new Date(),
+              accountUsage: accountUsageList,
             },
-            {
-              $setOnInsert: {
-                isAutomationPaused: false,
-                createdAt: new Date(),
-                accountUsage: accountUsageList,
-              },
-            },
-          ],
+          },
           {
             upsert: true,
             new: true,
@@ -493,7 +488,6 @@ async function updateDatabaseRecords(
     throw error;
   }
 }
-
 /**
  * Queue a webhook for later processing
  */
