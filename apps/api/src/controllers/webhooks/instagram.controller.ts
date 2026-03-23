@@ -31,10 +31,6 @@ export const verifyInstagramWebhookController = (
 
 /**
  * POST /api/webhooks/instagram - Handle Instagram webhooks
- * INTELLIGENT QUEUEING:
- * - Respond to Instagram immediately (< 1 second)
- * - Process webhook asynchronously
- * - Queue if rate limited
  */
 export const handleInstagramWebhookController = async (
   req: Request,
@@ -46,8 +42,48 @@ export const handleInstagramWebhookController = async (
     // Verify signature in production
     if (process.env.NODE_ENV === "production") {
       const signature = req.headers["x-hub-signature-256"] as string;
-      if (!signature || !process.env.INSTAGRAM_APP_SECRET) {
-        console.log("Missing signature or INSTAGRAM_APP_SECRET");
+      const appSecret = process.env.INSTAGRAM_APP_SECRET;
+
+      // Check if signature exists
+      if (!signature) {
+        console.error("❌ Missing x-hub-signature-256 header");
+        return res.status(401).json({
+          success: false,
+          error: "Missing signature",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Check if app secret is configured
+      if (!appSecret) {
+        console.error("❌ INSTAGRAM_APP_SECRET not configured");
+        return res.status(500).json({
+          success: false,
+          error: "Server configuration error",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      // Use JSON.stringify of the request body
+      const rawBody = JSON.stringify(req.body);
+
+      // Generate expected signature
+      const hmac = crypto.createHmac("sha256", appSecret);
+      hmac.update(rawBody);
+      const expectedSignature = hmac.digest("hex");
+
+      // Extract received signature (Instagram sends as "sha256=xxxxx")
+      const receivedSignature = signature.split("=")[1] || signature;
+
+      console.log("Signature verification:", {
+        received: receivedSignature.substring(0, 20) + "...",
+        expected: expectedSignature.substring(0, 20) + "...",
+        match: receivedSignature === expectedSignature,
+      });
+
+      // Compare signatures
+      if (receivedSignature !== expectedSignature) {
+        console.error("❌ Invalid signature - verification failed");
         return res.status(401).json({
           success: false,
           error: "Invalid signature",
@@ -55,22 +91,7 @@ export const handleInstagramWebhookController = async (
         });
       }
 
-      const hmac = crypto.createHmac(
-        "sha256",
-        process.env.INSTAGRAM_APP_SECRET,
-      );
-      const digest = `sha256=${hmac.update(JSON.stringify(req.body)).digest("hex")}`;
-
-      if (
-        !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))
-      ) {
-        console.log("Invalid signature");
-        return res.status(401).json({
-          success: false,
-          error: "Invalid signature",
-          timestamp: new Date().toISOString(),
-        });
-      }
+      console.log("✅ Signature verified successfully");
     }
 
     const payload = req.body;
@@ -106,7 +127,6 @@ export const handleInstagramWebhookController = async (
     });
 
     // ✅ PROCESS ASYNCHRONOUSLY
-    // The processor will handle intelligent queueing internally
     setImmediate(async () => {
       try {
         const result = await processInstagramWebhook(payload);
