@@ -64,8 +64,19 @@ export const handleInstagramWebhookController = async (
         });
       }
 
-      // Use JSON.stringify of the request body
-      const rawBody = JSON.stringify(req.body);
+      // IMPORTANT: Use the raw body that was captured BEFORE JSON parsing
+      const rawBody = (req as any).rawBody;
+
+      if (!rawBody) {
+        console.error(
+          "❌ Raw body not captured. Ensure express.json verify middleware is configured.",
+        );
+        return res.status(500).json({
+          success: false,
+          error: "Raw body not available",
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       // Generate expected signature
       const hmac = crypto.createHmac("sha256", appSecret);
@@ -73,16 +84,26 @@ export const handleInstagramWebhookController = async (
       const expectedSignature = hmac.digest("hex");
 
       // Extract received signature (Instagram sends as "sha256=xxxxx")
-      const receivedSignature = signature.split("=")[1] || signature;
+      const receivedSignature = signature.startsWith("sha256=")
+        ? signature.substring(7)
+        : signature;
 
+      // Log for debugging (only first few chars)
       console.log("Signature verification:", {
         received: receivedSignature.substring(0, 20) + "...",
         expected: expectedSignature.substring(0, 20) + "...",
+        rawBodyLength: rawBody.length,
+        rawBodyPreview: rawBody.substring(0, 200),
         match: receivedSignature === expectedSignature,
       });
 
-      // Compare signatures
-      if (receivedSignature !== expectedSignature) {
+      // Compare signatures using timing-safe comparison
+      if (
+        !crypto.timingSafeEqual(
+          Buffer.from(receivedSignature, "hex"),
+          Buffer.from(expectedSignature, "hex"),
+        )
+      ) {
         console.error("❌ Invalid signature - verification failed");
         return res.status(401).json({
           success: false,

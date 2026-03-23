@@ -39,9 +39,16 @@ app.use(
 // Compression
 app.use(compression());
 
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      // Store raw body for signature verification
+      (req as any).rawBody = buf.toString();
+    },
+  }),
+);
+
+app.use(express.urlencoded({ extended: true }));
 
 /* ============================================================
    RATE LIMITING
