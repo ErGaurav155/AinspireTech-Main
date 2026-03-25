@@ -442,23 +442,45 @@ async function processDMFlow(
  * Check if comment is meaningful (not just emojis/GIFs)
  */
 function isMeaningfulComment(text: string): boolean {
-  if (!text || text.trim().length === 0) return false;
+  // 1. Check if text exists and is not empty
+  if (!text || typeof text !== "string") return false;
 
-  const cleaned = text.replace(/\s+/g, "").replace(/[^\w]/g, "");
-  if (cleaned.length === 0) return false;
+  const trimmed = text.trim();
+  if (trimmed.length === 0) return false;
 
-  // Emoji regex
-  const emojiRegex = /^[\u203C-\u3299\u1F000-\u1FAFF\uFE0F]+$/i;
-  if (emojiRegex.test(cleaned)) return false;
+  // 2. Check for GIF comments (Instagram specific)
+  const lowerText = trimmed.toLowerCase();
+  const gifKeywords = ["gif", "sent a gif", "shared a gif"];
+  if (gifKeywords.some((keyword) => lowerText.includes(keyword))) {
+    return false;
+  }
 
-  // Check for GIF comments
-  if (text.toLowerCase().includes("gif") || text.includes("sent a GIF")) {
+  // 3. Remove emojis and special characters to check if meaningful text remains
+  const textWithoutEmojis = trimmed.replace(
+    /[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu,
+    "",
+  );
+  const cleanedText = textWithoutEmojis.replace(/[\s\p{P}]/gu, ""); // Remove spaces and punctuation
+
+  // 4. If after removing emojis and punctuation we have meaningful characters
+  if (cleanedText.length > 0) {
+    return true;
+  }
+
+  // 5. Check if the original text contains any alphanumeric characters
+  const hasAlphanumeric = /[a-zA-Z0-9]/.test(trimmed);
+  if (!hasAlphanumeric) {
+    return false;
+  }
+
+  // 6. Check if it's purely emoji (allow only if there are other characters)
+  const emojiOnlyRegex = /^[\p{Emoji_Presentation}\p{Emoji}\uFE0F\s]+$/u;
+  if (emojiOnlyRegex.test(trimmed)) {
     return false;
   }
 
   return true;
 }
-
 /**
  * Select random item from array
  */
