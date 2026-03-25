@@ -2,7 +2,6 @@
 
 import { X } from "lucide-react";
 import { Button } from "@rocketreplai/ui";
-import { useTheme } from "next-themes";
 import { useMemo } from "react";
 
 import { useThemeStyles } from "@rocketreplai/ui";

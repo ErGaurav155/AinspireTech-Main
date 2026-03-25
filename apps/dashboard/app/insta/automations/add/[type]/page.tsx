@@ -17,6 +17,7 @@ import {
   Image as ImageIcon,
   AlertTriangle,
   PlusCircle,
+  Lock,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
@@ -25,7 +26,6 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   createInstaTemplate,
-  getAllInstagramAccounts,
   getInstaMedia,
   getInstaTemplateById,
   updateTemplate,
@@ -38,17 +38,9 @@ import {
   toast,
   useThemeStyles,
 } from "@rocketreplai/ui";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-interface AccountDataType {
-  instagramId: string;
-  username: string;
-  isActive: boolean;
-  profilePicture?: string;
-  followersCount?: number;
-  mediaCount?: number;
-}
 
 interface MediaItem {
   id: string;
@@ -217,7 +209,7 @@ const DEFAULT_FORM: AutomationForm = {
   priority: 5,
 };
 
-// ─── Phone Preview ────────────────────────────────────────────────────────────
+// ─── Phone Preview Components ──────────────────────────────────────────────────
 
 function PhonePreview({
   form,
@@ -451,6 +443,7 @@ function StoryScreen({
           {accountUsername || "your_account"}
         </span>
       </div>
+
       <div className="flex-1 flex items-center justify-center text-white">
         {form.mediaUrl ? (
           <Image
@@ -463,6 +456,7 @@ function StoryScreen({
           <p className="text-sm">Select a specific story</p>
         )}
       </div>
+
       <div className="absolute bottom-3 left-3 right-3 flex items-center gap-2">
         <div className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-3 py-2 flex items-center gap-2">
           <span className="text-xs text-white/60">Send message...</span>
@@ -793,7 +787,7 @@ function DMScreen({
   );
 }
 
-// ─── UI helpers ───────────────────────────────────────────────────────────────
+// ─── UI Components ────────────────────────────────────────────────────────────
 
 function Toggle({
   checked,
@@ -811,12 +805,19 @@ function Toggle({
       type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className={`relative rounded-full transition-colors flex-shrink-0 ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
+      className={`relative rounded-full transition-colors flex-shrink-0 ${
+        disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+      } ${checked ? "bg-pink-500" : isDark ? "bg-white/[0.06]" : "bg-gray-200"}`}
       style={{ width: 44, height: 24 }}
     >
       <span
         className="absolute bg-white rounded-full shadow-sm transition-all"
-        style={{ width: 18, height: 18, top: 3, left: checked ? 23 : 3 }}
+        style={{
+          width: 18,
+          height: 18,
+          top: 3,
+          left: checked ? 23 : 3,
+        }}
       />
     </button>
   );
@@ -893,7 +894,9 @@ function EditLinkModal({
       onClick={onClose}
     >
       <div
-        className={`${isDark ? "bg-[#1A1A1E]" : "bg-white"} rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl`}
+        className={`${
+          isDark ? "bg-[#1A1A1E]" : "bg-white"
+        } rounded-3xl p-6 max-w-md w-full mx-4 shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-4">
@@ -930,7 +933,11 @@ function EditLinkModal({
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${isDark ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50" : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"}`}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                isDark
+                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
+                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
+              }`}
               placeholder="e.g. Get Access"
             />
           </div>
@@ -945,7 +952,11 @@ function EditLinkModal({
               type="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${isDark ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50" : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"}`}
+              className={`w-full px-3 py-2 border rounded-xl text-sm focus:outline-none focus:ring-2 ${
+                isDark
+                  ? "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:ring-pink-500/50"
+                  : "bg-white border-gray-200 text-gray-700 placeholder-gray-400 focus:ring-pink-200"
+              }`}
               placeholder="https://example.com"
             />
           </div>
@@ -964,20 +975,20 @@ function EditLinkModal({
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CreateAutomationPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const automationType =
     (params?.type as "comments" | "stories" | "dms") || "comments";
-  // ✅ editId drives all edit-vs-create branching
   const editId = searchParams?.get("id") || null;
   const isEditMode = !!editId;
 
-  const [form, setForm] = useState<AutomationForm>(DEFAULT_FORM);
+  // ✅ Get ONLY the selected account from context
+  const { selectedAccount, isAccLoading } = useInstaAccount();
 
-  const [accounts, setAccounts] = useState<AccountDataType[]>([]);
+  const [form, setForm] = useState<AutomationForm>(DEFAULT_FORM);
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [showMoreMedia, setShowMoreMedia] = useState(false);
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
@@ -992,6 +1003,8 @@ export default function CreateAutomationPage() {
     number | null
   >(null);
   const [editingLinkIndex, setEditingLinkIndex] = useState<number | null>(null);
+  const [originalMediaId, setOriginalMediaId] = useState<string>("");
+  const [originalAccountId, setOriginalAccountId] = useState<string>("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userId, isLoaded } = useAuth();
@@ -1013,12 +1026,20 @@ export default function CreateAutomationPage() {
         "flex items-center justify-end w-full gap-2 px-4 md:px-6 max-w-2xl mx-auto py-4",
       saveButton: (disabled?: boolean) =>
         isDark
-          ? `flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
-          : `flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+          ? `flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`
+          : `flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`,
       goLiveButton: (disabled?: boolean) =>
         isDark
-          ? `flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`
-          : `flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-medium transition-colors ${disabled ? "opacity-50 cursor-not-allowed" : ""}`,
+          ? `flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`
+          : `flex items-center gap-2 px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-medium transition-colors ${
+              disabled ? "opacity-50 cursor-not-allowed" : ""
+            }`,
       formContainer: "p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-4",
       input: isDark
         ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white placeholder:text-white/25 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500"
@@ -1039,10 +1060,22 @@ export default function CreateAutomationPage() {
         ? "font-semibold text-white"
         : "font-semibold text-gray-800",
       mediaGrid: "grid grid-cols-4 gap-2 mb-2",
-      mediaItem: (isSelected: boolean) =>
+      mediaItem: (isSelected: boolean, isEditMode: boolean) =>
         isDark
-          ? `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-pink-500 ring-offset-2 ring-offset-[#1A1A1E]" : "hover:opacity-90"}`
-          : `relative aspect-square rounded-xl overflow-hidden cursor-pointer transition-all ${isSelected ? "ring-2 ring-pink-500 ring-offset-1" : "hover:opacity-90"}`,
+          ? `relative aspect-square rounded-xl overflow-hidden ${
+              isEditMode ? "" : "cursor-pointer"
+            } transition-all ${
+              isSelected
+                ? "ring-2 ring-pink-500 ring-offset-2 ring-offset-[#1A1A1E]"
+                : "hover:opacity-90"
+            } ${isEditMode ? "opacity-70" : ""}`
+          : `relative aspect-square rounded-xl overflow-hidden ${
+              isEditMode ? "" : "cursor-pointer"
+            } transition-all ${
+              isSelected
+                ? "ring-2 ring-pink-500 ring-offset-1"
+                : "hover:opacity-90"
+            } ${isEditMode ? "opacity-70" : ""}`,
       mediaVideoBadge:
         "absolute top-1 right-1 bg-black/60 text-white text-xs px-1 rounded",
       mediaLoadMore: isDark
@@ -1051,13 +1084,11 @@ export default function CreateAutomationPage() {
       showMoreButton: isDark
         ? "w-full py-2 text-sm text-pink-400 font-medium hover:text-pink-300 transition-colors"
         : "w-full py-2 text-sm text-pink-500 font-medium hover:text-pink-600 transition-colors",
-      accountGrid: "flex gap-2 flex-wrap",
-      accountButton: (isSelected: boolean) =>
-        isDark
-          ? `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${isSelected ? "bg-pink-500/10 border-2 border-pink-500 text-pink-400" : "bg-white/[0.06] border border-white/[0.08] text-white/60 hover:border-pink-500/50"}`
-          : `flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors ${isSelected ? "bg-pink-50 border-2 border-pink-300 text-pink-600" : "bg-gray-50 border border-gray-200 text-gray-600 hover:border-gray-300"}`,
+      accountInfoBanner: isDark
+        ? "bg-pink-500/10 border border-pink-500/20 rounded-2xl p-4 mb-4"
+        : "bg-pink-50 border border-pink-200 rounded-2xl p-4 mb-4",
       accountAvatar:
-        "w-6 h-6 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-xs font-bold",
+        "w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-orange-400 flex items-center justify-center text-white text-lg font-bold flex-shrink-0 overflow-hidden",
       keywordInput: isDark
         ? "flex items-center w-full px-4 py-2.5 bg-white/[0.05] border border-white/[0.08] rounded-xl text-sm text-white"
         : "flex items-center w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-700",
@@ -1123,16 +1154,36 @@ export default function CreateAutomationPage() {
         : "px-5 pb-5 space-y-3 border-t border-gray-50 pt-4",
       publicReplyItem: (isEditing: boolean) =>
         isDark
-          ? `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isEditing ? "border-pink-500" : "border-white/[0.08]"}`
-          : `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${isEditing ? "border-pink-300" : "border-gray-200"}`,
+          ? `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${
+              isEditing ? "border-pink-500" : "border-white/[0.08]"
+            }`
+          : `flex items-center gap-2 border rounded-xl px-3 py-2.5 ${
+              isEditing ? "border-pink-300" : "border-gray-200"
+            }`,
       tagButton: (isSelected: boolean) =>
         isDark
-          ? `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${isSelected ? "border-2 border-pink-400 text-pink-400 bg-pink-500/10" : "border border-white/[0.08] text-white/60 hover:border-pink-500/50"}`
-          : `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${isSelected ? "border-2 border-pink-400 text-pink-600 bg-pink-50" : "border border-gray-200 text-gray-600 hover:border-gray-300"}`,
+          ? `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
+              isSelected
+                ? "border-2 border-pink-400 text-pink-400 bg-pink-500/10"
+                : "border border-white/[0.08] text-white/60 hover:border-pink-500/50"
+            }`
+          : `flex-1 py-2 rounded-xl text-sm font-medium transition-colors capitalize ${
+              isSelected
+                ? "border-2 border-pink-400 text-pink-600 bg-pink-50"
+                : "border border-gray-200 text-gray-600 hover:border-gray-300"
+            }`,
       delayButton: (isSelected: boolean) =>
         isDark
-          ? `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${isSelected ? "bg-pink-500 text-white" : "text-white/40 hover:text-white/60"}`
-          : `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${isSelected ? "bg-pink-500 text-white" : "text-gray-400 hover:text-gray-600"}`,
+          ? `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
+              isSelected
+                ? "bg-pink-500 text-white"
+                : "text-white/40 hover:text-white/60"
+            }`
+          : `flex-1 p-2 rounded-xl text-nowrap text-xs md:text-sm font-normal md:font-medium transition-colors ${
+              isSelected
+                ? "bg-pink-500 text-white"
+                : "text-gray-400 hover:text-gray-600"
+            }`,
       crownIcon: "h-4 w-4 text-yellow-400",
       loadingContainer: "min-h-screen flex items-center justify-center",
       loadingSpinner: isDark
@@ -1162,11 +1213,26 @@ export default function CreateAutomationPage() {
         : "w-full py-2.5 border-2 border-dashed border-pink-200 rounded-xl text-sm text-pink-500 font-medium hover:bg-pink-50 transition-colors",
       emptyIcon: isDark ? "text-white/20" : "text-gray-300",
       emptyText: isDark ? "text-white/35" : "text-gray-500",
+      editBadge: isDark
+        ? "text-xs px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400"
+        : "text-xs px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-600",
+      lockedBadge: isDark
+        ? "text-xs px-2 py-1 rounded-full bg-gray-500/10 border border-gray-500/20 text-gray-400 flex items-center gap-1"
+        : "text-xs px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-500 flex items-center gap-1",
+      accountBannerText: isDark
+        ? "text-sm font-medium text-pink-400"
+        : "text-sm font-medium text-pink-600",
+      accountBannerName: isDark
+        ? "text-white font-semibold"
+        : "text-gray-900 font-semibold",
+      accountBannerStats: isDark
+        ? "text-xs text-white/40"
+        : "text-xs text-gray-500",
     }),
     [isDark],
   );
 
-  // ─── Fetch media ──────────────────────────────────────────────────────────
+  // ─── Fetch media for selected account ──────────────────────────────────────
 
   const fetchMedia = useCallback(
     async (accountId: string) => {
@@ -1189,9 +1255,6 @@ export default function CreateAutomationPage() {
   );
 
   // ─── Fetch template for edit mode ─────────────────────────────────────────
-  //
-  // ✅ Runs ONLY when editId is present. Populates every field from the
-  //    saved template so the user sees their existing config on open.
 
   const fetchTemplateForEdit = useCallback(async () => {
     if (!editId) return;
@@ -1199,6 +1262,9 @@ export default function CreateAutomationPage() {
     try {
       const response = await getInstaTemplateById(apiRequest, editId);
       const template = (response?.template || response) as TemplateData;
+
+      setOriginalAccountId(template.accountId);
+      setOriginalMediaId(template.mediaId);
 
       setForm({
         name: template.name || "",
@@ -1266,9 +1332,8 @@ export default function CreateAutomationPage() {
         priority: template.priority || 5,
       });
 
-      // If there was a media selection, load the account's media grid
       if (template.accountId && automationType !== "dms") {
-        fetchMedia(template.accountId);
+        await fetchMedia(template.accountId);
       }
     } catch (error) {
       console.error("Error loading template for edit:", error);
@@ -1282,59 +1347,37 @@ export default function CreateAutomationPage() {
     }
   }, [editId, apiRequest, automationType, fetchMedia]);
 
-  // ─── Fetch accounts ───────────────────────────────────────────────────────
+  // ─── Initialize with selected account from context ─────────────────────────
 
   useEffect(() => {
-    if (!userId || !isLoaded) return;
+    if (!userId || !isLoaded || isAccLoading) return;
 
-    const fetchAccounts = async () => {
-      setIsLoading(true);
-      try {
-        const data = await getAllInstagramAccounts(apiRequest);
-        let accountsList: any[] = [];
-        if (data?.accounts && Array.isArray(data.accounts))
-          accountsList = data.accounts;
-        else if (Array.isArray(data)) accountsList = data;
+    if (selectedAccount && !isEditMode) {
+      setForm((prev) => ({
+        ...prev,
+        accountUsername: selectedAccount.username,
+        accountId: selectedAccount.instagramId,
+      }));
 
-        const active = accountsList
-          .filter((item: any) => {
-            const acc = item.accountInfo || item;
-            return acc.isActive === true;
-          })
-          .map((item: any) => {
-            const acc = item.accountInfo || item;
-            const ig = item.instagramInfo || {};
-            return {
-              instagramId: acc.instagramId || ig.id || "",
-              username: ig.username || acc.username || "Unknown",
-              isActive: acc.isActive || false,
-              profilePicture: ig.profile_picture_url || acc.profilePicture,
-              followersCount: ig.followers_count || acc.followersCount || 0,
-              mediaCount: ig.media_count || acc.mediaCount || 0,
-            };
-          });
-
-        setAccounts(active);
-
-        // In create mode, auto-select first account and load its media
-        if (active.length > 0 && !isEditMode) {
-          const first = active[0];
-          setForm((prev) => ({
-            ...prev,
-            accountUsername: first.username,
-            accountId: first.instagramId,
-          }));
-          if (automationType !== "dms") fetchMedia(first.instagramId);
-        }
-      } catch (e) {
-        console.error("Error fetching accounts:", e);
-      } finally {
-        setIsLoading(false);
+      if (automationType !== "dms") {
+        fetchMedia(selectedAccount.instagramId);
       }
-    };
 
-    fetchAccounts();
-  }, [userId, isLoaded, apiRequest, automationType, isEditMode, fetchMedia]);
+      setIsLoading(false);
+    } else if (!selectedAccount && !isEditMode) {
+      setIsLoading(false);
+    } else if (isEditMode) {
+      setIsLoading(false);
+    }
+  }, [
+    userId,
+    isLoaded,
+    isAccLoading,
+    selectedAccount,
+    isEditMode,
+    automationType,
+    fetchMedia,
+  ]);
 
   // ─── Load template when in edit mode ─────────────────────────────────────
 
@@ -1344,31 +1387,7 @@ export default function CreateAutomationPage() {
     }
   }, [isEditMode, fetchTemplateForEdit]);
 
-  // ─── Reload media when account changes (create mode only) ─────────────────
-
-  useEffect(() => {
-    if (form.accountId && automationType !== "dms" && !isEditMode) {
-      fetchMedia(form.accountId);
-    }
-  }, [form.accountId, automationType, fetchMedia, isEditMode]);
-
   // ─── Handlers ─────────────────────────────────────────────────────────────
-
-  const handleAccountChange = useCallback(
-    (acc: AccountDataType) => {
-      setForm((prev) => ({
-        ...prev,
-        accountUsername: acc.username,
-        accountId: acc.instagramId,
-        mediaId: "",
-        mediaUrl: "",
-        mediaType: "",
-      }));
-      // When account changes in edit mode, reload media for new account
-      if (automationType !== "dms") fetchMedia(acc.instagramId);
-    },
-    [automationType, fetchMedia],
-  );
 
   const addKeyword = useCallback(() => {
     if (form.keywordInput.trim()) {
@@ -1469,6 +1488,19 @@ export default function CreateAutomationPage() {
       followUpMessages: f.followUpMessages.filter((_, idx) => idx !== i),
     }));
   }, []);
+
+  const handleMediaSelect = useCallback(
+    (item: MediaItem) => {
+      if (isEditMode) return;
+      setForm((f) => ({
+        ...f,
+        mediaId: item.id,
+        mediaUrl: item.media_url,
+        mediaType: item.media_type,
+      }));
+    },
+    [isEditMode],
+  );
 
   // ─── Save handler ──────────────────────────────────────────────────────────
 
@@ -1582,11 +1614,9 @@ export default function CreateAutomationPage() {
         };
 
         if (isEditMode && editId) {
-          // ✅ UPDATE — patch the existing template
           await updateTemplate(apiRequest, editId, payload);
           toast({ title: "Automation updated!", duration: 3000 });
         } else {
-          // ✅ CREATE — brand new template
           await createInstaTemplate(
             apiRequest,
             form.accountId,
@@ -1621,10 +1651,30 @@ export default function CreateAutomationPage() {
 
   // ─── Loading gate ─────────────────────────────────────────────────────────
 
-  if (!isLoaded || isLoading || isLoadingTemplate) {
+  if (!isLoaded || isAccLoading || isLoading || isLoadingTemplate) {
     return (
       <div className={pageStyles.loadingContainer}>
         <div className={pageStyles.loadingSpinner} />
+      </div>
+    );
+  }
+
+  // ─── No account selected message ──────────────────────────────────────────
+
+  if (!selectedAccount && !isEditMode) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            No Instagram account selected
+          </p>
+          <Button
+            onClick={() => router.push("/insta/accounts")}
+            className="bg-pink-500 hover:bg-pink-600 text-white"
+          >
+            Go to Accounts
+          </Button>
+        </div>
       </div>
     );
   }
@@ -1647,14 +1697,17 @@ export default function CreateAutomationPage() {
 
         {/* Right: Form */}
         <div className={pageStyles.rightContent}>
-          <div className={`${pageStyles.actionBar} flex-wrap`}>
-            {/* Edit mode indicator */}
+          <div className={`${pageStyles.actionBar} flex-wrap gap-3`}>
             {isEditMode && (
-              <span
-                className={`text-xs px-3 py-1.5 rounded-full ${isDark ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-blue-50 border border-blue-200 text-blue-600"}`}
-              >
-                ✏️ Editing existing automation
-              </span>
+              <>
+                <span className={pageStyles.editBadge}>
+                  ✏️ Editing existing automation
+                </span>
+                <span className={pageStyles.lockedBadge}>
+                  <Lock className="h-3 w-3" />
+                  Account & Media locked
+                </span>
+              </>
             )}
             <button
               onClick={() => handleSave(false)}
@@ -1688,29 +1741,37 @@ export default function CreateAutomationPage() {
               className={pageStyles.input}
             />
 
-            {/* Account selector */}
-            {accounts.length > 0 && (
-              <div className={pageStyles.card}>
-                <p
-                  className={`text-xs font-medium mb-3 ${isDark ? "text-white/40" : "text-gray-500"}`}
-                >
-                  Instagram Account
-                </p>
-                <div className={pageStyles.accountGrid}>
-                  {accounts.map((acc) => (
-                    <button
-                      key={acc.instagramId}
-                      onClick={() => handleAccountChange(acc)}
-                      className={pageStyles.accountButton(
-                        form.accountUsername === acc.username,
-                      )}
-                    >
-                      <div className={pageStyles.accountAvatar}>
-                        {acc.username[0].toUpperCase()}
-                      </div>
-                      @{acc.username}
-                    </button>
-                  ))}
+            {/* Account Info Banner (show selected account) */}
+            {selectedAccount && !isEditMode && (
+              <div className={pageStyles.accountInfoBanner}>
+                <div className="flex items-center gap-3">
+                  <div className={pageStyles.accountAvatar}>
+                    {selectedAccount.profilePicture ? (
+                      <Image
+                        src={selectedAccount.profilePicture}
+                        alt={selectedAccount.username}
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-full object-cover"
+                      />
+                    ) : (
+                      selectedAccount.username[0].toUpperCase()
+                    )}
+                  </div>
+                  <div>
+                    <p className={pageStyles.accountBannerText}>
+                      Creating automation for:
+                    </p>
+                    <p className={pageStyles.accountBannerName}>
+                      @{selectedAccount.username}
+                    </p>
+                    {selectedAccount.followersCount && (
+                      <p className={pageStyles.accountBannerStats}>
+                        {selectedAccount.followersCount.toLocaleString()}{" "}
+                        followers • {selectedAccount.mediaCount || 0} posts
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1725,6 +1786,12 @@ export default function CreateAutomationPage() {
                       ? "Select a Story"
                       : "Select Instagram Posts or Reel"}
                   </h3>
+                  {isEditMode && (
+                    <span className={pageStyles.lockedBadge}>
+                      <Lock className="h-3 w-3" />
+                      Locked
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between mb-4">
                   <span
@@ -1743,6 +1810,7 @@ export default function CreateAutomationPage() {
                         mediaId: v ? "" : f.mediaId,
                       }))
                     }
+                    disabled={isEditMode}
                     isDark={isDark}
                   />
                 </div>
@@ -1759,15 +1827,11 @@ export default function CreateAutomationPage() {
                             <div
                               key={item.id}
                               onClick={() =>
-                                setForm((f) => ({
-                                  ...f,
-                                  mediaId: item.id,
-                                  mediaUrl: item.media_url,
-                                  mediaType: item.media_type,
-                                }))
+                                !isEditMode && handleMediaSelect(item)
                               }
                               className={pageStyles.mediaItem(
                                 form.mediaId === item.id,
+                                isEditMode,
                               )}
                             >
                               <Image
@@ -1781,12 +1845,22 @@ export default function CreateAutomationPage() {
                                   ▶
                                 </div>
                               )}
+                              {isEditMode && form.mediaId === item.id && (
+                                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                  <span className="text-white text-xs font-medium">
+                                    Current
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ))}
                           {!showMoreMedia && media.length > 4 && (
                             <button
-                              onClick={() => setShowMoreMedia(true)}
+                              onClick={() =>
+                                !isEditMode && setShowMoreMedia(true)
+                              }
                               className={pageStyles.mediaLoadMore}
+                              disabled={isEditMode}
                             >
                               Next{" "}
                               {automationType === "stories" ? "Story" : "Post"}
@@ -1795,8 +1869,11 @@ export default function CreateAutomationPage() {
                         </div>
                         {!showMoreMedia && media.length > 4 && (
                           <button
-                            onClick={() => setShowMoreMedia(true)}
+                            onClick={() =>
+                              !isEditMode && setShowMoreMedia(true)
+                            }
                             className={pageStyles.showMoreButton}
+                            disabled={isEditMode}
                           >
                             Show More
                           </button>
@@ -1853,7 +1930,10 @@ export default function CreateAutomationPage() {
                       placeholder="Type & Hit ↵ Enter to add Keyword"
                       value={form.keywordInput}
                       onChange={(e) =>
-                        setForm((f) => ({ ...f, keywordInput: e.target.value }))
+                        setForm((f) => ({
+                          ...f,
+                          keywordInput: e.target.value,
+                        }))
                       }
                       onKeyDown={handleKeywordInput}
                       className={pageStyles.keywordField}

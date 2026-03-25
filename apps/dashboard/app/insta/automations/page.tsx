@@ -11,31 +11,20 @@ import {
   Clock,
   ArrowUpDown,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import {
   deleteTemplate,
-  getAllInstagramAccounts,
   getInstaTemplates,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
-
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // Types
-interface AccountDataType {
-  instagramId: string;
-  username: string;
-  isActive: boolean;
-  autoReplyEnabled?: boolean;
-  profilePicture?: string;
-}
-
 interface ContentItem {
   text: string;
   link: string;
@@ -135,17 +124,17 @@ export default function AutomationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [showSortMenu, setShowSortMenu] = useState(false);
-  const [accounts, setAccounts] = useState<AccountDataType[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(
     null,
   );
+  const { selectedAccount, isAccLoading, accounts, refreshAccounts } =
+    useInstaAccount();
   const [deletingTemplateName, setDeletingTemplateName] = useState<string>("");
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
   const loadMoreCountRef = useRef(0);
   const { userId, isLoaded } = useAuth();
-  const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
 
   const { styles, isDark } = useThemeStyles();
@@ -264,61 +253,27 @@ export default function AutomationsPage() {
       badgeGray: isDark
         ? "bg-gray-500/10 border border-gray-500/20 text-gray-400"
         : "bg-gray-100 text-gray-500 border-gray-200",
+      accountBanner: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 mb-4 flex items-center justify-between"
+        : "bg-gray-50 border border-gray-100 rounded-xl p-3 mb-4 flex items-center justify-between",
+      accountName: isDark
+        ? "font-medium text-white"
+        : "font-medium text-gray-800",
+      accountStats: isDark ? "text-xs text-white/40" : "text-xs text-gray-400",
+      refreshButton: isDark
+        ? "text-xs text-pink-400 hover:text-pink-300 transition-colors"
+        : "text-xs text-pink-500 hover:text-pink-600 transition-colors",
     };
   }, [isDark]);
 
-  // Fetch accounts
-  useEffect(() => {
-    if (!isLoaded || !userId) return;
-
-    const fetchAccounts = async () => {
-      try {
-        const data = await getAllInstagramAccounts(apiRequest);
-
-        let accountsList: any[] = [];
-
-        // Handle different response structures
-        if (data?.accounts && Array.isArray(data.accounts)) {
-          accountsList = data.accounts;
-        } else if (data?.accounts && Array.isArray(data.accounts)) {
-          accountsList = data.accounts;
-        } else if (Array.isArray(data)) {
-          accountsList = data;
-        }
-
-        const formattedAccounts = accountsList
-          .filter((item: any) => {
-            const accountInfo = item.accountInfo || item;
-            return accountInfo.isActive === true;
-          })
-          .map((item: any) => {
-            const accountInfo = item.accountInfo || item;
-            const instagramInfo = item.instagramInfo || {};
-
-            return {
-              instagramId: accountInfo.instagramId || instagramInfo.id || "",
-              username:
-                instagramInfo.username || accountInfo.username || "Unknown",
-              isActive: accountInfo.isActive || false,
-              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-              profilePicture:
-                instagramInfo.profile_picture_url || accountInfo.profilePicture,
-            };
-          });
-
-        setAccounts(formattedAccounts);
-      } catch (error) {
-        console.error("Error fetching accounts:", error);
-      }
-    };
-
-    fetchAccounts();
-  }, [userId, isLoaded, apiRequest]);
-
-  // Fetch templates
+  // Fetch templates - only when selectedAccount is available
   const fetchTemplates = useCallback(
     async (reset = false) => {
-      if (!userId) return;
+      // Don't fetch if no userId or no selected account
+      if (!userId || !selectedAccount?.instagramId) {
+        console.log("Waiting for account selection...");
+        return;
+      }
 
       if (reset) {
         loadMoreCountRef.current = 0;
@@ -326,8 +281,12 @@ export default function AutomationsPage() {
 
       setIsLoading(true);
       try {
+        console.log(
+          "Fetching templates for account:",
+          selectedAccount?.instagramId,
+        );
         const response = (await getInstaTemplates(apiRequest, {
-          filterAccount: "all",
+          accountId: selectedAccount?.instagramId,
           filterStatus: "all",
           loadMoreCount: loadMoreCountRef.current,
         })) as TemplatesResponse;
@@ -392,17 +351,52 @@ export default function AutomationsPage() {
         setIsLoading(false);
       }
     },
-    [userId, apiRequest],
+    [userId, apiRequest, selectedAccount?.instagramId],
   );
 
+  // Initial load: Wait for accounts to load and then fetch templates
   useEffect(() => {
-    if (userId) {
+    if (!userId || !isLoaded) return;
+
+    // Wait until accounts are loaded and we have a selected account
+    if (!isAccLoading && selectedAccount?.instagramId && !hasLoadedInitial) {
+      console.log("Initial load - account ready:", selectedAccount.instagramId);
+      setHasLoadedInitial(true);
       fetchTemplates(true);
     }
-  }, [userId, fetchTemplates]);
+  }, [
+    userId,
+    isLoaded,
+    isAccLoading,
+    selectedAccount,
+    hasLoadedInitial,
+    fetchTemplates,
+  ]);
+
+  // Refresh when selected account changes (but not on initial load)
+  useEffect(() => {
+    if (hasLoadedInitial && selectedAccount?.instagramId && !isAccLoading) {
+      console.log(
+        "Account changed, refreshing templates for:",
+        selectedAccount.instagramId,
+      );
+      fetchTemplates(true);
+    }
+  }, [
+    selectedAccount?.instagramId,
+    isAccLoading,
+    hasLoadedInitial,
+    fetchTemplates,
+  ]);
 
   const loadMore = useCallback(async () => {
-    if (!userId || !hasMoreTemplates || isLoadingMore) return;
+    if (
+      !userId ||
+      !hasMoreTemplates ||
+      isLoadingMore ||
+      !selectedAccount?.instagramId
+    )
+      return;
 
     setIsLoadingMore(true);
     loadMoreCountRef.current += 1;
@@ -412,7 +406,13 @@ export default function AutomationsPage() {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userId, hasMoreTemplates, isLoadingMore, fetchTemplates]);
+  }, [
+    userId,
+    hasMoreTemplates,
+    isLoadingMore,
+    selectedAccount?.instagramId,
+    fetchTemplates,
+  ]);
 
   const handleToggle = useCallback(
     async (templateId: string) => {
@@ -517,7 +517,41 @@ export default function AutomationsPage() {
     return AUTOMATION_ICONS[t.automationType] || "💬";
   }, []);
 
-  if (!isLoaded || isLoading) {
+  // Show loading while accounts are being loaded
+  if (!isLoaded || isAccLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div
+          className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${
+            isDark ? "border-pink-400" : "border-pink-500"
+          }`}
+        />
+      </div>
+    );
+  }
+
+  // Show message if no account is selected
+  if (!selectedAccount) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 dark:text-gray-400 mb-4">
+            No Instagram account connected
+          </p>
+          <Link
+            href="/insta/accounts/add"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            <Plus className="h-4 w-4" />
+            Connect Instagram Account
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state while fetching templates
+  if (isLoading && templates.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div
@@ -595,6 +629,12 @@ export default function AutomationsPage() {
             <Plus className="h-4 w-4" />
             Add Automation
           </Link>
+          <button
+            onClick={() => refreshAccounts()}
+            className={pageStyles.addButton}
+          >
+            Refresh
+          </button>
         </div>
 
         <p className={pageStyles.countText}>
@@ -640,8 +680,8 @@ export default function AutomationsPage() {
               key={template._id}
               className={`${pageStyles.automationCard} flex-wrap`}
             >
-              <div className="flex flex-wrap flex-row  items-center gap-4 w-full">
-                <div className={`${pageStyles.automationMedia}`}>
+              <div className="flex flex-wrap flex-row items-center gap-4 w-full">
+                <div className={pageStyles.automationMedia}>
                   {template.mediaUrl ? (
                     <Image
                       src={template.mediaUrl}

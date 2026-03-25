@@ -28,10 +28,10 @@ import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { getUserById } from "@/lib/services/user-actions.api";
-import { getInstaAccount } from "@/lib/services/insta-actions.api";
 import LoginPage from "@/components/insta/InstagramAutomationWizard";
 
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 export default function AddAccountPage() {
   const { userId, isLoaded } = useAuth();
@@ -39,6 +39,13 @@ export default function AddAccountPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+
+  // Use context to get accounts and refresh function
+  const {
+    accounts: contextAccounts,
+    isAccLoading,
+    refreshAccounts,
+  } = useInstaAccount();
 
   const [accountLimit, setAccountLimit] = useState(1);
   const [totalAccounts, setTotalAccounts] = useState(0);
@@ -89,8 +96,9 @@ export default function AddAccountPage() {
     };
   }, [isDark]);
 
+  // Fetch user data and account limit
   useEffect(() => {
-    async function fetchData() {
+    async function fetchUserData() {
       if (!userId) {
         router.push("/sign-in");
         return;
@@ -105,20 +113,24 @@ export default function AddAccountPage() {
         }
 
         setAccountLimit(user.accountLimit || 1);
-
-        const accountsResponse = await getInstaAccount(apiRequest);
-        setTotalAccounts(accountsResponse.accounts?.length || 0);
       } catch (error: any) {
-        console.error("Error fetching data:", error.message);
+        console.error("Error fetching user data:", error.message);
       } finally {
         setIsLoading(false);
       }
     }
 
     if (isLoaded && userId) {
-      fetchData();
+      fetchUserData();
     }
   }, [userId, router, isLoaded, apiRequest]);
+
+  // Update total accounts from context
+  useEffect(() => {
+    if (contextAccounts && !isAccLoading) {
+      setTotalAccounts(contextAccounts.length);
+    }
+  }, [contextAccounts, isAccLoading]);
 
   const handleConnectClick = () => {
     if (totalAccounts >= accountLimit) {
@@ -128,7 +140,7 @@ export default function AddAccountPage() {
     }
   };
 
-  if (!isLoaded || isLoading) {
+  if (!isLoaded || isLoading || isAccLoading) {
     return <Spinner label="Loading..." />;
   }
 
@@ -202,6 +214,17 @@ export default function AddAccountPage() {
                 <Link href="/insta/accounts">Cancel</Link>
               </Button>
             </div>
+
+            {/* Account limit info */}
+            {totalAccounts > 0 && (
+              <div className="mt-4 text-center">
+                <p
+                  className={`text-xs ${isDark ? "text-white/40" : "text-gray-500"}`}
+                >
+                  You have {totalAccounts} of {accountLimit} accounts connected
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

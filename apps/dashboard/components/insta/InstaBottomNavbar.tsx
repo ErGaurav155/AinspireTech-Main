@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import {
   LayoutDashboard,
@@ -10,140 +10,162 @@ import {
   Settings,
   Plus,
   Crown,
+  Check,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useApi } from "@/lib/useApi";
-import {
-  getSubscriptioninfo,
-  getAllInstagramAccounts,
-} from "@/lib/services/insta-actions.api";
+import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
 import { Button, useThemeStyles } from "@rocketreplai/ui";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const BOTTOM_NAV_ITEMS = [
-  {
-    label: "Home",
-    href: "/insta",
-    icon: LayoutDashboard,
-  },
-  {
-    label: "Auto",
-    href: "/insta/automations",
-    icon: MessageSquare,
-  },
-  {
-    label: "Accounts",
-    href: "/insta/accounts",
-    icon: Users,
-  },
-  {
-    label: "Settings",
-    href: "/insta/settings",
-    icon: Settings,
-  },
+  { label: "Home", href: "/insta", icon: LayoutDashboard },
+  { label: "Auto", href: "/insta/automations", icon: MessageSquare },
+  { label: "Accounts", href: "/insta/accounts", icon: Users },
+  { label: "Settings", href: "/insta/settings", icon: Settings },
 ] as const;
 
-interface InstagramAccount {
-  _id?: string;
-  instagramId?: string;
-  username?: string;
-  name?: string;
-  profilePicture?: string;
-  [key: string]: any;
-}
+// ─── Component ────────────────────────────────────────────────────────────────
 
 export default function InstaBottomNavbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
+  // ✅ All account data from context
+  const { accounts, selectedAccount, selectAccount } = useInstaAccount();
+
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [accountLimit, setAccountLimit] = useState(1);
 
-  // Local styles using the central theme
+  // ── Fetch subscription only ───────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!userId) return;
+    const fetch = async () => {
+      try {
+        const result = await getSubscriptioninfo(apiRequest);
+        const subscribed =
+          result.subscriptions && result.subscriptions.length > 0;
+        setIsSubscribed(subscribed);
+        setAccountLimit(subscribed ? 3 : 1);
+      } catch {
+        // silent
+      }
+    };
+    fetch();
+  }, [userId, apiRequest]);
+
+  // ── Active check ──────────────────────────────────────────────────────────
+
+  const isActive = useCallback(
+    (href: string) =>
+      pathname === href || (href !== "/insta" && pathname.startsWith(href)),
+    [pathname],
+  );
+
+  // ── Close popup on outside click ──────────────────────────────────────────
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setAccountMenuOpen(false);
+      }
+    };
+    if (accountMenuOpen) {
+      document.addEventListener("mousedown", handler);
+    }
+    return () => document.removeEventListener("mousedown", handler);
+  }, [accountMenuOpen]);
+
+  // ── Styles ────────────────────────────────────────────────────────────────
+
   const localStyles = useMemo(
     () => ({
       nav: isDark
         ? "fixed bottom-0 left-0 right-0 z-40 md:hidden glass-nav border-t border-white/[0.06] shadow-[0_-4px_20px_rgba(0,0,0,0.3)]"
         : "fixed bottom-0 left-0 right-0 z-40 md:hidden bg-white border-t border-gray-100 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]",
       menuPopup: isDark
-        ? "fixed bottom-[72px] right-3 z-50 glass-card border border-white/[0.08] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden w-56 md:hidden"
-        : "fixed bottom-[72px] right-3 z-50 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden w-56 md:hidden",
-      menuItem: `flex items-center gap-3 px-4 py-3.5 border-b ${styles.divider} ${styles.rowHover} text-sm ${styles.text.primary}`,
-      menuItemLast: `flex items-center gap-3 px-4 py-3.5 ${styles.rowHover} text-sm ${styles.text.primary}`,
-      menuDivider: isDark
-        ? "border-t border-white/[0.06]"
-        : "border-t border-gray-100",
-
-      // Account row
-      accountRow: `flex items-center gap-3 px-4 py-3.5 border-b ${styles.divider}`,
-      accountAvatar: `w-9 h-9 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm ${isDark ? "opacity-90" : ""}`,
+        ? "fixed bottom-[72px] right-3 z-50 glass-card border border-white/[0.08] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] overflow-hidden w-60 md:hidden"
+        : "fixed bottom-[72px] right-3 z-50 bg-white rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.12)] border border-gray-100 overflow-hidden w-60 md:hidden",
+      menuItem: `flex items-center gap-3 px-4 py-3 border-b ${styles.divider} ${styles.rowHover} text-sm ${styles.text.primary} w-full text-left`,
+      menuItemLast: `flex items-center gap-3 px-4 py-3 ${styles.rowHover} text-sm ${styles.text.primary} w-full text-left`,
+      // ✅ highlight selected account
+      menuItemSelected: isDark
+        ? "bg-pink-500/10 border-l-2 border-pink-500"
+        : "bg-pink-50 border-l-2 border-pink-500",
+      accountRow: `flex items-center gap-3 px-4 py-3 border-b ${styles.divider}`,
+      accountAvatar: `w-9 h-9 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0 shadow-sm overflow-hidden`,
       accountName: `text-sm font-semibold truncate ${styles.text.primary}`,
       accountHandle: `text-xs truncate ${styles.text.muted}`,
-
-      // Account limit indicator
-      limitIndicator: `px-4 py-2 border-b ${styles.divider} ${styles.innerCard}`,
+      limitIndicator: `px-4 py-2 border-b ${styles.divider} ${isDark ? "bg-white/[0.03]" : "bg-gray-50"}`,
       limitText: `text-xs ${styles.text.muted}`,
-
-      // Upgrade prompt
-      upgradePrompt: `px-4 py-3 border-t ${styles.divider} ${styles.icon.pink}`,
+      upgradePrompt: `px-4 py-3 border-t ${styles.divider} ${isDark ? "bg-pink-500/10" : "bg-pink-50"}`,
       upgradeTitle: `text-xs ${styles.text.primary} font-medium mb-1`,
-      upgradeDesc: `text-xs ${styles.text.secondary}`,
-      upgradeButton: `w-full ${styles.button.primary} rounded-lg text-xs h-7`,
-
-      // Nav items
-      navItem: (isActive: boolean) =>
-        `flex flex-col items-center justify-center gap-1 flex-1 py-2 relative group`,
-      navItemBg: (isActive: boolean) =>
-        isDark
-          ? `absolute inset-x-2 top-1 bottom-1 rounded-xl ${isActive ? "bg-pink-500/10" : ""}`
-          : `absolute inset-x-2 top-1 bottom-1 rounded-xl ${isActive ? "bg-pink-50" : ""}`,
-      navIcon: (isActive: boolean) =>
-        isDark
-          ? `h-5 w-5 transition-colors duration-150 ${isActive ? "text-pink-400" : "text-white/40 group-hover:text-white/60"}`
-          : `h-5 w-5 transition-colors duration-150 ${isActive ? "text-pink-500" : "text-gray-400 group-hover:text-gray-600"}`,
-      navLabel: (isActive: boolean) =>
-        isDark
-          ? `relative text-[10px] font-semibold transition-colors duration-150 ${isActive ? "text-pink-400" : "text-white/40"}`
-          : `relative text-[10px] font-semibold transition-colors duration-150 ${isActive ? "text-pink-500" : "text-gray-400"}`,
-      navActiveDot: isDark
-        ? "absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-pink-400 rounded-full"
-        : "absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-pink-500 rounded-full",
-
-      // Account button
-      accountButton: (isOpen: boolean) =>
-        `flex flex-col items-center justify-center gap-1 flex-1 py-2 relative group`,
-      accountBg: (isOpen: boolean) =>
-        isDark
-          ? `absolute inset-x-2 top-1 bottom-1 rounded-xl ${isOpen ? "bg-pink-500/10" : ""}`
-          : `absolute inset-x-2 top-1 bottom-1 rounded-xl ${isOpen ? "bg-pink-50" : ""}`,
-      accountAvatarIcon: (hasAccount: boolean) =>
-        isDark
-          ? hasAccount
-            ? "h-6 w-6 rounded-full object-cover ring-2 ring-pink-300"
-            : "flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed border-white/30 bg-white/[0.03] text-white/40 group-hover:border-pink-400 group-hover:text-pink-400 transition-colors"
-          : hasAccount
-            ? "h-6 w-6 rounded-full object-cover ring-2 ring-pink-300"
-            : "flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed border-gray-300 bg-gray-50 text-gray-400 group-hover:border-pink-400 group-hover:text-pink-400 transition-colors",
-      accountInitial: (hasAccount: boolean) =>
-        isDark
-          ? `flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-bold ring-2 ring-pink-200 shadow-sm`
-          : `flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-bold ring-2 ring-pink-200 shadow-sm`,
-      accountLabel: (isOpen: boolean) =>
-        isDark
-          ? `relative text-[10px] font-semibold transition-colors duration-150 ${isOpen ? "text-pink-400" : "text-white/40"}`
-          : `relative text-[10px] font-semibold transition-colors duration-150 ${isOpen ? "text-pink-500" : "text-gray-400"}`,
-
-      // Icons
-      addIcon: `w-7 h-7 rounded-full ${styles.icon.pink} flex items-center justify-center`,
+      upgradeDesc: `text-xs ${styles.text.secondary} mb-2`,
+      addIcon: `w-7 h-7 rounded-full ${styles.icon.pink} flex items-center justify-center flex-shrink-0`,
       addIconColor: isDark ? "text-pink-400" : "text-pink-500",
-      manageIcon: `w-7 h-7 rounded-full ${styles.icon.purple} flex items-center justify-center`,
+      manageIcon: `w-7 h-7 rounded-full ${styles.icon.purple} flex items-center justify-center flex-shrink-0`,
       manageIconColor: isDark ? "text-purple-400" : "text-purple-500",
-
+      navItem: `flex flex-col items-center justify-center gap-1 flex-1 py-2 relative group`,
+      navItemBg: (active: boolean) =>
+        `absolute inset-x-2 top-1 bottom-1 rounded-xl ${
+          active ? (isDark ? "bg-pink-500/10" : "bg-pink-50") : ""
+        }`,
+      navIcon: (active: boolean) =>
+        isDark
+          ? `h-5 w-5 transition-colors duration-150 ${
+              active
+                ? "text-pink-400"
+                : "text-white/40 group-hover:text-white/60"
+            }`
+          : `h-5 w-5 transition-colors duration-150 ${
+              active
+                ? "text-pink-500"
+                : "text-gray-400 group-hover:text-gray-600"
+            }`,
+      navLabel: (active: boolean) =>
+        `relative text-[10px] font-semibold transition-colors duration-150 ${
+          isDark
+            ? active
+              ? "text-pink-400"
+              : "text-white/40"
+            : active
+              ? "text-pink-500"
+              : "text-gray-400"
+        }`,
+      navActiveDot: `absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${
+        isDark ? "bg-pink-400" : "bg-pink-500"
+      }`,
+      accountButton: `flex flex-col items-center justify-center gap-1 flex-1 py-2 relative group`,
+      accountBg: (open: boolean) =>
+        `absolute inset-x-2 top-1 bottom-1 rounded-xl ${
+          open ? (isDark ? "bg-pink-500/10" : "bg-pink-50") : ""
+        }`,
+      accountAvatarSmall: `h-6 w-6 rounded-full object-cover ring-2 ring-pink-300`,
+      accountInitialSmall: `flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-rose-500 text-white text-[10px] font-bold ring-2 ring-pink-200 shadow-sm`,
+      accountPlaceholder: `flex h-6 w-6 items-center justify-center rounded-full border-2 border-dashed ${
+        isDark
+          ? "border-white/30 text-white/40"
+          : "border-gray-300 text-gray-400"
+      } group-hover:border-pink-400 group-hover:text-pink-400 transition-colors`,
+      accountLabel: (open: boolean) =>
+        `relative text-[10px] font-semibold transition-colors duration-150 ${
+          isDark
+            ? open
+              ? "text-pink-400"
+              : "text-white/40"
+            : open
+              ? "text-pink-500"
+              : "text-gray-400"
+        }`,
       safeArea: isDark
         ? "h-safe-area-inset-bottom bg-[#0a0a16]"
         : "h-safe-area-inset-bottom bg-white",
@@ -151,167 +173,109 @@ export default function InstaBottomNavbar() {
     [isDark, styles],
   );
 
-  // Fetch subscription status and accounts
-  const fetchData = useCallback(async () => {
-    if (!userId) return;
-    try {
-      const [subscriptionResult, accountsResult] = await Promise.all([
-        getSubscriptioninfo(apiRequest),
-        getAllInstagramAccounts(apiRequest),
-      ]);
-
-      const subscribed =
-        subscriptionResult.subscriptions &&
-        subscriptionResult.subscriptions.length > 0;
-      setIsSubscribed(subscribed);
-      setAccountLimit(subscribed ? 3 : 1);
-
-      // Handle different response structures for accounts
-      let accountsList: InstagramAccount[] = [];
-      if (accountsResult?.accounts && Array.isArray(accountsResult.accounts)) {
-        accountsList = accountsResult.accounts.map((item: any) => {
-          return item.accountInfo || item;
-        });
-      } else if (Array.isArray(accountsResult)) {
-        accountsList = accountsResult;
-      }
-      setAccounts(accountsList);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  }, [userId, apiRequest]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  // Derive primary account info from fetched accounts
-  const primaryAccount = accounts[0] ?? null;
-  const accountName =
-    primaryAccount?.name ?? primaryAccount?.username ?? undefined;
-  const accountHandle = primaryAccount?.username ?? undefined;
-  const accountAvatarUrl = primaryAccount?.profilePicture ?? undefined;
-
-  const isActive = useCallback(
-    (href: string) => {
-      return (
-        pathname === href || (href !== "/insta" && pathname.startsWith(href))
-      );
-    },
-    [pathname],
-  );
-
-  // Close menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setAccountMenuOpen(false);
-      }
-    };
-    if (accountMenuOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [accountMenuOpen]);
-
-  const hasAccount = !!accountName;
-  const initial = accountName ? accountName[0].toUpperCase() : null;
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <>
-      {/* Account popup — appears above the nav bar */}
+      {/* Account popup */}
       {accountMenuOpen && (
         <div
           ref={menuRef}
           className={`${localStyles.menuPopup} backdrop-blur-lg`}
         >
-          {/* Current connected account row */}
-          {hasAccount && (
-            <div key="current-account" className={localStyles.accountRow}>
-              {accountAvatarUrl ? (
-                <Image
-                  src={accountAvatarUrl}
-                  alt={accountName!}
-                  height={36}
-                  width={36}
-                  className="w-9 h-9 rounded-full object-cover flex-shrink-0"
-                />
-              ) : (
-                <div className={localStyles.accountAvatar}>{initial}</div>
-              )}
-              <div className="min-w-0">
-                <p className={localStyles.accountName}>{accountName}</p>
-                <p className={localStyles.accountHandle}>@{accountHandle}</p>
+          {/* Header — currently selected account */}
+          {selectedAccount && (
+            <div className={localStyles.accountRow}>
+              <div className={localStyles.accountAvatar}>
+                {selectedAccount.profilePicture ? (
+                  <Image
+                    src={selectedAccount.profilePicture}
+                    alt={selectedAccount.username}
+                    width={36}
+                    height={36}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span>{selectedAccount.username[0]?.toUpperCase()}</span>
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className={localStyles.accountName}>
+                  @{selectedAccount.username}
+                </p>
+                <p className={localStyles.accountHandle}>
+                  {selectedAccount.followersCount.toLocaleString()} followers
+                </p>
               </div>
               {isSubscribed && (
-                <Button
-                  asChild
-                  className={`
-              text-sm font-semibold rounded-md p-1
-              transition-all duration-300
-              ${
-                isDark
-                  ? `
-               text-orange-300
-                shadow-[0_0_10px_rgba(210, 138, 29, 0.4)]
-                 `
-                  : `
-                 text-orange-700
-        
-                 shadow-sm
-               `
-              }
-             `}
-                >
-                  <span className="flex items-center gap-1">
-                    <Crown className="w-4 h-4 text-orange-400 animate-pulse" />
-                    Pro
-                  </span>
-                </Button>
+                <span className="flex items-center gap-1 text-xs font-bold text-orange-400 flex-shrink-0">
+                  <Crown className="w-3.5 h-3.5 animate-pulse" />
+                  Pro
+                </span>
               )}
             </div>
           )}
 
-          {/* Account limit indicator */}
-          <div key="account-limit" className={localStyles.limitIndicator}>
+          {/* Account count */}
+          <div className={localStyles.limitIndicator}>
             <p className={localStyles.limitText}>
               {accounts.length} / {accountLimit} accounts used
             </p>
           </div>
 
-          {/* All accounts list - FIXED: Added unique keys */}
-          {accounts.map((acc, index) => {
-            // Generate a unique key from _id, instagramId, or index as last resort
-            const accountKey = acc._id || acc.instagramId || `account-${index}`;
+          {/* ✅ All accounts — tap to select */}
+          {accounts.map((acc) => {
+            const isSelected = acc.instagramId === selectedAccount?.instagramId;
             return (
-              <div
-                key={accountKey}
-                className={
-                  index === accounts.length - 1
-                    ? localStyles.menuItemLast
-                    : localStyles.menuItem
-                }
+              <button
+                key={acc.instagramId}
+                onClick={() => {
+                  selectAccount(acc.instagramId);
+                  setAccountMenuOpen(false);
+                }}
+                className={`${localStyles.menuItem} ${isSelected ? localStyles.menuItemSelected : ""}`}
               >
-                <div className={localStyles.accountAvatar}>
-                  {(acc.name || acc.username || "?")[0].toUpperCase()}
-                </div>
-                <span
-                  className={
-                    isDark
-                      ? "text-sm text-white/70 truncate"
-                      : "text-sm text-gray-700 truncate"
-                  }
+                <div
+                  className={localStyles.accountAvatar}
+                  style={{ width: 28, height: 28, fontSize: 11 }}
                 >
-                  @{acc.username || acc.name || "account"}
-                </span>
-              </div>
+                  {acc.profilePicture ? (
+                    <Image
+                      src={acc.profilePicture}
+                      alt={acc.username}
+                      width={28}
+                      height={28}
+                      className="w-full h-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <span>{acc.username[0]?.toUpperCase()}</span>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0 text-left">
+                  <p
+                    className={`text-sm font-medium truncate ${isDark ? "text-white/80" : "text-gray-700"}`}
+                  >
+                    @{acc.username}
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`w-1.5 h-1.5 rounded-full ${acc.isActive ? "bg-green-400" : "bg-gray-400"}`}
+                    />
+                    <p className={`text-xs ${styles.text.muted}`}>
+                      {acc.isActive ? "Active" : "Inactive"}
+                    </p>
+                  </div>
+                </div>
+                {isSelected && (
+                  <Check className="h-4 w-4 text-pink-400 flex-shrink-0" />
+                )}
+              </button>
             );
           })}
 
           {/* Add account — only if below limit */}
           {accounts.length < accountLimit && (
             <Link
-              key="add-account-link"
               href="/insta/accounts/add"
               onClick={() => setAccountMenuOpen(false)}
               className={localStyles.menuItem}
@@ -324,15 +288,14 @@ export default function InstaBottomNavbar() {
                   isDark ? "text-sm text-white/70" : "text-sm text-gray-700"
                 }
               >
-                Add Account
+                Connect new account
               </span>
             </Link>
           )}
 
-          {/* Manage accounts — only if one exists */}
-          {hasAccount && (
+          {/* Manage accounts */}
+          {accounts.length > 0 && (
             <Link
-              key="manage-accounts-link"
               href="/insta/accounts"
               onClick={() => setAccountMenuOpen(false)}
               className={localStyles.menuItemLast}
@@ -354,30 +317,41 @@ export default function InstaBottomNavbar() {
 
           {/* Upgrade prompt if at limit and not subscribed */}
           {accounts.length >= accountLimit && !isSubscribed && (
-            <div key="upgrade-prompt" className={localStyles.upgradePrompt}>
+            <div className={localStyles.upgradePrompt}>
               <p className={localStyles.upgradeTitle}>Account limit reached</p>
               <p className={localStyles.upgradeDesc}>
                 Upgrade to Pro for up to 3 accounts.
               </p>
+              <Button
+                onClick={() => {
+                  router.push("/insta/pricing");
+                  setAccountMenuOpen(false);
+                }}
+                size="sm"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg text-xs h-7"
+              >
+                <Crown className="h-3 w-3 mr-1" />
+                Upgrade to Pro
+              </Button>
             </div>
           )}
         </div>
       )}
 
-      {/* Nav bar */}
+      {/* Bottom nav bar */}
       <nav className={`${localStyles.nav} backdrop-blur-lg`}>
-        <div className="flex items-center justify-around h-16 px-2 ">
+        <div className="flex items-center justify-around h-16 px-2">
           {/* Regular nav links */}
           {BOTTOM_NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
               <Link
-                key={item.href} // FIXED: Use href as unique key
+                key={item.href}
                 href={item.href}
-                className={localStyles.navItem(active)}
+                className={localStyles.navItem}
               >
-                {active && <span className={localStyles.navItemBg(active)} />}
+                <span className={localStyles.navItemBg(active)} />
                 <span className="relative">
                   <Icon className={localStyles.navIcon(active)} />
                   {active && <span className={localStyles.navActiveDot} />}
@@ -389,48 +363,43 @@ export default function InstaBottomNavbar() {
             );
           })}
 
-          {/* Account button — 5th slot */}
+          {/* Account switcher button — 5th slot */}
           <button
-            key="account-button"
             onClick={() => setAccountMenuOpen((prev) => !prev)}
-            className={localStyles.accountButton(accountMenuOpen)}
+            className={localStyles.accountButton}
           >
-            {/* Active background when menu open */}
             {accountMenuOpen && (
               <span className={localStyles.accountBg(accountMenuOpen)} />
             )}
 
             <span className="relative">
-              {hasAccount ? (
-                // Show avatar / initial if account is connected
-                accountAvatarUrl ? (
+              {selectedAccount ? (
+                selectedAccount.profilePicture ? (
                   <Image
-                    src={accountAvatarUrl}
-                    alt={accountName!}
-                    height={24}
+                    src={selectedAccount.profilePicture}
+                    alt={selectedAccount.username}
                     width={24}
-                    className={localStyles.accountAvatarIcon(true)}
+                    height={24}
+                    className={localStyles.accountAvatarSmall}
                   />
                 ) : (
-                  <span className={localStyles.accountInitial(true)}>
-                    {initial}
+                  <span className={localStyles.accountInitialSmall}>
+                    {selectedAccount.username[0]?.toUpperCase()}
                   </span>
                 )
               ) : (
-                // No account — show dashed add circle
-                <span className={localStyles.accountAvatarIcon(false)}>
+                <span className={localStyles.accountPlaceholder}>
                   <Plus className="h-3.5 w-3.5" />
                 </span>
               )}
             </span>
 
             <span className={localStyles.accountLabel(accountMenuOpen)}>
-              {hasAccount ? "Account" : "Add"}
+              {selectedAccount ? "Account" : "Add"}
             </span>
           </button>
         </div>
 
-        {/* Safe area for iPhone home indicator */}
         <div className={localStyles.safeArea} />
       </nav>
     </>

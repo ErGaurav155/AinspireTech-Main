@@ -13,9 +13,9 @@ import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 import {
-  getAllInstagramAccounts,
   deleteInstaAccount,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
@@ -54,58 +54,7 @@ interface SettingsState {
   trackDmUrlEnabled: boolean;
 }
 
-interface InstagramAccountResponse {
-  success?: boolean;
-  accounts?: Array<{
-    success: boolean;
-    accountInfo: {
-      _id: string;
-      instagramId: string;
-      userId: string;
-      username: string;
-      profilePicture?: string;
-      followersCount: number;
-      followingCount: number;
-      mediaCount: number;
-      isActive: boolean;
-      autoReplyEnabled: boolean;
-      autoDMEnabled: boolean;
-      followCheckEnabled: boolean;
-      requireFollowForFreeUsers: boolean;
-      metaCallsThisHour: number;
-      isMetaRateLimited: boolean;
-      tokenExpiresAt?: string;
-      createdAt: string;
-      updatedAt: string;
-      templatesCount: number;
-      storyAutomationsEnabled?: boolean;
-      trackDmUrlEnabled?: boolean;
-    };
-    instagramInfo: {
-      account_type: string;
-      followers_count: number;
-      follows_count: number;
-      id: string;
-      media_count: number;
-      username: string;
-      profile_picture_url?: string;
-    };
-    rateLimitInfo: {
-      isMetaRateLimited: boolean;
-      metaCallsRemaining: number;
-      metaCallsUsed: number;
-    };
-  }>;
-  data?: {
-    accounts?: any[];
-  };
-  timestamp?: string;
-}
-
 // ─── Helper: extract settings from a raw accountInfo object ──────────────────
-//
-// Using explicit checks (`=== true` / `=== false`) instead of `??` so we
-// never silently fall through to a default when the field exists but is false.
 
 function extractSettings(accountInfo: any): SettingsState {
   return {
@@ -117,7 +66,7 @@ function extractSettings(accountInfo: any): SettingsState {
         : true,
     storyAutomationsEnabled:
       typeof accountInfo.storyAutomationsEnabled === "boolean"
-        ? accountInfo.storyAutomationsEnabled // ✅ honours false from DB
+        ? accountInfo.storyAutomationsEnabled
         : true,
     autoDMEnabled:
       typeof accountInfo.autoDMEnabled === "boolean"
@@ -133,8 +82,56 @@ function extractSettings(accountInfo: any): SettingsState {
         : false,
     trackDmUrlEnabled:
       typeof accountInfo.trackDmUrlEnabled === "boolean"
-        ? accountInfo.trackDmUrlEnabled // ✅ honours false from DB
+        ? accountInfo.trackDmUrlEnabled
         : true,
+  };
+}
+
+// ─── Helper: map account from context to AccountDataType ─────────────────────
+
+function mapAccountToDataType(account: any): AccountDataType | null {
+  if (!account) return null;
+
+  return {
+    instagramId: account.instagramId,
+    username: account.username,
+    isActive: account.isActive ?? true,
+    profilePicture: account.profilePicture,
+    followersCount: account.followersCount,
+    followingCount: account.followingCount,
+    mediaCount: account.mediaCount,
+    accountType: account.accountType,
+    tokenExpiresAt: account.tokenExpiresAt
+      ? new Date(account.tokenExpiresAt).toLocaleDateString("en-US", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "N/A",
+    autoReplyEnabled:
+      typeof account.autoReplyEnabled === "boolean"
+        ? account.autoReplyEnabled
+        : true,
+    autoDMEnabled:
+      typeof account.autoDMEnabled === "boolean" ? account.autoDMEnabled : true,
+    followCheckEnabled:
+      typeof account.followCheckEnabled === "boolean"
+        ? account.followCheckEnabled
+        : true,
+    requireFollowForFreeUsers:
+      typeof account.requireFollowForFreeUsers === "boolean"
+        ? account.requireFollowForFreeUsers
+        : false,
+    storyAutomationsEnabled:
+      typeof account.storyAutomationsEnabled === "boolean"
+        ? account.storyAutomationsEnabled
+        : true,
+    trackDmUrlEnabled:
+      typeof account.trackDmUrlEnabled === "boolean"
+        ? account.trackDmUrlEnabled
+        : true,
+    metaCallsThisHour: account.metaCallsThisHour || 0,
+    isMetaRateLimited: account.isMetaRateLimited || false,
   };
 }
 
@@ -169,7 +166,7 @@ const Toggle = React.memo(function Toggle({
   );
 });
 
-// ─── SettingsCard — pure controlled component, zero local state ───────────────
+// ─── SettingsCard — pure controlled component ─────────────────────────────────
 
 const SettingsCard = React.memo(function SettingsCard({
   title,
@@ -220,11 +217,11 @@ export default function SettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
+  const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+  const { selectedAccount, isAccLoading, refreshAccounts } = useInstaAccount();
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
   const { apiRequest } = useApi();
-  const abortControllerRef = useRef<AbortController | null>(null);
   const { styles, isDark } = useThemeStyles();
 
   const pageStyles = useMemo(
@@ -301,118 +298,31 @@ export default function SettingsPage() {
       statBadge: isDark
         ? "text-xs bg-white/[0.06] px-2 py-1 rounded-full text-white/60"
         : "text-xs bg-gray-100 px-2 py-1 rounded-full text-gray-600",
+      accountBanner: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-xl p-3 mb-4"
+        : "bg-gray-50 border border-gray-100 rounded-xl p-3 mb-4",
     }),
     [isDark],
   );
 
-  // ── Cleanup ────────────────────────────────────────────────────────────────
+  // ── Update account when selectedAccount changes from context ───────────────
 
   useEffect(() => {
-    return () => {
-      abortControllerRef.current?.abort();
-    };
-  }, []);
+    if (!isLoaded || isAccLoading) return;
 
-  // ── Fetch account ──────────────────────────────────────────────────────────
-
-  const fetchAccount = useCallback(async () => {
-    if (!userId || !isLoaded) return;
-
-    abortControllerRef.current?.abort();
-    abortControllerRef.current = new AbortController();
-
-    setIsLoading(true);
-    try {
-      const response = (await getAllInstagramAccounts(
-        apiRequest,
-      )) as InstagramAccountResponse;
-      let accountsArray: any[] = [];
-      if (response?.accounts && Array.isArray(response.accounts)) {
-        accountsArray = response.accounts;
-      } else if (
-        response?.data?.accounts &&
-        Array.isArray(response.data.accounts)
-      ) {
-        accountsArray = response.data.accounts;
-      }
-
-      if (accountsArray.length > 0) {
-        const accountData = accountsArray[0];
-        const accountInfo = accountData.accountInfo || {};
-        const instagramInfo = accountData.instagramInfo || {};
-
-        // Log the raw values so we can verify DB values are coming through
-        const formattedAccount: AccountDataType = {
-          instagramId: accountInfo.instagramId || instagramInfo.id || "",
-          username: instagramInfo.username || accountInfo.username || "Unknown",
-          isActive: accountInfo.isActive ?? true,
-          profilePicture:
-            instagramInfo.profile_picture_url || accountInfo.profilePicture,
-          followersCount:
-            instagramInfo.followers_count || accountInfo.followersCount || 0,
-          followingCount:
-            instagramInfo.follows_count || accountInfo.followingCount || 0,
-          mediaCount: instagramInfo.media_count || accountInfo.mediaCount || 0,
-          accountType: instagramInfo.account_type || "",
-          tokenExpiresAt: accountInfo.tokenExpiresAt
-            ? new Date(accountInfo.tokenExpiresAt).toLocaleDateString("en-US", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })
-            : "N/A",
-          // ✅ explicit boolean check — never coerces false → true
-          autoReplyEnabled:
-            typeof accountInfo.autoReplyEnabled === "boolean"
-              ? accountInfo.autoReplyEnabled
-              : true,
-          autoDMEnabled:
-            typeof accountInfo.autoDMEnabled === "boolean"
-              ? accountInfo.autoDMEnabled
-              : true,
-          followCheckEnabled:
-            typeof accountInfo.followCheckEnabled === "boolean"
-              ? accountInfo.followCheckEnabled
-              : true,
-          requireFollowForFreeUsers:
-            typeof accountInfo.requireFollowForFreeUsers === "boolean"
-              ? accountInfo.requireFollowForFreeUsers
-              : false,
-          storyAutomationsEnabled:
-            typeof accountInfo.storyAutomationsEnabled === "boolean"
-              ? accountInfo.storyAutomationsEnabled
-              : true,
-          trackDmUrlEnabled:
-            typeof accountInfo.trackDmUrlEnabled === "boolean"
-              ? accountInfo.trackDmUrlEnabled
-              : true,
-          metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
-          isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-        };
-
-        setAccount(formattedAccount);
-        // ✅ use extractSettings helper so both paths use identical logic
-        setSettings(extractSettings(accountInfo));
-      } else {
-        setAccount(null);
-      }
-    } catch (error: any) {
-      if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
-      console.error("Error fetching account:", error);
-      toast({
-        title: "Failed to load account",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsLoading(false);
-      abortControllerRef.current = null;
+    if (selectedAccount) {
+      const mappedAccount = mapAccountToDataType(selectedAccount);
+      setAccount(mappedAccount);
+      setSettings(extractSettings(selectedAccount));
+    } else {
+      setAccount(null);
     }
-  }, [userId, isLoaded, apiRequest]);
 
-  useEffect(() => {
-    fetchAccount();
-  }, [fetchAccount]);
+    if (!hasLoadedInitial) {
+      setHasLoadedInitial(true);
+    }
+    setIsLoading(false);
+  }, [selectedAccount, isAccLoading, isLoaded, hasLoadedInitial]);
 
   // ── Handlers ───────────────────────────────────────────────────────────────
 
@@ -428,9 +338,6 @@ export default function SettingsPage() {
 
     setIsSaving(true);
     try {
-      // ✅ The PUT controller returns the full updated document.
-      //    Use it directly — don't re-fetch, which risks reading stale/
-      //    missing fields from getAllInstagramAccounts.
       const result = await updateAccountSettings(
         apiRequest,
         account.instagramId,
@@ -440,12 +347,13 @@ export default function SettingsPage() {
       const savedAccount = result?.account || result;
 
       if (savedAccount && typeof savedAccount === "object") {
-        // Update settings from the authoritative saved document
         const savedSettings = extractSettings(savedAccount);
         setSettings(savedSettings);
         setAccount((prev) => (prev ? { ...prev, ...savedSettings } : null));
+
+        // Refresh context to keep it in sync
+        await refreshAccounts();
       } else {
-        // Fallback: trust what we sent
         setAccount((prev) => (prev ? { ...prev, ...settings } : null));
       }
 
@@ -459,12 +367,15 @@ export default function SettingsPage() {
         variant: "destructive",
         duration: 3000,
       });
-      // Revert to server state on error
-      fetchAccount();
+      // Revert to context state on error
+      if (selectedAccount) {
+        setSettings(extractSettings(selectedAccount));
+        setAccount(mapAccountToDataType(selectedAccount));
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [account, settings, apiRequest, fetchAccount]);
+  }, [account, settings, apiRequest, refreshAccounts, selectedAccount]);
 
   const handleReconnect = useCallback(() => {
     router.push("/insta/accounts/add");
@@ -487,17 +398,21 @@ export default function SettingsPage() {
         title: newStatus ? "Account enabled" : "Account disabled",
         duration: 3000,
       });
+      // Refresh context
+      await refreshAccounts();
     } catch (error) {
       // Revert on error
-      setAccount((prev) => (prev ? { ...prev, isActive: !newStatus } : null));
-      setSettings((prev) => ({ ...prev, isActive: !newStatus }));
+      if (selectedAccount) {
+        setAccount(mapAccountToDataType(selectedAccount));
+        setSettings(extractSettings(selectedAccount));
+      }
       toast({
         title: "Failed to update account status",
         variant: "destructive",
         duration: 3000,
       });
     }
-  }, [account, settings, apiRequest]);
+  }, [account, settings, apiRequest, refreshAccounts, selectedAccount]);
 
   const handleRemoveAccount = useCallback(async () => {
     if (!account) return;
@@ -505,6 +420,7 @@ export default function SettingsPage() {
     try {
       await deleteInstaAccount(apiRequest, account.instagramId);
       toast({ title: "Account removed successfully", duration: 3000 });
+      await refreshAccounts();
       router.push("/insta");
     } catch (error) {
       console.error("Error removing account:", error);
@@ -519,7 +435,7 @@ export default function SettingsPage() {
       setIsRemoving(false);
       setShowDeleteDialog(false);
     }
-  }, [account, apiRequest, router]);
+  }, [account, apiRequest, router, refreshAccounts]);
 
   // ── Derived ────────────────────────────────────────────────────────────────
 
@@ -598,9 +514,34 @@ export default function SettingsPage() {
     [],
   );
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ── Loading states ─────────────────────────────────────────────────────────
 
-  if (!isLoaded || isLoading) return <Spinner label="Loading settings..." />;
+  if (!isLoaded || isAccLoading || (isLoading && !hasLoadedInitial)) {
+    return <Spinner label="Loading settings..." />;
+  }
+
+  // Show message if no account is selected
+  if (!selectedAccount) {
+    return (
+      <div className={styles.page}>
+        {isDark && <Orbs />}
+        <div className={styles.container}>
+          <div className={pageStyles.emptyCard}>
+            <p className={pageStyles.emptyText}>
+              No Instagram account connected
+            </p>
+            <button
+              onClick={handleReconnect}
+              className={pageStyles.connectButton}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Connect Instagram Account
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -706,6 +647,12 @@ export default function SettingsPage() {
                     <XCircle className="h-4 w-4" />
                     {account.isActive ? "Disable" : "Enable"}
                   </button>
+                  <button
+                    onClick={() => refreshAccounts()}
+                    className={`${pageStyles.reconnectButton}  text-pink-500 hover:text-pink-600`}
+                  >
+                    Refresh
+                  </button>
                 </div>
               </div>
             </div>
@@ -779,7 +726,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => setShowDeleteDialog(true)}
-                className={` ${pageStyles.removeButton} px-2`}
+                className={`${pageStyles.removeButton} px-2`}
               >
                 Remove
               </button>

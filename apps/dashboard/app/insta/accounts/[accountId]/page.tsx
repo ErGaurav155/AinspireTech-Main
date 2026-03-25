@@ -30,12 +30,12 @@ import { useApi } from "@/lib/useApi";
 import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 
 import {
-  getInstaAccountById,
   updateAccountSettings,
   deleteInstaAccount,
   refreshInstagramToken,
 } from "@/lib/services/insta-actions.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // Types
 interface AccountDetails {
@@ -67,52 +67,6 @@ interface AccountDetails {
   userId?: string;
 }
 
-// API Response Types - Updated to match actual response
-interface AccountDetailsResponse {
-  success: boolean;
-  accountInfo: {
-    _id: string;
-    instagramId: string;
-    userId: string;
-    username: string;
-    profilePicture?: string;
-    followersCount: number;
-    followingCount: number;
-    mediaCount: number;
-    isActive: boolean;
-    autoReplyEnabled: boolean;
-    autoDMEnabled: boolean;
-    followCheckEnabled: boolean;
-    requireFollowForFreeUsers: boolean;
-    metaCallsThisHour: number;
-    isMetaRateLimited: boolean;
-    tokenExpiresAt?: string;
-    createdAt: string;
-    updatedAt: string;
-    templatesCount: number;
-    accountReply: number;
-    accountDMSent: number;
-    accountFollowCheck: number;
-    lastActivity: string;
-  };
-  instagramInfo: {
-    account_type: string;
-    followers_count: number;
-    follows_count: number;
-    id: string;
-    media_count: number;
-    username: string;
-    profile_picture_url?: string;
-  };
-  rateLimitInfo: {
-    isMetaRateLimited: boolean;
-    metaCallsRemaining: number;
-    metaCallsUsed: number;
-    metaRateLimitResetAt?: string;
-  };
-  timestamp: string;
-}
-
 export default function AccountDetailsPage() {
   const params = useParams();
   const accountId = params.accountId as string;
@@ -122,9 +76,11 @@ export default function AccountDetailsPage() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
+  // Use context to get selected account
+  const { selectedAccount, isAccLoading, refreshAccounts, accounts } =
+    useInstaAccount();
+
   const [account, setAccount] = useState<AccountDetails | null>(null);
-  const [instagramInfo, setInstagramInfo] = useState<any>(null);
-  const [rateLimitInfo, setRateLimitInfo] = useState<any>(null);
   const [settings, setSettings] = useState({
     isActive: true,
     autoReplyEnabled: true,
@@ -235,211 +191,83 @@ export default function AccountDetailsPage() {
     };
   }, [isDark]);
 
-  // Fetch account details
-  const fetchAccount = useCallback(async () => {
-    if (!userId) return;
+  // Find the selected account from context based on accountId param
+  const findAccountFromContext = useCallback(() => {
+    if (accounts && accounts.length > 0) {
+      return accounts.find((acc) => acc.instagramId === accountId);
+    }
+    return null;
+  }, [accounts, accountId]);
 
-    try {
-      setIsLoading(true);
-      console.log("Fetching account with ID:", accountId);
+  // Initialize account from context
+  useEffect(() => {
+    if (!isLoaded || isAccLoading) return;
 
-      const response = await getInstaAccountById(apiRequest, accountId);
-      console.log("===== RAW ACCOUNT DETAILS RESPONSE =====");
-      console.log("Response:", JSON.stringify(response, null, 2));
-      console.log("Response type:", typeof response);
-      console.log("Response keys:", Object.keys(response || {}));
-      console.log("========================================");
+    const contextAccount = findAccountFromContext();
 
-      // Handle different response structures
-      if (response) {
-        // Case 1: Response has accountInfo, instagramInfo, rateLimitInfo directly (from your log)
-        if (
-          response.accountInfo &&
-          response.instagramInfo &&
-          response.rateLimitInfo
-        ) {
-          console.log(
-            "Case 1: Response has direct accountInfo, instagramInfo, rateLimitInfo",
-          );
+    if (contextAccount) {
+      console.log("Found account in context:", contextAccount);
 
-          const accountInfo = response.accountInfo;
-          const instaInfo = response.instagramInfo;
-          const rateInfo = response.rateLimitInfo;
+      setAccount({
+        instagramId: contextAccount.instagramId,
+        username: contextAccount.username,
+        profilePicture: contextAccount.profilePicture || Default,
+        followersCount: contextAccount.followersCount || 0,
+        followingCount: contextAccount.followingCount || 0,
+        mediaCount: contextAccount.mediaCount || 0,
+        accountType: contextAccount.accountType || "",
+        isActive: contextAccount.isActive ?? true,
+        autoReplyEnabled: contextAccount.autoReplyEnabled ?? true,
+        autoDMEnabled: contextAccount.autoDMEnabled ?? true,
+        followCheckEnabled: contextAccount.followCheckEnabled ?? true,
+        requireFollowForFreeUsers:
+          contextAccount.requireFollowForFreeUsers ?? false,
+        metaCallsThisHour: contextAccount.metaCallsThisHour || 0,
+        isMetaRateLimited: contextAccount.isMetaRateLimited || false,
+        tokenExpiresAt: contextAccount.tokenExpiresAt,
+        createdAt: contextAccount.createdAt,
+        updatedAt: contextAccount.updatedAt,
+        templatesCount: contextAccount.templatesCount || 0,
+        accountReply: contextAccount.accountReply || 0,
+        accountDMSent: contextAccount.accountDMSent || 0,
+        accountFollowCheck: contextAccount.accountFollowCheck || 0,
+        lastActivity: contextAccount.lastActivity || new Date().toISOString(),
+        metaCallsRemaining: contextAccount.metaCallsRemaining,
+      });
 
-          setInstagramInfo(instaInfo);
-          setRateLimitInfo(rateInfo);
+      setSettings({
+        isActive: contextAccount.isActive ?? true,
+        autoReplyEnabled: contextAccount.autoReplyEnabled ?? true,
+        autoDMEnabled: contextAccount.autoDMEnabled ?? true,
+        followCheckEnabled: contextAccount.followCheckEnabled ?? true,
+        requireFollowForFreeUsers:
+          contextAccount.requireFollowForFreeUsers ?? false,
+      });
 
-          setAccount({
-            _id: accountInfo._id,
-            userId: accountInfo.userId,
-            instagramId: accountInfo.instagramId,
-            username: instaInfo.username || accountInfo.username || "Unknown",
-            profilePicture:
-              instaInfo.profile_picture_url ||
-              accountInfo.profilePicture ||
-              Default,
-            followersCount:
-              instaInfo.followers_count || accountInfo.followersCount || 0,
-            followingCount:
-              instaInfo.follows_count || accountInfo.followingCount || 0,
-            mediaCount: instaInfo.media_count || accountInfo.mediaCount || 0,
-            accountType: instaInfo.account_type || "",
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
-            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-            tokenExpiresAt: accountInfo.tokenExpiresAt,
-            createdAt: accountInfo.createdAt,
-            updatedAt: accountInfo.updatedAt,
-            templatesCount: accountInfo.templatesCount || 0,
-            accountReply: accountInfo.accountReply || 0,
-            accountDMSent: accountInfo.accountDMSent || 0,
-            accountFollowCheck: accountInfo.accountFollowCheck || 0,
-            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
-          });
-
-          setSettings({
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-          });
-        }
-        // Case 2: Response has data property with nested structure
-        else if (
-          response.data &&
-          response.data.accountInfo &&
-          response.data.instagramInfo
-        ) {
-          console.log(
-            "Case 2: Response has data.accountInfo and data.instagramInfo",
-          );
-
-          const accountInfo = response.data.accountInfo;
-          const instaInfo = response.data.instagramInfo;
-          const rateInfo = response.data.rateLimitInfo;
-
-          setInstagramInfo(instaInfo);
-          setRateLimitInfo(rateInfo);
-
-          setAccount({
-            _id: accountInfo._id,
-            userId: accountInfo.userId,
-            instagramId: accountInfo.instagramId,
-            username: instaInfo.username || accountInfo.username || "Unknown",
-            profilePicture:
-              instaInfo.profile_picture_url ||
-              accountInfo.profilePicture ||
-              Default,
-            followersCount:
-              instaInfo.followers_count || accountInfo.followersCount || 0,
-            followingCount:
-              instaInfo.follows_count || accountInfo.followingCount || 0,
-            mediaCount: instaInfo.media_count || accountInfo.mediaCount || 0,
-            accountType: instaInfo.account_type || "",
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
-            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-            tokenExpiresAt: accountInfo.tokenExpiresAt,
-            createdAt: accountInfo.createdAt,
-            updatedAt: accountInfo.updatedAt,
-            templatesCount: accountInfo.templatesCount || 0,
-            accountReply: accountInfo.accountReply || 0,
-            accountDMSent: accountInfo.accountDMSent || 0,
-            accountFollowCheck: accountInfo.accountFollowCheck || 0,
-            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
-          });
-
-          setSettings({
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-          });
-        }
-        // Case 3: Response is the account object itself
-        else if (response._id || response.instagramId) {
-          console.log("Case 3: Response is the account object itself");
-
-          const accountInfo = response;
-
-          setAccount({
-            _id: accountInfo._id,
-            userId: accountInfo.userId,
-            instagramId: accountInfo.instagramId,
-            username: accountInfo.username || "Unknown",
-            profilePicture: accountInfo.profilePicture || Default,
-            followersCount: accountInfo.followersCount || 0,
-            followingCount: accountInfo.followingCount || 0,
-            mediaCount: accountInfo.mediaCount || 0,
-            accountType: accountInfo.accountType || "",
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
-            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-            tokenExpiresAt: accountInfo.tokenExpiresAt,
-            createdAt: accountInfo.createdAt,
-            updatedAt: accountInfo.updatedAt,
-            templatesCount: accountInfo.templatesCount || 0,
-            accountReply: accountInfo.accountReply || 0,
-            accountDMSent: accountInfo.accountDMSent || 0,
-            accountFollowCheck: accountInfo.accountFollowCheck || 0,
-            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
-          });
-
-          setSettings({
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-          });
-        } else {
-          console.log("Unknown response structure:", response);
-          toast({
-            title: "Error",
-            description: "Unexpected API response structure",
-            variant: "destructive",
-            duration: 3000,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error fetching account:", error);
+      setIsLoading(false);
+    } else if (!isAccLoading && accounts && accounts.length > 0) {
+      // Account not found in context, but there are other accounts
+      console.log("Account not found in context");
       toast({
-        title: "Error",
-        description: "Failed to load account details",
+        title: "Account Not Found",
+        description: "The requested account could not be found",
         variant: "destructive",
         duration: 3000,
       });
-    } finally {
-      setIsLoading(false);
+      router.push("/insta/accounts");
+    } else if (!isAccLoading && accounts && accounts.length === 0) {
+      // No accounts at all
+      console.log("No accounts found");
+      router.push("/insta/accounts");
     }
-  }, [userId, accountId, apiRequest]);
-
-  useEffect(() => {
-    if (isLoaded && userId) {
-      fetchAccount();
-    }
-  }, [isLoaded, userId, fetchAccount]);
+  }, [
+    isLoaded,
+    isAccLoading,
+    accounts,
+    accountId,
+    findAccountFromContext,
+    router,
+  ]);
 
   // Handle setting change
   const handleSettingChange = (key: string, value: boolean) => {
@@ -462,8 +290,8 @@ export default function AccountDetailsPage() {
         duration: 3000,
       });
 
-      // Refresh account data to get updated settings
-      await fetchAccount();
+      // Refresh context to get updated data
+      await refreshAccounts();
     } catch (error) {
       toast({
         title: "Error",
@@ -489,6 +317,8 @@ export default function AccountDetailsPage() {
         duration: 3000,
       });
 
+      // Refresh context to update accounts list
+      await refreshAccounts();
       router.push("/insta/accounts");
     } catch (error) {
       toast({
@@ -513,8 +343,8 @@ export default function AccountDetailsPage() {
         duration: 3000,
       });
 
-      // Refresh account data to get updated token expiry
-      await fetchAccount();
+      // Refresh context to get updated token expiry
+      await refreshAccounts();
     } catch (error) {
       toast({
         title: "Error",
@@ -532,7 +362,7 @@ export default function AccountDetailsPage() {
     new Date(account.tokenExpiresAt) <
       new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-  if (!isLoaded || isLoading) {
+  if (!isLoaded || isLoading || isAccLoading) {
     return (
       <div className={pageStyles.loadingContainer}>
         <div className="flex flex-col items-center gap-3">
@@ -641,9 +471,9 @@ export default function AccountDetailsPage() {
             >
               {account.metaCallsThisHour} / 200
             </p>
-            {rateLimitInfo && (
+            {account.metaCallsRemaining !== undefined && (
               <p className={pageStyles.statLabel}>
-                {rateLimitInfo.metaCallsRemaining} remaining
+                {account.metaCallsRemaining} remaining
               </p>
             )}
           </div>
@@ -794,17 +624,14 @@ export default function AccountDetailsPage() {
                   </span>
                 </div>
 
-                {rateLimitInfo?.metaRateLimitResetAt &&
-                  account.isMetaRateLimited && (
-                    <div className={pageStyles.tokenRow}>
-                      <span className={pageStyles.tokenLabel}>Reset At</span>
-                      <span className={pageStyles.tokenLabel}>
-                        {new Date(
-                          rateLimitInfo.metaRateLimitResetAt,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-                  )}
+                {account.metaRateLimitResetAt && account.isMetaRateLimited && (
+                  <div className={pageStyles.tokenRow}>
+                    <span className={pageStyles.tokenLabel}>Reset At</span>
+                    <span className={pageStyles.tokenLabel}>
+                      {new Date(account.metaRateLimitResetAt).toLocaleString()}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

@@ -29,12 +29,12 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
-  getInstaAccount,
   refreshInstagramToken,
   updateAccountSettings,
 } from "@/lib/services/insta-actions.api";
 import { useApi } from "@/lib/useApi";
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // Types
 interface InstagramAccount {
@@ -64,61 +64,6 @@ interface InstagramAccount {
   };
 }
 
-// API Response Types - UPDATED to match actual API response
-interface InstagramAccountsResponse {
-  success: boolean;
-  accounts: Array<{
-    success: boolean;
-    accountInfo: {
-      _id: string;
-      instagramId: string;
-      userId: string;
-      username: string;
-      profilePicture?: string;
-      followersCount: number;
-      followingCount: number;
-      mediaCount: number;
-      isActive: boolean;
-      autoReplyEnabled: boolean;
-      autoDMEnabled: boolean;
-      followCheckEnabled: boolean;
-      requireFollowForFreeUsers: boolean;
-      metaCallsThisHour: number;
-      isMetaRateLimited: boolean;
-      tokenExpiresAt?: string;
-      createdAt: string;
-      updatedAt: string;
-      templatesCount: number;
-      accountReply?: number;
-      accountDMSent?: number;
-      accountFollowCheck?: number;
-      lastActivity?: string;
-    };
-    instagramInfo: {
-      account_type: string;
-      followers_count: number;
-      follows_count: number;
-      id: string;
-      media_count: number;
-      username: string;
-      profile_picture_url?: string;
-    };
-    rateLimitInfo: {
-      isMetaRateLimited: boolean;
-      metaCallsRemaining: number;
-      metaCallsUsed: number;
-    };
-  }>;
-  summary?: {
-    accountsWithErrors: number;
-    activeAccounts: number;
-    totalAccounts: number;
-    totalFollowers: number;
-    totalMedia: number;
-  };
-  timestamp: string;
-}
-
 // Constants
 const FREE_PLAN_REPLY_LIMIT = 200;
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
@@ -129,6 +74,13 @@ export default function AccountsPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+
+  // Use the context to get accounts
+  const {
+    accounts: contextAccounts,
+    isAccLoading,
+    refreshAccounts,
+  } = useInstaAccount();
 
   const [accounts, setAccounts] = useState<InstagramAccount[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -142,13 +94,6 @@ export default function AccountsPage() {
   const [isUpdatingAccount, setIsUpdatingAccount] = useState<string | null>(
     null,
   );
-  const [summary, setSummary] = useState<{
-    totalAccounts: number;
-    activeAccounts: number;
-    totalFollowers: number;
-    totalMedia: number;
-    accountsWithErrors: number;
-  } | null>(null);
 
   // Helper: Format last activity
   const formatLastActivity = useCallback((dateString: string): string => {
@@ -172,148 +117,36 @@ export default function AccountsPage() {
     setHasError((prev) => [...prev, id]);
   }, []);
 
-  // Fetch Instagram accounts
-  const fetchAccounts = useCallback(async (): Promise<void> => {
-    if (!userId) {
-      router.push("/sign-in");
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      setError(null);
-
-      const response = (await getInstaAccount(
-        apiRequest,
-      )) as InstagramAccountsResponse;
-
-      // Check if response has accounts array directly (not nested in data)
-      if (
-        response?.success &&
-        response?.accounts &&
-        Array.isArray(response.accounts)
-      ) {
-        const formattedAccounts: InstagramAccount[] = response.accounts.map(
-          (item) => {
-            // Use instagramInfo for API data (fresher), fallback to accountInfo
-            const instagramInfo = item.instagramInfo || {};
-            const accountInfo = item.accountInfo || {};
-
-            return {
-              // Core fields - prefer instagramInfo for username, accountInfo for others
-              instagramId: accountInfo.instagramId || instagramInfo.id || "",
-              username:
-                instagramInfo.username || accountInfo.username || "Unknown",
-              profilePicture:
-                instagramInfo.profile_picture_url ||
-                accountInfo.profilePicture ||
-                Default,
-              followersCount:
-                instagramInfo.followers_count ||
-                accountInfo.followersCount ||
-                0,
-              followingCount:
-                instagramInfo.follows_count || accountInfo.followingCount || 0,
-              mediaCount:
-                instagramInfo.media_count || accountInfo.mediaCount || 0,
-              accountType: instagramInfo.account_type || "",
-
-              // Account settings from accountInfo
-              isActive: accountInfo.isActive || false,
-              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-              autoDMEnabled: accountInfo.autoDMEnabled || false,
-              followCheckEnabled: accountInfo.followCheckEnabled || false,
-              templatesCount: accountInfo.templatesCount || 0,
-              accountReply: accountInfo.accountReply || 0,
-              accountDMSent: accountInfo.accountDMSent || 0,
-              accountFollowCheck: accountInfo.accountFollowCheck || 0,
-              lastActivity:
-                accountInfo.lastActivity || new Date().toISOString(),
-              tokenExpiresAt: accountInfo.tokenExpiresAt,
-              isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-              createdAt: accountInfo.createdAt || new Date().toISOString(),
-
-              // Rate limit info
-              rateLimitInfo: item.rateLimitInfo || {
-                metaCallsUsed: 0,
-                metaCallsRemaining: 200,
-                isMetaRateLimited: false,
-              },
-            };
-          },
-        );
-
-        setAccounts(formattedAccounts);
-
-        // Set summary data if available
-        if (response.summary) {
-          setSummary(response.summary);
-        }
-      }
-      // Check alternative structure (if data.accounts exists)
-      else if (response?.accounts && Array.isArray(response.accounts)) {
-        const formattedAccounts: InstagramAccount[] = response.accounts.map(
-          (item) => {
-            const instagramInfo = item.instagramInfo || {};
-            const accountInfo = item.accountInfo || {};
-
-            return {
-              instagramId: accountInfo.instagramId || instagramInfo.id || "",
-              username:
-                instagramInfo.username || accountInfo.username || "Unknown",
-              profilePicture:
-                instagramInfo.profile_picture_url ||
-                accountInfo.profilePicture ||
-                Default,
-              followersCount:
-                instagramInfo.followers_count ||
-                accountInfo.followersCount ||
-                0,
-              followingCount:
-                instagramInfo.follows_count || accountInfo.followingCount || 0,
-              mediaCount:
-                instagramInfo.media_count || accountInfo.mediaCount || 0,
-              accountType: instagramInfo.account_type || "",
-              isActive: accountInfo.isActive || false,
-              autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-              autoDMEnabled: accountInfo.autoDMEnabled || false,
-              followCheckEnabled: accountInfo.followCheckEnabled || false,
-              templatesCount: accountInfo.templatesCount || 0,
-              accountReply: accountInfo.accountReply || 0,
-              accountDMSent: accountInfo.accountDMSent || 0,
-              accountFollowCheck: accountInfo.accountFollowCheck || 0,
-              lastActivity:
-                accountInfo.lastActivity || new Date().toISOString(),
-              tokenExpiresAt: accountInfo.tokenExpiresAt,
-              isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-              createdAt: accountInfo.createdAt || new Date().toISOString(),
-              rateLimitInfo: item.rateLimitInfo || {
-                metaCallsUsed: 0,
-                metaCallsRemaining: 200,
-                isMetaRateLimited: false,
-              },
-            };
-          },
-        );
-
-        setAccounts(formattedAccounts);
-        if (response.summary) {
-          setSummary(response.summary);
-        }
-      } else {
-        setAccounts([]);
-        setSummary(null);
-      }
-    } catch (error) {
-      console.error("Failed to fetch accounts:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to load accounts",
-      );
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  }, [userId, router, apiRequest]);
+  // Transform context accounts to local format
+  const transformAccounts = useCallback((contextAccounts: any[]) => {
+    return contextAccounts.map((acc) => ({
+      instagramId: acc.instagramId,
+      username: acc.username,
+      profilePicture: acc.profilePicture || Default,
+      followersCount: acc.followersCount || 0,
+      followingCount: acc.followingCount || 0,
+      mediaCount: acc.mediaCount || 0,
+      accountType: acc.accountType || "",
+      isActive: acc.isActive ?? true,
+      autoReplyEnabled: acc.autoReplyEnabled ?? true,
+      autoDMEnabled: acc.autoDMEnabled ?? true,
+      followCheckEnabled: acc.followCheckEnabled ?? true,
+      templatesCount: acc.templatesCount || 0,
+      accountReply: acc.accountReply || 0,
+      accountDMSent: acc.accountDMSent || 0,
+      accountFollowCheck: acc.accountFollowCheck || 0,
+      lastActivity: acc.lastActivity || new Date().toISOString(),
+      tokenExpiresAt: acc.tokenExpiresAt,
+      isMetaRateLimited: acc.isMetaRateLimited || false,
+      createdAt: acc.createdAt || new Date().toISOString(),
+      rateLimitInfo: {
+        metaCallsUsed: acc.metaCallsThisHour || 0,
+        metaCallsRemaining:
+          (acc.metaCallsRemaining ?? 200) - (acc.metaCallsThisHour || 0),
+        isMetaRateLimited: acc.isMetaRateLimited || false,
+      },
+    }));
+  }, []);
 
   // Fetch user subscriptions
   const fetchSubscriptions = useCallback(async (): Promise<void> => {
@@ -329,16 +162,34 @@ export default function AccountsPage() {
     }
   }, [userId, apiRequest]);
 
-  // Initialize component
+  // Initialize component with context accounts
   useEffect(() => {
     if (!isLoaded || !userId) return;
 
     const initializeData = async () => {
-      await Promise.all([fetchSubscriptions(), fetchAccounts()]);
+      setIsLoading(true);
+      await fetchSubscriptions();
+      setIsLoading(false);
     };
 
     initializeData();
-  }, [userId, isLoaded, fetchSubscriptions, fetchAccounts]);
+  }, [userId, isLoaded, fetchSubscriptions]);
+
+  // Update local accounts when context accounts change
+  useEffect(() => {
+    if (contextAccounts && contextAccounts.length > 0) {
+      const transformed = transformAccounts(contextAccounts);
+      setAccounts(transformed);
+      setIsLoading(false);
+    } else if (
+      !isAccLoading &&
+      contextAccounts &&
+      contextAccounts.length === 0
+    ) {
+      setAccounts([]);
+      setIsLoading(false);
+    }
+  }, [contextAccounts, isAccLoading, transformAccounts]);
 
   // Handle toggle account status
   const handleToggleAccount = async (
@@ -369,6 +220,9 @@ export default function AccountsPage() {
         description: `Account ${field === "isActive" ? "status" : "setting"} updated successfully`,
         duration: 3000,
       });
+
+      // Refresh context accounts to keep in sync
+      await refreshAccounts();
     } catch (error) {
       // Revert on error
       setAccounts((prev) =>
@@ -399,7 +253,7 @@ export default function AccountsPage() {
       });
 
       // Refresh accounts data to get updated token expiry
-      await fetchAccounts();
+      await refreshAccounts();
     } catch (error) {
       toast({
         title: "Error",
@@ -424,31 +278,12 @@ export default function AccountsPage() {
   // Handle refresh
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await fetchAccounts();
+    await refreshAccounts();
+    setIsRefreshing(false);
   };
 
-  // Calculate statistics (fallback if summary not provided by API)
+  // Calculate statistics
   const stats = useMemo(() => {
-    if (summary) {
-      return {
-        activeAccounts: summary.activeAccounts,
-        totalFollowers: summary.totalFollowers,
-        totalReplies: accounts.reduce((sum, acc) => sum + acc.accountReply, 0),
-        totalDMs: accounts.reduce((sum, acc) => sum + acc.accountDMSent, 0),
-        avgEngagement:
-          accounts.length > 0
-            ? (
-                accounts.reduce(
-                  (sum, acc) => sum + acc.accountReply + acc.accountDMSent,
-                  0,
-                ) /
-                accounts.length /
-                100
-              ).toFixed(1)
-            : "0",
-      };
-    }
-
     const activeAccounts = accounts.filter(
       (account) => account.isActive,
     ).length;
@@ -460,6 +295,8 @@ export default function AccountsPage() {
       (sum, acc) => sum + acc.accountReply,
       0,
     );
+    const totalPost = accounts.reduce((sum, acc) => sum + acc.mediaCount, 0);
+
     const totalDMs = accounts.reduce((sum, acc) => sum + acc.accountDMSent, 0);
     const avgEngagement =
       accounts.length > 0
@@ -470,17 +307,18 @@ export default function AccountsPage() {
       activeAccounts,
       totalFollowers,
       totalReplies,
+      totalPost,
       totalDMs,
       avgEngagement,
     };
-  }, [accounts, summary]);
+  }, [accounts]);
 
   // Get account limits
   const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
   const replyLimit = userInfo?.replyLimit || FREE_PLAN_REPLY_LIMIT;
 
   // Loading state
-  if (!isLoaded || isLoading) {
+  if (!isLoaded || isLoading || isAccLoading) {
     return <Spinner label="Loading accounts..." />;
   }
 
@@ -500,7 +338,7 @@ export default function AccountsPage() {
             <p className={`${isDark ? "text-white/40" : "text-gray-500"} mb-6`}>
               {error}
             </p>
-            <Button onClick={fetchAccounts} className={styles.pill}>
+            <Button onClick={handleRefresh} className={styles.pill}>
               <RefreshCw className="mr-2 h-4 w-4" />
               Try Again
             </Button>
@@ -568,6 +406,9 @@ export default function AccountsPage() {
       ? "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-white/[0.06]"
       : "data-[state=checked]:bg-pink-500 data-[state=unchecked]:bg-gray-200",
     textMuted: isDark ? "text-white/25" : "text-gray-400",
+    accountCard: isDark
+      ? "bg-white/[0.04] border border-white/[0.08] rounded-xl p-4"
+      : "bg-white border border-gray-100 rounded-xl p-4",
   };
 
   return (
@@ -620,14 +461,9 @@ export default function AccountsPage() {
               />
             </div>
             <p className={pageStyles.statValue}>
-              {summary?.totalAccounts || accounts.length} / {accountLimit}
+              {accounts.length} / {accountLimit}
             </p>
-            <p className={pageStyles.statSub}>
-              {stats.activeAccounts} active{" "}
-              {summary?.accountsWithErrors
-                ? `(${summary.accountsWithErrors} errors)`
-                : ""}
-            </p>
+            <p className={pageStyles.statSub}>{stats.activeAccounts} active</p>
           </div>
 
           <div className={`${styles.card} rounded-xl p-4`}>
@@ -640,11 +476,8 @@ export default function AccountsPage() {
             <p className={pageStyles.statValue}>
               {stats.totalFollowers.toLocaleString()}
             </p>
-            <p className={pageStyles.statSub}>
-              {summary?.totalMedia || 0} total posts
-            </p>
+            <p className={pageStyles.statSub}>{stats.totalPost} total posts</p>
           </div>
-
           <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
               <p className={pageStyles.statLabel}>Auto Replies</p>
@@ -659,7 +492,6 @@ export default function AccountsPage() {
               {userInfo?.accountLimit > 1 ? "unlimited" : replyLimit}
             </p>
           </div>
-
           <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
               <p className={pageStyles.statLabel}>Avg Engagement</p>
@@ -836,15 +668,21 @@ const AccountCard: React.FC<AccountCardProps> = ({
           {/* Auto-reply Toggle */}
           <div className="flex items-center gap-2">
             <Switch
-              checked={account.isActive}
+              checked={account.autoReplyEnabled}
               onCheckedChange={(checked) =>
-                onToggleAccount(account.instagramId, "isActive", checked)
+                onToggleAccount(
+                  account.instagramId,
+                  "autoReplyEnabled",
+                  checked,
+                )
               }
               disabled={isUpdating}
               className={pageStyles.switchTrack}
             />
-            <span className={`text-xs inline ${pageStyles.textMuted}`}>
-              Automation
+            <span
+              className={`text-xs hidden lg:inline ${pageStyles.textMuted}`}
+            >
+              Auto-reply
             </span>
           </div>
 

@@ -41,7 +41,6 @@ import { getUserById } from "@/lib/services/user-actions.api";
 import {
   cancelRazorPaySubscription,
   deleteInstaAccount,
-  getInstaAccount,
   getReplyLogs,
   getSubscriptioninfo,
   refreshInstagramToken,
@@ -58,10 +57,12 @@ import {
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface InstagramAccountType {
+interface DashboardAccount {
+  id: string;
   _id: string;
   instagramId: string;
   userId: string;
@@ -88,10 +89,6 @@ interface InstagramAccountType {
   createdAt: string;
   updatedAt: string;
   templatesCount: number;
-}
-
-interface DashboardAccount extends InstagramAccountType {
-  id: string;
   repliesCount: number;
   replyLimit: number;
   accountLimit: number;
@@ -230,6 +227,13 @@ export default function Dashboard() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
+  // Use context to get accounts
+  const {
+    accounts: contextAccounts,
+    isAccLoading,
+    refreshAccounts,
+  } = useInstaAccount();
+
   // Refs
   const isInitialMount = useRef(true);
   const isFetching = useRef(false);
@@ -327,116 +331,62 @@ export default function Dashboard() {
     [],
   );
 
-  const handleImageError = useCallback((id: string): void => {
-    setHasError((prev) => [...prev, id]);
-  }, []);
-
-  // ── Data fetchers ─────────────────────────────────────────────────────────────
-
-  const fetchAccounts = useCallback(async (): Promise<
-    DashboardAccount[] | null
-  > => {
-    if (!userId) {
-      router.push("/sign-in");
-      return null;
-    }
-
-    try {
-      setError(null);
-
-      // Use getInstaAccount which returns all accounts
-      const response = await getInstaAccount(apiRequest);
-
-      let accountsArray: any[] = [];
-
-      // Handle different response structures
-      if (response?.accounts && Array.isArray(response.accounts)) {
-        accountsArray = response.accounts;
-      } else if (
-        response?.data?.accounts &&
-        Array.isArray(response.data.accounts)
-      ) {
-        accountsArray = response.data.accounts;
-      } else if (Array.isArray(response)) {
-        accountsArray = response;
-      }
-
-      if (!accountsArray.length) {
-        return [];
-      }
-
+  const transformContextAccountsToDashboard = useCallback(
+    (accounts: any[]): DashboardAccount[] => {
       // Get subscription info to determine limits
       const subscriptionInfo =
         subscriptions.length > 0 ? subscriptions[0] : null;
       const accountLimit = subscriptionInfo
         ? PRO_PLAN_ACCOUNT_LIMIT
         : FREE_PLAN_ACCOUNT_LIMIT;
-      const replyLimit = subscriptionInfo ? "unlimited" : FREE_PLAN_REPLY_LIMIT;
+      const replyLimit = subscriptionInfo ? 999999 : FREE_PLAN_REPLY_LIMIT;
 
-      const completeAccounts: DashboardAccount[] = accountsArray.map(
-        (item: any) => {
-          // Handle both nested and direct structures
-          const accountInfo = item.accountInfo || item;
-          const instagramInfo = item.instagramInfo || {};
+      return accounts.map((acc) => ({
+        id: acc._id || acc.instagramId,
+        _id: acc._id || acc.instagramId,
+        instagramId: acc.instagramId,
+        userId: acc.userId,
+        username: acc.username,
+        accessToken: "", // Not needed for display
+        isActive: acc.isActive ?? true,
+        autoReplyEnabled: acc.autoReplyEnabled ?? true,
+        autoDMEnabled: acc.autoDMEnabled ?? true,
+        followCheckEnabled: acc.followCheckEnabled ?? true,
+        requireFollowForFreeUsers: acc.requireFollowForFreeUsers ?? false,
+        accountReply: acc.accountReply || 0,
+        accountFollowCheck: acc.accountFollowCheck || 0,
+        accountDMSent: acc.accountDMSent || 0,
+        lastActivity: acc.lastActivity || new Date().toISOString(),
+        profilePicture: acc.profilePicture || Default,
+        followersCount: acc.followersCount || 0,
+        followingCount: acc.followingCount || 0,
+        mediaCount: acc.mediaCount || 0,
+        metaCallsThisHour: acc.metaCallsThisHour || 0,
+        lastMetaCallAt: acc.lastMetaCallAt || new Date().toISOString(),
+        isMetaRateLimited: acc.isMetaRateLimited || false,
+        metaRateLimitResetAt: acc.metaRateLimitResetAt,
+        tokenExpiresAt: acc.tokenExpiresAt,
+        createdAt: acc.createdAt,
+        updatedAt: acc.updatedAt,
+        templatesCount: acc.templatesCount || 0,
+        repliesCount: acc.accountReply || 0,
+        replyLimit: replyLimit,
+        accountLimit: accountLimit,
+        totalAccounts: accounts.length,
+        engagementRate: 85 + Math.floor(Math.random() * 10), // Placeholder
+        successRate: 90 + Math.floor(Math.random() * 8), // Placeholder
+        avgResponseTime: Math.floor(Math.random() * 30) + 5, // Placeholder
+        tier: subscriptionInfo ? "pro" : "free",
+      }));
+    },
+    [subscriptions],
+  );
 
-          return {
-            id: accountInfo._id || accountInfo.id || "",
-            _id: accountInfo._id || accountInfo.id || "",
-            instagramId: accountInfo.instagramId || instagramInfo.id || "",
-            userId: accountInfo.userId || userId,
-            username:
-              instagramInfo.username || accountInfo.username || "Unknown",
-            accessToken: accountInfo.accessToken || "",
-            isActive: accountInfo.isActive || false,
-            autoReplyEnabled: accountInfo.autoReplyEnabled || false,
-            autoDMEnabled: accountInfo.autoDMEnabled || false,
-            followCheckEnabled: accountInfo.followCheckEnabled || false,
-            requireFollowForFreeUsers:
-              accountInfo.requireFollowForFreeUsers || false,
-            accountReply: accountInfo.accountReply || 0,
-            accountFollowCheck: accountInfo.accountFollowCheck || 0,
-            accountDMSent: accountInfo.accountDMSent || 0,
-            lastActivity: accountInfo.lastActivity || new Date().toISOString(),
-            profilePicture:
-              instagramInfo.profile_picture_url ||
-              accountInfo.profilePicture ||
-              Default,
-            followersCount:
-              instagramInfo.followers_count || accountInfo.followersCount || 0,
-            followingCount:
-              instagramInfo.follows_count || accountInfo.followingCount || 0,
-            mediaCount:
-              instagramInfo.media_count || accountInfo.mediaCount || 0,
-            metaCallsThisHour: accountInfo.metaCallsThisHour || 0,
-            lastMetaCallAt:
-              accountInfo.lastMetaCallAt || new Date().toISOString(),
-            isMetaRateLimited: accountInfo.isMetaRateLimited || false,
-            metaRateLimitResetAt: accountInfo.metaRateLimitResetAt,
-            tokenExpiresAt: accountInfo.tokenExpiresAt,
-            createdAt: accountInfo.createdAt,
-            updatedAt: accountInfo.updatedAt,
-            templatesCount: accountInfo.templatesCount || 0,
-            repliesCount: accountInfo.accountReply || 0,
-            replyLimit: typeof replyLimit === "number" ? replyLimit : 999999,
-            accountLimit: accountLimit,
-            totalAccounts: accountsArray.length,
-            engagementRate: 85 + Math.floor(Math.random() * 10), // Placeholder - replace with actual
-            successRate: 90 + Math.floor(Math.random() * 8), // Placeholder - replace with actual
-            avgResponseTime: Math.floor(Math.random() * 30) + 5, // Placeholder - replace with actual
-            tier: subscriptionInfo ? "pro" : "free",
-          };
-        },
-      );
+  const handleImageError = useCallback((id: string): void => {
+    setHasError((prev) => [...prev, id]);
+  }, []);
 
-      setUserAccounts(completeAccounts);
-      return completeAccounts;
-    } catch (err) {
-      console.error("Failed to fetch accounts:", err);
-      setError(err instanceof Error ? err.message : "Failed to load accounts");
-      showToast("Failed to load accounts", "error");
-      return null;
-    }
-  }, [userId, router, showToast, apiRequest, subscriptions]);
+  // ── Data fetchers ─────────────────────────────────────────────────────────────
 
   const fetchDashboardData = useCallback(async () => {
     if (isFetching.current) return;
@@ -445,13 +395,21 @@ export default function Dashboard() {
     try {
       setIsLoading(true);
 
-      const accountsData = await fetchAccounts();
-
-      if (!accountsData || accountsData.length === 0) {
+      if (!contextAccounts || contextAccounts.length === 0) {
         setDashboardData(null);
+        setUserAccounts([]);
         return;
       }
 
+      const accountsData = transformContextAccountsToDashboard(contextAccounts);
+
+      if (!accountsData || accountsData.length === 0) {
+        setDashboardData(null);
+        setUserAccounts([]);
+        return;
+      }
+
+      setUserAccounts(accountsData);
       const dashboardStats = transformAccountsToDashboardData(accountsData);
 
       // Fetch reply logs separately (don't block dashboard load)
@@ -481,7 +439,13 @@ export default function Dashboard() {
       setIsRefreshing(false);
       isFetching.current = false;
     }
-  }, [fetchAccounts, transformAccountsToDashboardData, showToast, apiRequest]);
+  }, [
+    contextAccounts,
+    transformContextAccountsToDashboard,
+    transformAccountsToDashboardData,
+    showToast,
+    apiRequest,
+  ]);
 
   const fetchSubscriptions = useCallback(async () => {
     if (!userId) return;
@@ -506,7 +470,7 @@ export default function Dashboard() {
 
     const init = async () => {
       try {
-        await Promise.all([fetchSubscriptions(), fetchDashboardData()]);
+        await fetchSubscriptions();
       } catch (err) {
         console.error("Initialization error:", err);
       }
@@ -514,7 +478,14 @@ export default function Dashboard() {
 
     init();
     isInitialMount.current = false;
-  }, [isLoaded, fetchSubscriptions, fetchDashboardData]);
+  }, [isLoaded, fetchSubscriptions]);
+
+  // Update dashboard when context accounts change
+  useEffect(() => {
+    if (!isAccLoading && contextAccounts) {
+      fetchDashboardData();
+    }
+  }, [contextAccounts, isAccLoading, fetchDashboardData]);
 
   // ── Action handlers ───────────────────────────────────────────────────────────
 
@@ -523,8 +494,9 @@ export default function Dashboard() {
 
     setIsRefreshing(true);
     isFetching.current = false;
+    await refreshAccounts();
     await fetchDashboardData();
-  }, [isRefreshing, fetchDashboardData]);
+  }, [isRefreshing, refreshAccounts, fetchDashboardData]);
 
   const handleAddAccountClick = useCallback(() => {
     const accountLimit =
@@ -571,12 +543,8 @@ export default function Dashboard() {
 
         showToast("Accounts deleted successfully", "success");
 
-        // Update local state
-        setUserAccounts((prev) =>
-          prev.filter((a) => !selectedAccountIds.includes(a.id)),
-        );
-
-        await fetchDashboardData();
+        // Refresh context to update accounts list
+        await refreshAccounts();
         setShowCancelDialog(true);
       } catch (err) {
         console.error("Error deleting accounts:", err);
@@ -585,7 +553,7 @@ export default function Dashboard() {
         setIsProcessingCancellation(false);
       }
     },
-    [apiRequest, showToast, fetchDashboardData],
+    [apiRequest, showToast, refreshAccounts],
   );
 
   const handleCancelSubscription = useCallback(async () => {
@@ -607,6 +575,7 @@ export default function Dashboard() {
       if (result.success) {
         showToast("Subscription cancelled successfully", "success");
         setSubscriptions([]);
+        await refreshAccounts();
         await fetchDashboardData();
       } else {
         showToast(result.message || "Failed to cancel subscription", "error");
@@ -625,6 +594,7 @@ export default function Dashboard() {
     cancellationMode,
     apiRequest,
     showToast,
+    refreshAccounts,
     fetchDashboardData,
   ]);
 
@@ -633,13 +603,13 @@ export default function Dashboard() {
       try {
         await refreshInstagramToken(apiRequest, instagramId);
         showToast("Token refreshed successfully", "success");
-        await fetchDashboardData();
+        await refreshAccounts();
       } catch (err) {
         console.error("Error refreshing token:", err);
         showToast("Failed to refresh token", "error");
       }
     },
-    [apiRequest, showToast, fetchDashboardData],
+    [apiRequest, showToast, refreshAccounts],
   );
 
   // ── Derived values for stat cards ─────────────────────────────────────────────
@@ -673,7 +643,7 @@ export default function Dashboard() {
 
   // ── Loading state ─────────────────────────────────────────────────────────────
 
-  if (isLoading || !isLoaded) {
+  if ((isLoading && !dashboardData) || !isLoaded || isAccLoading) {
     return <Spinner label="Loading your dashboard…" />;
   }
 
