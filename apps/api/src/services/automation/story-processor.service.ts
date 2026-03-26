@@ -134,7 +134,7 @@ export async function processStoryAutomation(
       success: dmResult.success,
       responseTime: Date.now() - startTime,
       errorMessage: !dmResult.success ? "Failed to process story" : undefined,
-      wasQueued: false, // Never queued
+      wasQueued: false,
       createdAt: new Date(),
     });
 
@@ -194,6 +194,7 @@ async function findMatchingStoryTemplate(mediaId: string, templates: any[]) {
 
 /**
  * Process DM flow for story - FIRE AND FORGET
+ * UPDATED to match the working pattern from comment processor
  */
 async function processStoryDMFlow(
   account: any,
@@ -219,6 +220,11 @@ async function processStoryDMFlow(
         recipientUsername,
       );
 
+      console.log(`Sending welcome message to ${recipientUsername}`, {
+        template: template.name,
+        welcomeText: welcomeText.substring(0, 100),
+      });
+
       const welcomeSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -232,14 +238,19 @@ async function processStoryDMFlow(
               buttons: [
                 {
                   type: "postback",
-                  title: template.welcomeMessage.buttonTitle,
-                  payload: `WELCOME_STORY_${template.mediaId}_${recipientId}`,
+                  title: template.welcomeMessage.buttonTitle || "Get Started",
+                  payload: `WELCOME_STORY_${template.mediaId}`,
                 },
               ],
             },
           },
         },
+        false, // isCommentReply = false for stories
       );
+
+      if (!welcomeSuccess) {
+        console.error("Failed to send welcome message for story");
+      }
 
       return {
         success: welcomeSuccess,
@@ -250,35 +261,62 @@ async function processStoryDMFlow(
       };
     }
 
-    // Send initial DM
+    // Send initial DM with appropriate flow based on template settings
     let initialButtonPayload = "";
     let initialButtonText = "Get Access";
-    let initialMessage = "Thanks for the story mention!";
+    let initialMessage = "Thanks for the story mention! 🎉";
 
-    if (template.askFollow?.enabled) {
-      initialButtonPayload = `CHECK_FOLLOW_STORY_${template.mediaId}_${recipientId}`;
-      initialButtonText = "Send me the link";
+    // Check which features are enabled
+    const hasAskFollow = template.askFollow?.enabled;
+    const hasAskEmail = template.askEmail?.enabled;
+    const hasAskPhone = template.askPhone?.enabled;
+
+    if (hasAskFollow) {
+      initialButtonPayload = `CHECK_FOLLOW_STORY_${template.mediaId}`;
+      initialButtonText =
+        template.askFollow?.visitProfileBtn || "Send me the link";
       initialMessage =
+        template.askFollow?.message?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) ||
         "Hey thanks for mentioning us! 😊 Tap below and I will send you the access!";
-    } else if (template.askEmail?.enabled) {
-      initialButtonPayload = `ASK_EMAIL_STORY_${template.mediaId}_${recipientId}`;
+    } else if (hasAskEmail) {
+      initialButtonPayload = `ASK_EMAIL_STORY_${template.mediaId}`;
       initialButtonText = "Continue";
-      initialMessage = template.askEmail.openingMessage.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
-    } else if (template.askPhone?.enabled) {
-      initialButtonPayload = `ASK_PHONE_STORY_${template.mediaId}_${recipientId}`;
+      initialMessage =
+        template.askEmail?.openingMessage?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) || "Please share your email address to get access.";
+    } else if (hasAskPhone) {
+      initialButtonPayload = `ASK_PHONE_STORY_${template.mediaId}`;
       initialButtonText = "Continue";
-      initialMessage = template.askPhone.openingMessage.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
+      initialMessage =
+        template.askPhone?.openingMessage?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) || "Please share your phone number to get access.";
     } else {
-      initialButtonPayload = `GET_ACCESS_STORY_${template.mediaId}_${recipientId}`;
-      initialButtonText = template.content[0]?.buttonTitle || "Get Access";
-      initialMessage = "Tap below to get instant access!";
+      // Direct link flow
+      initialButtonPayload = `GET_ACCESS_STORY_${template.mediaId}`;
+      initialButtonText = selectRandomItem(
+        template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
+          "Get Access",
+        ],
+      );
+      initialMessage = "Tap below to get instant access! 🎉";
     }
+
+    console.log(`Sending initial DM to ${recipientUsername}`, {
+      template: template.name,
+      hasButtons: !!initialButtonPayload,
+      messageType: hasAskFollow
+        ? "follow_gate"
+        : hasAskEmail
+          ? "email_collection"
+          : "direct_link",
+    });
 
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
@@ -300,13 +338,15 @@ async function processStoryDMFlow(
           },
         },
       },
+      false, // isCommentReply = false for stories
     );
 
     return {
       success: dmSuccess,
       dmSent: dmSuccess,
-      followChecked: false,
-      linkSent: false,
+      followChecked: hasAskFollow,
+      userFollows: false,
+      linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
       stage: "initial",
     };
   } catch (error) {
@@ -316,7 +356,16 @@ async function processStoryDMFlow(
       dmSent: false,
       followChecked: false,
       linkSent: false,
-      stage: "initial",
+      stage: "error",
     };
   }
+}
+
+/**
+ * Select random item from array
+ */
+function selectRandomItem(items: string[]): string {
+  if (!items || items.length === 0) return "";
+  const randomIndex = Math.floor(Math.random() * items.length);
+  return items[randomIndex];
 }

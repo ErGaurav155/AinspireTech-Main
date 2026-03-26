@@ -203,7 +203,7 @@ export async function processCommentAutomation(
         !publicReplySuccess && !dmResult.success
           ? "Failed to process comment"
           : undefined,
-      wasQueued: false, // Never queued - always fire and forget
+      wasQueued: false,
       createdAt: new Date(),
     });
 
@@ -304,6 +304,7 @@ async function findMatchingTemplate(
 
 /**
  * Process DM flow - FIRE AND FORGET (no rate limiting)
+ * UPDATED to match the working pattern
  */
 async function processDMFlow(
   account: any,
@@ -322,12 +323,22 @@ async function processDMFlow(
   stage: string;
 }> {
   try {
+    console.log(`Processing DM flow for user ${recipientUsername}`, {
+      templateName: template.name,
+      hasWelcomeMessage: template.welcomeMessage?.enabled,
+      hasAskFollow: template.askFollow?.enabled,
+      hasAskEmail: template.askEmail?.enabled,
+      hasAskPhone: template.askPhone?.enabled,
+    });
+
     // Send welcome message if enabled
     if (template.welcomeMessage?.enabled) {
       const welcomeText = template.welcomeMessage.text.replace(
         /\{\{username\}\}/g,
         recipientUsername,
       );
+
+      console.log(`Sending welcome message to ${recipientUsername}`);
 
       const welcomeSuccess = await sendInstagramDM(
         account.instagramId,
@@ -342,17 +353,20 @@ async function processDMFlow(
               buttons: [
                 {
                   type: "postback",
-                  title: template.welcomeMessage.buttonTitle,
-                  payload: `WELCOME_${template.mediaId}_${recipientId}`,
+                  title: template.welcomeMessage.buttonTitle || "Get Started",
+                  payload: `WELCOME_${template.mediaId}`,
                 },
               ],
             },
           },
         },
+        false, // isCommentReply = false for DMs
       );
 
       if (!welcomeSuccess) {
-        console.error("Failed to send welcome message");
+        console.error(`Failed to send welcome message to ${recipientUsername}`);
+      } else {
+        console.log(`Welcome message sent to ${recipientUsername}`);
       }
 
       return {
@@ -368,62 +382,96 @@ async function processDMFlow(
     let initialButtonPayload = "";
     let initialButtonText = "Get Access";
     let initialMessage = "Thanks for your comment!";
+    let hasButtons = true;
 
-    if (template.askFollow?.enabled) {
-      initialButtonPayload = `CHECK_FOLLOW_${template.mediaId}_${recipientId}`;
-      initialButtonText = "Send me the link";
+    const hasAskFollow = template.askFollow?.enabled;
+    const hasAskEmail = template.askEmail?.enabled;
+    const hasAskPhone = template.askPhone?.enabled;
+
+    if (hasAskFollow) {
+      initialButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+      initialButtonText =
+        template.askFollow?.visitProfileBtn || "Send me the link";
       initialMessage =
+        template.askFollow?.message?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) ||
         "Hey thanks a ton for the comment! 😊 Simply tap below and I will send you the access!";
-    } else if (template.askEmail?.enabled) {
-      initialButtonPayload = `ASK_EMAIL_${template.mediaId}_${recipientId}`;
+    } else if (hasAskEmail) {
+      initialButtonPayload = `ASK_EMAIL_${template.mediaId}`;
       initialButtonText = "Continue";
-      initialMessage = template.askEmail.openingMessage.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
-    } else if (template.askPhone?.enabled) {
-      initialButtonPayload = `ASK_PHONE_${template.mediaId}_${recipientId}`;
+      initialMessage =
+        template.askEmail?.openingMessage?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) || "Please share your email address to get access.";
+    } else if (hasAskPhone) {
+      initialButtonPayload = `ASK_PHONE_${template.mediaId}`;
       initialButtonText = "Continue";
-      initialMessage = template.askPhone.openingMessage.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
+      initialMessage =
+        template.askPhone?.openingMessage?.replace(
+          /\{\{username\}\}/g,
+          recipientUsername,
+        ) || "Please share your phone number to get access.";
     } else {
-      // Direct link for free users or simple flow
-      initialButtonPayload = `GET_ACCESS_${template.mediaId}_${recipientId}`;
+      // Direct link flow
+      initialButtonPayload = `GET_ACCESS_${template.mediaId}`;
       initialButtonText = selectRandomItem(
-        template.content.map((c: any) => c.buttonTitle || "Get Access"),
+        template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
+          "Get Access",
+        ],
       );
-      initialMessage = "Tap below to get instant access!";
+      initialMessage = "Tap below to get instant access! 🎉";
+    }
+
+    console.log(`Sending initial DM to ${recipientUsername}`, {
+      messageType: hasAskFollow
+        ? "follow_gate"
+        : hasAskEmail
+          ? "email_collection"
+          : hasAskPhone
+            ? "phone_collection"
+            : "direct_link",
+    });
+
+    const dmPayload: any = {};
+
+    if (hasButtons && initialButtonPayload) {
+      dmPayload.attachment = {
+        type: "template",
+        payload: {
+          template_type: "button",
+          text: initialMessage,
+          buttons: [
+            {
+              type: "postback",
+              title: initialButtonText,
+              payload: initialButtonPayload,
+            },
+          ],
+        },
+      };
+    } else {
+      dmPayload.text = initialMessage;
     }
 
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
       recipientId,
-      {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "button",
-            text: initialMessage,
-            buttons: [
-              {
-                type: "postback",
-                title: initialButtonText,
-                payload: initialButtonPayload,
-              },
-            ],
-          },
-        },
-      },
+      dmPayload,
+      false, // isCommentReply = false for DMs
     );
+
+    console.log(`Initial DM sent to ${recipientUsername}: ${dmSuccess}`);
 
     return {
       success: dmSuccess,
       dmSent: dmSuccess,
-      followChecked: false,
-      linkSent: false,
+      followChecked: hasAskFollow,
+      userFollows: false,
+      linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
       stage: "initial",
     };
   } catch (error) {
@@ -433,7 +481,7 @@ async function processDMFlow(
       dmSent: false,
       followChecked: false,
       linkSent: false,
-      stage: "initial",
+      stage: "error",
     };
   }
 }
@@ -481,6 +529,7 @@ function isMeaningfulComment(text: string): boolean {
 
   return true;
 }
+
 /**
  * Select random item from array
  */

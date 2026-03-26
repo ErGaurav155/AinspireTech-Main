@@ -8,7 +8,6 @@ import React, {
   useRef,
 } from "react";
 import { RefreshCw, XCircle, AlertTriangle } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";

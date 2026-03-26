@@ -39,7 +39,7 @@ export async function handleIncomingMessage(
     }).sort({ createdAt: -1 });
 
     if (!recentLog) {
-      console.log("No context found for incoming message");
+      console.log("No context found for incoming message from:", senderId);
       return {
         success: false,
         message: "No context found",
@@ -92,6 +92,7 @@ export async function handleIncomingMessage(
 
 /**
  * Handle email response
+ * UPDATED to match the working pattern from comment processor
  */
 async function handleEmailResponse(
   account: any,
@@ -105,6 +106,8 @@ async function handleEmailResponse(
   message: string;
 }> {
   try {
+    console.log(`Processing email response for user ${senderId}: ${email}`);
+
     // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -118,6 +121,11 @@ async function handleEmailResponse(
             template.askEmail?.retryMessage ||
             "Please enter a valid email address, e.g. info@gmail.com",
         },
+        false, // isCommentReply = false for DMs
+      );
+
+      console.log(
+        `Email validation failed for ${email}, retry sent: ${retrySuccess}`,
       );
 
       return {
@@ -131,6 +139,8 @@ async function handleEmailResponse(
     log.dmFlowStage = "email_collected";
     await log.save();
 
+    console.log(`Valid email collected for user ${senderId}: ${email}`);
+
     // Save email to user record (optional)
     const User = (await import("@/models/user.model")).default;
     await User.findOneAndUpdate(
@@ -142,19 +152,27 @@ async function handleEmailResponse(
     // Send next step or final link
     if (template.askPhone?.enabled) {
       // Ask for phone next
+      const phoneMessage =
+        template.askPhone?.openingMessage?.replace(
+          /\{\{username\}\}/g,
+          log.commenterUsername || "there",
+        ) ||
+        "Great! Now please share your phone number to complete your access.";
+
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
         senderId,
         {
-          text:
-            template.askPhone?.openingMessage ||
-            "Great! Now please share your phone number.",
+          text: phoneMessage,
         },
+        false, // isCommentReply = false for DMs
       );
 
       log.dmFlowStage = "waiting_for_phone";
       await log.save();
+
+      console.log(`Phone request sent to ${senderId}: ${dmSuccess}`);
 
       return {
         success: dmSuccess,
@@ -163,11 +181,9 @@ async function handleEmailResponse(
     } else {
       // Send final link
       const randomIndex = Math.floor(Math.random() * template.content.length);
-      const {
-        text,
-        link,
-        buttonTitle = "Get Access",
-      } = template.content[randomIndex];
+      const content = template.content[randomIndex];
+      const buttonTitle = content.buttonTitle || "Get Access";
+      const finalText = content.text || "Here's your access!";
 
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
@@ -178,11 +194,11 @@ async function handleEmailResponse(
             type: "template",
             payload: {
               template_type: "button",
-              text: `Perfect! Here's your access: ${text}`,
+              text: `Perfect! ${finalText}`,
               buttons: [
                 {
                   type: "web_url",
-                  url: link,
+                  url: content.link,
                   title: buttonTitle,
                   webview_height_ratio: "full",
                 },
@@ -190,11 +206,14 @@ async function handleEmailResponse(
             },
           },
         },
+        false, // isCommentReply = false for DMs
       );
 
       log.linkSent = dmSuccess;
       log.dmFlowStage = "final_link";
       await log.save();
+
+      console.log(`Final link sent to ${senderId}: ${dmSuccess}`);
 
       return {
         success: dmSuccess,
@@ -212,6 +231,7 @@ async function handleEmailResponse(
 
 /**
  * Handle phone response
+ * UPDATED to match the working pattern from comment processor
  */
 async function handlePhoneResponse(
   account: any,
@@ -225,6 +245,8 @@ async function handlePhoneResponse(
   message: string;
 }> {
   try {
+    console.log(`Processing phone response for user ${senderId}: ${phone}`);
+
     // Validate phone (basic validation)
     const phoneRegex = /^[+]?[\d\s()-]{8,20}$/;
     if (!phoneRegex.test(phone)) {
@@ -236,8 +258,13 @@ async function handlePhoneResponse(
         {
           text:
             template.askPhone?.retryMessage ||
-            "Please enter a valid phone number, e.g. +1234567890",
+            "Please enter a valid phone number, e.g. +1234567890 or 9876543210",
         },
+        false, // isCommentReply = false for DMs
+      );
+
+      console.log(
+        `Phone validation failed for ${phone}, retry sent: ${retrySuccess}`,
       );
 
       return {
@@ -251,13 +278,13 @@ async function handlePhoneResponse(
     log.dmFlowStage = "phone_collected";
     await log.save();
 
+    console.log(`Valid phone collected for user ${senderId}: ${phone}`);
+
     // Send final link
     const randomIndex = Math.floor(Math.random() * template.content.length);
-    const {
-      text,
-      link,
-      buttonTitle = "Get Access",
-    } = template.content[randomIndex];
+    const content = template.content[randomIndex];
+    const buttonTitle = content.buttonTitle || "Get Access";
+    const finalText = content.text || "Here's your access!";
 
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
@@ -268,11 +295,11 @@ async function handlePhoneResponse(
           type: "template",
           payload: {
             template_type: "button",
-            text: `Perfect! Here's your access: ${text}`,
+            text: `Perfect! ${finalText}`,
             buttons: [
               {
                 type: "web_url",
-                url: link,
+                url: content.link,
                 title: buttonTitle,
                 webview_height_ratio: "full",
               },
@@ -280,11 +307,14 @@ async function handlePhoneResponse(
           },
         },
       },
+      false, // isCommentReply = false for DMs
     );
 
     log.linkSent = dmSuccess;
     log.dmFlowStage = "final_link";
     await log.save();
+
+    console.log(`Final link sent to ${senderId}: ${dmSuccess}`);
 
     return {
       success: dmSuccess,
