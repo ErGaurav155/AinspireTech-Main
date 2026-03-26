@@ -403,7 +403,7 @@ async function updateDatabaseRecords(
       isActive: true,
     });
 
-    // Prepare account usage array for new window creation
+    // Prepare account usage array
     const accountUsageList: AccountUsageEntry[] = userAccounts.map((acc) => ({
       instagramAccountId: acc.instagramId,
       callsMade: acc.instagramId === accountId ? 1 : 0,
@@ -412,7 +412,7 @@ async function updateDatabaseRecords(
       accountProfile: acc.profilePicture,
     }));
 
-    // Use findOneAndUpdate with upsert - this handles race conditions automatically
+    // Atomic upsert with retry logic
     let retries = 3;
     let userRateLimit = null;
 
@@ -439,42 +439,26 @@ async function updateDatabaseRecords(
           },
         );
       } catch (error: any) {
-        // E11000 duplicate key error - race condition
-        if (error.code === 11000) {
-          console.log(
-            `⚠️ Race condition detected for user ${clerkId}, retrying... (${retries} left)`,
+        if (error.code === 11000 && retries > 1) {
+          retries--;
+          await new Promise((resolve) =>
+            setTimeout(resolve, 50 * (4 - retries)),
           );
-
-          if (retries > 1) {
-            retries--;
-            // Wait a bit before retrying
-            await new Promise((resolve) => setTimeout(resolve, 50));
-            continue;
-          } else {
-            // Last retry - try to find the document that was created
-            userRateLimit = await RateUserRateLimit.findOne({
-              clerkId,
-              windowStart,
-            });
-            if (!userRateLimit) {
-              throw new Error(
-                "Failed to create/update rate limit record after retries",
-              );
-            }
-          }
-        } else {
-          throw error;
+          continue;
         }
+        throw error;
       }
     }
 
     if (!userRateLimit) {
-      throw new Error(
-        "Failed to create/update rate limit record after retries",
-      );
+      // Last resort: find existing document
+      userRateLimit = await RateUserRateLimit.findOne({ clerkId, windowStart });
+      if (!userRateLimit) {
+        throw new Error("Failed to create/update rate limit record");
+      }
     }
 
-    // After the main update, increment the specific account's calls
+    // Update specific account's calls
     await RateUserRateLimit.updateOne(
       {
         clerkId,
@@ -487,7 +471,7 @@ async function updateDatabaseRecords(
       },
     );
 
-    // Update meta calls for Instagram account if needed
+    // Update meta calls
     if (metaCalls > 0) {
       await InstagramAccount.updateOne(
         { instagramId: accountId },
@@ -497,10 +481,6 @@ async function updateDatabaseRecords(
         },
       );
     }
-
-    console.log(
-      `✅ Updated database records for user ${clerkId}, account ${accountId}`,
-    );
 
     return userRateLimit;
   } catch (error) {

@@ -386,7 +386,7 @@ async function handleCheckFollowAction(
       account.accessToken,
       recipientId,
     );
-
+    console.log("followStatus:", followStatus);
     const userFollows = followStatus.is_user_follow_business === true;
 
     if (userFollows) {
