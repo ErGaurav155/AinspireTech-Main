@@ -153,6 +153,7 @@ export async function processCommentAutomation(
       matchingTemplate,
       comment.user_id,
       comment.username,
+      comment.id,
     );
 
     // Update template usage
@@ -301,18 +302,19 @@ async function findMatchingTemplate(
 
   return null;
 }
-
 /**
- * Process DM flow - FIRE AND FORGET (no rate limiting)
- * UPDATED to match the working pattern
+ * Process DM flow - FIRE AND FORGET
+ * CRITICAL: First message MUST use comment_id (reply to comment)
+ * Subsequent messages can use user_id (within 24-hour window)
  */
 async function processDMFlow(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
-  recipientId: string,
+  recipientId: string, // This is comment.user_id (for follow-up)
   recipientUsername: string,
+  commentId: string, // NEW: Add commentId parameter
 ): Promise<{
   success: boolean;
   dmSent: boolean;
@@ -338,12 +340,15 @@ async function processDMFlow(
         recipientUsername,
       );
 
-      console.log(`Sending welcome message to ${recipientUsername}`);
+      console.log(
+        `Sending welcome message to ${recipientUsername} as reply to comment ${commentId}`,
+      );
 
+      // ✅ CRITICAL: First message MUST use comment_id (reply to comment)
       const welcomeSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
-        recipientId,
+        commentId, // ← Use comment.id for first message (reply to comment)
         {
           attachment: {
             type: "template",
@@ -360,13 +365,13 @@ async function processDMFlow(
             },
           },
         },
-        false, // isCommentReply = false for DMs
+        true, // isCommentReply = true (replying to comment)
       );
 
       if (!welcomeSuccess) {
         console.error(`Failed to send welcome message to ${recipientUsername}`);
       } else {
-        console.log(`Welcome message sent to ${recipientUsername}`);
+        console.log(`Welcome message sent as reply to comment ${commentId}`);
       }
 
       return {
@@ -378,7 +383,7 @@ async function processDMFlow(
       };
     }
 
-    // Send initial DM with appropriate flow based on template settings
+    // If no welcome message, send initial DM as reply to comment
     let initialButtonPayload = "";
     let initialButtonText = "Get Access";
     let initialMessage = "Thanks for your comment!";
@@ -415,7 +420,6 @@ async function processDMFlow(
           recipientUsername,
         ) || "Please share your phone number to get access.";
     } else {
-      // Direct link flow
       initialButtonPayload = `GET_ACCESS_${template.mediaId}`;
       initialButtonText = selectRandomItem(
         template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
@@ -425,15 +429,18 @@ async function processDMFlow(
       initialMessage = "Tap below to get instant access! 🎉";
     }
 
-    console.log(`Sending initial DM to ${recipientUsername}`, {
-      messageType: hasAskFollow
-        ? "follow_gate"
-        : hasAskEmail
-          ? "email_collection"
-          : hasAskPhone
-            ? "phone_collection"
-            : "direct_link",
-    });
+    console.log(
+      `Sending initial DM to ${recipientUsername} as reply to comment ${commentId}`,
+      {
+        messageType: hasAskFollow
+          ? "follow_gate"
+          : hasAskEmail
+            ? "email_collection"
+            : hasAskPhone
+              ? "phone_collection"
+              : "direct_link",
+      },
+    );
 
     const dmPayload: any = {};
 
@@ -456,15 +463,18 @@ async function processDMFlow(
       dmPayload.text = initialMessage;
     }
 
+    // ✅ CRITICAL: First message uses comment_id (reply to comment)
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
-      recipientId,
+      commentId, // ← Use comment.id for first message
       dmPayload,
-      false, // isCommentReply = false for DMs
+      true, // isCommentReply = true (replying to comment)
     );
 
-    console.log(`Initial DM sent to ${recipientUsername}: ${dmSuccess}`);
+    console.log(
+      `Initial DM sent as reply to comment ${commentId}: ${dmSuccess}`,
+    );
 
     return {
       success: dmSuccess,
