@@ -182,7 +182,6 @@ export const createInstaTemplate = (
 
     // Welcome Message
     welcomeMessage: templateData.welcomeMessage || {
-      enabled: false,
       text: "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
       buttonTitle: "Send me the link",
     },

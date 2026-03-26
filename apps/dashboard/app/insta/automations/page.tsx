@@ -51,8 +51,7 @@ interface TemplateType {
   successRate?: number;
   delaySeconds?: number;
   automationType: "comments" | "stories" | "dms" | "live";
-  welcomeMessage?: {
-    enabled: boolean;
+  welcomeMessage: {
     text: string;
     buttonTitle: string;
   };
@@ -788,11 +787,6 @@ export default function AutomationsPage() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.06] ">
-                {template.welcomeMessage?.enabled && (
-                  <span className={pageStyles.featureBadge("blue")}>
-                    Welcome Message
-                  </span>
-                )}
                 {template.publicReply?.enabled && (
                   <span className={pageStyles.featureBadge("purple")}>
                     Public Replies
