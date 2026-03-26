@@ -359,7 +359,7 @@ async function processDMFlow(
                 {
                   type: "postback",
                   title: template.welcomeMessage.buttonTitle || "Get Started",
-                  payload: `WELCOME_${template.mediaId}`,
+                  payload: `WELCOME_MESSAGE_${template.mediaId}`,
                 },
               ],
             },
