@@ -120,8 +120,7 @@ export const createInstaTemplate = (
     automationType?: "comments" | "stories" | "dms" | "live";
     anyPostOrReel?: boolean;
     anyKeyword?: boolean;
-    welcomeMessage?: {
-      enabled: boolean;
+    welcomeMessage: {
       text: string;
       buttonTitle: string;
     };
@@ -645,7 +644,6 @@ export type DelayOption = "immediate" | "3min" | "5min" | "10min";
 export type TagType = "none" | "user" | "account";
 
 export interface WelcomeMessageConfig {
-  enabled: boolean;
   text: string;
   buttonTitle: string;
 }
@@ -728,7 +726,7 @@ export interface TemplateType {
   anyKeyword?: boolean;
 
   /** Welcome message shown before the main DM */
-  welcomeMessage?: WelcomeMessageConfig;
+  welcomeMessage: WelcomeMessageConfig;
 
   /** Public comment reply settings */
   publicReply?: PublicReplyConfig;

@@ -33,11 +33,9 @@ export async function sendInstagramDM(
   isCommentReply: boolean = false,
 ): Promise<boolean> {
   try {
-    // Determine recipient format based on message type
     const recipient = isCommentReply
-      ? { comment_id: recipientId } // For replying to comments
-      : { id: recipientId }; // For direct messages
-
+      ? { comment_id: recipientId }
+      : { id: recipientId };
     const response = await fetch(
       `https://graph.instagram.com/v23.0/${accountId}/messages`,
       {
@@ -46,32 +44,19 @@ export async function sendInstagramDM(
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({
-          recipient,
-          message,
-        }),
+        body: JSON.stringify({ recipient, message }),
       },
     );
-
-    const result = await response.json();
-
     if (!response.ok) {
+      const result = await response.json();
       console.error("Instagram DM Error:", {
         status: response.status,
         error: result,
         recipientId,
         isCommentReply,
-        message: message.attachment?.payload?.text?.substring(0, 100),
       });
       return false;
     }
-
-    console.log("DM sent successfully:", {
-      messageId: result.message_id,
-      recipientId,
-      isCommentReply,
-    });
-
     return true;
   } catch (error) {
     console.error("Failed to send Instagram DM:", error);

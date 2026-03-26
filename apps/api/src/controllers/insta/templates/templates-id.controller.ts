@@ -177,7 +177,6 @@ export const updateInstaTemplateController = async (
 
     if (updateData.welcomeMessage !== undefined) {
       updateFields.welcomeMessage = {
-        enabled: updateData.welcomeMessage.enabled ?? false,
         text:
           updateData.welcomeMessage.text?.trim() ||
           "Hi {{username}}! So glad you're interested 🎉",

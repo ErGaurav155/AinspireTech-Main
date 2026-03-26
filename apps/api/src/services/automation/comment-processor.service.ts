@@ -64,7 +64,7 @@ export async function processCommentAutomation(
       };
     }
 
-    // Check if comment is meaningful
+    // Check if comment is meaningful (not just emojis/GIFs)
     if (!isMeaningfulComment(comment.text)) {
       await InstaReplyLog.create({
         userId: clerkId,
@@ -79,11 +79,7 @@ export async function processCommentAutomation(
         errorMessage: "Not a meaningful comment",
         createdAt: new Date(),
       });
-
-      return {
-        success: false,
-        message: "Not a meaningful comment",
-      };
+      return { success: false, message: "Not a meaningful comment" };
     }
 
     // Find matching template if not provided
@@ -103,35 +99,27 @@ export async function processCommentAutomation(
       );
 
       if (!matchingTemplate) {
-        return {
-          success: false,
-          message: "No matching template found",
-        };
+        return { success: false, message: "No matching template found" };
       }
     }
 
-    // Get user tier
+    // Get user tier (free/pro)
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
     // Process public reply if enabled
     let publicReplySuccess = false;
     let publicReplyText = "";
-
     if (matchingTemplate.publicReply?.enabled) {
       try {
         publicReplyText = selectRandomItem(
           matchingTemplate.publicReply.replies,
         );
-
-        // Add tag if specified
         if (matchingTemplate.publicReply.tagType === "user") {
           publicReplyText = `@${comment.username} ${publicReplyText}`;
         } else if (matchingTemplate.publicReply.tagType === "account") {
           publicReplyText = `@${account.username} ${publicReplyText}`;
         }
-
-        // Send public comment reply - FIRE AND FORGET (no rate limit)
         publicReplySuccess = await sendInstagramCommentReply(
           account.instagramId,
           account.accessToken,
@@ -145,15 +133,15 @@ export async function processCommentAutomation(
       }
     }
 
-    // Process DM flow - FIRE AND FORGET (no rate limit)
+    // Process DM flow – sends the first message (welcome or initial DM)
     const dmResult = await processDMFlow(
       account,
       clerkId,
       userTier,
       matchingTemplate,
-      comment.user_id,
+      comment.user_id, // recipientId for follow‑up DMs
       comment.username,
-      comment.id,
+      comment.id, // commentId used for the first message (reply to comment)
     );
 
     // Update template usage
@@ -165,12 +153,10 @@ export async function processCommentAutomation(
     // Update account statistics
     account.accountReply = (account.accountReply || 0) + 1;
     account.lastActivity = new Date();
-    if (dmResult.dmSent) {
+    if (dmResult.dmSent)
       account.accountDMSent = (account.accountDMSent || 0) + 1;
-    }
-    if (dmResult.followChecked) {
+    if (dmResult.followChecked)
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-    }
     await account.save();
 
     // Create reply log
@@ -222,8 +208,6 @@ export async function processCommentAutomation(
     };
   } catch (error) {
     console.error("Error processing comment automation:", error);
-
-    // Create error log
     await InstaReplyLog.create({
       userId: clerkId,
       accountId: accountId,
@@ -237,7 +221,6 @@ export async function processCommentAutomation(
       errorMessage: error instanceof Error ? error.message : "Unknown error",
       createdAt: new Date(),
     });
-
     return {
       success: false,
       message:
@@ -255,66 +238,55 @@ async function findMatchingTemplate(
   templates: any[],
 ) {
   const lowerComment = commentText.toLowerCase();
-
   for (const template of templates) {
     if (!template.isActive) continue;
 
-    // Check if template is for "any post or reel"
     if (template.anyPostOrReel) {
-      // Check triggers if "any keyword" is NOT enabled
       if (!template.anyKeyword && template.triggers?.length > 0) {
-        const hasMatch = template.triggers.some((trigger: string) => {
-          if (!trigger) return false;
-          return lowerComment.includes(
-            trigger.toLowerCase().replace(/\s+/g, ""),
-          );
-        });
-
-        if (hasMatch) {
-          return template;
-        }
+        const hasMatch = template.triggers.some(
+          (trigger: string) =>
+            trigger &&
+            lowerComment.includes(trigger.toLowerCase().replace(/\s+/g, "")),
+        );
+        if (hasMatch) return template;
       } else if (template.anyKeyword) {
-        // Any keyword enabled - match any comment
         return template;
       }
     } else {
-      // Template is for specific media
       if (template.mediaId !== mediaId) continue;
-
-      // Check triggers
-      if (template.triggers && template.triggers.length > 0) {
-        const hasMatch = template.triggers.some((trigger: string) => {
-          if (!trigger) return false;
-          return lowerComment.includes(
-            trigger.toLowerCase().replace(/\s+/g, ""),
-          );
-        });
-
-        if (hasMatch) {
-          return template;
-        }
+      if (template.triggers?.length > 0) {
+        const hasMatch = template.triggers.some(
+          (trigger: string) =>
+            trigger &&
+            lowerComment.includes(trigger.toLowerCase().replace(/\s+/g, "")),
+        );
+        if (hasMatch) return template;
       } else {
-        // If no triggers, match all comments on this media
-        return template;
+        return template; // match any comment on this media
       }
     }
   }
-
   return null;
 }
+
+/**
+ * Process DM flow – sends the first message as a reply to the comment.
+ * Priority: askFollow → askEmail → askPhone → direct link.
+ */
 /**
  * Process DM flow - FIRE AND FORGET
  * CRITICAL: First message MUST use comment_id (reply to comment)
- * Subsequent messages can use user_id (within 24-hour window)
+ * Welcome message is ALWAYS sent as the first message
+ * Button payload is determined by template features priority
  */
 async function processDMFlow(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
-  recipientId: string, // This is comment.user_id (for follow-up)
+  recipientId: string, // user ID (for follow‑up)
   recipientUsername: string,
-  commentId: string, // NEW: Add commentId parameter
+  commentId: string, // comment ID for the first message
 ): Promise<{
   success: boolean;
   dmSent: boolean;
@@ -327,112 +299,50 @@ async function processDMFlow(
   try {
     console.log(`Processing DM flow for user ${recipientUsername}`, {
       templateName: template.name,
-      hasWelcomeMessage: template.welcomeMessage?.enabled,
       hasAskFollow: template.askFollow?.enabled,
       hasAskEmail: template.askEmail?.enabled,
       hasAskPhone: template.askPhone?.enabled,
     });
 
-    // Send welcome message if enabled
-    if (template.welcomeMessage?.enabled) {
-      const welcomeText = template.welcomeMessage.text.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
+    // Welcome message is always sent (no condition check)
+    const welcomeText = template.welcomeMessage.text.replace(
+      /\{\{username\}\}/g,
+      recipientUsername,
+    );
 
-      console.log(
-        `Sending welcome message to ${recipientUsername} as reply to comment ${commentId}`,
-      );
-
-      // ✅ CRITICAL: First message MUST use comment_id (reply to comment)
-      const welcomeSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        commentId, // ← Use comment.id for first message (reply to comment)
-        {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "button",
-              text: welcomeText,
-              buttons: [
-                {
-                  type: "postback",
-                  title: template.welcomeMessage.buttonTitle || "Get Started",
-                  payload: `WELCOME_MESSAGE_${template.mediaId}`,
-                },
-              ],
-            },
-          },
-        },
-        true, // isCommentReply = true (replying to comment)
-      );
-
-      if (!welcomeSuccess) {
-        console.error(`Failed to send welcome message to ${recipientUsername}`);
-      } else {
-        console.log(`Welcome message sent as reply to comment ${commentId}`);
-      }
-
-      return {
-        success: welcomeSuccess,
-        dmSent: welcomeSuccess,
-        followChecked: false,
-        linkSent: false,
-        stage: "welcome",
-      };
-    }
-
-    // If no welcome message, send initial DM as reply to comment
-    let initialButtonPayload = "";
-    let initialButtonText = "Get Access";
-    let initialMessage = "Thanks for your comment!";
-    let hasButtons = true;
-
+    // Determine button payload based on template features
+    // Priority: askFollow > askEmail > askPhone > direct link
+    let buttonPayload = "";
+    let buttonTitle = "";
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
 
     if (hasAskFollow) {
-      initialButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
-      initialButtonText =
-        template.askFollow?.visitProfileBtn || "Send me the link";
-      initialMessage =
-        template.askFollow?.message?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) ||
-        "Hey thanks a ton for the comment! 😊 Simply tap below and I will send you the access!";
+      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+      buttonTitle = template.askFollow?.visitProfileBtn || "Send me the link";
     } else if (hasAskEmail) {
-      initialButtonPayload = `ASK_EMAIL_${template.mediaId}`;
-      initialButtonText = "Continue";
-      initialMessage =
-        template.askEmail?.openingMessage?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) || "Please share your email address to get access.";
+      buttonPayload = `ASK_EMAIL_${template.mediaId}`;
+      buttonTitle = "Continue";
     } else if (hasAskPhone) {
-      initialButtonPayload = `ASK_PHONE_${template.mediaId}`;
-      initialButtonText = "Continue";
-      initialMessage =
-        template.askPhone?.openingMessage?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) || "Please share your phone number to get access.";
+      buttonPayload = `ASK_PHONE_${template.mediaId}`;
+      buttonTitle = "Continue";
     } else {
-      initialButtonPayload = `GET_ACCESS_${template.mediaId}`;
-      initialButtonText = selectRandomItem(
+      buttonPayload = `GET_ACCESS_${template.mediaId}`;
+      buttonTitle = selectRandomItem(
         template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
           "Get Access",
         ],
       );
-      initialMessage = "Tap below to get instant access! 🎉";
     }
 
     console.log(
-      `Sending initial DM to ${recipientUsername} as reply to comment ${commentId}`,
+      `Sending welcome message to ${recipientUsername} as reply to comment ${commentId}`,
       {
-        messageType: hasAskFollow
+        welcomeText: welcomeText.substring(0, 100),
+        buttonTitle,
+        buttonPayload,
+        nextAction: hasAskFollow
           ? "follow_gate"
           : hasAskEmail
             ? "email_collection"
@@ -442,47 +352,43 @@ async function processDMFlow(
       },
     );
 
-    const dmPayload: any = {};
-
-    if (hasButtons && initialButtonPayload) {
-      dmPayload.attachment = {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: initialMessage,
-          buttons: [
-            {
-              type: "postback",
-              title: initialButtonText,
-              payload: initialButtonPayload,
-            },
-          ],
-        },
-      };
-    } else {
-      dmPayload.text = initialMessage;
-    }
-
-    // ✅ CRITICAL: First message uses comment_id (reply to comment)
-    const dmSuccess = await sendInstagramDM(
+    // Send welcome message as reply to comment with the appropriate button
+    const welcomeSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
-      commentId, // ← Use comment.id for first message
-      dmPayload,
-      true, // isCommentReply = true (replying to comment)
+      commentId, // reply to comment
+      {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: welcomeText,
+            buttons: [
+              {
+                type: "postback",
+                title: buttonTitle,
+                payload: buttonPayload,
+              },
+            ],
+          },
+        },
+      },
+      true, // isCommentReply = true (this is a reply to the comment)
     );
 
-    console.log(
-      `Initial DM sent as reply to comment ${commentId}: ${dmSuccess}`,
-    );
+    if (!welcomeSuccess) {
+      console.error(`Failed to send welcome message to ${recipientUsername}`);
+    } else {
+      console.log(`Welcome message sent as reply to comment ${commentId}`);
+    }
 
     return {
-      success: dmSuccess,
-      dmSent: dmSuccess,
+      success: welcomeSuccess,
+      dmSent: welcomeSuccess,
       followChecked: hasAskFollow,
       userFollows: false,
       linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
-      stage: "initial",
+      stage: "welcome",
     };
   } catch (error) {
     console.error("Failed to process DM flow:", error);
@@ -495,54 +401,34 @@ async function processDMFlow(
     };
   }
 }
-
 /**
  * Check if comment is meaningful (not just emojis/GIFs)
  */
 function isMeaningfulComment(text: string): boolean {
-  // 1. Check if text exists and is not empty
   if (!text || typeof text !== "string") return false;
-
   const trimmed = text.trim();
   if (trimmed.length === 0) return false;
 
-  // 2. Check for GIF comments (Instagram specific)
   const lowerText = trimmed.toLowerCase();
   const gifKeywords = ["gif", "sent a gif", "shared a gif"];
-  if (gifKeywords.some((keyword) => lowerText.includes(keyword))) {
-    return false;
-  }
+  if (gifKeywords.some((keyword) => lowerText.includes(keyword))) return false;
 
-  // 3. Remove emojis and special characters to check if meaningful text remains
   const textWithoutEmojis = trimmed.replace(
     /[\p{Emoji_Presentation}\p{Emoji}\uFE0F]/gu,
     "",
   );
-  const cleanedText = textWithoutEmojis.replace(/[\s\p{P}]/gu, ""); // Remove spaces and punctuation
+  const cleanedText = textWithoutEmojis.replace(/[\s\p{P}]/gu, "");
+  if (cleanedText.length > 0) return true;
 
-  // 4. If after removing emojis and punctuation we have meaningful characters
-  if (cleanedText.length > 0) {
-    return true;
-  }
-
-  // 5. Check if the original text contains any alphanumeric characters
   const hasAlphanumeric = /[a-zA-Z0-9]/.test(trimmed);
-  if (!hasAlphanumeric) {
-    return false;
-  }
+  if (!hasAlphanumeric) return false;
 
-  // 6. Check if it's purely emoji (allow only if there are other characters)
   const emojiOnlyRegex = /^[\p{Emoji_Presentation}\p{Emoji}\uFE0F\s]+$/u;
-  if (emojiOnlyRegex.test(trimmed)) {
-    return false;
-  }
+  if (emojiOnlyRegex.test(trimmed)) return false;
 
   return true;
 }
 
-/**
- * Select random item from array
- */
 function selectRandomItem(items: string[]): string {
   if (!items || items.length === 0) return "";
   const randomIndex = Math.floor(Math.random() * items.length);

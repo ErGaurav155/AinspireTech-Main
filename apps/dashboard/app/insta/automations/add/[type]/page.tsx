@@ -70,8 +70,7 @@ interface TemplateData {
   delaySeconds?: number;
   automationType: string;
   isActive: boolean;
-  welcomeMessage?: {
-    enabled: boolean;
+  welcomeMessage: {
     text: string;
     buttonTitle: string;
   };
@@ -126,7 +125,7 @@ interface AutomationForm {
   dmImagePreview: string;
   dmMessage: string;
   dmLinks: { url: string; buttonTitle: string }[];
-  welcomeMessage: boolean;
+  // Welcome message is now required - removed the boolean toggle
   welcomeText: string;
   welcomeButtonTitle: string;
   publicReply: boolean;
@@ -175,7 +174,7 @@ const DEFAULT_FORM: AutomationForm = {
   dmImagePreview: "",
   dmMessage: "",
   dmLinks: [],
-  welcomeMessage: false,
+  // Welcome message always has default values
   welcomeText:
     "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
   welcomeButtonTitle: "Send me the link",
@@ -223,19 +222,8 @@ function PhonePreview({
   isDark: boolean;
 }) {
   const showDMFlow = useMemo(
-    () =>
-      form.dmMessage ||
-      form.welcomeMessage ||
-      form.askFollow ||
-      form.askEmail ||
-      form.askPhone,
-    [
-      form.dmMessage,
-      form.welcomeMessage,
-      form.askFollow,
-      form.askEmail,
-      form.askPhone,
-    ],
+    () => form.dmMessage || form.askFollow || form.askEmail || form.askPhone,
+    [form.dmMessage, form.askFollow, form.askEmail, form.askPhone],
   );
 
   const showComments = useMemo(
@@ -637,18 +625,19 @@ function DMScreen({
     }[] = [];
     if (automationType === "stories")
       msgs.push({ from: "user", text: "Leave a keyword", isButton: true });
-    if (form.welcomeMessage && form.welcomeText) {
-      msgs.push({
-        from: "bot",
-        text: form.welcomeText,
-        isButton: true,
-        buttonText: form.welcomeButtonTitle || "Send me the link",
-      });
-      msgs.push({
-        from: "user",
-        text: form.welcomeButtonTitle || "Send me the link",
-      });
-    }
+
+    // Welcome message is always shown
+    msgs.push({
+      from: "bot",
+      text: form.welcomeText,
+      isButton: true,
+      buttonText: form.welcomeButtonTitle || "Send me the link",
+    });
+    msgs.push({
+      from: "user",
+      text: form.welcomeButtonTitle || "Send me the link",
+    });
+
     if (form.askFollow && form.askFollowMessage) {
       msgs.push({
         from: "bot",
@@ -686,15 +675,9 @@ function DMScreen({
         buttonText: form.dmLinks[0]?.buttonTitle || "Get Access",
       });
     }
-    if (msgs.length === 0)
-      msgs.push({
-        from: "bot",
-        text: "Configure your DM message to see the preview...",
-      });
     return msgs;
   }, [
     automationType,
-    form.welcomeMessage,
     form.welcomeText,
     form.welcomeButtonTitle,
     form.askFollow,
@@ -1228,6 +1211,9 @@ export default function CreateAutomationPage() {
       accountBannerStats: isDark
         ? "text-xs text-white/40"
         : "text-xs text-gray-500",
+      welcomeMessageSection: isDark
+        ? "bg-white/[0.04] border border-white/[0.08] rounded-2xl p-5"
+        : "bg-white border border-gray-100 rounded-2xl p-5",
     }),
     [isDark],
   );
@@ -1288,7 +1274,6 @@ export default function CreateAutomationPage() {
               buttonTitle: c.buttonTitle || "Get Access",
             }))
             .filter((l) => l.url) || [],
-        welcomeMessage: template.welcomeMessage?.enabled || false,
         welcomeText:
           template.welcomeMessage?.text ||
           "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
@@ -1579,8 +1564,8 @@ export default function CreateAutomationPage() {
           anyPostOrReel: form.anyPostOrReel,
           anyKeyword: form.anyKeyword,
           isActive: goLive ? true : form.isActive,
+          // Welcome message is always included (no enabled field)
           welcomeMessage: {
-            enabled: form.welcomeMessage,
             text: form.welcomeText,
             buttonTitle: form.welcomeButtonTitle,
           },
@@ -1775,6 +1760,62 @@ export default function CreateAutomationPage() {
                 </div>
               </div>
             )}
+
+            {/* Welcome Message Section - Always visible, no toggle */}
+            <div className={pageStyles.welcomeMessageSection}>
+              <div className="flex items-center gap-2 mb-4">
+                <span className={pageStyles.sectionLabel}>Welcome Message</span>
+                <Info className={pageStyles.sectionInfoIcon} />
+              </div>
+              <div className="space-y-3">
+                <div
+                  className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
+                >
+                  <textarea
+                    value={form.welcomeText}
+                    onChange={(e) =>
+                      setForm((f) => ({ ...f, welcomeText: e.target.value }))
+                    }
+                    maxLength={1000}
+                    rows={3}
+                    className={pageStyles.textarea}
+                    placeholder="Welcome message..."
+                  />
+                  <div
+                    className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                  >
+                    <CharCounter
+                      current={form.welcomeText.length}
+                      max={1000}
+                      isDark={isDark}
+                    />
+                  </div>
+                </div>
+                <div
+                  className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
+                >
+                  <Pencil
+                    className={`h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
+                  />
+                  <input
+                    type="text"
+                    value={form.welcomeButtonTitle}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        welcomeButtonTitle: e.target.value,
+                      }))
+                    }
+                    placeholder="Button title..."
+                    className={
+                      isDark
+                        ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
+                        : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
+                    }
+                  />
+                </div>
+              </div>
+            </div>
 
             {/* Step 1: Select Post/Story */}
             {automationType !== "dms" && (
@@ -2104,74 +2145,6 @@ export default function CreateAutomationPage() {
                   <Plus className="h-4 w-4" />
                   Add Link
                 </button>
-              )}
-            </div>
-
-            {/* Welcome Message */}
-            <div className={pageStyles.cardNoPadding}>
-              <div className={pageStyles.sectionToggle}>
-                <div className="flex items-center gap-2">
-                  <span className={pageStyles.sectionLabel}>
-                    Welcome Message
-                  </span>
-                  <Info className={pageStyles.sectionInfoIcon} />
-                </div>
-                <Toggle
-                  checked={form.welcomeMessage}
-                  onChange={(v) =>
-                    setForm((f) => ({ ...f, welcomeMessage: v }))
-                  }
-                  isDark={isDark}
-                />
-              </div>
-              {form.welcomeMessage && (
-                <div className={pageStyles.sectionContent}>
-                  <div
-                    className={`border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl overflow-hidden`}
-                  >
-                    <textarea
-                      value={form.welcomeText}
-                      onChange={(e) =>
-                        setForm((f) => ({ ...f, welcomeText: e.target.value }))
-                      }
-                      maxLength={1000}
-                      rows={3}
-                      className={pageStyles.textarea}
-                    />
-                    <div
-                      className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
-                    >
-                      <CharCounter
-                        current={form.welcomeText.length}
-                        max={1000}
-                        isDark={isDark}
-                      />
-                    </div>
-                  </div>
-                  <div
-                    className={`flex items-center gap-2 border ${isDark ? "border-white/[0.08]" : "border-gray-200"} rounded-xl px-3 py-2.5`}
-                  >
-                    <Pencil
-                      className={`h-4 w-4 ${isDark ? "text-white/40" : "text-gray-400"} flex-shrink-0`}
-                    />
-                    <input
-                      type="text"
-                      value={form.welcomeButtonTitle}
-                      onChange={(e) =>
-                        setForm((f) => ({
-                          ...f,
-                          welcomeButtonTitle: e.target.value,
-                        }))
-                      }
-                      placeholder="Button title..."
-                      className={
-                        isDark
-                          ? "flex-1 text-sm text-white bg-transparent focus:outline-none"
-                          : "flex-1 text-sm text-gray-700 bg-transparent focus:outline-none"
-                      }
-                    />
-                  </div>
-                </div>
               )}
             </div>
 

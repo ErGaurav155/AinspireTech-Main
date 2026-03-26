@@ -29,27 +29,19 @@ export async function handlePostbackAutomation(
   try {
     await connectToDatabase();
 
-    // Get account
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive) {
-      return {
-        success: false,
-        message: "Account not found or inactive",
-      };
+      return { success: false, message: "Account not found or inactive" };
     }
 
-    // Parse payload to determine action
     const payloadParts = payload.split("_");
     const action = payloadParts[0];
     const subAction = payloadParts[1];
-
-    // Extract template media ID from payload
     let templateMediaId = "";
     if (payloadParts.length >= 3) {
       templateMediaId = payloadParts[2];
     }
 
-    // Find template using media ID (no recipient ID needed)
     const template = await InstaReplyTemplate.findOne({
       userId: clerkId,
       accountId: accountId,
@@ -59,30 +51,24 @@ export async function handlePostbackAutomation(
 
     if (!template) {
       console.log(`Template not found for mediaId: ${templateMediaId}`);
-      return {
-        success: false,
-        message: "Template not found",
-      };
+      return { success: false, message: "Template not found" };
     }
 
-    // Get user tier
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
-    // Handle different actions - all FIRE AND FORGET
     switch (action) {
-      case "WELCOME":
-        return await handleWelcomeAction(
-          account,
-          clerkId,
-          userTier,
-          template,
-          recipientId,
-          startTime,
-        );
-
+      // case "WELCOME":
+      //   return await handleWelcomeAction(
+      //     account,
+      //     clerkId,
+      //     userTier,
+      //     template,
+      //     recipientId,
+      //     startTime,
+      //   );
       case "GET":
-        if (subAction === "ACCESS") {
+        if (subAction === "ACCESS")
           return await handleGetAccessAction(
             account,
             clerkId,
@@ -91,11 +77,9 @@ export async function handlePostbackAutomation(
             recipientId,
             startTime,
           );
-        }
         break;
-
       case "CHECK":
-        if (subAction === "FOLLOW") {
+        if (subAction === "FOLLOW")
           return await handleCheckFollowAction(
             account,
             clerkId,
@@ -104,11 +88,9 @@ export async function handlePostbackAutomation(
             recipientId,
             startTime,
           );
-        }
         break;
-
       case "VERIFY":
-        if (subAction === "FOLLOW") {
+        if (subAction === "FOLLOW")
           return await handleVerifyFollowAction(
             account,
             clerkId,
@@ -117,11 +99,9 @@ export async function handlePostbackAutomation(
             recipientId,
             startTime,
           );
-        }
         break;
-
       case "ASK":
-        if (subAction === "EMAIL") {
+        if (subAction === "EMAIL")
           return await handleAskEmailAction(
             account,
             clerkId,
@@ -130,7 +110,7 @@ export async function handlePostbackAutomation(
             recipientId,
             startTime,
           );
-        } else if (subAction === "PHONE") {
+        if (subAction === "PHONE")
           return await handleAskPhoneAction(
             account,
             clerkId,
@@ -139,23 +119,14 @@ export async function handlePostbackAutomation(
             recipientId,
             startTime,
           );
-        }
         break;
-
       default:
-        return {
-          success: false,
-          message: "Unknown action",
-        };
+        return { success: false, message: "Unknown action" };
     }
 
-    return {
-      success: false,
-      message: "Invalid payload format",
-    };
+    return { success: false, message: "Invalid payload format" };
   } catch (error) {
     console.error("Error handling postback automation:", error);
-
     return {
       success: false,
       message:
@@ -167,112 +138,106 @@ export async function handlePostbackAutomation(
 /**
  * Handle welcome action
  */
-async function handleWelcomeAction(
-  account: any,
-  clerkId: string,
-  userTier: string,
-  template: any,
-  recipientId: string,
-  startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
-  try {
-    console.log(`Processing welcome action for user ${recipientId}`);
+// async function handleWelcomeAction(
+//   account: any,
+//   clerkId: string,
+//   userTier: string,
+//   template: any,
+//   recipientId: string,
+//   startTime: number,
+// ): Promise<{
+//   success: boolean;
+//   message: string;
+//   nextStage?: string;
+// }> {
+//   try {
+//     console.log(`Processing welcome action for user ${recipientId}`);
 
-    // After welcome, move to next step in flow
-    let nextButtonPayload = "";
-    let nextButtonText = "";
-    let nextMessage = "";
-    let hasButtons = true;
+//     let nextButtonPayload = "";
+//     let nextButtonText = "";
+//     let nextMessage = "";
+//     let hasButtons = true;
 
-    const hasAskFollow = template.askFollow?.enabled;
-    const hasAskEmail = template.askEmail?.enabled;
-    const hasAskPhone = template.askPhone?.enabled;
+//     const hasAskFollow = template.askFollow?.enabled;
+//     const hasAskEmail = template.askEmail?.enabled;
+//     const hasAskPhone = template.askPhone?.enabled;
 
-    if (hasAskFollow) {
-      nextButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
-      nextButtonText =
-        template.askFollow?.visitProfileBtn || "Send me the link";
-      nextMessage =
-        template.askFollow?.message ||
-        "Hey thanks a ton for the comment! 😊 Now simply tap below and I will send you the access right now!";
-    } else if (hasAskEmail) {
-      nextButtonPayload = `ASK_EMAIL_${template.mediaId}`;
-      nextButtonText = "Continue";
-      nextMessage =
-        template.askEmail?.openingMessage ||
-        "I'll need your email address first. Please share it in the chat.";
-    } else if (hasAskPhone) {
-      nextButtonPayload = `ASK_PHONE_${template.mediaId}`;
-      nextButtonText = "Continue";
-      nextMessage =
-        template.askPhone?.openingMessage ||
-        "I'll need your phone number first. Please share it in the chat.";
-    } else {
-      nextButtonPayload = `GET_ACCESS_${template.mediaId}`;
-      nextButtonText = template.content?.[0]?.buttonTitle || "Get Access";
-      nextMessage = "Tap below to get instant access! 🎉";
-    }
+//     // Priority: askFollow → askEmail → askPhone → direct link
+//     if (hasAskFollow) {
+//       nextButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+//       nextButtonText =
+//         template.askFollow?.visitProfileBtn || "Send me the link";
+//       nextMessage =
+//         template.askFollow?.message ||
+//         "Hey thanks a ton for the comment! 😊 Now simply tap below and I will send you the access right now!";
+//     } else if (hasAskEmail) {
+//       nextButtonPayload = `ASK_EMAIL_${template.mediaId}`;
+//       nextButtonText = "Continue";
+//       nextMessage =
+//         template.askEmail?.openingMessage ||
+//         "I'll need your email address first. Please share it in the chat.";
+//     } else if (hasAskPhone) {
+//       nextButtonPayload = `ASK_PHONE_${template.mediaId}`;
+//       nextButtonText = "Continue";
+//       nextMessage =
+//         template.askPhone?.openingMessage ||
+//         "I'll need your phone number first. Please share it in the chat.";
+//     } else {
+//       nextButtonPayload = `GET_ACCESS_${template.mediaId}`;
+//       nextButtonText = template.content?.[0]?.buttonTitle || "Get Access";
+//       nextMessage = "Tap below to get instant access! 🎉";
+//     }
 
-    const dmPayload: any = {};
+//     const dmPayload: any = {};
+//     if (hasButtons && nextButtonPayload) {
+//       dmPayload.attachment = {
+//         type: "template",
+//         payload: {
+//           template_type: "button",
+//           text: nextMessage,
+//           buttons: [
+//             {
+//               type: "postback",
+//               title: nextButtonText,
+//               payload: nextButtonPayload,
+//             },
+//           ],
+//         },
+//       };
+//     } else {
+//       dmPayload.text = nextMessage;
+//     }
 
-    if (hasButtons && nextButtonPayload) {
-      dmPayload.attachment = {
-        type: "template",
-        payload: {
-          template_type: "button",
-          text: nextMessage,
-          buttons: [
-            {
-              type: "postback",
-              title: nextButtonText,
-              payload: nextButtonPayload,
-            },
-          ],
-        },
-      };
-    } else {
-      dmPayload.text = nextMessage;
-    }
+//     const dmSuccess = await sendInstagramDM(
+//       account.instagramId,
+//       account.accessToken,
+//       recipientId,
+//       dmPayload,
+//       false, // DM (not a comment reply)
+//     );
 
-    const dmSuccess = await sendInstagramDM(
-      account.instagramId,
-      account.accessToken,
-      recipientId,
-      dmPayload,
-      false, // isCommentReply = false for DMs
-    );
+//     console.log(`Welcome action completed for ${recipientId}: ${dmSuccess}`);
 
-    console.log(`Welcome action completed for ${recipientId}: ${dmSuccess}`);
+//     account.accountDMSent = (account.accountDMSent || 0) + 1;
+//     account.lastActivity = new Date();
+//     await account.save();
 
-    // Update account statistics
-    account.accountDMSent = (account.accountDMSent || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
-
-    return {
-      success: dmSuccess,
-      message: dmSuccess ? "Welcome processed" : "Failed to send next step",
-      nextStage: hasAskFollow
-        ? "check_follow"
-        : hasAskEmail
-          ? "ask_email"
-          : hasAskPhone
-            ? "ask_phone"
-            : "get_access",
-    };
-  } catch (error) {
-    console.error("Error handling welcome action:", error);
-    return {
-      success: false,
-      message: "Failed to process welcome",
-    };
-  }
-}
-
+//     return {
+//       success: dmSuccess,
+//       message: dmSuccess ? "Welcome processed" : "Failed to send next step",
+//       nextStage: hasAskFollow
+//         ? "check_follow"
+//         : hasAskEmail
+//           ? "ask_email"
+//           : hasAskPhone
+//             ? "ask_phone"
+//             : "get_access",
+//     };
+//   } catch (error) {
+//     console.error("Error handling welcome action:", error);
+//     return { success: false, message: "Failed to process welcome" };
+//   }
+// }
 /**
  * Handle get access - send final link
  */

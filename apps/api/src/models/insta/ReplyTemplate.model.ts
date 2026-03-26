@@ -8,8 +8,8 @@ export interface IReplyTemplateContent {
   buttonTitle?: string;
 }
 
+// ✅ REMOVED enabled field - now required
 export interface IWelcomeMessage {
-  enabled: boolean;
   text: string;
   buttonTitle: string;
 }
@@ -122,7 +122,7 @@ export interface IReplyTemplate extends Document {
   /** Whether "any keyword" is selected */
   anyKeyword: boolean;
 
-  /** Welcome message shown before main DM */
+  /** Welcome message shown before main DM - NOW REQUIRED */
   welcomeMessage: IWelcomeMessage;
 
   /** Public comment reply config */
@@ -219,14 +219,19 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
 
     anyKeyword: { type: Boolean, default: false },
 
+    // ✅ FIXED: Welcome message is now required, no enabled field
     welcomeMessage: {
-      enabled: { type: Boolean, default: false },
       text: {
         type: String,
+        required: true,
         default:
           "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
       },
-      buttonTitle: { type: String, default: "Send me the link" },
+      buttonTitle: {
+        type: String,
+        required: true,
+        default: "Send me the link",
+      },
     },
 
     publicReply: {
