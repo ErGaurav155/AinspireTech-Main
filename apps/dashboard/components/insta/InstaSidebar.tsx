@@ -21,6 +21,7 @@ import {
   Menu,
   X,
   Plus,
+  Contact,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -40,6 +41,7 @@ const NAV_ITEMS = [
     isNew: false,
   },
   { label: "Accounts", href: "/insta/accounts", icon: Users, isNew: false },
+  { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: true },
   { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings, isNew: false },
 ] as const;

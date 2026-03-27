@@ -11,6 +11,7 @@ import {
   Plus,
   Crown,
   Check,
+  Contact,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
@@ -25,6 +26,7 @@ const BOTTOM_NAV_ITEMS = [
   { label: "Home", href: "/insta", icon: LayoutDashboard },
   { label: "Auto", href: "/insta/automations", icon: MessageSquare },
   { label: "Accounts", href: "/insta/accounts", icon: Users },
+  { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings },
 ] as const;
 
@@ -340,7 +342,7 @@ export default function InstaBottomNavbar() {
 
       {/* Bottom nav bar */}
       <nav className={`${localStyles.nav} backdrop-blur-lg`}>
-        <div className="flex items-center justify-around h-16 px-2">
+        <div className="flex items-center justify-around h-16 md:px-2">
           {/* Regular nav links */}
           {BOTTOM_NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
