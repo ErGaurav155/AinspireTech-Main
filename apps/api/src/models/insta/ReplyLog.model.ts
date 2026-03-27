@@ -6,6 +6,8 @@ export interface IReplyLog extends Document {
   accountId: string;
   templateId?: string;
   templateName?: string;
+  automationType?: "comments" | "stories" | "dms";
+
   // Comment/Story details
   commentId: string;
   commentText: string;
@@ -18,7 +20,7 @@ export interface IReplyLog extends Document {
   replyType?: "comment" | "dm" | "both" | "none";
 
   // DM flow tracking
-  dmFlowStage?: string; // 'initial' | 'welcome' | 'check_follow' | 'waiting_for_follow' | 'waiting_for_email' | 'waiting_for_phone' | 'email_collected' | 'phone_collected' | 'final_link'
+  dmFlowStage?: string;
   dmMessageId?: string;
 
   // Follow tracking
@@ -31,6 +33,11 @@ export interface IReplyLog extends Document {
 
   // Link tracking
   linkSent?: boolean;
+
+  // Follow-up DM tracking
+  followUpCount: number;
+  lastFollowUpAt?: Date;
+  followUpCompleted: boolean;
 
   // Status
   success: boolean;
@@ -54,15 +61,18 @@ const ReplyLogSchema = new Schema<IReplyLog>(
     accountId: { type: String, required: true, index: true },
     templateId: { type: String, index: true },
     templateName: { type: String },
+    automationType: {
+      type: String,
+      enum: ["comments", "stories", "dms"],
+      default: "comments",
+    },
 
-    // Comment/Story details
     commentId: { type: String, required: true, unique: true },
     commentText: { type: String, required: true },
     commenterUsername: { type: String, required: true },
     commenterUserId: { type: String, required: true, index: true },
     mediaId: { type: String, required: true, index: true },
 
-    // Reply details
     replyText: { type: String },
     replyType: {
       type: String,
@@ -70,27 +80,26 @@ const ReplyLogSchema = new Schema<IReplyLog>(
       default: "none",
     },
 
-    // DM flow tracking
     dmFlowStage: { type: String },
     dmMessageId: { type: String },
 
-    // Follow tracking
     followChecked: { type: Boolean, default: false },
     userFollows: { type: Boolean },
 
-    // Email/Phone collection
     emailCollected: { type: String },
     phoneCollected: { type: String },
 
-    // Link tracking
     linkSent: { type: Boolean, default: false },
 
-    // Status
+    // Follow-up DM tracking
+    followUpCount: { type: Number, default: 0 },
+    lastFollowUpAt: { type: Date },
+    followUpCompleted: { type: Boolean, default: false },
+
     success: { type: Boolean, required: true },
     responseTime: { type: Number },
     errorMessage: { type: String },
 
-    // Queue status
     queueId: { type: String },
     processedAfterQueue: { type: Boolean, default: false },
     wasQueued: { type: Boolean, default: false },
@@ -100,7 +109,6 @@ const ReplyLogSchema = new Schema<IReplyLog>(
   { timestamps: true },
 );
 
-// Indexes for performance
 ReplyLogSchema.index({ userId: 1, createdAt: -1 });
 ReplyLogSchema.index({ accountId: 1, createdAt: -1 });
 ReplyLogSchema.index({ templateId: 1, createdAt: -1 });
@@ -108,6 +116,11 @@ ReplyLogSchema.index({ success: 1, createdAt: -1 });
 ReplyLogSchema.index({ wasQueued: 1, createdAt: -1 });
 ReplyLogSchema.index(
   { userId: 1, commenterUserId: 1, dmFlowStage: 1 },
+  { sparse: true },
+);
+// Index for follow-up processing
+ReplyLogSchema.index(
+  { templateId: 1, followUpCompleted: 1, dmFlowStage: 1 },
   { sparse: true },
 );
 

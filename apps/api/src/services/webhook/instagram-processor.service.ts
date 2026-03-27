@@ -8,10 +8,10 @@ import { recordCall } from "@/services/rate-limit.service";
 import {
   handleIncomingDM,
   handleIncomingMessage,
-} from "../automation/message-processor.service";
+} from "@/services/automation/message-processor.service";
 
 /**
- * Process Instagram webhook - incoming Meta API calls
+ * Process Instagram webhook — main entry point for all Meta API events.
  */
 export async function processInstagramWebhook(payload: any): Promise<{
   success: boolean;
@@ -34,19 +34,17 @@ export async function processInstagramWebhook(payload: any): Promise<{
   try {
     await connectToDatabase();
 
-    // Process each entry in the webhook payload
     if (payload.entry && Array.isArray(payload.entry)) {
       for (const entry of payload.entry) {
         const instagramBusinessId = entry.id;
 
         console.log(`Processing entry for account: ${instagramBusinessId}`);
 
-        // Process changes (comments, story mentions, etc.)
+        // ── Changes (comments, story mentions) ─────────────────────────────
         if (entry.changes && Array.isArray(entry.changes)) {
           for (const change of entry.changes) {
             console.log(`Processing change: ${change.field}`);
 
-            // Process comment webhook
             if (change.field === "comments" || change.field === "comment") {
               const result = await processCommentWebhook(
                 change.value,
@@ -58,7 +56,6 @@ export async function processInstagramWebhook(payload: any): Promise<{
               if (result.error) results.errors.push(result.error);
             }
 
-            // Process story mentions/replies
             if (
               change.field === "story_insights" ||
               change.field === "story_mentions"
@@ -75,10 +72,9 @@ export async function processInstagramWebhook(payload: any): Promise<{
           }
         }
 
-        // Process messaging (DMs) - Facebook Messenger style
+        // ── Messaging (Facebook/Instagram Messenger style) ─────────────────
         if (entry.messaging && Array.isArray(entry.messaging)) {
           for (const message of entry.messaging) {
-            console.log("we are gaurav khaire");
             const result = await processMessagingWebhook(
               message,
               instagramBusinessId,
@@ -89,10 +85,9 @@ export async function processInstagramWebhook(payload: any): Promise<{
           }
         }
 
-        // Process direct message events (Instagram standard)
+        // ── Direct messages (Instagram standard) ───────────────────────────
         if (entry.direct_messages && Array.isArray(entry.direct_messages)) {
           for (const dm of entry.direct_messages) {
-            console.log("we are gaurav");
             const result = await processDirectMessageWebhook(
               dm,
               instagramBusinessId,
@@ -117,9 +112,8 @@ export async function processInstagramWebhook(payload: any): Promise<{
   }
 }
 
-/**
- * Process comment webhook - FIXED payload structure
- */
+// ── Comment webhook ───────────────────────────────────────────────────────────
+
 async function processCommentWebhook(
   comment: any,
   accountId: string,
@@ -138,12 +132,6 @@ async function processCommentWebhook(
       return { processed: false, queued: false };
     }
 
-    // Extract comment data based on Instagram's webhook structure
-    // Instagram comment webhook can have different structures:
-    // 1. Direct comment object
-    // 2. Nested in data object
-    // 3. In value object
-
     let commentId: string;
     let commentText: string;
     let commenterUsername: string;
@@ -151,9 +139,7 @@ async function processCommentWebhook(
     let mediaId: string;
     let mediaUrl: string;
 
-    // Handle different payload structures
     if (comment.id) {
-      // Direct comment object
       commentId = comment.id;
       commentText = comment.text || comment.message || "";
       commenterUsername =
@@ -162,7 +148,6 @@ async function processCommentWebhook(
       mediaId = comment.media?.id || comment.media_id || "";
       mediaUrl = comment.media?.media_url || comment.media_url || "";
     } else if (comment.data) {
-      // Nested in data
       commentId = comment.data.id;
       commentText = comment.data.text || comment.data.message || "";
       commenterUsername =
@@ -179,35 +164,25 @@ async function processCommentWebhook(
       };
     }
 
-    console.log(`Processing comment:`, {
-      commentId,
-      commentText,
-      commenterUsername,
-      mediaId,
-      accountId,
-    });
-
-    // Skip empty comments
     if (!commentText || commentText.trim() === "") {
       console.log("Skipping empty comment");
       return { processed: false, queued: false };
     }
 
-    // Check rate limit for incoming webhook
+    // Apply rate limiting
     const rateLimitResult = await recordCall(
       account.userId,
       accountId,
-      1, // Meta call count
-      true, // This IS an incoming webhook
+      1,
+      true,
       {
         webhookId: `webhook_${Date.now()}`,
-        commentId: commentId,
-        originalPayload: originalPayload,
+        commentId,
+        originalPayload,
         type: "comment",
       },
     );
 
-    // If should process immediately
     if (rateLimitResult.processImmediately) {
       await processCommentAutomation(accountId, account.userId, {
         id: commentId,
@@ -218,20 +193,17 @@ async function processCommentWebhook(
         media_id: mediaId,
         media_url: mediaUrl,
       });
-
       console.log(`✅ Comment processed immediately: ${commentId}`);
       return { processed: true, queued: false };
     }
 
-    // If queued
     if (rateLimitResult.queued) {
       console.log(`📥 Comment webhook queued: ${commentId}`);
       return { processed: false, queued: true };
     }
 
-    // If not allowed and not queued, skip
     console.log(
-      `⏭️ Comment webhook skipped: ${commentId}, reason: ${rateLimitResult.reason}`,
+      `⏭️ Comment skipped: ${commentId}, reason: ${rateLimitResult.reason}`,
     );
     return { processed: false, queued: false, error: rateLimitResult.reason };
   } catch (error) {
@@ -244,58 +216,8 @@ async function processCommentWebhook(
   }
 }
 
-/**
- * Process direct message webhook
- */
-async function processDirectMessageWebhook(
-  dm: any,
-  accountId: string,
-): Promise<{
-  processed: boolean;
-  queued: boolean;
-  error?: string;
-}> {
-  try {
-    console.log("Raw DM data:", JSON.stringify(dm, null, 2));
+// ── Story webhook ─────────────────────────────────────────────────────────────
 
-    const account = await InstagramAccount.findOne({ instagramId: accountId });
-    if (!account || !account.isActive || !account.autoDMEnabled) {
-      return { processed: false, queued: false };
-    }
-
-    // Extract DM data
-    const senderId = dm.sender?.id || dm.from?.id || "";
-    const recipientId = dm.recipient?.id || dm.to?.id || "";
-    const messageText = dm.message?.text || dm.text || "";
-    const messageId = dm.id || dm.message?.id || "";
-
-    if (!messageText || messageText.trim() === "") {
-      console.log("Skipping empty DM");
-      return { processed: false, queued: false };
-    }
-
-    // Handle incoming message
-    await handleIncomingMessage(
-      accountId,
-      account.userId,
-      senderId,
-      messageText,
-    );
-
-    return { processed: true, queued: false };
-  } catch (error) {
-    console.error("Error processing direct message webhook:", error);
-    return {
-      processed: false,
-      queued: false,
-      error: error instanceof Error ? error.message : "Unknown error",
-    };
-  }
-}
-
-/**
- * Process story webhook
- */
 async function processStoryWebhook(
   story: any,
   accountId: string,
@@ -313,7 +235,6 @@ async function processStoryWebhook(
       return { processed: false, queued: false };
     }
 
-    // Extract story data
     let storyId: string;
     let storyMentionId: string;
     let userId: string;
@@ -336,7 +257,6 @@ async function processStoryWebhook(
       username = story.username || "";
     }
 
-    // Check rate limit
     const rateLimitResult = await recordCall(
       account.userId,
       accountId,
@@ -344,8 +264,8 @@ async function processStoryWebhook(
       true,
       {
         webhookId: `webhook_${Date.now()}`,
-        storyId: storyId,
-        originalPayload: originalPayload,
+        storyId,
+        originalPayload,
         type: "story",
       },
     );
@@ -359,7 +279,6 @@ async function processStoryWebhook(
         mention_type: story.mention_type || "mention",
         timestamp: new Date().toISOString(),
       });
-
       return { processed: true, queued: false };
     }
 
@@ -379,10 +298,7 @@ async function processStoryWebhook(
   }
 }
 
-/**
- * Process messaging webhook (postbacks, messages)
- */
-// In instagram-processor.service.ts, update processMessagingWebhook:
+// ── Messaging webhook (postbacks + text messages) ─────────────────────────────
 
 async function processMessagingWebhook(
   message: any,
@@ -398,7 +314,7 @@ async function processMessagingWebhook(
       return { processed: false, queued: false };
     }
 
-    // Handle postbacks (button clicks) - existing logic
+    // Postbacks (button clicks) — no rate limiting, these are user responses
     if (message.postback) {
       await handlePostbackAutomation(
         accountId,
@@ -410,13 +326,108 @@ async function processMessagingWebhook(
       return { processed: true, queued: false };
     }
 
-    // Handle regular messages - use new DM handler
+    // Text messages — apply rate limiting for new conversations only
     if (message.message && message.message.text) {
+      const senderId = message.sender.id;
+      const messageText = message.message.text;
+
+      // Apply rate limiting for incoming DM webhooks
+      const rateLimitResult = await recordCall(
+        account.userId,
+        accountId,
+        1,
+        true,
+        {
+          webhookId: `dm_webhook_${Date.now()}`,
+          senderId,
+          type: "dm_message",
+        },
+      );
+
+      if (rateLimitResult.processImmediately) {
+        const result = await handleIncomingDM(
+          accountId,
+          account.userId,
+          senderId,
+          messageText,
+        );
+        return {
+          processed: result.processed,
+          queued: false,
+          error: result.success ? undefined : result.message,
+        };
+      }
+
+      if (rateLimitResult.queued) {
+        console.log(`📥 DM message queued for sender: ${senderId}`);
+        return { processed: false, queued: true };
+      }
+
+      return {
+        processed: false,
+        queued: false,
+        error: rateLimitResult.reason,
+      };
+    }
+
+    return { processed: true, queued: false };
+  } catch (error) {
+    console.error("Error processing messaging webhook:", error);
+    return {
+      processed: false,
+      queued: false,
+      error: error instanceof Error ? error.message : "Unknown error",
+    };
+  }
+}
+
+// ── Direct message webhook ────────────────────────────────────────────────────
+
+async function processDirectMessageWebhook(
+  dm: any,
+  accountId: string,
+): Promise<{
+  processed: boolean;
+  queued: boolean;
+  error?: string;
+}> {
+  try {
+    console.log("Raw DM data:", JSON.stringify(dm, null, 2));
+
+    const account = await InstagramAccount.findOne({ instagramId: accountId });
+    if (!account || !account.isActive || !account.autoDMEnabled) {
+      return { processed: false, queued: false };
+    }
+
+    const senderId = dm.sender?.id || dm.from?.id || "";
+    const messageText = dm.message?.text || dm.text || "";
+
+    if (!messageText || messageText.trim() === "") {
+      console.log("Skipping empty DM");
+      return { processed: false, queued: false };
+    }
+
+    // Apply rate limiting for direct message webhooks
+    const rateLimitResult = await recordCall(
+      account.userId,
+      accountId,
+      1,
+      true,
+      {
+        webhookId: `direct_dm_webhook_${Date.now()}`,
+        senderId,
+        type: "direct_message",
+      },
+    );
+
+    if (rateLimitResult.processImmediately) {
+      // handleIncomingDM properly delegates to handleIncomingMessage
+      // when the conversation is in waiting_for_email/phone stage
       const result = await handleIncomingDM(
         accountId,
         account.userId,
-        message.sender.id,
-        message.message.text,
+        senderId,
+        messageText,
       );
       return {
         processed: result.processed,
@@ -425,9 +436,18 @@ async function processMessagingWebhook(
       };
     }
 
-    return { processed: true, queued: false };
+    if (rateLimitResult.queued) {
+      console.log(`📥 Direct DM queued for sender: ${senderId}`);
+      return { processed: false, queued: true };
+    }
+
+    return {
+      processed: false,
+      queued: false,
+      error: rateLimitResult.reason,
+    };
   } catch (error) {
-    console.error("Error processing messaging webhook:", error);
+    console.error("Error processing direct message webhook:", error);
     return {
       processed: false,
       queued: false,

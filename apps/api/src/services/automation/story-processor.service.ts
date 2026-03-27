@@ -16,8 +16,8 @@ interface InstagramStory {
 
 /**
  * Process story automation - FIRE AND FORGET
- * NO rate limiting, NO queueing
- * Automation responses are NOT counted against rate limits
+ * Consistent with comment-processor pattern:
+ * PRIORITY: askFollow → askEmail → askPhone → direct link
  */
 export async function processStoryAutomation(
   accountId: string,
@@ -37,13 +37,9 @@ export async function processStoryAutomation(
     // Check if story already processed
     const existingLog = await InstaReplyLog.findOne({ commentId: story.id });
     if (existingLog) {
-      return {
-        success: false,
-        message: "Story already processed",
-      };
+      return { success: false, message: "Story already processed" };
     }
 
-    // Get account
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive || !account.storyAutomationsEnabled) {
       return {
@@ -52,15 +48,11 @@ export async function processStoryAutomation(
       };
     }
 
-    // Skip if story is from owner
+    // Skip if from owner
     if (account.userInstaId === story.user_id) {
-      return {
-        success: false,
-        message: "Story from account owner",
-      };
+      return { success: false, message: "Story from account owner" };
     }
 
-    // Find matching template if not provided
     let matchingTemplate = template;
     if (!matchingTemplate) {
       const templates = await InstaReplyTemplate.find({
@@ -70,24 +62,16 @@ export async function processStoryAutomation(
         automationType: "stories",
       }).sort({ priority: 1 });
 
-      matchingTemplate = await findMatchingStoryTemplate(
-        story.media_id,
-        templates,
-      );
+      matchingTemplate = findMatchingStoryTemplate(story.media_id, templates);
 
       if (!matchingTemplate) {
-        return {
-          success: false,
-          message: "No matching template found",
-        };
+        return { success: false, message: "No matching template found" };
       }
     }
 
-    // Get user tier
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
-    // Process DM flow for story - FIRE AND FORGET
     const dmResult = await processStoryDMFlow(
       account,
       clerkId,
@@ -97,29 +81,25 @@ export async function processStoryAutomation(
       story.username,
     );
 
-    // Update template usage
     await InstaReplyTemplate.findByIdAndUpdate(matchingTemplate._id, {
       $inc: { usageCount: 1 },
       $set: { lastUsed: new Date() },
     });
 
-    // Update account statistics
     account.accountReply = (account.accountReply || 0) + 1;
     account.lastActivity = new Date();
-    if (dmResult.dmSent) {
+    if (dmResult.dmSent)
       account.accountDMSent = (account.accountDMSent || 0) + 1;
-    }
-    if (dmResult.followChecked) {
+    if (dmResult.followChecked)
       account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-    }
     await account.save();
 
-    // Create reply log
     const log = await InstaReplyLog.create({
       userId: clerkId,
       accountId: accountId,
       templateId: matchingTemplate._id.toString(),
       templateName: matchingTemplate.name,
+      automationType: "stories",
       commentId: story.id,
       commentText: `Story ${story.mention_type}`,
       commenterUsername: story.username,
@@ -135,6 +115,8 @@ export async function processStoryAutomation(
       responseTime: Date.now() - startTime,
       errorMessage: !dmResult.success ? "Failed to process story" : undefined,
       wasQueued: false,
+      followUpCount: 0,
+      followUpCompleted: false,
       createdAt: new Date(),
     });
 
@@ -148,7 +130,6 @@ export async function processStoryAutomation(
   } catch (error) {
     console.error("Error processing story automation:", error);
 
-    // Create error log
     await InstaReplyLog.create({
       userId: clerkId,
       accountId: accountId,
@@ -157,6 +138,7 @@ export async function processStoryAutomation(
       commenterUsername: story.username,
       commenterUserId: story.user_id,
       mediaId: story.media_id,
+      automationType: "stories",
       success: false,
       responseTime: Date.now() - startTime,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -171,30 +153,18 @@ export async function processStoryAutomation(
   }
 }
 
-/**
- * Find matching story template
- */
-async function findMatchingStoryTemplate(mediaId: string, templates: any[]) {
+function findMatchingStoryTemplate(mediaId: string, templates: any[]) {
   for (const template of templates) {
     if (!template.isActive) continue;
-
-    // Check if template is for "any story"
-    if (template.anyPostOrReel) {
-      return template;
-    }
-
-    // Template is for specific story
-    if (template.mediaId === mediaId) {
-      return template;
-    }
+    if (template.anyPostOrReel) return template;
+    if (template.mediaId === mediaId) return template;
   }
-
   return null;
 }
 
 /**
- * Process DM flow for story - FIRE AND FORGET
- * UPDATED to match the working pattern from comment processor
+ * Process story DM flow — consistent pattern with comment-processor.
+ * PRIORITY: askFollow → askEmail → askPhone → direct link
  */
 async function processStoryDMFlow(
   account: any,
@@ -213,109 +183,29 @@ async function processStoryDMFlow(
   stage: string;
 }> {
   try {
-    // Send welcome message if enabled
-    if (template.welcomeMessage?.enabled) {
-      const welcomeText = template.welcomeMessage.text.replace(
-        /\{\{username\}\}/g,
-        recipientUsername,
-      );
-
-      console.log(`Sending welcome message to ${recipientUsername}`, {
-        template: template.name,
-        welcomeText: welcomeText.substring(0, 100),
-      });
-
-      const welcomeSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        recipientId,
-        {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "button",
-              text: welcomeText,
-              buttons: [
-                {
-                  type: "postback",
-                  title: template.welcomeMessage.buttonTitle || "Get Started",
-                  payload: `WELCOME_STORY_${template.mediaId}`,
-                },
-              ],
-            },
-          },
-        },
-        false, // isCommentReply = false for stories
-      );
-
-      if (!welcomeSuccess) {
-        console.error("Failed to send welcome message for story");
-      }
-
-      return {
-        success: welcomeSuccess,
-        dmSent: welcomeSuccess,
-        followChecked: false,
-        linkSent: false,
-        stage: "welcome",
-      };
-    }
-
-    // Send initial DM with appropriate flow based on template settings
-    let initialButtonPayload = "";
-    let initialButtonText = "Get Access";
-    let initialMessage = "Thanks for the story mention! 🎉";
-
-    // Check which features are enabled
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
 
+    const welcomeText = template.welcomeMessage.text.replace(
+      /\{\{username\}\}/g,
+      recipientUsername,
+    );
+
+    // ✅ Same priority chain as comment-processor
+    let buttonPayload = "";
     if (hasAskFollow) {
-      initialButtonPayload = `CHECK_FOLLOW_STORY_${template.mediaId}`;
-      initialButtonText =
-        template.askFollow?.visitProfileBtn || "Send me the link";
-      initialMessage =
-        template.askFollow?.message?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) ||
-        "Hey thanks for mentioning us! 😊 Tap below and I will send you the access!";
+      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
     } else if (hasAskEmail) {
-      initialButtonPayload = `ASK_EMAIL_STORY_${template.mediaId}`;
-      initialButtonText = "Continue";
-      initialMessage =
-        template.askEmail?.openingMessage?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) || "Please share your email address to get access.";
+      buttonPayload = `ASK_EMAIL_${template.mediaId}`;
     } else if (hasAskPhone) {
-      initialButtonPayload = `ASK_PHONE_STORY_${template.mediaId}`;
-      initialButtonText = "Continue";
-      initialMessage =
-        template.askPhone?.openingMessage?.replace(
-          /\{\{username\}\}/g,
-          recipientUsername,
-        ) || "Please share your phone number to get access.";
+      buttonPayload = `ASK_PHONE_${template.mediaId}`;
     } else {
-      // Direct link flow
-      initialButtonPayload = `GET_ACCESS_STORY_${template.mediaId}`;
-      initialButtonText = selectRandomItem(
-        template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
-          "Get Access",
-        ],
-      );
-      initialMessage = "Tap below to get instant access! 🎉";
+      buttonPayload = `GET_ACCESS_${template.mediaId}`;
     }
 
-    console.log(`Sending initial DM to ${recipientUsername}`, {
-      template: template.name,
-      hasButtons: !!initialButtonPayload,
-      messageType: hasAskFollow
-        ? "follow_gate"
-        : hasAskEmail
-          ? "email_collection"
-          : "direct_link",
+    console.log(`Sending story welcome DM to ${recipientUsername}`, {
+      buttonPayload,
     });
 
     const dmSuccess = await sendInstagramDM(
@@ -327,27 +217,28 @@ async function processStoryDMFlow(
           type: "template",
           payload: {
             template_type: "button",
-            text: initialMessage,
+            text: welcomeText,
             buttons: [
               {
                 type: "postback",
-                title: initialButtonText,
-                payload: initialButtonPayload,
+                title:
+                  template.welcomeMessage.buttonTitle || "Send me the link",
+                payload: buttonPayload,
               },
             ],
           },
         },
       },
-      false, // isCommentReply = false for stories
+      false, // stories are not comment replies
     );
 
     return {
       success: dmSuccess,
       dmSent: dmSuccess,
-      followChecked: hasAskFollow,
-      userFollows: false,
+      followChecked: false,
+      userFollows: undefined,
       linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
-      stage: "initial",
+      stage: "welcome",
     };
   } catch (error) {
     console.error("Failed to process story DM flow:", error);
@@ -359,13 +250,4 @@ async function processStoryDMFlow(
       stage: "error",
     };
   }
-}
-
-/**
- * Select random item from array
- */
-function selectRandomItem(items: string[]): string {
-  if (!items || items.length === 0) return "";
-  const randomIndex = Math.floor(Math.random() * items.length);
-  return items[randomIndex];
 }

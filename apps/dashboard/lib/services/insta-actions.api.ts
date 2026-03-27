@@ -1,29 +1,25 @@
-// ==================== ACCOUNT FUNCTIONS ====================
+// lib/services/insta-actions.api.ts
 
 import { ApiRequestFn } from "../useApi";
 
+// ==================== ACCOUNT FUNCTIONS ====================
+
 export const getInstaAccount = (apiRequest: ApiRequestFn): Promise<any> => {
-  return apiRequest("/insta/accounts", {
-    method: "GET",
-  });
+  return apiRequest("/insta/accounts", { method: "GET" });
 };
 
 export const connectInstaAccount = (
   apiRequest: ApiRequestFn,
   code: string,
 ): Promise<any> => {
-  return apiRequest(`/insta/callback?code=${code}`, {
-    method: "GET",
-  });
+  return apiRequest(`/insta/callback?code=${code}`, { method: "GET" });
 };
-// Get single Instagram account by ID
+
 export const getInstaAccountById = (
   apiRequest: ApiRequestFn,
   accountId: string,
 ): Promise<any> => {
-  return apiRequest(`/insta/accounts/${accountId}`, {
-    method: "GET",
-  });
+  return apiRequest(`/insta/accounts/${accountId}`, { method: "GET" });
 };
 
 // ==================== TEMPLATE FUNCTIONS ====================
@@ -32,9 +28,7 @@ export const getInstaMedia = (
   apiRequest: ApiRequestFn,
   accountId: string,
 ): Promise<{ media: MediaItem[] }> => {
-  return apiRequest(`/insta/media?accountId=${accountId}`, {
-    method: "GET",
-  });
+  return apiRequest(`/insta/media?accountId=${accountId}`, { method: "GET" });
 };
 
 export const updateTemplate = (
@@ -52,18 +46,16 @@ export const deleteTemplate = (
   apiRequest: ApiRequestFn,
   templateId: string,
 ): Promise<{ success: boolean; message: string }> => {
-  return apiRequest(`/insta/templates/${templateId}`, {
-    method: "DELETE",
-  });
+  return apiRequest(`/insta/templates/${templateId}`, { method: "DELETE" });
 };
+
 export const getInstaTemplateById = (
   apiRequest: ApiRequestFn,
   templateId: string,
 ): Promise<any> => {
-  return apiRequest(`/insta/templates/${templateId}`, {
-    method: "GET",
-  });
+  return apiRequest(`/insta/templates/${templateId}`, { method: "GET" });
 };
+
 interface GetTemplatesParams {
   accountId?: string;
   loadMoreCount?: number;
@@ -80,27 +72,23 @@ export const getInstaTemplates = (
   totalCount: number;
 }> => {
   const searchParams = new URLSearchParams();
-
   if (params.accountId && params.accountId !== "all") {
     searchParams.set("accountId", params.accountId);
   }
-
   if (params.loadMoreCount) {
     searchParams.set("loadMoreCount", params.loadMoreCount.toString());
   }
-
   if (params.filterAccount && params.filterAccount !== "all") {
     searchParams.set("filterAccount", params.filterAccount);
   }
-
   if (params.filterStatus && params.filterStatus !== "all") {
     searchParams.set("filterStatus", params.filterStatus);
   }
-
   return apiRequest(`/insta/templates?${searchParams.toString()}`, {
     method: "GET",
   });
 };
+
 export const createInstaTemplate = (
   apiRequest: ApiRequestFn,
   accountId: string,
@@ -120,10 +108,7 @@ export const createInstaTemplate = (
     automationType?: "comments" | "stories" | "dms" | "live";
     anyPostOrReel?: boolean;
     anyKeyword?: boolean;
-    welcomeMessage: {
-      text: string;
-      buttonTitle: string;
-    };
+    welcomeMessage: { text: string; buttonTitle: string };
     publicReply?: {
       enabled: boolean;
       replies: string[];
@@ -179,21 +164,15 @@ export const createInstaTemplate = (
     anyKeyword: templateData.anyKeyword || false,
     isActive:
       templateData.isActive !== undefined ? templateData.isActive : true,
-
-    // Welcome Message
     welcomeMessage: templateData.welcomeMessage || {
       text: "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
       buttonTitle: "Send me the link",
     },
-
-    // Public Reply
     publicReply: templateData.publicReply || {
       enabled: false,
       replies: ["Replied in DMs 📨", "Coming your way 🧲", "Check your DM 📩"],
       tagType: "none",
     },
-
-    // Ask Follow
     askFollow: templateData.askFollow || {
       enabled: false,
       message:
@@ -201,8 +180,6 @@ export const createInstaTemplate = (
       visitProfileBtn: "Visit Profile",
       followingBtn: "I'm following ✅",
     },
-
-    // Ask Email
     askEmail: templateData.askEmail || {
       enabled: false,
       openingMessage:
@@ -210,8 +187,6 @@ export const createInstaTemplate = (
       retryMessage: "Please enter a correct email address, e.g. info@gmail.com",
       sendDmIfNoEmail: true,
     },
-
-    // Ask Phone
     askPhone: templateData.askPhone || {
       enabled: false,
       openingMessage:
@@ -219,8 +194,6 @@ export const createInstaTemplate = (
       retryMessage: "Please enter a correct phone number, e.g. +1234567890",
       sendDmIfNoPhone: true,
     },
-
-    // Follow Up DMs
     followUpDMs: templateData.followUpDMs || {
       enabled: false,
       messages: [],
@@ -228,29 +201,25 @@ export const createInstaTemplate = (
   };
 
   console.log("Sending payload to server:", payload);
-
   return apiRequest("/insta/templates", {
     method: "POST",
     body: JSON.stringify(payload),
   });
 };
-// ==================== ACCOUNT FUNCTIONS ====================
+
+// ==================== ACCOUNT MANAGEMENT ====================
 
 export const getAllInstagramAccounts = (
   apiRequest: ApiRequestFn,
 ): Promise<{ accounts: any }> => {
-  return apiRequest("/insta/accounts", {
-    method: "GET",
-  });
+  return apiRequest("/insta/accounts", { method: "GET" });
 };
 
 export const deleteInstaAccount = (
   apiRequest: ApiRequestFn,
   accountId: string,
 ): Promise<{ success: boolean; message: string }> => {
-  return apiRequest(`/insta/accounts/${accountId}`, {
-    method: "DELETE",
-  });
+  return apiRequest(`/insta/accounts/${accountId}`, { method: "DELETE" });
 };
 
 export const refreshInstagramToken = (
@@ -261,9 +230,103 @@ export const refreshInstagramToken = (
     method: "POST",
   });
 };
+
 export function reconnectInstagramAccount() {
-  // This should redirect to your Instagram OAuth flow
   window.location.href = "/api/instagram/connect";
+}
+
+// ==================== LEADS FUNCTIONS ====================
+
+export interface GetLeadsParams {
+  accountId?: string;
+  templateId?: string;
+  source?: "all" | "email_collection" | "phone_collection";
+  automationType?: "all" | "comments" | "stories" | "dms";
+  page?: number;
+  limit?: number;
+}
+
+export interface LeadItem {
+  _id: string;
+  templateId: string;
+  templateName: string;
+  commenterUserId: string;
+  commenterUsername: string;
+  automationType: "comments" | "stories" | "dms";
+  email?: string;
+  phone?: string;
+  source: "email_collection" | "phone_collection";
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GetLeadsResponse {
+  success: boolean;
+  leads: LeadItem[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasMore: boolean;
+}
+
+export const getLeads = (
+  apiRequest: ApiRequestFn,
+  params: GetLeadsParams,
+): Promise<GetLeadsResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params.accountId) searchParams.set("accountId", params.accountId);
+  if (params.templateId) searchParams.set("templateId", params.templateId);
+  if (params.source && params.source !== "all")
+    searchParams.set("source", params.source);
+  if (params.automationType && params.automationType !== "all")
+    searchParams.set("automationType", params.automationType);
+  if (params.page) searchParams.set("page", params.page.toString());
+  if (params.limit) searchParams.set("limit", params.limit.toString());
+  return apiRequest(`/insta/leads?${searchParams.toString()}`, {
+    method: "GET",
+  });
+};
+
+export const deleteLead = (
+  apiRequest: ApiRequestFn,
+  leadId: string,
+): Promise<{ success: boolean; message: string }> => {
+  return apiRequest(`/insta/leads?id=${leadId}`, { method: "DELETE" });
+};
+
+// ==================== UPLOAD FUNCTIONS ====================
+
+export interface UploadMediaResult {
+  success: boolean;
+  url: string;
+  publicId: string;
+  format: string;
+  resourceType: string;
+  width?: number;
+  height?: number;
+  bytes: number;
+}
+
+/**
+ * Upload a file to Cloudinary via the /api/upload endpoint.
+ * Uses fetch directly (not apiRequest) because it sends FormData.
+ */
+export async function uploadMedia(file: File): Promise<UploadMediaResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch("/api/misc/upload", {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Upload failed");
+  }
+
+  return response.json();
 }
 
 // ==================== RATE LIMIT FUNCTIONS ====================
@@ -271,17 +334,13 @@ export function reconnectInstagramAccount() {
 export const getRateLimitStats = (
   apiRequest: ApiRequestFn,
 ): Promise<UserTierInfo> => {
-  return apiRequest("/rate-limit/stats", {
-    method: "GET",
-  });
+  return apiRequest("/rate-limit/stats", { method: "GET" });
 };
 
 export const getUserTierInfo = (
   apiRequest: ApiRequestFn,
 ): Promise<UserTierInfo> => {
-  return apiRequest("/rate-limit/stats", {
-    method: "GET",
-  });
+  return apiRequest("/rate-limit/stats", { method: "GET" });
 };
 
 export const checkRateLimit = (
@@ -312,9 +371,7 @@ export const recordRateLimitCall = (
 export const getCurrentWindow = (
   apiRequest: ApiRequestFn,
 ): Promise<RateLimitWindow> => {
-  return apiRequest("/rate-limit/window/current", {
-    method: "GET",
-  });
+  return apiRequest("/rate-limit/window/current", { method: "GET" });
 };
 
 export const resetRateLimitWindow = (
@@ -325,9 +382,7 @@ export const resetRateLimitWindow = (
   processed: number;
   resetAccounts: number;
 }> => {
-  return apiRequest("/rate-limit/window/reset", {
-    method: "POST",
-  });
+  return apiRequest("/rate-limit/window/reset", { method: "POST" });
 };
 
 // ==================== QUEUE MANAGEMENT ====================
@@ -339,9 +394,7 @@ export const processQueue = (
   const url = limit
     ? `/rate-limit/queue/process?limit=${limit}`
     : "/rate-limit/queue/process";
-  return apiRequest(url, {
-    method: "GET",
-  });
+  return apiRequest(url, { method: "GET" });
 };
 
 // ==================== USER TIER FUNCTIONS ====================
@@ -349,9 +402,7 @@ export const processQueue = (
 export const getUserTier = (
   apiRequest: ApiRequestFn,
 ): Promise<{ tier: "free" | "pro" }> => {
-  return apiRequest("/user/tier", {
-    method: "GET",
-  });
+  return apiRequest("/user/tier", { method: "GET" });
 };
 
 export const updateUserTier = (
@@ -376,16 +427,12 @@ export const getInstagramUser = async (
       `https://graph.instagram.com/me?fields=${fieldsString}&access_token=${accessToken}`,
       {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       },
     );
-
     if (!response.ok) {
       throw new Error(`Instagram API error: ${response.statusText}`);
     }
-
     return await response.json();
   } catch (error) {
     console.error("Error fetching Instagram user:", error);
@@ -397,15 +444,11 @@ export const getReplyLogs = (
   apiRequest: ApiRequestFn,
   limit: number = 10,
 ): Promise<any> => {
-  return apiRequest(`/insta/replylogs?limit=${limit}`, {
-    method: "GET",
-  });
+  return apiRequest(`/insta/replylogs?limit=${limit}`, { method: "GET" });
 };
 
 export const getSubscriptioninfo = (apiRequest: ApiRequestFn): Promise<any> => {
-  return apiRequest("/insta/subscription/list", {
-    method: "GET",
-  });
+  return apiRequest("/insta/subscription/list", { method: "GET" });
 };
 
 export const cancelRazorPaySubscription = (
@@ -500,9 +543,7 @@ export const exportTemplates = (
   const url = accountId
     ? `/insta/templates/export?accountId=${accountId}`
     : "/insta/templates/export";
-  return apiRequest(url, {
-    method: "GET",
-  });
+  return apiRequest(url, { method: "GET" });
 };
 
 export const importTemplates = (
@@ -538,7 +579,7 @@ export const validateTemplate = (
   });
 };
 
-// ==================== INTERFACES (keep as is) ====================
+// ==================== INTERFACES ====================
 
 export interface UserTierInfo {
   tier: "free" | "pro";
@@ -597,6 +638,8 @@ export interface ContentItem {
   text: string;
   link: string;
   buttonTitle?: string;
+  mediaUrl?: string;
+  mediaType?: string;
 }
 
 export interface TemplateSettingsByTier {
@@ -611,35 +654,9 @@ export interface TemplateSettingsByTier {
     maxRetries: number;
   };
 }
-// ─── Content Item ─────────────────────────────────────────────────────────────
-
-export interface ContentItem {
-  text: string;
-  link: string;
-  buttonTitle?: string;
-}
-
-// ─── Settings By Tier ─────────────────────────────────────────────────────────
-
-export interface TemplateSettingsByTier {
-  free: {
-    requireFollow: boolean;
-    skipFollowCheck: boolean;
-    directLink: boolean;
-  };
-  pro: {
-    requireFollow: boolean;
-    useAdvancedFlow: boolean;
-    maxRetries: number;
-  };
-}
-
-// ─── Automation Sub-Types ────────────────────────────────────────────────────
 
 export type AutomationType = "comments" | "stories" | "dms" | "live";
-
 export type DelayOption = "immediate" | "3min" | "5min" | "10min";
-
 export type TagType = "none" | "user" | "account";
 
 export interface WelcomeMessageConfig {
@@ -667,11 +684,30 @@ export interface AskEmailConfig {
   sendDmIfNoEmail: boolean;
 }
 
-export interface FollowUpDMsConfig {
+export interface AskPhoneConfig {
   enabled: boolean;
+  openingMessage: string;
+  retryMessage: string;
+  sendDmIfNoPhone: boolean;
 }
 
-// ─── Main TemplateType ────────────────────────────────────────────────────────
+export interface FollowUpLink {
+  url: string;
+  buttonTitle: string;
+}
+
+export interface FollowUpMessageConfig {
+  condition: string;
+  waitTime: number;
+  waitUnit: "minutes" | "hours";
+  message: string;
+  links: FollowUpLink[];
+}
+
+export interface FollowUpDMsConfig {
+  enabled: boolean;
+  messages: FollowUpMessageConfig[];
+}
 
 export interface TemplateType {
   _id: string;
@@ -679,67 +715,30 @@ export interface TemplateType {
   userId: string;
   accountId: string;
   accountUsername: string;
-
-  // Media
   mediaId: string;
   mediaUrl?: string;
   mediaType?: string;
-
-  // Core DM content (multiple options, randomly chosen)
   content: ContentItem[];
-
-  // Comment replies (multiple options, randomly chosen)
   reply: string[];
-
-  // Trigger keywords (empty = any keyword)
   triggers: string[];
-
-  // Legacy follow flag (kept for backwards compat)
   isFollow: boolean;
-
-  // Timing
   delaySeconds?: number;
   delayOption?: DelayOption;
-
-  // Status & ordering
   isActive: boolean;
   priority: number;
-
-  // Statistics
   usageCount?: number;
   lastUsed?: string;
   successRate?: number;
-
-  // Legacy tier settings (kept for backwards compat)
   settingsByTier?: TemplateSettingsByTier;
-
-  // ── New automation fields ──────────────────────────────────────────────────
-
-  /** Which type of automation this is */
   automationType: AutomationType;
-
-  /** Whether "any post or reel" is selected (mediaId will be empty) */
   anyPostOrReel?: boolean;
-
-  /** Whether "any keyword" is selected (triggers will be empty) */
   anyKeyword?: boolean;
-
-  /** Welcome message shown before the main DM */
   welcomeMessage: WelcomeMessageConfig;
-
-  /** Public comment reply settings */
   publicReply?: PublicReplyConfig;
-
-  /** Ask user to follow before sending DM */
   askFollow?: AskFollowConfig;
-
-  /** Ask user for email (Pro feature) */
   askEmail?: AskEmailConfig;
-
-  /** Send follow-up DMs (Pro feature) */
+  askPhone?: AskPhoneConfig;
   followUpDMs?: FollowUpDMsConfig;
-
-  // Timestamps
   createdAt: string;
   updatedAt: string;
 }

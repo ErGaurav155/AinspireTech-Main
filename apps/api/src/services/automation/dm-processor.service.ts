@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
+import LeadCollection from "@/models/insta/LeadCollection.model";
 import {
   sendInstagramDM,
   checkFollowStatus,
@@ -10,8 +11,8 @@ import {
 
 /**
  * Handle postback automation - FIRE AND FORGET
- * NO rate limiting, NO queueing, NO retries
- * These are user responses to our buttons, not incoming webhooks
+ * These are user button-click responses — NOT incoming webhooks.
+ * PRIORITY CHAIN: askFollow → askEmail → askPhone → direct link
  */
 export async function handlePostbackAutomation(
   accountId: string,
@@ -34,13 +35,18 @@ export async function handlePostbackAutomation(
       return { success: false, message: "Account not found or inactive" };
     }
 
-    const payloadParts = payload.split("_");
-    const action = payloadParts[0];
-    const subAction = payloadParts[1];
-    let templateMediaId = "";
-    if (payloadParts.length >= 3) {
-      templateMediaId = payloadParts[2];
-    }
+    // Parse payload: ACTION_SUBACTION_mediaId
+    // e.g. CHECK_FOLLOW_dm_12345 or GET_ACCESS_postId123
+    // We split into max 3 parts: [action, subAction, ...rest joined as mediaId]
+    const parts = payload.split("_");
+    const action = parts[0];
+    const subAction = parts[1];
+    // mediaId can contain underscores (e.g. dm_12345_abc), so join the rest
+    const templateMediaId = parts.slice(2).join("_");
+
+    console.log(
+      `Postback received: action=${action}, sub=${subAction}, mediaId=${templateMediaId}`,
+    );
 
     const template = await InstaReplyTemplate.findOne({
       userId: clerkId,
@@ -58,26 +64,6 @@ export async function handlePostbackAutomation(
     const userTier = await getUserTier(clerkId);
 
     switch (action) {
-      case "WELCOME":
-        return await handleWelcomeAction(
-          account,
-          clerkId,
-          userTier,
-          template,
-          recipientId,
-          startTime,
-        );
-      case "GET":
-        if (subAction === "ACCESS")
-          return await handleGetAccessAction(
-            account,
-            clerkId,
-            userTier,
-            template,
-            recipientId,
-            startTime,
-          );
-        break;
       case "CHECK":
         if (subAction === "FOLLOW")
           return await handleCheckFollowAction(
@@ -120,6 +106,26 @@ export async function handlePostbackAutomation(
             startTime,
           );
         break;
+      case "GET":
+        if (subAction === "ACCESS")
+          return await sendFinalLinkDM(
+            account,
+            clerkId,
+            template,
+            recipientId,
+            startTime,
+          );
+        break;
+      // Legacy WELCOME handler — kept for backwards compat
+      case "WELCOME":
+        return await handleLegacyWelcomeAction(
+          account,
+          clerkId,
+          userTier,
+          template,
+          recipientId,
+          startTime,
+        );
       default:
         return { success: false, message: "Unknown action" };
     }
@@ -135,72 +141,205 @@ export async function handlePostbackAutomation(
   }
 }
 
-/**
- * Handle welcome action
- */
-// services/automation/dm-processor.service.ts (update handleWelcomeAction)
+// ─── Shared helper: determine and send the next step in the chain ─────────────
 
 /**
- * Handle welcome action - user clicked the welcome button
- * Sends the next step according to template priorities.
- * This handles: CHECK_FOLLOW, ASK_EMAIL, ASK_PHONE, GET_ACCESS
+ * After a gate (follow/email/phone) is passed, decide what comes next.
+ * completedStep: what was just completed
  */
-async function handleWelcomeAction(
+async function sendNextStepInChain(
   account: any,
   clerkId: string,
-  userTier: string,
   template: any,
   recipientId: string,
+  completedStep: "follow" | "email" | "phone",
   startTime: number,
 ): Promise<{
   success: boolean;
   message: string;
   nextStage?: string;
 }> {
-  try {
-    console.log(`Processing welcome action for user ${recipientId}`);
+  const hasAskEmail = template.askEmail?.enabled;
+  const hasAskPhone = template.askPhone?.enabled;
 
-    let nextButtonPayload = "";
-    let nextButtonText = "";
-    let nextMessage = "";
-    let nextStage = "";
-
-    const hasAskFollow = template.askFollow?.enabled;
-    const hasAskEmail = template.askEmail?.enabled;
-    const hasAskPhone = template.askPhone?.enabled;
-
-    // Determine next step based on template features (priority chain)
-    if (hasAskFollow) {
-      // Ask user to follow
-      nextButtonPayload = `VERIFY_FOLLOW_${template.mediaId}`;
-      nextButtonText = template.askFollow?.followingBtn || "I'm following ✅";
-      nextMessage =
-        template.askFollow?.message ||
-        "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲";
-      nextStage = "check_follow";
-    } else if (hasAskEmail) {
-      // Ask for email
-      nextButtonPayload = `ASK_EMAIL_${template.mediaId}`;
-      nextButtonText = "Continue";
-      nextMessage =
-        template.askEmail?.openingMessage ||
-        "I'll need your email address first. Please share it in the chat.";
-      nextStage = "waiting_for_email";
+  if (completedStep === "follow") {
+    if (hasAskEmail) {
+      return sendAskEmailMessage(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        startTime,
+      );
     } else if (hasAskPhone) {
-      // Ask for phone
-      nextButtonPayload = `ASK_PHONE_${template.mediaId}`;
-      nextButtonText = "Continue";
-      nextMessage =
-        template.askPhone?.openingMessage ||
-        "I'll need your phone number first. Please share it in the chat.";
-      nextStage = "waiting_for_phone";
+      return sendAskPhoneMessage(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        startTime,
+      );
     } else {
-      // Send direct link
-      const randomIndex = Math.floor(Math.random() * template.content.length);
-      const content = template.content[randomIndex];
-      const buttonTitle = content.buttonTitle || "Get Access";
+      return sendFinalLinkDM(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        startTime,
+      );
+    }
+  }
 
-      const dmSuccess = await sendInstagramDM(
+  if (completedStep === "email") {
+    if (hasAskPhone) {
+      return sendAskPhoneMessage(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        startTime,
+      );
+    } else {
+      return sendFinalLinkDM(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        startTime,
+      );
+    }
+  }
+
+  // completed phone → always final link
+  return sendFinalLinkDM(account, clerkId, template, recipientId, startTime);
+}
+
+// ─── Send helper: ask email message ─────────────────────────────────────────
+
+async function sendAskEmailMessage(
+  account: any,
+  clerkId: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  const emailMessage =
+    template.askEmail?.openingMessage ||
+    "Please share your email address to continue. 📧";
+
+  const dmSuccess = await sendInstagramDM(
+    account.instagramId,
+    account.accessToken,
+    recipientId,
+    { text: emailMessage },
+    false,
+  );
+
+  // Update log stage so handleIncomingMessage picks it up
+  await InstaReplyLog.findOneAndUpdate(
+    {
+      userId: clerkId,
+      accountId: account.instagramId,
+      commenterUserId: recipientId,
+      dmFlowStage: { $nin: ["final_link", "completed"] },
+    },
+    { dmFlowStage: "waiting_for_email" },
+    { sort: { createdAt: -1 } },
+  );
+
+  account.accountDMSent = (account.accountDMSent || 0) + 1;
+  account.lastActivity = new Date();
+  await account.save();
+
+  return {
+    success: dmSuccess,
+    message: dmSuccess ? "Email request sent" : "Failed to ask for email",
+    nextStage: "waiting_for_email",
+  };
+}
+
+// ─── Send helper: ask phone message ─────────────────────────────────────────
+
+async function sendAskPhoneMessage(
+  account: any,
+  clerkId: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  const phoneMessage =
+    template.askPhone?.openingMessage ||
+    "Please share your phone number to continue. 📱";
+
+  const dmSuccess = await sendInstagramDM(
+    account.instagramId,
+    account.accessToken,
+    recipientId,
+    { text: phoneMessage },
+    false,
+  );
+
+  await InstaReplyLog.findOneAndUpdate(
+    {
+      userId: clerkId,
+      accountId: account.instagramId,
+      commenterUserId: recipientId,
+      dmFlowStage: { $nin: ["final_link", "completed"] },
+    },
+    { dmFlowStage: "waiting_for_phone" },
+    { sort: { createdAt: -1 } },
+  );
+
+  account.accountDMSent = (account.accountDMSent || 0) + 1;
+  account.lastActivity = new Date();
+  await account.save();
+
+  return {
+    success: dmSuccess,
+    message: dmSuccess ? "Phone request sent" : "Failed to ask for phone",
+    nextStage: "waiting_for_phone",
+  };
+}
+
+// ─── Send helper: final link ─────────────────────────────────────────────────
+
+export async function sendFinalLinkDM(
+  account: any,
+  clerkId: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  try {
+    const randomIndex = Math.floor(Math.random() * template.content.length);
+    const content = template.content[randomIndex];
+    const buttonTitle = content?.buttonTitle || "Get Access";
+    const finalText = content?.text || "Here's your link!";
+    const link = content?.link || "";
+
+    // If content has a media attachment (Cloudinary URL), send it first
+    if (content?.mediaUrl) {
+      await sendInstagramDM(
+        account.instagramId,
+        account.accessToken,
+        recipientId,
+        {
+          attachment: {
+            type: content.mediaType === "image" ? "image" : "file",
+            payload: {
+              url: content.mediaUrl,
+              is_reusable: true,
+            },
+          },
+        },
+        false,
+      );
+    }
+
+    let dmSuccess = false;
+
+    if (link) {
+      dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
         recipientId,
@@ -209,11 +348,11 @@ async function handleWelcomeAction(
             type: "template",
             payload: {
               template_type: "button",
-              text: `Here's your access! ${content.text}`,
+              text: finalText,
               buttons: [
                 {
                   type: "web_url",
-                  url: content.link,
+                  url: link,
                   title: buttonTitle,
                   webview_height_ratio: "full",
                 },
@@ -223,169 +362,49 @@ async function handleWelcomeAction(
         },
         false,
       );
-
-      // Update log to final stage
-      await InstaReplyLog.findOneAndUpdate(
-        {
-          userId: clerkId,
-          accountId: account.instagramId,
-          commenterUserId: recipientId,
-        },
-        { dmFlowStage: "final_link", linkSent: dmSuccess },
-        { sort: { createdAt: -1 } },
+    } else if (finalText) {
+      dmSuccess = await sendInstagramDM(
+        account.instagramId,
+        account.accessToken,
+        recipientId,
+        { text: finalText },
+        false,
       );
-
-      return {
-        success: dmSuccess,
-        message: dmSuccess ? "Direct link sent" : "Failed to send link",
-        nextStage: "final_link",
-      };
     }
 
-    // Send the next message with button
-    const dmSuccess = await sendInstagramDM(
-      account.instagramId,
-      account.accessToken,
-      recipientId,
-      {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "button",
-            text: nextMessage,
-            buttons: [
-              {
-                type: "postback",
-                title: nextButtonText,
-                payload: nextButtonPayload,
-              },
-            ],
-          },
-        },
-      },
-      false, // isCommentReply = false for DMs
-    );
-
-    console.log(`Welcome action completed for ${recipientId}: ${dmSuccess}`);
-
-    // Update account statistics
-    account.accountDMSent = (account.accountDMSent || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
-
-    // Update log with next stage
+    // Update log
     await InstaReplyLog.findOneAndUpdate(
       {
         userId: clerkId,
         accountId: account.instagramId,
         commenterUserId: recipientId,
+        dmFlowStage: { $nin: ["final_link", "completed"] },
       },
-      { dmFlowStage: nextStage },
+      {
+        dmFlowStage: "final_link",
+        linkSent: dmSuccess,
+        followUpCompleted: false,
+      },
       { sort: { createdAt: -1 } },
     );
 
-    return {
-      success: dmSuccess,
-      message: dmSuccess ? "Next step sent" : "Failed to send next step",
-      nextStage: nextStage,
-    };
-  } catch (error) {
-    console.error("Error handling welcome action:", error);
-    return { success: false, message: "Failed to process welcome" };
-  }
-}
-/**
- * Handle get access - send final link
- */
-async function handleGetAccessAction(
-  account: any,
-  clerkId: string,
-  userTier: string,
-  template: any,
-  recipientId: string,
-  startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
-  try {
-    console.log(`Sending final link to user ${recipientId}`);
-
-    // Select random content for final link
-    const randomIndex = Math.floor(Math.random() * template.content.length);
-    const content = template.content[randomIndex];
-    const buttonTitle = content.buttonTitle || "Get Access";
-    const finalText = content.text || "Here's your access!";
-
-    // Send final link DM - FIRE AND FORGET
-    const dmSuccess = await sendInstagramDM(
-      account.instagramId,
-      account.accessToken,
-      recipientId,
-      {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "button",
-            text: `Here you go! ${finalText}`,
-            buttons: [
-              {
-                type: "web_url",
-                url: content.link,
-                title: buttonTitle,
-                webview_height_ratio: "full",
-              },
-            ],
-          },
-        },
-      },
-      false, // isCommentReply = false for DMs
-    );
-
-    console.log(`Final link sent to ${recipientId}: ${dmSuccess}`);
-
-    // Update account statistics
     account.accountDMSent = (account.accountDMSent || 0) + 1;
     account.lastActivity = new Date();
     await account.save();
 
-    // Create log
-    await InstaReplyLog.create({
-      userId: clerkId,
-      accountId: account.instagramId,
-      templateId: template._id.toString(),
-      templateName: template.name,
-      commentId: `postback_${Date.now()}`,
-      commentText: "Postback action - final link",
-      commenterUsername: "unknown",
-      commenterUserId: recipientId,
-      mediaId: template.mediaId,
-      dmFlowStage: "final_link",
-      linkSent: dmSuccess,
-      success: dmSuccess,
-      responseTime: Date.now() - startTime,
-      createdAt: new Date(),
-    });
-
     return {
       success: dmSuccess,
-      message: dmSuccess
-        ? "Direct link sent successfully"
-        : "Failed to send link",
+      message: dmSuccess ? "Final link sent" : "Failed to send final link",
+      nextStage: "final_link",
     };
   } catch (error) {
-    console.error("Error sending direct link:", error);
-    return {
-      success: false,
-      message: "Failed to send direct link",
-    };
+    console.error("Error sending final link:", error);
+    return { success: false, message: "Failed to send final link" };
   }
 }
 
-/**
- * Handle check follow
- */
+// ─── Handle: CHECK_FOLLOW button clicked ─────────────────────────────────────
+
 async function handleCheckFollowAction(
   account: any,
   clerkId: string,
@@ -393,70 +412,44 @@ async function handleCheckFollowAction(
   template: any,
   recipientId: string,
   startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
   try {
     console.log(`Checking follow status for user ${recipientId}`);
 
-    // Check follow status via API
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
       recipientId,
     );
-    console.log("followStatus:", followStatus);
     const userFollows = followStatus.is_user_follow_business === true;
 
+    account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
     if (userFollows) {
-      // User follows - send final link
-      const randomIndex = Math.floor(Math.random() * template.content.length);
-      const content = template.content[randomIndex];
-      const buttonTitle = content.buttonTitle || "Get Access";
-      const finalText = content.text || "Here's your access!";
-
-      const dmSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        recipientId,
+      // User follows — move to next step in chain
+      await InstaReplyLog.findOneAndUpdate(
         {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "button",
-              text: `Awesome! Thanks for following! ${finalText}`,
-              buttons: [
-                {
-                  type: "web_url",
-                  url: content.link,
-                  title: buttonTitle,
-                  webview_height_ratio: "full",
-                },
-              ],
-            },
-          },
+          userId: clerkId,
+          accountId: account.instagramId,
+          commenterUserId: recipientId,
+          dmFlowStage: { $nin: ["final_link", "completed"] },
         },
-        false,
+        { followChecked: true, userFollows: true },
+        { sort: { createdAt: -1 } },
       );
 
-      // Update statistics
-      account.accountDMSent = (account.accountDMSent || 0) + 1;
-      account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-      account.lastActivity = new Date();
-      await account.save();
-
-      console.log(
-        `Follow check passed for ${recipientId}, link sent: ${dmSuccess}`,
+      return sendNextStepInChain(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        "follow",
+        startTime,
       );
-
-      return {
-        success: dmSuccess,
-        message: dmSuccess ? "Link sent to follower" : "Failed to send link",
-      };
     } else {
-      // User doesn't follow - send follow reminder
+      // Not following — send reminder
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -468,7 +461,7 @@ async function handleCheckFollowAction(
               template_type: "button",
               text:
                 template.askFollow?.message ||
-                "I noticed you haven't followed us yet. Please follow to get your link! 🧲",
+                "Looks like you haven't followed yet! Follow us and tap below 🧲",
               buttons: [
                 {
                   type: "web_url",
@@ -478,7 +471,7 @@ async function handleCheckFollowAction(
                 },
                 {
                   type: "postback",
-                  title: template.askFollow?.followingBtn || "I'm following",
+                  title: template.askFollow?.followingBtn || "I'm following ✅",
                   payload: `VERIFY_FOLLOW_${template.mediaId}`,
                 },
               ],
@@ -488,15 +481,8 @@ async function handleCheckFollowAction(
         false,
       );
 
-      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
-      account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-      account.lastActivity = new Date();
       await account.save();
-
-      console.log(
-        `Follow check failed for ${recipientId}, reminder sent: ${dmSuccess}`,
-      );
 
       return {
         success: dmSuccess,
@@ -505,17 +491,13 @@ async function handleCheckFollowAction(
       };
     }
   } catch (error) {
-    console.error("Error checking follow status:", error);
-    return {
-      success: false,
-      message: "Failed to check follow status",
-    };
+    console.error("Error checking follow:", error);
+    return { success: false, message: "Failed to check follow status" };
   }
 }
 
-/**
- * Handle verify follow
- */
+// ─── Handle: VERIFY_FOLLOW button clicked ────────────────────────────────────
+
 async function handleVerifyFollowAction(
   account: any,
   clerkId: string,
@@ -523,72 +505,41 @@ async function handleVerifyFollowAction(
   template: any,
   recipientId: string,
   startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
   try {
-    console.log(`Verifying follow status for user ${recipientId}`);
-
-    // Check follow status again
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
       recipientId,
     );
-
     const userFollows = followStatus.is_user_follow_business === true;
 
+    account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
     if (userFollows) {
-      // User now follows - send final link
-      const randomIndex = Math.floor(Math.random() * template.content.length);
-      const content = template.content[randomIndex];
-      const buttonTitle = content.buttonTitle || "Get Access";
-      const finalText = content.text || "Here's your access!";
-
-      const dmSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        recipientId,
+      await InstaReplyLog.findOneAndUpdate(
         {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "button",
-              text: `Perfect! Thanks for following! ${finalText}`,
-              buttons: [
-                {
-                  type: "web_url",
-                  url: content.link,
-                  title: buttonTitle,
-                  webview_height_ratio: "full",
-                },
-              ],
-            },
-          },
+          userId: clerkId,
+          accountId: account.instagramId,
+          commenterUserId: recipientId,
+          dmFlowStage: { $nin: ["final_link", "completed"] },
         },
-        false,
+        { followChecked: true, userFollows: true },
+        { sort: { createdAt: -1 } },
       );
 
-      // Update statistics
-      account.accountDMSent = (account.accountDMSent || 0) + 1;
-      account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-      account.lastActivity = new Date();
-      await account.save();
-
-      console.log(
-        `Verify follow passed for ${recipientId}, link sent: ${dmSuccess}`,
+      return sendNextStepInChain(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        "follow",
+        startTime,
       );
-
-      return {
-        success: dmSuccess,
-        message: dmSuccess
-          ? "Link sent after follow verification"
-          : "Failed to send link",
-      };
     } else {
-      // Still not following - send another reminder
+      // Still not following
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -618,15 +569,8 @@ async function handleVerifyFollowAction(
         false,
       );
 
-      // Update statistics
       account.accountDMSent = (account.accountDMSent || 0) + 1;
-      account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-      account.lastActivity = new Date();
       await account.save();
-
-      console.log(
-        `Verify follow failed for ${recipientId}, reminder sent: ${dmSuccess}`,
-      );
 
       return {
         success: dmSuccess,
@@ -637,17 +581,13 @@ async function handleVerifyFollowAction(
       };
     }
   } catch (error) {
-    console.error("Error verifying follow status:", error);
-    return {
-      success: false,
-      message: "Failed to verify follow status",
-    };
+    console.error("Error verifying follow:", error);
+    return { success: false, message: "Failed to verify follow status" };
   }
 }
 
-/**
- * Handle ask email
- */
+// ─── Handle: ASK_EMAIL button clicked ────────────────────────────────────────
+
 async function handleAskEmailAction(
   account: any,
   clerkId: string,
@@ -655,69 +595,18 @@ async function handleAskEmailAction(
   template: any,
   recipientId: string,
   startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
-  try {
-    console.log(`Asking for email from user ${recipientId}`);
-
-    const emailMessage =
-      template.askEmail?.openingMessage ||
-      "Please share your email address to continue. I'll send you the access link right away! 📧";
-
-    const dmSuccess = await sendInstagramDM(
-      account.instagramId,
-      account.accessToken,
-      recipientId,
-      {
-        text: emailMessage,
-      },
-      false,
-    );
-
-    // Update statistics
-    account.accountDMSent = (account.accountDMSent || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
-
-    console.log(`Email request sent to ${recipientId}: ${dmSuccess}`);
-
-    // Create log entry for tracking
-    await InstaReplyLog.create({
-      userId: clerkId,
-      accountId: account.instagramId,
-      templateId: template._id.toString(),
-      templateName: template.name,
-      commentId: `email_request_${Date.now()}`,
-      commentText: "Email request sent",
-      commenterUsername: "unknown",
-      commenterUserId: recipientId,
-      mediaId: template.mediaId,
-      dmFlowStage: "waiting_for_email",
-      success: dmSuccess,
-      responseTime: Date.now() - startTime,
-      createdAt: new Date(),
-    });
-
-    return {
-      success: dmSuccess,
-      message: dmSuccess ? "Email request sent" : "Failed to ask for email",
-      nextStage: "waiting_for_email",
-    };
-  } catch (error) {
-    console.error("Error asking for email:", error);
-    return {
-      success: false,
-      message: "Failed to ask for email",
-    };
-  }
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  return sendAskEmailMessage(
+    account,
+    clerkId,
+    template,
+    recipientId,
+    startTime,
+  );
 }
 
-/**
- * Handle ask phone
- */
+// ─── Handle: ASK_PHONE button clicked ────────────────────────────────────────
+
 async function handleAskPhoneAction(
   account: any,
   clerkId: string,
@@ -725,62 +614,87 @@ async function handleAskPhoneAction(
   template: any,
   recipientId: string,
   startTime: number,
-): Promise<{
-  success: boolean;
-  message: string;
-  nextStage?: string;
-}> {
-  try {
-    console.log(`Asking for phone from user ${recipientId}`);
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  return sendAskPhoneMessage(
+    account,
+    clerkId,
+    template,
+    recipientId,
+    startTime,
+  );
+}
 
-    const phoneMessage =
-      template.askPhone?.openingMessage ||
-      "Please share your phone number to continue. I'll send you the access link right away! 📱";
+// ─── Legacy WELCOME handler (backwards compat) ────────────────────────────────
 
+async function handleLegacyWelcomeAction(
+  account: any,
+  clerkId: string,
+  userTier: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  const hasAskFollow = template.askFollow?.enabled;
+  const hasAskEmail = template.askEmail?.enabled;
+  const hasAskPhone = template.askPhone?.enabled;
+
+  if (hasAskFollow) {
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
       recipientId,
       {
-        text: phoneMessage,
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: template.askFollow?.message || "Please follow us first 🧲",
+            buttons: [
+              {
+                type: "web_url",
+                title: template.askFollow?.visitProfileBtn || "Visit Profile",
+                url: `https://www.instagram.com/${account.username}/`,
+                webview_height_ratio: "full",
+              },
+              {
+                type: "postback",
+                title: template.askFollow?.followingBtn || "I'm following ✅",
+                payload: `VERIFY_FOLLOW_${template.mediaId}`,
+              },
+            ],
+          },
+        },
       },
       false,
     );
-
-    // Update statistics
     account.accountDMSent = (account.accountDMSent || 0) + 1;
     account.lastActivity = new Date();
     await account.save();
-
-    console.log(`Phone request sent to ${recipientId}: ${dmSuccess}`);
-
-    // Create log entry for tracking
-    await InstaReplyLog.create({
-      userId: clerkId,
-      accountId: account.instagramId,
-      templateId: template._id.toString(),
-      templateName: template.name,
-      commentId: `phone_request_${Date.now()}`,
-      commentText: "Phone request sent",
-      commenterUsername: "unknown",
-      commenterUserId: recipientId,
-      mediaId: template.mediaId,
-      dmFlowStage: "waiting_for_phone",
-      success: dmSuccess,
-      responseTime: Date.now() - startTime,
-      createdAt: new Date(),
-    });
-
     return {
       success: dmSuccess,
-      message: dmSuccess ? "Phone request sent" : "Failed to ask for phone",
-      nextStage: "waiting_for_phone",
+      message: dmSuccess ? "Follow gate sent" : "Failed",
+      nextStage: "waiting_for_follow",
     };
-  } catch (error) {
-    console.error("Error asking for phone:", error);
-    return {
-      success: false,
-      message: "Failed to ask for phone",
-    };
+  } else if (hasAskEmail) {
+    return sendAskEmailMessage(
+      account,
+      clerkId,
+      template,
+      recipientId,
+      startTime,
+    );
+  } else if (hasAskPhone) {
+    return sendAskPhoneMessage(
+      account,
+      clerkId,
+      template,
+      recipientId,
+      startTime,
+    );
+  } else {
+    return sendFinalLinkDM(account, clerkId, template, recipientId, startTime);
   }
 }
+
+// Export sendNextStepInChain for use in message-processor
+export { sendNextStepInChain, sendFinalLinkDM as sendFinalLink };

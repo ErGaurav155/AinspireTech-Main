@@ -3,12 +3,16 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
+import LeadCollection from "@/models/insta/LeadCollection.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
+import {
+  sendFinalLinkDM,
+  sendNextStepInChain,
+} from "@/services/automation/dm-processor.service";
 
 /**
- * Handle incoming message - FIRE AND FORGET
- * NO rate limiting
- * These are user text responses (email, phone, etc) - NOT button clicks
+ * Handle incoming text message (email or phone response from user).
+ * Called when a user's dmFlowStage is "waiting_for_email" or "waiting_for_phone".
  */
 export async function handleIncomingMessage(
   accountId: string,
@@ -24,13 +28,10 @@ export async function handleIncomingMessage(
 
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive) {
-      return {
-        success: false,
-        message: "Account not found or inactive",
-      };
+      return { success: false, message: "Account not found or inactive" };
     }
 
-    // Find recent log for this user to determine context
+    // Find the most recent active log for this user that is waiting for input
     const recentLog = await InstaReplyLog.findOne({
       userId: clerkId,
       accountId: accountId,
@@ -40,22 +41,14 @@ export async function handleIncomingMessage(
 
     if (!recentLog) {
       console.log("No context found for incoming message from:", senderId);
-      return {
-        success: false,
-        message: "No context found",
-      };
+      return { success: false, message: "No context found" };
     }
 
-    // Get template
     const template = await InstaReplyTemplate.findById(recentLog.templateId);
     if (!template) {
-      return {
-        success: false,
-        message: "Template not found",
-      };
+      return { success: false, message: "Template not found" };
     }
 
-    // Handle based on stage
     if (recentLog.dmFlowStage === "waiting_for_email") {
       return await handleEmailResponse(
         account,
@@ -76,10 +69,7 @@ export async function handleIncomingMessage(
       );
     }
 
-    return {
-      success: false,
-      message: "Unknown stage",
-    };
+    return { success: false, message: "Unknown stage" };
   } catch (error) {
     console.error("Error handling incoming message:", error);
     return {
@@ -91,7 +81,7 @@ export async function handleIncomingMessage(
 }
 
 /**
- * Handle email response
+ * Handle email text response from user.
  */
 async function handleEmailResponse(
   account: any,
@@ -100,17 +90,11 @@ async function handleEmailResponse(
   senderId: string,
   email: string,
   log: any,
-): Promise<{
-  success: boolean;
-  message: string;
-}> {
+): Promise<{ success: boolean; message: string }> {
   try {
-    console.log(`Processing email response for user ${senderId}: ${email}`);
-
-    // Validate email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      // Invalid email - send retry message
+      // Invalid — send retry
       const retrySuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -120,116 +104,54 @@ async function handleEmailResponse(
             template.askEmail?.retryMessage ||
             "Please enter a valid email address, e.g. info@gmail.com",
         },
-        false, // isCommentReply = false for DMs
+        false,
       );
-
-      console.log(
-        `Email validation failed for ${email}, retry sent: ${retrySuccess}`,
-      );
-
       return {
         success: retrySuccess,
         message: retrySuccess ? "Retry message sent" : "Failed to send retry",
       };
     }
 
-    // Valid email - save and send next step or final link
+    // Valid email — save to log and LeadCollection
     log.emailCollected = email;
+    log.dmFlowStage = "email_collected";
     await log.save();
 
-    console.log(`Valid email collected for user ${senderId}: ${email}`);
+    // Save to LeadCollection
+    await LeadCollection.create({
+      userId: clerkId,
+      accountId: account.instagramId,
+      accountUsername: account.username,
+      templateId: log.templateId,
+      templateName: log.templateName || "Unknown",
+      commenterUserId: senderId,
+      commenterUsername: log.commenterUsername || "unknown",
+      mediaId: log.mediaId || "",
+      automationType: log.automationType || "comments",
+      email,
+      source: "email_collection",
+    });
 
-    // Save email to user record (optional)
-    const User = (await import("@/models/user.model")).default;
-    await User.findOneAndUpdate(
-      { clerkId },
-      { $set: { email: email } },
-      { upsert: false },
+    console.log(`✅ Email collected for ${senderId}: ${email}`);
+
+    // Chain to next step
+    const startTime = Date.now();
+    return sendNextStepInChain(
+      account,
+      clerkId,
+      template,
+      senderId,
+      "email",
+      startTime,
     );
-
-    // Determine next step based on template features
-    if (template.askPhone?.enabled) {
-      // Ask for phone next
-      const phoneMessage =
-        template.askPhone?.openingMessage?.replace(
-          /\{\{username\}\}/g,
-          log.commenterUsername || "there",
-        ) ||
-        "Great! Now please share your phone number to complete your access.";
-
-      const dmSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        senderId,
-        {
-          text: phoneMessage,
-        },
-        false, // isCommentReply = false for DMs
-      );
-
-      // Update log stage to waiting for phone
-      log.dmFlowStage = "waiting_for_phone";
-      await log.save();
-
-      console.log(`Phone request sent to ${senderId}: ${dmSuccess}`);
-
-      return {
-        success: dmSuccess,
-        message: dmSuccess ? "Phone request sent" : "Failed to ask for phone",
-      };
-    } else {
-      // Send final link
-      const randomIndex = Math.floor(Math.random() * template.content.length);
-      const content = template.content[randomIndex];
-      const buttonTitle = content.buttonTitle || "Get Access";
-      const finalText = content.text || "Here's your access!";
-
-      const dmSuccess = await sendInstagramDM(
-        account.instagramId,
-        account.accessToken,
-        senderId,
-        {
-          attachment: {
-            type: "template",
-            payload: {
-              template_type: "button",
-              text: `Perfect! ${finalText}`,
-              buttons: [
-                {
-                  type: "web_url",
-                  url: content.link,
-                  title: buttonTitle,
-                  webview_height_ratio: "full",
-                },
-              ],
-            },
-          },
-        },
-        false, // isCommentReply = false for DMs
-      );
-
-      log.linkSent = dmSuccess;
-      log.dmFlowStage = "final_link";
-      await log.save();
-
-      console.log(`Final link sent to ${senderId}: ${dmSuccess}`);
-
-      return {
-        success: dmSuccess,
-        message: dmSuccess ? "Final link sent" : "Failed to send link",
-      };
-    }
   } catch (error) {
     console.error("Error handling email response:", error);
-    return {
-      success: false,
-      message: "Failed to handle email",
-    };
+    return { success: false, message: "Failed to handle email" };
   }
 }
 
 /**
- * Handle phone response
+ * Handle phone text response from user.
  */
 async function handlePhoneResponse(
   account: any,
@@ -238,17 +160,10 @@ async function handlePhoneResponse(
   senderId: string,
   phone: string,
   log: any,
-): Promise<{
-  success: boolean;
-  message: string;
-}> {
+): Promise<{ success: boolean; message: string }> {
   try {
-    console.log(`Processing phone response for user ${senderId}: ${phone}`);
-
-    // Validate phone (basic validation)
     const phoneRegex = /^[+]?[\d\s()-]{8,20}$/;
     if (!phoneRegex.test(phone)) {
-      // Invalid phone - send retry message
       const retrySuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -258,77 +173,54 @@ async function handlePhoneResponse(
             template.askPhone?.retryMessage ||
             "Please enter a valid phone number, e.g. +1234567890 or 9876543210",
         },
-        false, // isCommentReply = false for DMs
+        false,
       );
-
-      console.log(
-        `Phone validation failed for ${phone}, retry sent: ${retrySuccess}`,
-      );
-
       return {
         success: retrySuccess,
         message: retrySuccess ? "Retry message sent" : "Failed to send retry",
       };
     }
 
-    // Valid phone - save and send final link
+    // Valid phone — save to log and LeadCollection
     log.phoneCollected = phone;
+    log.dmFlowStage = "phone_collected";
     await log.save();
 
-    console.log(`Valid phone collected for user ${senderId}: ${phone}`);
+    await LeadCollection.create({
+      userId: clerkId,
+      accountId: account.instagramId,
+      accountUsername: account.username,
+      templateId: log.templateId,
+      templateName: log.templateName || "Unknown",
+      commenterUserId: senderId,
+      commenterUsername: log.commenterUsername || "unknown",
+      mediaId: log.mediaId || "",
+      automationType: log.automationType || "comments",
+      phone,
+      source: "phone_collection",
+    });
 
-    // Send final link
-    const randomIndex = Math.floor(Math.random() * template.content.length);
-    const content = template.content[randomIndex];
-    const buttonTitle = content.buttonTitle || "Get Access";
-    const finalText = content.text || "Here's your access!";
+    console.log(`✅ Phone collected for ${senderId}: ${phone}`);
 
-    const dmSuccess = await sendInstagramDM(
-      account.instagramId,
-      account.accessToken,
+    // Chain to next step (always final link after phone)
+    const startTime = Date.now();
+    return sendNextStepInChain(
+      account,
+      clerkId,
+      template,
       senderId,
-      {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "button",
-            text: `Perfect! ${finalText}`,
-            buttons: [
-              {
-                type: "web_url",
-                url: content.link,
-                title: buttonTitle,
-                webview_height_ratio: "full",
-              },
-            ],
-          },
-        },
-      },
-      false, // isCommentReply = false for DMs
+      "phone",
+      startTime,
     );
-
-    log.linkSent = dmSuccess;
-    log.dmFlowStage = "final_link";
-    await log.save();
-
-    console.log(`Final link sent to ${senderId}: ${dmSuccess}`);
-
-    return {
-      success: dmSuccess,
-      message: dmSuccess ? "Final link sent" : "Failed to send link",
-    };
   } catch (error) {
     console.error("Error handling phone response:", error);
-    return {
-      success: false,
-      message: "Failed to handle phone",
-    };
+    return { success: false, message: "Failed to handle phone" };
   }
 }
 
 /**
- * Handle incoming DM - Process direct messages from users
- * This handles NEW conversations (trigger words) - NOT button clicks
+ * Handle incoming DM — either delegates to handleIncomingMessage (if ongoing
+ * conversation is waiting for email/phone) or starts a new DM conversation.
  */
 export async function handleIncomingDM(
   accountId: string,
@@ -342,7 +234,7 @@ export async function handleIncomingDM(
 }> {
   try {
     await connectToDatabase();
-    console.log("we are here");
+
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive || !account.autoDMEnabled) {
       return {
@@ -352,7 +244,7 @@ export async function handleIncomingDM(
       };
     }
 
-    // Find if there's an existing active conversation log
+    // Check for an existing active conversation log
     const existingLog = await InstaReplyLog.findOne({
       userId: clerkId,
       accountId: accountId,
@@ -360,27 +252,25 @@ export async function handleIncomingDM(
       dmFlowStage: { $nin: ["final_link", "completed"] },
     }).sort({ createdAt: -1 });
 
-    // If there's an existing log, it means this is a text response to a previous message
-    // But button clicks are handled separately, so we should ignore text messages
-    // unless they are in waiting_for_email or waiting_for_phone state
+    // ✅ FIX: Actually delegate to handleIncomingMessage when waiting for input
     if (
       existingLog &&
       (existingLog.dmFlowStage === "waiting_for_email" ||
         existingLog.dmFlowStage === "waiting_for_phone")
     ) {
-      // This is a text response (email/phone) - handle via handleIncomingMessage
-      // But handleIncomingMessage is already called from the webhook, so we don't need to do anything here
-      return {
-        success: false,
-        message: "Handled by message processor",
-        processed: false,
-      };
+      const result = await handleIncomingMessage(
+        accountId,
+        clerkId,
+        senderId,
+        messageText,
+      );
+      return { ...result, processed: result.success };
     }
 
-    // If there's an existing log but not waiting for input, don't start new conversation
+    // If there's another non-final stage, don't start new conversation
     if (existingLog) {
       console.log(
-        `Existing conversation in stage ${existingLog.dmFlowStage}, not starting new`,
+        `Existing conversation in stage "${existingLog.dmFlowStage}", skipping new conversation`,
       );
       return {
         success: false,
@@ -389,7 +279,7 @@ export async function handleIncomingDM(
       };
     }
 
-    // No existing log - start a new conversation
+    // No existing conversation — start new one
     return await startNewDMConversation(
       account,
       clerkId,
@@ -403,7 +293,7 @@ export async function handleIncomingDM(
 }
 
 /**
- * Start new DM conversation - triggered by trigger words
+ * Start a brand-new DM conversation triggered by a keyword.
  */
 async function startNewDMConversation(
   account: any,
@@ -416,7 +306,6 @@ async function startNewDMConversation(
   processed: boolean;
 }> {
   try {
-    // Find templates for DM automation
     const templates = await InstaReplyTemplate.find({
       userId: clerkId,
       accountId: account.instagramId,
@@ -424,14 +313,10 @@ async function startNewDMConversation(
       automationType: "dms",
     }).sort({ priority: 1 });
 
-    // Find matching template based on trigger words
-    const matchingTemplate = await findMatchingDMTemplate(
-      messageText,
-      templates,
-    );
+    const matchingTemplate = findMatchingDMTemplate(messageText, templates);
 
     if (!matchingTemplate) {
-      console.log(`No matching template found for DM: "${messageText}"`);
+      console.log(`No matching DM template found for: "${messageText}"`);
       return {
         success: false,
         message: "No matching template",
@@ -439,12 +324,12 @@ async function startNewDMConversation(
       };
     }
 
-    // Determine button payload based on template features (priority chain)
-    let buttonPayload = "";
     const hasAskFollow = matchingTemplate.askFollow?.enabled;
     const hasAskEmail = matchingTemplate.askEmail?.enabled;
     const hasAskPhone = matchingTemplate.askPhone?.enabled;
 
+    // Determine button payload using same priority as comment/story processors
+    let buttonPayload = "";
     if (hasAskFollow) {
       buttonPayload = `CHECK_FOLLOW_${matchingTemplate.mediaId}`;
     } else if (hasAskEmail) {
@@ -455,10 +340,9 @@ async function startNewDMConversation(
       buttonPayload = `GET_ACCESS_${matchingTemplate.mediaId}`;
     }
 
-    // Send welcome message with button
     const welcomeText = matchingTemplate.welcomeMessage.text.replace(
       /\{\{username\}\}/g,
-      account.username,
+      "there", // DMs don't have username context
     );
 
     const dmSuccess = await sendInstagramDM(
@@ -481,11 +365,10 @@ async function startNewDMConversation(
           },
         },
       },
-      false, // isCommentReply = false for DMs
+      false,
     );
 
     if (!dmSuccess) {
-      console.error(`Failed to send welcome DM to ${senderId}`);
       return {
         success: false,
         message: "Failed to send welcome message",
@@ -493,36 +376,34 @@ async function startNewDMConversation(
       };
     }
 
-    // Determine the next stage based on the button payload
-    let nextStage = "";
-    if (hasAskFollow) {
-      nextStage = "check_follow";
-    } else if (hasAskEmail) {
-      nextStage = "waiting_for_email";
-    } else if (hasAskPhone) {
-      nextStage = "waiting_for_phone";
-    } else {
-      nextStage = "initial";
+    // Determine the initial stage to record
+    let initialStage = "welcome";
+    if (!hasAskFollow && !hasAskEmail && !hasAskPhone) {
+      initialStage = "initial";
     }
 
-    // Create log for this conversation
+    const uniqueId = `dm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
     await InstaReplyLog.create({
       userId: clerkId,
       accountId: account.instagramId,
       templateId: matchingTemplate._id.toString(),
       templateName: matchingTemplate.name,
-      commentId: `dm_${Date.now()}`,
+      automationType: "dms",
+      commentId: uniqueId,
       commentText: messageText,
       commenterUsername: "unknown",
       commenterUserId: senderId,
-      mediaId: matchingTemplate.mediaId,
-      dmFlowStage: nextStage,
+      mediaId: matchingTemplate.mediaId || "",
+      dmFlowStage: initialStage,
+      followUpCount: 0,
+      followUpCompleted: false,
       success: true,
       createdAt: new Date(),
     });
 
     console.log(
-      `✅ New DM conversation started for ${senderId} with template ${matchingTemplate.name}`,
+      `✅ New DM conversation started for ${senderId} with template "${matchingTemplate.name}"`,
     );
 
     return {
@@ -531,7 +412,7 @@ async function startNewDMConversation(
       processed: true,
     };
   } catch (error) {
-    console.error("Error starting new conversation:", error);
+    console.error("Error starting new DM conversation:", error);
     return {
       success: false,
       message: "Failed to start conversation",
@@ -541,24 +422,24 @@ async function startNewDMConversation(
 }
 
 /**
- * Find matching template for DM based on trigger words
+ * Find matching template by trigger keywords.
  */
-async function findMatchingDMTemplate(messageText: string, templates: any[]) {
+function findMatchingDMTemplate(messageText: string, templates: any[]) {
   const lowerMessage = messageText.toLowerCase();
 
   for (const template of templates) {
     if (!template.isActive) continue;
 
-    // Check triggers if "any keyword" is NOT enabled
-    if (!template.anyKeyword && template.triggers?.length > 0) {
+    if (template.anyKeyword) {
+      return template;
+    }
+
+    if (template.triggers?.length > 0) {
       const hasMatch = template.triggers.some((trigger: string) => {
         if (!trigger) return false;
         return lowerMessage.includes(trigger.toLowerCase().replace(/\s+/g, ""));
       });
       if (hasMatch) return template;
-    } else if (template.anyKeyword) {
-      // Any keyword enabled - match any message
-      return template;
     }
   }
 

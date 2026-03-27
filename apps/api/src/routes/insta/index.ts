@@ -22,6 +22,11 @@ import {
   updateInstaTemplateController,
 } from "@/controllers/insta/templates/templates-id.controller";
 import { requireAuth } from "@clerk/express";
+import {
+  deleteLeadController,
+  exportLeadsController,
+  getLeadsController,
+} from "@/controllers/insta/leads.controller";
 
 const router = Router();
 
@@ -67,5 +72,14 @@ router.get("/templates/:templateId", getInstaTemplateByIdController);
 router.put("/templates/:templateId", updateInstaTemplateController);
 // DELETE /api/insta/templates/:templateId - Delete template
 router.delete("/templates/:templateId", deleteInstaTemplateController);
+
+//leads
+
+// GET /api/insta/leads - Get all leads
+router.get("/leads", getLeadsController);
+// GET /api/insta/leads/export - Export leads as CSV
+router.get("/leads/export", exportLeadsController);
+// DELETE /api/insta/leads - Delete a lead by ID
+router.delete("/leads", deleteLeadController);
 
 export default router;

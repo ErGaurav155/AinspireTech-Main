@@ -5,6 +5,10 @@ import { Resend } from "resend";
 import { Twilio } from "twilio";
 import MyAppointment from "@/models/MyAppointment.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
+// controllers/upload.controller.ts
+import { getAuth } from "@clerk/express";
+import { uploadToCloudinary } from "@/services/cloudinary.service";
+import multer from "multer";
 
 const twilioClient = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
@@ -341,3 +345,98 @@ export const createAppointmentController = async (
     });
   }
 };
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_TYPES = [
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "video/mp4",
+  "application/pdf",
+];
+
+// Configure multer for memory storage
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: {
+    fileSize: MAX_FILE_SIZE,
+  },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_TYPES.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type "${file.mimetype}" not allowed.`));
+    }
+  },
+});
+
+/**
+ * POST /api/upload
+ * Upload file to Cloudinary
+ */
+export const uploadFileController = async (req: Request, res: Response) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check if file exists in request
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "No file provided",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const file = req.file;
+    const buffer = file.buffer;
+
+    // Determine resource type for Cloudinary
+    let resourceType: "image" | "video" | "raw" | "auto" = "auto";
+    if (file.mimetype.startsWith("image/")) resourceType = "image";
+    else if (file.mimetype.startsWith("video/")) resourceType = "video";
+    else resourceType = "raw";
+
+    // Upload to Cloudinary
+    const result = await uploadToCloudinary(buffer, {
+      folder: `insta-automations/${userId}`,
+      resourceType,
+      filename: file.originalname,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        url: result.secureUrl,
+        publicId: result.publicId,
+        format: result.format,
+        resourceType: result.resourceType,
+        width: result.width,
+        height: result.height,
+        bytes: result.bytes,
+        originalName: file.originalname,
+        mimeType: file.mimetype,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Upload error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Upload failed",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// Multer middleware for handling file upload
+export const uploadMiddleware = upload.single("file");

@@ -1,14 +1,14 @@
+// models/insta/ReplyTemplate.model.ts
 import mongoose, { Schema, Document, Model } from "mongoose";
-
-// ─── Sub-document interfaces ──────────────────────────────────────────────────
 
 export interface IReplyTemplateContent {
   text: string;
   link: string;
   buttonTitle?: string;
+  mediaUrl?: string; // Cloudinary URL for image/doc attachment
+  mediaType?: string; // "image" | "video" | "document"
 }
 
-// ✅ REMOVED enabled field - now required
 export interface IWelcomeMessage {
   text: string;
   buttonTitle: string;
@@ -34,7 +34,6 @@ export interface IAskEmail {
   sendDmIfNoEmail: boolean;
 }
 
-// ── New Phone Interface ────────────────────────────────────────────────────────
 export interface IAskPhone {
   enabled: boolean;
   openingMessage: string;
@@ -42,9 +41,8 @@ export interface IAskPhone {
   sendDmIfNoPhone: boolean;
 }
 
-// ── Follow-Up DM Message Interface ─────────────────────────────────────────────
 export interface IFollowUpMessage {
-  condition: string; // e.g., "no_reply", "no_action"
+  condition: string; // "no_reply" | "no_action"
   waitTime: number;
   waitUnit: "minutes" | "hours";
   message: string;
@@ -59,15 +57,13 @@ export interface IFollowUpDMs {
   messages: IFollowUpMessage[];
 }
 
-// ─── Main document interface ──────────────────────────────────────────────────
-
 export interface IReplyTemplate extends Document {
   userId: string;
   accountId: string;
   accountUsername: string;
   name: string;
 
-  // Media
+  // Media (post/story media, not DM attachment)
   mediaId: string;
   mediaUrl?: string;
   mediaType?: string;
@@ -111,40 +107,19 @@ export interface IReplyTemplate extends Document {
     };
   };
 
-  // ── New automation fields ──────────────────────────────────────────────────
-
-  /** Which type of automation this is */
   automationType: "comments" | "stories" | "dms" | "live";
-
-  /** Whether "any post or reel" is selected */
   anyPostOrReel: boolean;
-
-  /** Whether "any keyword" is selected */
   anyKeyword: boolean;
-
-  /** Welcome message shown before main DM - NOW REQUIRED */
   welcomeMessage: IWelcomeMessage;
-
-  /** Public comment reply config */
   publicReply: IPublicReply;
-
-  /** Ask user to follow before sending DM */
   askFollow: IAskFollow;
-
-  /** Ask user for their email (Pro) */
   askEmail: IAskEmail;
-
-  /** Ask user for their phone (Pro) - NEW */
   askPhone: IAskPhone;
-
-  /** Send follow-up DMs (Pro) */
   followUpDMs: IFollowUpDMs;
 
   createdAt: Date;
   updatedAt: Date;
 }
-
-// ─── Schema ───────────────────────────────────────────────────────────────────
 
 const ReplyTemplateSchema = new Schema<IReplyTemplate>(
   {
@@ -153,30 +128,24 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
     accountUsername: { type: String, required: true },
     name: { type: String, required: true },
 
-    // Media
     mediaId: { type: String, default: "", index: true },
     mediaUrl: { type: String },
     mediaType: { type: String },
 
-    // Core DM content
     content: [
       {
         text: { type: String, required: true },
         link: { type: String, default: "" },
         buttonTitle: { type: String, default: "Get Access" },
+        mediaUrl: { type: String, default: "" }, // Cloudinary URL
+        mediaType: { type: String, default: "" }, // "image" | "video" | "document"
       },
     ],
 
-    // Comment replies
     reply: { type: [String], required: true },
-
-    // Triggers
     triggers: { type: [String], default: [] },
-
-    // Legacy follow flag
     isFollow: { type: Boolean, default: false },
 
-    // Timing
     delaySeconds: { type: Number, default: 0 },
     delayOption: {
       type: String,
@@ -184,16 +153,13 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
       default: "immediate",
     },
 
-    // Status
     isActive: { type: Boolean, default: true },
     priority: { type: Number, default: 1 },
 
-    // Statistics
     usageCount: { type: Number, default: 0 },
     lastUsed: { type: Date },
     successRate: { type: Number, default: 0 },
 
-    // Legacy tier settings
     settingsByTier: {
       free: {
         requireFollow: { type: Boolean, default: false },
@@ -207,8 +173,6 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
       },
     },
 
-    // ── New automation fields ────────────────────────────────────────────────
-
     automationType: {
       type: String,
       enum: ["comments", "stories", "dms", "live"],
@@ -216,10 +180,8 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
     },
 
     anyPostOrReel: { type: Boolean, default: false },
-
     anyKeyword: { type: Boolean, default: false },
 
-    // ✅ FIXED: Welcome message is now required, no enabled field
     welcomeMessage: {
       text: {
         type: String,
@@ -276,7 +238,6 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
       sendDmIfNoEmail: { type: Boolean, default: true },
     },
 
-    // NEW: Ask Phone
     askPhone: {
       enabled: { type: Boolean, default: false },
       openingMessage: {
@@ -291,12 +252,11 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
       sendDmIfNoPhone: { type: Boolean, default: true },
     },
 
-    // Follow-up DMs with full message structure
     followUpDMs: {
       enabled: { type: Boolean, default: false },
       messages: [
         {
-          condition: { type: String, default: "" }, // "no_reply", "no_action"
+          condition: { type: String, default: "" },
           waitTime: { type: Number, default: 60 },
           waitUnit: {
             type: String,
@@ -317,15 +277,12 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
   { timestamps: true },
 );
 
-// ─── Indexes ──────────────────────────────────────────────────────────────────
-
 ReplyTemplateSchema.index({ userId: 1, mediaId: 1, isActive: 1 });
 ReplyTemplateSchema.index({ accountId: 1, mediaId: 1 });
 ReplyTemplateSchema.index({ triggers: 1 });
 ReplyTemplateSchema.index({ userId: 1, automationType: 1, isActive: 1 });
 ReplyTemplateSchema.index({ userId: 1, createdAt: -1 });
 
-// ─── Model ────────────────────────────────────────────────────────────────────
 const InstaReplyTemplate = (mongoose.models?.InstaReplyTemplate ||
   mongoose.model<IReplyTemplate>(
     "InstaReplyTemplate",

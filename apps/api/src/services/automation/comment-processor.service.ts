@@ -41,30 +41,20 @@ export async function processCommentAutomation(
     // Check if comment already processed
     const existingLog = await InstaReplyLog.findOne({ commentId: comment.id });
     if (existingLog) {
-      return {
-        success: false,
-        message: "Comment already processed",
-      };
+      return { success: false, message: "Comment already processed" };
     }
 
-    // Get account
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive) {
-      return {
-        success: false,
-        message: "Account not found or inactive",
-      };
+      return { success: false, message: "Account not found or inactive" };
     }
 
     // Skip if comment is from owner
     if (account.userInstaId === comment.user_id) {
-      return {
-        success: false,
-        message: "Comment from account owner",
-      };
+      return { success: false, message: "Comment from account owner" };
     }
 
-    // Check if comment is meaningful (not just emojis/GIFs)
+    // Check if comment is meaningful
     if (!isMeaningfulComment(comment.text)) {
       await InstaReplyLog.create({
         userId: clerkId,
@@ -74,6 +64,7 @@ export async function processCommentAutomation(
         commenterUsername: comment.username,
         commenterUserId: comment.user_id,
         mediaId: comment.media_id,
+        automationType: "comments",
         success: false,
         responseTime: Date.now() - startTime,
         errorMessage: "Not a meaningful comment",
@@ -103,7 +94,6 @@ export async function processCommentAutomation(
       }
     }
 
-    // Get user tier (free/pro)
     const { getUserTier } = await import("@/services/rate-limit.service");
     const userTier = await getUserTier(clerkId);
 
@@ -133,15 +123,15 @@ export async function processCommentAutomation(
       }
     }
 
-    // Process DM flow – sends the first message (welcome or initial DM)
+    // Process DM flow
     const dmResult = await processDMFlow(
       account,
       clerkId,
       userTier,
       matchingTemplate,
-      comment.user_id, // recipientId for follow‑up DMs
+      comment.user_id,
       comment.username,
-      comment.id, // commentId used for the first message (reply to comment)
+      comment.id,
     );
 
     // Update template usage
@@ -165,6 +155,7 @@ export async function processCommentAutomation(
       accountId: accountId,
       templateId: matchingTemplate._id.toString(),
       templateName: matchingTemplate.name,
+      automationType: "comments",
       commentId: comment.id,
       commentText: comment.text,
       commenterUsername: comment.username,
@@ -191,6 +182,8 @@ export async function processCommentAutomation(
           ? "Failed to process comment"
           : undefined,
       wasQueued: false,
+      followUpCount: 0,
+      followUpCompleted: false,
       createdAt: new Date(),
     });
 
@@ -216,6 +209,7 @@ export async function processCommentAutomation(
       commenterUsername: comment.username,
       commenterUserId: comment.user_id,
       mediaId: comment.media_id,
+      automationType: "comments",
       success: false,
       responseTime: Date.now() - startTime,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
@@ -262,7 +256,7 @@ async function findMatchingTemplate(
         );
         if (hasMatch) return template;
       } else {
-        return template; // match any comment on this media
+        return template;
       }
     }
   }
@@ -270,23 +264,19 @@ async function findMatchingTemplate(
 }
 
 /**
- * Process DM flow – sends the first message as a reply to the comment.
- * Priority: askFollow → askEmail → askPhone → direct link.
- */
-/**
- * Process DM flow - FIRE AND FORGET
- * CRITICAL: First message MUST use comment_id (reply to comment)
- * Welcome message is ALWAYS sent as the first message
- * Button payload is determined by template features priority
+ * Process DM flow - sends the welcome message as a reply to the comment.
+ *
+ * PRIORITY (highest to lowest): askFollow → askEmail → askPhone → direct link
+ * BUG FIX: The button payload must match the priority chain.
  */
 async function processDMFlow(
   account: any,
   clerkId: string,
   userTier: string,
   template: any,
-  recipientId: string, // user ID (for follow‑up)
+  recipientId: string,
   recipientUsername: string,
-  commentId: string, // comment ID for the first message
+  commentId: string,
 ): Promise<{
   success: boolean;
   dmSent: boolean;
@@ -304,47 +294,42 @@ async function processDMFlow(
       hasAskPhone: template.askPhone?.enabled,
     });
 
-    // Welcome message is always sent (no condition check)
     const welcomeText = template.welcomeMessage.text.replace(
       /\{\{username\}\}/g,
       recipientUsername,
     );
 
-    // Determine button payload based on template features
-    // Priority: askPhone > askEmail > askFollow > direct link
-    let buttonPayload = "";
-    let buttonTitle = template.welcomeMessage.buttonTitle;
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
 
+    // ✅ FIXED: Priority is askFollow > askEmail > askPhone > direct link
+    let buttonPayload = "";
+    const buttonTitle = template.welcomeMessage.buttonTitle;
+
     if (hasAskFollow) {
-      buttonPayload = `ASK_PHONE_${template.mediaId}`;
+      // First gate: check follow
+      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
     } else if (hasAskEmail) {
+      // First gate: ask email
       buttonPayload = `ASK_EMAIL_${template.mediaId}`;
     } else if (hasAskPhone) {
-      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+      // First gate: ask phone
+      buttonPayload = `ASK_PHONE_${template.mediaId}`;
     } else {
+      // No gates: send final link directly
       buttonPayload = `GET_ACCESS_${template.mediaId}`;
     }
 
     console.log(
       `Sending welcome message to ${recipientUsername} as reply to comment ${commentId}`,
       {
-        welcomeText: welcomeText.substring(0, 100),
         buttonTitle,
         buttonPayload,
-        nextAction: hasAskFollow
-          ? "follow_gate"
-          : hasAskEmail
-            ? "email_collection"
-            : hasAskPhone
-              ? "phone_collection"
-              : "direct_link",
       },
     );
 
-    // Send welcome message as reply to comment with the appropriate button
+    // Send welcome message as reply to the comment
     const welcomeSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -365,7 +350,7 @@ async function processDMFlow(
           },
         },
       },
-      true, // isCommentReply = true (this is a reply to the comment)
+      true, // isCommentReply = true
     );
 
     if (!welcomeSuccess) {
@@ -377,8 +362,8 @@ async function processDMFlow(
     return {
       success: welcomeSuccess,
       dmSent: welcomeSuccess,
-      followChecked: hasAskFollow,
-      userFollows: false,
+      followChecked: false,
+      userFollows: undefined,
       linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
       stage: "welcome",
     };
@@ -393,9 +378,7 @@ async function processDMFlow(
     };
   }
 }
-/**
- * Check if comment is meaningful (not just emojis/GIFs)
- */
+
 function isMeaningfulComment(text: string): boolean {
   if (!text || typeof text !== "string") return false;
   const trimmed = text.trim();
@@ -423,6 +406,5 @@ function isMeaningfulComment(text: string): boolean {
 
 function selectRandomItem(items: string[]): string {
   if (!items || items.length === 0) return "";
-  const randomIndex = Math.floor(Math.random() * items.length);
-  return items[randomIndex];
+  return items[Math.floor(Math.random() * items.length)];
 }
