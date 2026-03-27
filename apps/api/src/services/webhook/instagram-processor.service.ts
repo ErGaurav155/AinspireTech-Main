@@ -4,8 +4,11 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { processCommentAutomation } from "@/services/automation/comment-processor.service";
 import { processStoryAutomation } from "@/services/automation/story-processor.service";
 import { handlePostbackAutomation } from "@/services/automation/dm-processor.service";
-import { handleIncomingMessage } from "@/services/automation/message-processor.service";
 import { recordCall } from "@/services/rate-limit.service";
+import {
+  handleIncomingDM,
+  handleIncomingMessage,
+} from "../automation/message-processor.service";
 
 /**
  * Process Instagram webhook - incoming Meta API calls
@@ -377,6 +380,8 @@ async function processStoryWebhook(
 /**
  * Process messaging webhook (postbacks, messages)
  */
+// In instagram-processor.service.ts, update processMessagingWebhook:
+
 async function processMessagingWebhook(
   message: any,
   accountId: string,
@@ -391,7 +396,7 @@ async function processMessagingWebhook(
       return { processed: false, queued: false };
     }
 
-    // Handle postbacks (button clicks)
+    // Handle postbacks (button clicks) - existing logic
     if (message.postback) {
       await handlePostbackAutomation(
         accountId,
@@ -403,15 +408,19 @@ async function processMessagingWebhook(
       return { processed: true, queued: false };
     }
 
-    // Handle regular messages
+    // Handle regular messages - use new DM handler
     if (message.message && message.message.text) {
-      await handleIncomingMessage(
+      const result = await handleIncomingDM(
         accountId,
         account.userId,
         message.sender.id,
         message.message.text,
       );
-      return { processed: true, queued: false };
+      return {
+        processed: result.processed,
+        queued: false,
+        error: result.success ? undefined : result.message,
+      };
     }
 
     return { processed: true, queued: false };
