@@ -58,15 +58,15 @@ export async function handlePostbackAutomation(
     const userTier = await getUserTier(clerkId);
 
     switch (action) {
-      // case "WELCOME":
-      //   return await handleWelcomeAction(
-      //     account,
-      //     clerkId,
-      //     userTier,
-      //     template,
-      //     recipientId,
-      //     startTime,
-      //   );
+      case "WELCOME":
+        return await handleWelcomeAction(
+          account,
+          clerkId,
+          userTier,
+          template,
+          recipientId,
+          startTime,
+        );
       case "GET":
         if (subAction === "ACCESS")
           return await handleGetAccessAction(
@@ -138,106 +138,162 @@ export async function handlePostbackAutomation(
 /**
  * Handle welcome action
  */
-// async function handleWelcomeAction(
-//   account: any,
-//   clerkId: string,
-//   userTier: string,
-//   template: any,
-//   recipientId: string,
-//   startTime: number,
-// ): Promise<{
-//   success: boolean;
-//   message: string;
-//   nextStage?: string;
-// }> {
-//   try {
-//     console.log(`Processing welcome action for user ${recipientId}`);
+// services/automation/dm-processor.service.ts (update handleWelcomeAction)
 
-//     let nextButtonPayload = "";
-//     let nextButtonText = "";
-//     let nextMessage = "";
-//     let hasButtons = true;
+/**
+ * Handle welcome action - user clicked the welcome button
+ * Sends the next step according to template priorities.
+ * This handles: CHECK_FOLLOW, ASK_EMAIL, ASK_PHONE, GET_ACCESS
+ */
+async function handleWelcomeAction(
+  account: any,
+  clerkId: string,
+  userTier: string,
+  template: any,
+  recipientId: string,
+  startTime: number,
+): Promise<{
+  success: boolean;
+  message: string;
+  nextStage?: string;
+}> {
+  try {
+    console.log(`Processing welcome action for user ${recipientId}`);
 
-//     const hasAskFollow = template.askFollow?.enabled;
-//     const hasAskEmail = template.askEmail?.enabled;
-//     const hasAskPhone = template.askPhone?.enabled;
+    let nextButtonPayload = "";
+    let nextButtonText = "";
+    let nextMessage = "";
+    let nextStage = "";
 
-//     // Priority: askFollow → askEmail → askPhone → direct link
-//     if (hasAskFollow) {
-//       nextButtonPayload = `CHECK_FOLLOW_${template.mediaId}`;
-//       nextButtonText =
-//         template.askFollow?.visitProfileBtn || "Send me the link";
-//       nextMessage =
-//         template.askFollow?.message ||
-//         "Hey thanks a ton for the comment! 😊 Now simply tap below and I will send you the access right now!";
-//     } else if (hasAskEmail) {
-//       nextButtonPayload = `ASK_EMAIL_${template.mediaId}`;
-//       nextButtonText = "Continue";
-//       nextMessage =
-//         template.askEmail?.openingMessage ||
-//         "I'll need your email address first. Please share it in the chat.";
-//     } else if (hasAskPhone) {
-//       nextButtonPayload = `ASK_PHONE_${template.mediaId}`;
-//       nextButtonText = "Continue";
-//       nextMessage =
-//         template.askPhone?.openingMessage ||
-//         "I'll need your phone number first. Please share it in the chat.";
-//     } else {
-//       nextButtonPayload = `GET_ACCESS_${template.mediaId}`;
-//       nextButtonText = template.content?.[0]?.buttonTitle || "Get Access";
-//       nextMessage = "Tap below to get instant access! 🎉";
-//     }
+    const hasAskFollow = template.askFollow?.enabled;
+    const hasAskEmail = template.askEmail?.enabled;
+    const hasAskPhone = template.askPhone?.enabled;
 
-//     const dmPayload: any = {};
-//     if (hasButtons && nextButtonPayload) {
-//       dmPayload.attachment = {
-//         type: "template",
-//         payload: {
-//           template_type: "button",
-//           text: nextMessage,
-//           buttons: [
-//             {
-//               type: "postback",
-//               title: nextButtonText,
-//               payload: nextButtonPayload,
-//             },
-//           ],
-//         },
-//       };
-//     } else {
-//       dmPayload.text = nextMessage;
-//     }
+    // Determine next step based on template features (priority chain)
+    if (hasAskFollow) {
+      // Ask user to follow
+      nextButtonPayload = `VERIFY_FOLLOW_${template.mediaId}`;
+      nextButtonText = template.askFollow?.followingBtn || "I'm following ✅";
+      nextMessage =
+        template.askFollow?.message ||
+        "Hey! It seems you haven't followed me yet 🙂\n\nHit the follow button on my profile, then tap 'I'm following' below to get your link 🧲";
+      nextStage = "check_follow";
+    } else if (hasAskEmail) {
+      // Ask for email
+      nextButtonPayload = `ASK_EMAIL_${template.mediaId}`;
+      nextButtonText = "Continue";
+      nextMessage =
+        template.askEmail?.openingMessage ||
+        "I'll need your email address first. Please share it in the chat.";
+      nextStage = "waiting_for_email";
+    } else if (hasAskPhone) {
+      // Ask for phone
+      nextButtonPayload = `ASK_PHONE_${template.mediaId}`;
+      nextButtonText = "Continue";
+      nextMessage =
+        template.askPhone?.openingMessage ||
+        "I'll need your phone number first. Please share it in the chat.";
+      nextStage = "waiting_for_phone";
+    } else {
+      // Send direct link
+      const randomIndex = Math.floor(Math.random() * template.content.length);
+      const content = template.content[randomIndex];
+      const buttonTitle = content.buttonTitle || "Get Access";
 
-//     const dmSuccess = await sendInstagramDM(
-//       account.instagramId,
-//       account.accessToken,
-//       recipientId,
-//       dmPayload,
-//       false, // DM (not a comment reply)
-//     );
+      const dmSuccess = await sendInstagramDM(
+        account.instagramId,
+        account.accessToken,
+        recipientId,
+        {
+          attachment: {
+            type: "template",
+            payload: {
+              template_type: "button",
+              text: `Here's your access! ${content.text}`,
+              buttons: [
+                {
+                  type: "web_url",
+                  url: content.link,
+                  title: buttonTitle,
+                  webview_height_ratio: "full",
+                },
+              ],
+            },
+          },
+        },
+        false,
+      );
 
-//     console.log(`Welcome action completed for ${recipientId}: ${dmSuccess}`);
+      // Update log to final stage
+      await InstaReplyLog.findOneAndUpdate(
+        {
+          userId: clerkId,
+          accountId: account.instagramId,
+          commenterUserId: recipientId,
+        },
+        { dmFlowStage: "final_link", linkSent: dmSuccess },
+        { sort: { createdAt: -1 } },
+      );
 
-//     account.accountDMSent = (account.accountDMSent || 0) + 1;
-//     account.lastActivity = new Date();
-//     await account.save();
+      return {
+        success: dmSuccess,
+        message: dmSuccess ? "Direct link sent" : "Failed to send link",
+        nextStage: "final_link",
+      };
+    }
 
-//     return {
-//       success: dmSuccess,
-//       message: dmSuccess ? "Welcome processed" : "Failed to send next step",
-//       nextStage: hasAskFollow
-//         ? "check_follow"
-//         : hasAskEmail
-//           ? "ask_email"
-//           : hasAskPhone
-//             ? "ask_phone"
-//             : "get_access",
-//     };
-//   } catch (error) {
-//     console.error("Error handling welcome action:", error);
-//     return { success: false, message: "Failed to process welcome" };
-//   }
-// }
+    // Send the next message with button
+    const dmSuccess = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      recipientId,
+      {
+        attachment: {
+          type: "template",
+          payload: {
+            template_type: "button",
+            text: nextMessage,
+            buttons: [
+              {
+                type: "postback",
+                title: nextButtonText,
+                payload: nextButtonPayload,
+              },
+            ],
+          },
+        },
+      },
+      false, // isCommentReply = false for DMs
+    );
+
+    console.log(`Welcome action completed for ${recipientId}: ${dmSuccess}`);
+
+    // Update account statistics
+    account.accountDMSent = (account.accountDMSent || 0) + 1;
+    account.lastActivity = new Date();
+    await account.save();
+
+    // Update log with next stage
+    await InstaReplyLog.findOneAndUpdate(
+      {
+        userId: clerkId,
+        accountId: account.instagramId,
+        commenterUserId: recipientId,
+      },
+      { dmFlowStage: nextStage },
+      { sort: { createdAt: -1 } },
+    );
+
+    return {
+      success: dmSuccess,
+      message: dmSuccess ? "Next step sent" : "Failed to send next step",
+      nextStage: nextStage,
+    };
+  } catch (error) {
+    console.error("Error handling welcome action:", error);
+    return { success: false, message: "Failed to process welcome" };
+  }
+}
 /**
  * Handle get access - send final link
  */
