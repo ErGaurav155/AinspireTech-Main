@@ -311,29 +311,21 @@ async function processDMFlow(
     );
 
     // Determine button payload based on template features
-    // Priority: askFollow > askEmail > askPhone > direct link
+    // Priority: askPhone > askEmail > askFollow > direct link
     let buttonPayload = "";
-    let buttonTitle = "";
+    let buttonTitle = template.welcomeMessage.buttonTitle;
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
 
     if (hasAskFollow) {
-      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
-      buttonTitle = template.askFollow?.visitProfileBtn || "Send me the link";
+      buttonPayload = `ASK_PHONE_${template.mediaId}`;
     } else if (hasAskEmail) {
       buttonPayload = `ASK_EMAIL_${template.mediaId}`;
-      buttonTitle = "Continue";
     } else if (hasAskPhone) {
-      buttonPayload = `ASK_PHONE_${template.mediaId}`;
-      buttonTitle = "Continue";
+      buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
     } else {
       buttonPayload = `GET_ACCESS_${template.mediaId}`;
-      buttonTitle = selectRandomItem(
-        template.content?.map((c: any) => c.buttonTitle || "Get Access") || [
-          "Get Access",
-        ],
-      );
     }
 
     console.log(

@@ -342,7 +342,7 @@ export async function handleIncomingDM(
 }> {
   try {
     await connectToDatabase();
-
+    console.log("we are here");
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive || !account.autoDMEnabled) {
       return {

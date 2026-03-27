@@ -78,6 +78,7 @@ export async function processInstagramWebhook(payload: any): Promise<{
         // Process messaging (DMs) - Facebook Messenger style
         if (entry.messaging && Array.isArray(entry.messaging)) {
           for (const message of entry.messaging) {
+            console.log("we are gaurav khaire");
             const result = await processMessagingWebhook(
               message,
               instagramBusinessId,
@@ -91,6 +92,7 @@ export async function processInstagramWebhook(payload: any): Promise<{
         // Process direct message events (Instagram standard)
         if (entry.direct_messages && Array.isArray(entry.direct_messages)) {
           for (const dm of entry.direct_messages) {
+            console.log("we are gaurav");
             const result = await processDirectMessageWebhook(
               dm,
               instagramBusinessId,
