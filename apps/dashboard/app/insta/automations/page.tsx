@@ -18,6 +18,7 @@ import Image from "next/image";
 import {
   deleteTemplate,
   getInstaTemplates,
+  TemplateType,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
@@ -29,53 +30,6 @@ interface ContentItem {
   text: string;
   link: string;
   buttonTitle?: string;
-}
-
-interface TemplateType {
-  _id: string;
-  name: string;
-  userId: string;
-  accountId: string;
-  content: ContentItem[];
-  reply: string[];
-  triggers: string[];
-  isFollow: boolean;
-  priority: number;
-  accountUsername: string;
-  mediaId: string;
-  mediaUrl?: string;
-  mediaType?: string;
-  isActive: boolean;
-  usageCount?: number;
-  lastUsed?: string;
-  successRate?: number;
-  delaySeconds?: number;
-  automationType: "comments" | "stories" | "dms" | "live";
-  welcomeMessage: {
-    text: string;
-    buttonTitle: string;
-  };
-  publicReply?: {
-    enabled: boolean;
-    replies: string[];
-    tagType: "none" | "user" | "account";
-  };
-  askFollow?: {
-    enabled: boolean;
-    message: string;
-    visitProfileBtn: string;
-    followingBtn: string;
-  };
-  askEmail?: {
-    enabled: boolean;
-    openingMessage: string;
-    retryMessage: string;
-    sendDmIfNoEmail: boolean;
-  };
-  followUpDMs?: {
-    enabled: boolean;
-  };
-  delayOption?: "immediate" | "3min" | "5min" | "10min";
 }
 
 type SortOption = "newest" | "oldest" | "a-z" | "z-a";
