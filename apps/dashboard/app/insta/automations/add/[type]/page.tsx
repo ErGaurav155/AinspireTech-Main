@@ -814,8 +814,7 @@ export default function CreateAutomationPage() {
       const file = e.target.files?.[0];
       if (!file) return;
 
-      const MAX = 10 * 1024 * 1024;
-      if (file.size > MAX) {
+      if (file.size > 10 * 1024 * 1024) {
         toast({
           title: "File too large. Max 10 MB.",
           variant: "destructive",
@@ -826,7 +825,9 @@ export default function CreateAutomationPage() {
 
       setIsUploadingMedia(true);
       try {
-        const result = await uploadMedia(file);
+        // ✅ Same pattern as createInstaTemplate(apiRequest, ...) etc.
+        const result = await uploadMedia(apiRequest, file);
+
         let mediaType = "image";
         if (file.type.startsWith("video/")) mediaType = "video";
         else if (file.type === "application/pdf") mediaType = "document";
@@ -837,7 +838,8 @@ export default function CreateAutomationPage() {
           dmMediaType: mediaType,
           dmMediaPublicId: result.publicId,
         }));
-        toast({ title: "Media uploaded successfully", duration: 3000 });
+
+        toast({ title: "Media uploaded successfully ✅", duration: 3000 });
       } catch (error) {
         toast({
           title: error instanceof Error ? error.message : "Upload failed",
@@ -846,11 +848,10 @@ export default function CreateAutomationPage() {
         });
       } finally {
         setIsUploadingMedia(false);
-        // Reset the input so the same file can be re-selected
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     },
-    [],
+    [apiRequest], // same dep pattern as all other handlers
   );
 
   const addLink = useCallback(() => {

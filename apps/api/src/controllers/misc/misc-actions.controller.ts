@@ -387,17 +387,16 @@ export const uploadFileController = async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     }
-
+    const file = req.file;
+    console.log("file:", file);
     // Check if file exists in request
-    if (!req.file) {
+    if (!file) {
       return res.status(400).json({
         success: false,
         error: "No file provided",
         timestamp: new Date().toISOString(),
       });
     }
-
-    const file = req.file;
     const buffer = file.buffer;
 
     // Determine resource type for Cloudinary
@@ -412,7 +411,7 @@ export const uploadFileController = async (req: Request, res: Response) => {
       resourceType,
       filename: file.originalname,
     });
-
+    console.log("Cloudinary upload result:", result);
     return res.status(200).json({
       success: true,
       data: {

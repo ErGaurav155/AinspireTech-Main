@@ -21,14 +21,17 @@ export const useApi = () => {
     ): Promise<T> => {
       try {
         const token = await getToken();
+        const isFormData = options.body instanceof FormData;
 
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api${endpoint}`,
           {
             ...options,
             headers: {
-              "Content-Type": "application/json",
+              // Only add Content-Type for non-FormData requests
+              ...(!isFormData && { "Content-Type": "application/json" }),
               Authorization: `Bearer ${token}`,
+              // Caller-supplied headers come last so they can override if needed
               ...(options.headers || {}),
             },
           },

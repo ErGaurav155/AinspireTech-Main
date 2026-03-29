@@ -115,7 +115,6 @@ function PricingWithSearchParams() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeProductId = searchParams.get("code");
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 

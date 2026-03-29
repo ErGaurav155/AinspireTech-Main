@@ -296,9 +296,9 @@ export const deleteLead = (
 };
 
 // ==================== UPLOAD FUNCTIONS ====================
+// In insta-actions.api.ts — replace the uploadMedia section with this
 
 export interface UploadMediaResult {
-  success: boolean;
   url: string;
   publicId: string;
   format: string;
@@ -306,29 +306,23 @@ export interface UploadMediaResult {
   width?: number;
   height?: number;
   bytes: number;
+  originalName?: string;
+  mimeType?: string;
 }
 
-/**
- * Upload a file to Cloudinary via the /api/upload endpoint.
- * Uses fetch directly (not apiRequest) because it sends FormData.
- */
-export async function uploadMedia(file: File): Promise<UploadMediaResult> {
+export const uploadMedia = (
+  apiRequest: ApiRequestFn,
+  file: File,
+): Promise<UploadMediaResult> => {
   const formData = new FormData();
+  // Field name must match upload.single("file") in the Express controller
   formData.append("file", file);
 
-  const response = await fetch("/api/misc/upload", {
+  return apiRequest<UploadMediaResult>(`/misc/upload`, {
     method: "POST",
     body: formData,
   });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Upload failed");
-  }
-
-  return response.json();
-}
-
+};
 // ==================== RATE LIMIT FUNCTIONS ====================
 
 export const getRateLimitStats = (

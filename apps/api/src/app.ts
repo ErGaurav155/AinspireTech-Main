@@ -41,6 +41,7 @@ app.use(compression());
 
 app.use(
   express.json({
+    limit: "50mb",
     verify: (req, res, buf) => {
       // Store raw body for signature verification
       (req as any).rawBody = buf.toString();
@@ -48,7 +49,7 @@ app.use(
   }),
 );
 
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 /* ============================================================
    RATE LIMITING
