@@ -28,6 +28,6 @@ router.get("/web-token", resetWebTokensController);
 router.get("/process-commissions", processCommissionsController);
 
 // GET /api/cron/followup - Process followups
-router.get("/followup ", followupCronController);
+router.get("/followup", followupCronController);
 
 export default router;

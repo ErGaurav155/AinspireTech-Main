@@ -313,14 +313,14 @@ export async function recordCall(
       }
 
       // Update database asynchronously
+      // In recordCall, you call:
       updateDatabaseRecords(
         clerkId,
         accountId,
         metaCalls,
         window.start,
         canMake.tier || "free",
-      ).catch((err) => console.error("DB update error:", err));
-
+      );
       return {
         success: true,
         callsRecorded: 1 + metaCalls,
@@ -373,121 +373,155 @@ export async function recordCall(
   };
 }
 
-interface AccountUsageEntry {
-  instagramAccountId: string;
-  callsMade: number;
-  lastCallAt: Date;
-  accountUsername?: string;
-  accountProfile?: string;
+async function safeUpsertRateLimit(
+  clerkId: string,
+  windowStart: Date,
+  updatePayload: Record<string, any>,
+  setOnInsertPayload: Record<string, any>,
+): Promise<void> {
+  // Filter matches the compound unique index exactly
+  const filter = { clerkId, windowStart };
+
+  try {
+    await RateUserRateLimit.findOneAndUpdate(
+      filter,
+      {
+        ...updatePayload,
+        $setOnInsert: setOnInsertPayload,
+      },
+      {
+        upsert: true,
+        new: true,
+        runValidators: false,
+      },
+    );
+  } catch (err: any) {
+    // E11000 = two concurrent webhooks both saw "no document for this
+    // clerkId+windowStart" and both tried to INSERT. The unique index
+    // correctly rejected the second one. The document now exists, so
+    // retry as a plain update — no upsert needed.
+    if (err?.code === 11000 || err?.codeName === "DuplicateKey") {
+      console.warn(
+        `⚡ E11000 race on clerkId=${clerkId} windowStart=${windowStart.toISOString()} — retrying as plain update`,
+      );
+      await RateUserRateLimit.findOneAndUpdate(
+        filter,
+        updatePayload, // no $setOnInsert: doc already exists
+        { new: true, runValidators: false },
+      );
+    } else {
+      throw err;
+    }
+  }
 }
-
-/*
- * Update database records for rate limiting
- */
-
-async function updateDatabaseRecords(
+export async function updateDatabaseRecords(
   clerkId: string,
   accountId: string,
   metaCalls: number,
   windowStart: Date,
   tier: TierType,
-) {
+  metadata?: any,
+): Promise<void> {
   try {
     await connectToDatabase();
 
-    const tierLimit = TIER_LIMITS[tier];
+    const tierLimits: Record<TierType, number> = { free: 200, pro: 5000 };
+    const tierLimit = tierLimits[tier] ?? 200;
 
-    // Get all Instagram accounts for this user
+    const now = new Date();
+
+    // ── Step 1: Get all Instagram accounts for this user to populate accountUsage
     const userAccounts = await InstagramAccount.find({
       userId: clerkId,
       isActive: true,
-    });
+    }).lean();
 
-    // Prepare account usage array
-    const accountUsageList: AccountUsageEntry[] = userAccounts.map((acc) => ({
+    // Prepare the initial accountUsage array if this is a new document
+    const initialAccountUsage = userAccounts.map((acc) => ({
       instagramAccountId: acc.instagramId,
       callsMade: acc.instagramId === accountId ? 1 : 0,
-      lastCallAt: new Date(),
+      lastCallAt: now,
       accountUsername: acc.username,
       accountProfile: acc.profilePicture,
     }));
 
-    // Atomic upsert with retry logic
-    let retries = 3;
-    let userRateLimit = null;
+    // ── Step 2: Upsert the top-level document ──────────────────────────────
+    const updatePayload: Record<string, any> = {
+      $inc: {
+        totalCallsMade: 1,
+      },
+      $set: {
+        tier,
+        tierLimit,
+        updatedAt: now,
+      },
+    };
 
-    while (retries > 0 && !userRateLimit) {
-      try {
-        userRateLimit = await RateUserRateLimit.findOneAndUpdate(
+    const setOnInsert: Record<string, any> = {
+      clerkId,
+      windowStart,
+      totalCallsMade: 0, // $inc will add 1 on top
+      tier,
+      tierLimit,
+      isAutomationPaused: false,
+      accountUsage: initialAccountUsage,
+      createdAt: now,
+    };
+
+    await safeUpsertRateLimit(clerkId, windowStart, updatePayload, setOnInsert);
+
+    // ── Step 3: Update or create accountUsage array entry for this accountId ──
+    // Try to increment an existing entry first.
+    if (accountId) {
+      const updated = await RateUserRateLimit.findOneAndUpdate(
+        {
+          clerkId,
+          windowStart,
+          "accountUsage.instagramAccountId": accountId,
+        },
+        {
+          $inc: { "accountUsage.$.callsMade": 1 },
+          $set: { "accountUsage.$.lastCallAt": now },
+        },
+        { new: true, runValidators: false },
+      );
+
+      // If no existing entry for this accountId, push a new one
+      if (!updated) {
+        await RateUserRateLimit.findOneAndUpdate(
           { clerkId, windowStart },
           {
-            $inc: { totalCallsMade: 1 },
-            $set: {
-              tier,
-              tierLimit,
-              updatedAt: new Date(),
-            },
-            $setOnInsert: {
-              isAutomationPaused: false,
-              createdAt: new Date(),
-              accountUsage: accountUsageList,
+            $push: {
+              accountUsage: {
+                instagramAccountId: accountId,
+                callsMade: 1,
+                lastCallAt: now,
+                accountUsername: metadata?.username || "",
+                accountProfile: metadata?.profilePicture || "",
+              },
             },
           },
-          {
-            upsert: true,
-            new: true,
-          },
+          { new: true, runValidators: false },
         );
-      } catch (error: any) {
-        if (error.code === 11000 && retries > 1) {
-          retries--;
-          await new Promise((resolve) =>
-            setTimeout(resolve, 50 * (4 - retries)),
-          );
-          continue;
-        }
-        throw error;
       }
     }
 
-    if (!userRateLimit) {
-      // Last resort: find existing document
-      userRateLimit = await RateUserRateLimit.findOne({ clerkId, windowStart });
-      if (!userRateLimit) {
-        throw new Error("Failed to create/update rate limit record");
-      }
-    }
-
-    // Update specific account's calls
-    await RateUserRateLimit.updateOne(
-      {
-        clerkId,
-        windowStart,
-        "accountUsage.instagramAccountId": accountId,
-      },
-      {
-        $inc: { "accountUsage.$.callsMade": 1 },
-        $set: { "accountUsage.$.lastCallAt": new Date() },
-      },
-    );
-
-    // Update meta calls
+    // ── Step 4: Update InstagramAccount metaCalls if applicable
     if (metaCalls > 0) {
       await InstagramAccount.updateOne(
         { instagramId: accountId },
         {
           $inc: { metaCallsThisHour: metaCalls },
-          $set: { lastMetaCallAt: new Date(), lastActivity: new Date() },
+          $set: { lastMetaCallAt: now, lastActivity: now },
         },
       );
     }
-
-    return userRateLimit;
   } catch (error) {
+    // Never let a rate-limit DB write crash the main automation flow
     console.error("Error updating database records:", error);
-    throw error;
   }
 }
+
 /**
  * Queue a webhook for later processing
  */
