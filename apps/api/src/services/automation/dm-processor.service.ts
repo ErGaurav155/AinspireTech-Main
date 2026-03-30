@@ -235,17 +235,28 @@ async function sendAskEmailMessage(
     false,
   );
 
-  // Update log stage so handleIncomingMessage picks it up
-  await InstaReplyLog.findOneAndUpdate(
+  // FIXED: Update log stage correctly
+  const updatedLog = await InstaReplyLog.findOneAndUpdate(
     {
       userId: clerkId,
       accountId: account.instagramId,
       commenterUserId: recipientId,
       dmFlowStage: { $nin: ["final_link", "completed"] },
     },
-    { dmFlowStage: "waiting_for_email" },
-    { sort: { createdAt: -1 } },
+    {
+      $set: {
+        dmFlowStage: "waiting_for_email",
+        updatedAt: new Date(),
+      },
+    },
+    { sort: { createdAt: -1 }, new: true },
   );
+
+  if (!updatedLog) {
+    console.warn(
+      `No log found for user ${recipientId} when sending email request`,
+    );
+  }
 
   account.accountDMSent = (account.accountDMSent || 0) + 1;
   account.lastActivity = new Date();
@@ -257,8 +268,6 @@ async function sendAskEmailMessage(
     nextStage: "waiting_for_email",
   };
 }
-
-// ─── Send helper: ask phone message ─────────────────────────────────────────
 
 async function sendAskPhoneMessage(
   account: any,
@@ -279,16 +288,28 @@ async function sendAskPhoneMessage(
     false,
   );
 
-  await InstaReplyLog.findOneAndUpdate(
+  // FIXED: Update log stage correctly
+  const updatedLog = await InstaReplyLog.findOneAndUpdate(
     {
       userId: clerkId,
       accountId: account.instagramId,
       commenterUserId: recipientId,
       dmFlowStage: { $nin: ["final_link", "completed"] },
     },
-    { dmFlowStage: "waiting_for_phone" },
-    { sort: { createdAt: -1 } },
+    {
+      $set: {
+        dmFlowStage: "waiting_for_phone",
+        updatedAt: new Date(),
+      },
+    },
+    { sort: { createdAt: -1 }, new: true },
   );
+
+  if (!updatedLog) {
+    console.warn(
+      `No log found for user ${recipientId} when sending phone request`,
+    );
+  }
 
   account.accountDMSent = (account.accountDMSent || 0) + 1;
   account.lastActivity = new Date();
@@ -300,7 +321,6 @@ async function sendAskPhoneMessage(
     nextStage: "waiting_for_phone",
   };
 }
-
 // ─── Send helper: final link ─────────────────────────────────────────────────
 
 export async function sendFinalLinkDM(

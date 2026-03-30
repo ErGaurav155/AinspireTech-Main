@@ -44,6 +44,10 @@ export async function handleIncomingMessage(
       return { success: false, message: "No context found" };
     }
 
+    console.log(
+      `Found active conversation with stage: ${recentLog.dmFlowStage}`,
+    );
+
     const template = await InstaReplyTemplate.findById(recentLog.templateId);
     if (!template) {
       return { success: false, message: "Template not found" };
@@ -136,7 +140,7 @@ async function handleEmailResponse(
 
     // Chain to next step
     const startTime = Date.now();
-    return sendNextStepInChain(
+    const result = await sendNextStepInChain(
       account,
       clerkId,
       template,
@@ -144,6 +148,15 @@ async function handleEmailResponse(
       "email",
       startTime,
     );
+
+    // Update the log with the next stage
+    if (result.nextStage) {
+      await InstaReplyLog.findByIdAndUpdate(log._id, {
+        dmFlowStage: result.nextStage,
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error("Error handling email response:", error);
     return { success: false, message: "Failed to handle email" };
@@ -204,7 +217,7 @@ async function handlePhoneResponse(
 
     // Chain to next step (always final link after phone)
     const startTime = Date.now();
-    return sendNextStepInChain(
+    const result = await sendNextStepInChain(
       account,
       clerkId,
       template,
@@ -212,6 +225,15 @@ async function handlePhoneResponse(
       "phone",
       startTime,
     );
+
+    // Update the log with the next stage
+    if (result.nextStage) {
+      await InstaReplyLog.findByIdAndUpdate(log._id, {
+        dmFlowStage: result.nextStage,
+      });
+    }
+
+    return result;
   } catch (error) {
     console.error("Error handling phone response:", error);
     return { success: false, message: "Failed to handle phone" };
@@ -219,8 +241,8 @@ async function handlePhoneResponse(
 }
 
 /**
- * Handle incoming DM — either delegates to handleIncomingMessage (if ongoing
- * conversation is waiting for email/phone) or starts a new DM conversation.
+ * FIXED: Handle incoming DM — properly delegates to handleIncomingMessage
+ * when conversation is waiting for email/phone
  */
 export async function handleIncomingDM(
   accountId: string,
@@ -244,20 +266,37 @@ export async function handleIncomingDM(
       };
     }
 
-    // Check for an existing active conversation log
+    // CRITICAL FIX: Check for existing active conversation FIRST
+    // This must happen before any other checks
     const existingLog = await InstaReplyLog.findOne({
       userId: clerkId,
       accountId: accountId,
       commenterUserId: senderId,
-      dmFlowStage: { $nin: ["final_link", "completed"] },
+      dmFlowStage: {
+        $in: [
+          "waiting_for_email",
+          "waiting_for_phone",
+          "email_collected",
+          "phone_collected",
+          "waiting_for_follow",
+          "still_waiting_for_follow",
+        ],
+      },
     }).sort({ createdAt: -1 });
 
-    // ✅ FIX: Actually delegate to handleIncomingMessage when waiting for input
+    // If we have an active conversation waiting for input, delegate to handleIncomingMessage
     if (
       existingLog &&
       (existingLog.dmFlowStage === "waiting_for_email" ||
         existingLog.dmFlowStage === "waiting_for_phone")
     ) {
+      console.log(
+        `Found active conversation in stage "${existingLog.dmFlowStage}" for user ${senderId}`,
+      );
+      console.log(
+        `Processing message as response: "${messageText.substring(0, 50)}..."`,
+      );
+
       const result = await handleIncomingMessage(
         accountId,
         clerkId,
@@ -267,19 +306,22 @@ export async function handleIncomingDM(
       return { ...result, processed: result.success };
     }
 
-    // If there's another non-final stage, don't start new conversation
+    // If there's another non-final stage active (like waiting_for_follow), don't start new conversation
     if (existingLog) {
       console.log(
-        `Existing conversation in stage "${existingLog.dmFlowStage}", skipping new conversation`,
+        `Existing conversation in stage "${existingLog.dmFlowStage}", skipping new conversation start`,
       );
       return {
         success: false,
-        message: "Existing conversation active",
+        message: `Active conversation in progress (${existingLog.dmFlowStage})`,
         processed: false,
       };
     }
 
     // No existing conversation — start new one
+    console.log(
+      `No active conversation found for user ${senderId}, starting new DM conversation`,
+    );
     return await startNewDMConversation(
       account,
       clerkId,
@@ -330,14 +372,20 @@ async function startNewDMConversation(
 
     // Determine button payload using same priority as comment/story processors
     let buttonPayload = "";
+    let initialStage = "welcome";
+
     if (hasAskFollow) {
       buttonPayload = `CHECK_FOLLOW_${matchingTemplate.mediaId}`;
+      initialStage = "waiting_for_follow";
     } else if (hasAskEmail) {
       buttonPayload = `ASK_EMAIL_${matchingTemplate.mediaId}`;
+      initialStage = "waiting_for_email";
     } else if (hasAskPhone) {
       buttonPayload = `ASK_PHONE_${matchingTemplate.mediaId}`;
+      initialStage = "waiting_for_phone";
     } else {
       buttonPayload = `GET_ACCESS_${matchingTemplate.mediaId}`;
+      initialStage = "initial";
     }
 
     const welcomeText = matchingTemplate.welcomeMessage.text.replace(
@@ -376,12 +424,6 @@ async function startNewDMConversation(
       };
     }
 
-    // Determine the initial stage to record
-    let initialStage = "welcome";
-    if (!hasAskFollow && !hasAskEmail && !hasAskPhone) {
-      initialStage = "initial";
-    }
-
     const uniqueId = `dm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     await InstaReplyLog.create({
@@ -403,7 +445,7 @@ async function startNewDMConversation(
     });
 
     console.log(
-      `✅ New DM conversation started for ${senderId} with template "${matchingTemplate.name}"`,
+      `✅ New DM conversation started for ${senderId} with template "${matchingTemplate.name}" in stage "${initialStage}"`,
     );
 
     return {
