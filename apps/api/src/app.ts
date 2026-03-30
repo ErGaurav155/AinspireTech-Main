@@ -26,6 +26,51 @@ console.log(
 );
 
 /* ============================================================
+   ALLOWED ORIGINS CONFIGURATION
+============================================================ */
+
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+  : [];
+
+console.log("🔧 Allowed origins:", allowedOrigins);
+
+/* ============================================================
+   GLOBAL ORIGIN CHECK MIDDLEWARE (for ALL routes)
+============================================================ */
+
+// This middleware runs BEFORE any route handlers
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Skip origin check for health check endpoints (these are internal)
+  if (req.path === "/health" || req.path === "/health/detailed") {
+    return next();
+  }
+
+  // Skip origin check if no origin (server-to-server requests)
+  if (!origin) {
+    return next();
+  }
+
+  // Check if origin is allowed
+  if (allowedOrigins.includes(origin)) {
+    return next();
+  }
+
+  // Block the request with 403 Forbidden
+  console.warn(
+    `⛔ Blocked request from unauthorized origin: ${origin} to ${req.method} ${req.path}`,
+  );
+
+  return res.status(403).json({
+    success: false,
+    message: "Forbidden: Origin not allowed",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+/* ============================================================
    SECURITY MIDDLEWARE
 ============================================================ */
 
@@ -74,12 +119,6 @@ app.use("/api", limiter);
    CORS CONFIGURATION (Railway Production Ready)
 ============================================================ */
 
-const allowedOrigins = process.env.ALLOWED_ORIGINS
-  ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
-  : [];
-
-console.log("🔧 Allowed origins:", allowedOrigins);
-
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -105,8 +144,8 @@ app.use(
       "x-api-key",
       "x-cron-secret",
     ],
-    optionsSuccessStatus: 200, // Some legacy browsers choke on 204
-    preflightContinue: false, // Don't pass preflight to next handlers
+    optionsSuccessStatus: 200,
+    preflightContinue: false,
   }),
 );
 
@@ -130,11 +169,26 @@ app.get("/favicon.ico", (_, res) => {
   res.status(204).end();
 });
 
+// Root route - also returns forbidden for unauthorized origins
 app.get("/", (req, res) => {
+  const origin = req.headers.origin;
+
+  // If origin is not allowed, return forbidden
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({
+      success: false,
+      message: "Forbidden: Origin not allowed",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   return res.status(403).json({
+    success: false,
     message: "Forbidden: Origin not allowed",
+    timestamp: new Date().toISOString(),
   });
 });
+
 // Railway Health Check (FAST — DO NOT TOUCH)
 app.get("/health", (_, res) => {
   res.status(200).json({
@@ -208,6 +262,17 @@ app.use("/api", routes);
 ============================================================ */
 
 app.use("*", (req, res) => {
+  const origin = req.headers.origin;
+
+  // Check origin for 404 responses as well
+  if (origin && !allowedOrigins.includes(origin)) {
+    return res.status(403).json({
+      success: false,
+      message: "Forbidden: Origin not allowed",
+      timestamp: new Date().toISOString(),
+    });
+  }
+
   res.status(404).json({
     success: false,
     error: "Not found",
