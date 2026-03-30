@@ -230,6 +230,190 @@ export async function canMakeCall(
 }
 
 /**
+ * FIXED: Safe upsert for rate limit with proper conflict handling
+ */
+async function safeUpsertRateLimit(
+  clerkId: string,
+  windowStart: Date,
+  tier: TierType,
+  tierLimit: number,
+  accountUsageData: any[] = [],
+): Promise<boolean> {
+  const filter = { clerkId, windowStart };
+  const now = new Date();
+
+  try {
+    // First try to find existing document
+    const existing = await RateUserRateLimit.findOne(filter);
+
+    if (existing) {
+      // Document exists - update tier and other fields
+      existing.tier = tier;
+      existing.tierLimit = tierLimit;
+      existing.updatedAt = now;
+      await existing.save();
+      return true;
+    }
+
+    // Document doesn't exist - create new one with account usage
+    await RateUserRateLimit.create({
+      clerkId,
+      windowStart,
+      tier,
+      tierLimit,
+      totalCallsMade: 0,
+      isAutomationPaused: false,
+      accountUsage: accountUsageData,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    return true;
+  } catch (err: any) {
+    // Handle duplicate key race condition
+    if (err?.code === 11000 || err?.codeName === "DuplicateKey") {
+      console.warn(
+        `⚡ E11000 race on clerkId=${clerkId} windowStart=${windowStart.toISOString()} — retrying update`,
+      );
+
+      const retryExisting = await RateUserRateLimit.findOne(filter);
+      if (retryExisting) {
+        retryExisting.tier = tier;
+        retryExisting.tierLimit = tierLimit;
+        retryExisting.updatedAt = now;
+        await retryExisting.save();
+        return true;
+      }
+    }
+
+    console.error("Failed to upsert rate limit:", err);
+    throw err;
+  }
+}
+
+/**
+ * Update account-specific usage for rate limit
+ */
+async function updateAccountUsage(
+  clerkId: string,
+  windowStart: Date,
+  accountId: string,
+  metadata?: any,
+): Promise<void> {
+  const now = new Date();
+
+  try {
+    // Try to increment an existing entry first
+    const updated = await RateUserRateLimit.findOneAndUpdate(
+      {
+        clerkId,
+        windowStart,
+        "accountUsage.instagramAccountId": accountId,
+      },
+      {
+        $inc: { "accountUsage.$.callsMade": 1 },
+        $set: { "accountUsage.$.lastCallAt": now },
+      },
+      { new: true, runValidators: false },
+    );
+
+    // If no existing entry for this accountId, push a new one
+    if (!updated) {
+      await RateUserRateLimit.findOneAndUpdate(
+        { clerkId, windowStart },
+        {
+          $push: {
+            accountUsage: {
+              instagramAccountId: accountId,
+              callsMade: 1,
+              lastCallAt: now,
+              accountUsername: metadata?.username || "",
+              accountProfile: metadata?.profilePicture || "",
+            },
+          },
+        },
+        { new: true, runValidators: false, upsert: false },
+      );
+    }
+  } catch (error) {
+    console.error("Error updating account usage:", error);
+  }
+}
+
+/**
+ * FIXED: Update database records with proper tier handling and account usage
+ */
+export async function updateDatabaseRecords(
+  clerkId: string,
+  accountId: string,
+  metaCalls: number,
+  windowStart: Date,
+  tier: TierType,
+  metadata?: any,
+): Promise<void> {
+  try {
+    await connectToDatabase();
+
+    const tierLimits: Record<TierType, number> = { free: 200, pro: 5000 };
+    const tierLimit = tierLimits[tier] ?? 200;
+    const now = new Date();
+
+    // ── Step 1: Get user's Instagram accounts for initial account usage
+    const userAccounts = await InstagramAccount.find({
+      userId: clerkId,
+      isActive: true,
+    }).lean();
+
+    // Prepare account usage data for new document
+    const accountUsageData = userAccounts.map((acc) => ({
+      instagramAccountId: acc.instagramId,
+      callsMade: acc.instagramId === accountId ? 1 : 0,
+      lastCallAt: now,
+      accountUsername: acc.username,
+      accountProfile: acc.profilePicture,
+    }));
+
+    // ── Step 2: Safely upsert the main rate limit document
+    await safeUpsertRateLimit(
+      clerkId,
+      windowStart,
+      tier,
+      tierLimit,
+      accountUsageData,
+    );
+
+    // ── Step 3: Increment totalCallsMade (separate operation)
+    await RateUserRateLimit.findOneAndUpdate(
+      { clerkId, windowStart },
+      {
+        $inc: { totalCallsMade: 1 },
+        $set: { updatedAt: now },
+      },
+      { new: true, runValidators: false, upsert: false },
+    );
+
+    // ── Step 4: Update or create accountUsage array entry for this accountId
+    if (accountId) {
+      await updateAccountUsage(clerkId, windowStart, accountId, metadata);
+    }
+
+    // ── Step 5: Update InstagramAccount metaCalls if applicable
+    if (metaCalls > 0) {
+      await InstagramAccount.updateOne(
+        { instagramId: accountId },
+        {
+          $inc: { metaCallsThisHour: metaCalls },
+          $set: { lastMetaCallAt: now, lastActivity: now },
+        },
+      );
+    }
+  } catch (error) {
+    // Never let a rate-limit DB write crash the main automation flow
+    console.error("Error updating database records:", error);
+  }
+}
+
+/**
  * Record a call - ONLY for incoming webhooks
  */
 export async function recordCall(
@@ -312,15 +496,18 @@ export async function recordCall(
         }
       }
 
-      // Update database asynchronously
-      // In recordCall, you call:
+      // Update database asynchronously (non-blocking)
       updateDatabaseRecords(
         clerkId,
         accountId,
         metaCalls,
         window.start,
         canMake.tier || "free",
-      );
+        metadata,
+      ).catch((err) => {
+        console.error("Async DB update failed:", err);
+      });
+
       return {
         success: true,
         callsRecorded: 1 + metaCalls,
@@ -371,155 +558,6 @@ export async function recordCall(
     reason: canMake.reason,
     processImmediately: false,
   };
-}
-
-async function safeUpsertRateLimit(
-  clerkId: string,
-  windowStart: Date,
-  updatePayload: Record<string, any>,
-  setOnInsertPayload: Record<string, any>,
-): Promise<void> {
-  // Filter matches the compound unique index exactly
-  const filter = { clerkId, windowStart };
-
-  try {
-    await RateUserRateLimit.findOneAndUpdate(
-      filter,
-      {
-        ...updatePayload,
-        $setOnInsert: setOnInsertPayload,
-      },
-      {
-        upsert: true,
-        new: true,
-        runValidators: false,
-      },
-    );
-  } catch (err: any) {
-    // E11000 = two concurrent webhooks both saw "no document for this
-    // clerkId+windowStart" and both tried to INSERT. The unique index
-    // correctly rejected the second one. The document now exists, so
-    // retry as a plain update — no upsert needed.
-    if (err?.code === 11000 || err?.codeName === "DuplicateKey") {
-      console.warn(
-        `⚡ E11000 race on clerkId=${clerkId} windowStart=${windowStart.toISOString()} — retrying as plain update`,
-      );
-      await RateUserRateLimit.findOneAndUpdate(
-        filter,
-        updatePayload, // no $setOnInsert: doc already exists
-        { new: true, runValidators: false },
-      );
-    } else {
-      throw err;
-    }
-  }
-}
-export async function updateDatabaseRecords(
-  clerkId: string,
-  accountId: string,
-  metaCalls: number,
-  windowStart: Date,
-  tier: TierType,
-  metadata?: any,
-): Promise<void> {
-  try {
-    await connectToDatabase();
-
-    const tierLimits: Record<TierType, number> = { free: 200, pro: 5000 };
-    const tierLimit = tierLimits[tier] ?? 200;
-
-    const now = new Date();
-
-    // ── Step 1: Get all Instagram accounts for this user to populate accountUsage
-    const userAccounts = await InstagramAccount.find({
-      userId: clerkId,
-      isActive: true,
-    }).lean();
-
-    // Prepare the initial accountUsage array if this is a new document
-    const initialAccountUsage = userAccounts.map((acc) => ({
-      instagramAccountId: acc.instagramId,
-      callsMade: acc.instagramId === accountId ? 1 : 0,
-      lastCallAt: now,
-      accountUsername: acc.username,
-      accountProfile: acc.profilePicture,
-    }));
-
-    // ── Step 2: Upsert the top-level document ──────────────────────────────
-    const updatePayload: Record<string, any> = {
-      $inc: {
-        totalCallsMade: 1,
-      },
-      $set: {
-        tier,
-        tierLimit,
-        updatedAt: now,
-      },
-    };
-
-    const setOnInsert: Record<string, any> = {
-      clerkId,
-      windowStart,
-      totalCallsMade: 0, // $inc will add 1 on top
-      tier,
-      tierLimit,
-      isAutomationPaused: false,
-      accountUsage: initialAccountUsage,
-      createdAt: now,
-    };
-
-    await safeUpsertRateLimit(clerkId, windowStart, updatePayload, setOnInsert);
-
-    // ── Step 3: Update or create accountUsage array entry for this accountId ──
-    // Try to increment an existing entry first.
-    if (accountId) {
-      const updated = await RateUserRateLimit.findOneAndUpdate(
-        {
-          clerkId,
-          windowStart,
-          "accountUsage.instagramAccountId": accountId,
-        },
-        {
-          $inc: { "accountUsage.$.callsMade": 1 },
-          $set: { "accountUsage.$.lastCallAt": now },
-        },
-        { new: true, runValidators: false },
-      );
-
-      // If no existing entry for this accountId, push a new one
-      if (!updated) {
-        await RateUserRateLimit.findOneAndUpdate(
-          { clerkId, windowStart },
-          {
-            $push: {
-              accountUsage: {
-                instagramAccountId: accountId,
-                callsMade: 1,
-                lastCallAt: now,
-                accountUsername: metadata?.username || "",
-                accountProfile: metadata?.profilePicture || "",
-              },
-            },
-          },
-          { new: true, runValidators: false },
-        );
-      }
-    }
-
-    // ── Step 4: Update InstagramAccount metaCalls if applicable
-    if (metaCalls > 0) {
-      await InstagramAccount.updateOne(
-        { instagramId: accountId },
-        {
-          $inc: { metaCallsThisHour: metaCalls },
-          $set: { lastMetaCallAt: now, lastActivity: now },
-        },
-      );
-    }
-  } catch (error) {
-    // Never let a rate-limit DB write crash the main automation flow
-    console.error("Error updating database records:", error);
-  }
 }
 
 /**
@@ -956,7 +994,6 @@ export async function resetHourlyWindow(): Promise<{
   }
 }
 
-// ... rest of the functions (getWindowStats, getUserRateLimitStats remain the same)
 export async function getWindowStats(windowStart?: Date) {
   await connectToDatabase();
 
@@ -1112,14 +1149,14 @@ export async function getWindowStats(windowStart?: Date) {
           totalCalls: freeUserCalls,
           averageCallsPerUser:
             freeUsers.length > 0 ? freeUserCalls / freeUsers.length : 0,
-          limit: 100,
+          limit: TIER_LIMITS.free,
         },
         pro: {
           count: proUsers.length,
           totalCalls: proUserCalls,
           averageCallsPerUser:
             proUsers.length > 0 ? proUserCalls / proUsers.length : 0,
-          limit: 2000,
+          limit: TIER_LIMITS.pro,
         },
       },
     },
