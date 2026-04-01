@@ -3,7 +3,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
-import LeadCollection from "@/models/insta/LeadCollection.model";
+import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
 import {
   sendFinalLinkDM,
@@ -122,7 +122,7 @@ async function handleEmailResponse(
     await log.save();
 
     // Save to LeadCollection
-    await LeadCollection.create({
+    await InstaLeadCollection.create({
       userId: clerkId,
       accountId: account.instagramId,
       accountUsername: account.username,
@@ -199,7 +199,7 @@ async function handlePhoneResponse(
     log.dmFlowStage = "phone_collected";
     await log.save();
 
-    await LeadCollection.create({
+    await InstaLeadCollection.create({
       userId: clerkId,
       accountId: account.instagramId,
       accountUsername: account.username,

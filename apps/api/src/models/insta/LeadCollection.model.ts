@@ -49,10 +49,10 @@ LeadCollectionSchema.index({ templateId: 1, createdAt: -1 });
 LeadCollectionSchema.index({ accountId: 1, source: 1, createdAt: -1 });
 LeadCollectionSchema.index({ commenterUserId: 1, templateId: 1 });
 
-const LeadCollection = (mongoose.models?.LeadCollection ||
+const InstaLeadCollection = (mongoose.models?.InstaLeadCollection ||
   mongoose.model<ILeadCollection>(
-    "LeadCollection",
+    "InstaLeadCollection",
     LeadCollectionSchema,
   )) as Model<ILeadCollection>;
 
-export default LeadCollection;
+export default InstaLeadCollection;

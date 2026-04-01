@@ -3,7 +3,6 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
-import LeadCollection from "@/models/insta/LeadCollection.model";
 import {
   sendInstagramDM,
   checkFollowStatus,

@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
-import LeadCollection from "@/models/insta/LeadCollection.model";
+import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 
 /**
  * GET /api/insta/leads
@@ -39,8 +39,8 @@ export const getLeadsController = async (req: Request, res: Response) => {
     if (source) query.source = source;
     if (automationType) query.automationType = automationType;
 
-    const total = await LeadCollection.countDocuments(query);
-    const leads = await LeadCollection.find(query)
+    const total = await InstaLeadCollection.countDocuments(query);
+    const leads = await InstaLeadCollection.find(query)
       .sort({ createdAt: -1 })
       .skip((pageNum - 1) * limitNum)
       .limit(limitNum)
@@ -93,7 +93,10 @@ export const deleteLeadController = async (req: Request, res: Response) => {
 
     await connectToDatabase();
 
-    const lead = await LeadCollection.findOneAndDelete({ _id: id, userId });
+    const lead = await InstaLeadCollection.findOneAndDelete({
+      _id: id,
+      userId,
+    });
     if (!lead) {
       return res.status(404).json({
         success: false,
@@ -104,7 +107,7 @@ export const deleteLeadController = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      message: "Lead deleted",
+      data: { message: "Lead deleted" },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
@@ -142,7 +145,7 @@ export const exportLeadsController = async (req: Request, res: Response) => {
     if (source) query.source = source;
     if (automationType) query.automationType = automationType;
 
-    const leads = await LeadCollection.find(query)
+    const leads = await InstaLeadCollection.find(query)
       .sort({ createdAt: -1 })
       .lean();
 

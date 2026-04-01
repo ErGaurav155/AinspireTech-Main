@@ -240,10 +240,11 @@ export function reconnectInstagramAccount() {
 export interface GetLeadsParams {
   accountId?: string;
   templateId?: string;
-  source?: "all" | "email_collection" | "phone_collection";
-  automationType?: "all" | "comments" | "stories" | "dms";
+  source?: string;
+  automationType?: string;
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 export interface LeadItem {
@@ -255,19 +256,30 @@ export interface LeadItem {
   automationType: "comments" | "stories" | "dms";
   email?: string;
   phone?: string;
-  source: "email_collection" | "phone_collection";
+  source: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface GetLeadsResponse {
-  success: boolean;
   leads: LeadItem[];
   total: number;
   page: number;
   limit: number;
   totalPages: number;
   hasMore: boolean;
+}
+
+export interface DeleteLeadResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+}
+
+export interface ExportLeadsResponse {
+  success: boolean;
+  csv: string;
+  filename: string;
 }
 
 export const getLeads = (
@@ -283,6 +295,8 @@ export const getLeads = (
     searchParams.set("automationType", params.automationType);
   if (params.page) searchParams.set("page", params.page.toString());
   if (params.limit) searchParams.set("limit", params.limit.toString());
+  if (params.search) searchParams.set("search", params.search);
+
   return apiRequest(`/insta/leads?${searchParams.toString()}`, {
     method: "GET",
   });
@@ -291,10 +305,49 @@ export const getLeads = (
 export const deleteLead = (
   apiRequest: ApiRequestFn,
   leadId: string,
-): Promise<{ success: boolean; message: string }> => {
+): Promise<DeleteLeadResponse> => {
   return apiRequest(`/insta/leads?id=${leadId}`, { method: "DELETE" });
 };
 
+export const exportLeadsToCSV = async (
+  apiRequest: ApiRequestFn,
+  params: Omit<GetLeadsParams, "page" | "limit">,
+): Promise<ExportLeadsResponse> => {
+  const searchParams = new URLSearchParams();
+  if (params.accountId) searchParams.set("accountId", params.accountId);
+  if (params.templateId) searchParams.set("templateId", params.templateId);
+  if (params.source && params.source !== "all")
+    searchParams.set("source", params.source);
+  if (params.automationType && params.automationType !== "all")
+    searchParams.set("automationType", params.automationType);
+  if (params.search) searchParams.set("search", params.search);
+
+  // For export, we need to get the raw response as blob
+  const token = await (apiRequest as any).token?.();
+  const response = await fetch(
+    `${process.env.NEXT_PUBLIC_API_URL}/api/insta/leads/export?${searchParams.toString()}`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Export failed");
+  }
+
+  const csv = await response.text();
+  const filename = `leads_${new Date().toISOString().split("T")[0]}.csv`;
+
+  return {
+    success: true,
+    csv,
+    filename,
+  };
+};
 // ==================== UPLOAD FUNCTIONS ====================
 // In insta-actions.api.ts — replace the uploadMedia section with this
 

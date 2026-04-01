@@ -9,30 +9,23 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  Filter,
   Users,
   MessageCircle,
   BookOpen,
   MessageSquare,
+  Filter,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
-import { getInstaTemplates } from "@/lib/services/insta-actions.api";
-
-interface Lead {
-  _id: string;
-  templateId: string;
-  templateName: string;
-  commenterUserId: string;
-  commenterUsername: string;
-  automationType: "comments" | "stories" | "dms";
-  email?: string;
-  phone?: string;
-  source: "email_collection" | "phone_collection";
-  createdAt: string;
-}
+import {
+  getInstaTemplates,
+  getLeads,
+  deleteLead,
+  exportLeadsToCSV,
+  LeadItem,
+} from "@/lib/services/insta-actions.api";
 
 const AUTOMATION_ICONS: Record<string, React.ReactNode> = {
   comments: <MessageCircle className="h-3 w-3" />,
@@ -40,13 +33,26 @@ const AUTOMATION_ICONS: Record<string, React.ReactNode> = {
   dms: <MessageSquare className="h-3 w-3" />,
 };
 
+const AUTOMATION_TYPES = [
+  { value: "all", label: "All Types" },
+  { value: "comments", label: "Comments" },
+  { value: "stories", label: "Stories" },
+  { value: "dms", label: "DMs" },
+];
+
+const SOURCE_TYPES = [
+  { value: "all", label: "All Sources" },
+  { value: "email_collection", label: "Email" },
+  { value: "phone_collection", label: "Phone" },
+];
+
 export default function LeadsPage() {
   const { styles, isDark } = useThemeStyles();
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
   const { selectedAccount, isAccLoading } = useInstaAccount();
 
-  const [leads, setLeads] = useState<Lead[]>([]);
+  const [leads, setLeads] = useState<LeadItem[]>([]);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [page, setPage] = useState(1);
@@ -55,50 +61,60 @@ export default function LeadsPage() {
   const [sourceFilter, setSourceFilter] = useState<
     "all" | "email_collection" | "phone_collection"
   >("all");
+  const [automationTypeFilter, setAutomationTypeFilter] = useState<
+    "all" | "comments" | "stories" | "dms"
+  >("all");
   const [templateFilter, setTemplateFilter] = useState("all");
   const [templates, setTemplates] = useState<{ _id: string; name: string }[]>(
     [],
   );
+  const [isExporting, setIsExporting] = useState(false);
 
   const limit = 20;
 
   // Fetch templates for filter dropdown
   useEffect(() => {
     if (!selectedAccount?.instagramId) return;
-    getInstaTemplates(apiRequest, {
-      accountId: selectedAccount.instagramId,
-      filterStatus: "all",
-    }).then((res: any) => {
-      const list = res?.templates || res?.data?.templates || [];
-      setTemplates(list.map((t: any) => ({ _id: t._id, name: t.name })));
-    });
+
+    const fetchTemplates = async () => {
+      try {
+        const result = await getInstaTemplates(apiRequest, {
+          accountId: selectedAccount.instagramId,
+          filterStatus: "all",
+        });
+        const list = result?.templates || [];
+        setTemplates(list.map((t: any) => ({ _id: t._id, name: t.name })));
+      } catch (error) {
+        console.error("Error fetching templates:", error);
+      }
+    };
+
+    fetchTemplates();
   }, [selectedAccount?.instagramId, apiRequest]);
 
   const fetchLeads = useCallback(async () => {
     if (!selectedAccount?.instagramId) return;
     setIsLoading(true);
     try {
-      const params = new URLSearchParams({
+      const response = await getLeads(apiRequest, {
         accountId: selectedAccount.instagramId,
-        page: page.toString(),
-        limit: limit.toString(),
+        page,
+        limit,
+        source: sourceFilter,
+        automationType: automationTypeFilter,
+        templateId: templateFilter !== "all" ? templateFilter : undefined,
+        search: searchTerm || undefined,
       });
-      if (sourceFilter !== "all") params.set("source", sourceFilter);
-      if (templateFilter !== "all") params.set("templateId", templateFilter);
+      console.log("Fetched leads:", response);
 
-      const response = await apiRequest(`/insta/leads?${params}`, {
-        method: "GET",
-      });
-
-      if (response?.success) {
-        setLeads(response.leads || []);
-        setTotal(response.total || 0);
-        setTotalPages(response.totalPages || 1);
-      }
+      setLeads(response.leads || []);
+      setTotal(response.total || 0);
+      setTotalPages(response.totalPages || 1);
     } catch (error) {
       console.error("Error fetching leads:", error);
       toast({
         title: "Failed to load leads",
+        description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
         duration: 3000,
       });
@@ -109,26 +125,56 @@ export default function LeadsPage() {
     selectedAccount?.instagramId,
     page,
     sourceFilter,
+    automationTypeFilter,
     templateFilter,
+    searchTerm,
     apiRequest,
   ]);
 
+  // Debounce search to avoid too many requests
   useEffect(() => {
-    if (isLoaded && !isAccLoading) {
+    const timer = setTimeout(() => {
+      if (isLoaded && !isAccLoading && selectedAccount?.instagramId) {
+        setPage(1); // Reset to first page when filters change
+        fetchLeads();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [
+    searchTerm,
+    sourceFilter,
+    automationTypeFilter,
+    templateFilter,
+    isLoaded,
+    isAccLoading,
+    selectedAccount?.instagramId,
+    fetchLeads,
+  ]);
+
+  // Fetch leads when page changes
+  useEffect(() => {
+    if (isLoaded && !isAccLoading && selectedAccount?.instagramId) {
       fetchLeads();
     }
-  }, [isLoaded, isAccLoading, fetchLeads]);
+  }, [page, fetchLeads, isLoaded, isAccLoading, selectedAccount?.instagramId]);
 
   const handleDelete = useCallback(
     async (id: string) => {
       try {
-        await apiRequest(`/insta/leads?id=${id}`, { method: "DELETE" });
+        const result = await deleteLead(apiRequest, id);
+        console.log("Delete lead result:", result);
         setLeads((prev) => prev.filter((l) => l._id !== id));
         setTotal((prev) => prev - 1);
-        toast({ title: "Lead deleted", duration: 3000 });
-      } catch {
+        toast({
+          title: "Lead deleted",
+          description: result.message,
+          duration: 3000,
+        });
+      } catch (error) {
         toast({
           title: "Failed to delete",
+          description: error instanceof Error ? error.message : "Unknown error",
           variant: "destructive",
           duration: 3000,
         });
@@ -137,39 +183,79 @@ export default function LeadsPage() {
     [apiRequest],
   );
 
-  const handleExportCSV = useCallback(() => {
-    if (leads.length === 0) return;
-    const headers = [
-      "Username",
-      "Email",
-      "Phone",
-      "Template",
-      "Automation Type",
-      "Source",
-      "Date",
-    ];
-    const rows = leads.map((l) => [
-      l.commenterUsername || "",
-      l.email || "",
-      l.phone || "",
-      l.templateName || "",
-      l.automationType || "",
-      l.source === "email_collection" ? "Email" : "Phone",
-      new Date(l.createdAt).toLocaleDateString(),
-    ]);
+  const handleExportCSV = useCallback(async () => {
+    if (!selectedAccount?.instagramId) return;
+    if (leads.length === 0) {
+      toast({
+        title: "No data to export",
+        description: "There are no leads to export",
+        duration: 3000,
+      });
+      return;
+    }
 
-    const csv = [headers, ...rows]
-      .map((row) => row.map((v) => `"${v}"`).join(","))
-      .join("\n");
+    setIsExporting(true);
+    try {
+      const result = await exportLeadsToCSV(apiRequest, {
+        accountId: selectedAccount.instagramId,
+        source: sourceFilter,
+        automationType: automationTypeFilter,
+        templateId: templateFilter !== "all" ? templateFilter : undefined,
+        search: searchTerm || undefined,
+      });
 
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `leads_${selectedAccount?.username}_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [leads, selectedAccount?.username]);
+      if (result.success) {
+        // Create and download the CSV file
+        const blob = new Blob(["\uFEFF" + result.csv], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = result.filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        toast({
+          title: "Export successful",
+          description: `${leads.length} leads exported`,
+          duration: 3000,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Export failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  }, [
+    selectedAccount?.instagramId,
+    sourceFilter,
+    automationTypeFilter,
+    templateFilter,
+    searchTerm,
+    apiRequest,
+    leads.length,
+  ]);
+
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleResetFilters = useCallback(() => {
+    setSearchTerm("");
+    setSourceFilter("all");
+    setAutomationTypeFilter("all");
+    setTemplateFilter("all");
+    setPage(1);
+  }, []);
 
   const filteredLeads = useMemo(() => {
     if (!searchTerm) return leads;
@@ -189,6 +275,19 @@ export default function LeadsPage() {
   const phoneCount = leads.filter(
     (l) => l.source === "phone_collection",
   ).length;
+  const commentsCount = leads.filter(
+    (l) => l.automationType === "comments",
+  ).length;
+  const storiesCount = leads.filter(
+    (l) => l.automationType === "stories",
+  ).length;
+  const dmsCount = leads.filter((l) => l.automationType === "dms").length;
+
+  const hasActiveFilters =
+    searchTerm !== "" ||
+    sourceFilter !== "all" ||
+    automationTypeFilter !== "all" ||
+    templateFilter !== "all";
 
   if (!isLoaded || isAccLoading) {
     return (
@@ -209,7 +308,7 @@ export default function LeadsPage() {
       }
     >
       {isDark && <Orbs />}
-      <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8 relative z-10">
+      <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 relative z-10">
         {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div>
@@ -225,22 +324,41 @@ export default function LeadsPage() {
               {selectedAccount?.username || "all accounts"}
             </p>
           </div>
-          <button
-            onClick={handleExportCSV}
-            disabled={leads.length === 0}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              isDark
-                ? "bg-white/[0.06] border border-white/[0.09] text-white/70 hover:bg-white/[0.09]"
-                : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            <Download className="h-4 w-4" />
-            Export CSV
-          </button>
+          <div className="flex items-center gap-2">
+            {hasActiveFilters && (
+              <button
+                onClick={handleResetFilters}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isDark
+                    ? "bg-white/[0.06] border border-white/[0.09] text-white/70 hover:bg-white/[0.09]"
+                    : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <Filter className="h-4 w-4" />
+                Reset Filters
+              </button>
+            )}
+            <button
+              onClick={handleExportCSV}
+              disabled={leads.length === 0 || isExporting}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                isDark
+                  ? "bg-white/[0.06] border border-white/[0.09] text-white/70 hover:bg-white/[0.09]"
+                  : "bg-white border border-gray-200 text-gray-700 hover:border-gray-300"
+              }`}
+            >
+              {isExporting ? (
+                <div className="h-4 w-4 border-2 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+              {isExporting ? "Exporting..." : "Export CSV"}
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols gap-3 mb-5">
           {[
             {
               label: "Total Leads",
@@ -260,17 +378,35 @@ export default function LeadsPage() {
               icon: <Phone className="h-5 w-5" />,
               color: "green",
             },
+            {
+              label: "Comments",
+              value: commentsCount,
+              icon: <MessageCircle className="h-5 w-5" />,
+              color: "purple",
+            },
+            {
+              label: "Stories",
+              value: storiesCount,
+              icon: <BookOpen className="h-5 w-5" />,
+              color: "orange",
+            },
+            {
+              label: "DMs",
+              value: dmsCount,
+              icon: <MessageSquare className="h-5 w-5" />,
+              color: "cyan",
+            },
           ].map(({ label, value, icon, color }) => (
             <div
               key={label}
-              className={`rounded-2xl p-4 ${
+              className={`rounded-2xl p-3 ${
                 isDark
                   ? "bg-white/[0.04] border border-white/[0.08]"
                   : "bg-white border border-gray-100"
               }`}
             >
               <div
-                className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${
+                className={`w-8 h-8 rounded-xl flex items-center justify-center mb-2 ${
                   isDark
                     ? `bg-${color}-500/10 text-${color}-400`
                     : `bg-${color}-50 text-${color}-500`
@@ -279,12 +415,12 @@ export default function LeadsPage() {
                 {icon}
               </div>
               <p
-                className={`text-2xl font-bold ${isDark ? "text-white" : "text-gray-800"}`}
+                className={`text-xl font-bold ${isDark ? "text-white" : "text-gray-800"}`}
               >
                 {value}
               </p>
               <p
-                className={`text-xs mt-0.5 ${isDark ? "text-white/40" : "text-gray-500"}`}
+                className={`text-[10px] mt-0.5 ${isDark ? "text-white/40" : "text-gray-500"}`}
               >
                 {label}
               </p>
@@ -295,7 +431,7 @@ export default function LeadsPage() {
         {/* Filters */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div
-            className={`relative flex-1 min-w-48 rounded-xl ${styles.input}`}
+            className={`relative flex-1 min-w-[200px] rounded-xl ${styles.input}`}
           >
             <Search
               className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${styles.text.muted}`}
@@ -321,9 +457,30 @@ export default function LeadsPage() {
                 : "bg-white border-gray-200 text-gray-700"
             }`}
           >
-            <option value="all">All Sources</option>
-            <option value="email_collection">Email</option>
-            <option value="phone_collection">Phone</option>
+            {SOURCE_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={automationTypeFilter}
+            onChange={(e) => {
+              setAutomationTypeFilter(e.target.value as any);
+              setPage(1);
+            }}
+            className={`px-3 py-2.5 rounded-xl text-sm border focus:outline-none ${
+              isDark
+                ? "bg-white/[0.05] border-white/[0.08] text-white"
+                : "bg-white border-gray-200 text-gray-700"
+            }`}
+          >
+            {AUTOMATION_TYPES.map((type) => (
+              <option key={type.value} value={type.value}>
+                {type.label}
+              </option>
+            ))}
           </select>
 
           <select
@@ -369,8 +526,8 @@ export default function LeadsPage() {
               <p
                 className={`font-medium ${isDark ? "text-white/60" : "text-gray-500"}`}
               >
-                {searchTerm
-                  ? "No leads match your search"
+                {searchTerm || hasActiveFilters
+                  ? "No leads match your filters"
                   : "No leads collected yet"}
               </p>
               <p
@@ -399,7 +556,7 @@ export default function LeadsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredLeads.map((lead, i) => (
+                  {filteredLeads.map((lead) => (
                     <tr
                       key={lead._id}
                       className={`border-b transition-colors ${
@@ -520,7 +677,7 @@ export default function LeadsPage() {
             </p>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                onClick={() => handlePageChange(Math.max(1, page - 1))}
                 disabled={page === 1}
                 className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDark
@@ -536,7 +693,7 @@ export default function LeadsPage() {
                 {page} / {totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                 disabled={page === totalPages}
                 className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                   isDark

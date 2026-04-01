@@ -3,10 +3,10 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import ReplyLog from "@/models/insta/ReplyLog.model";
-import LeadCollection from "@/models/insta/LeadCollection.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow } from "@/services/rate-limit.service";
+import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -157,7 +157,7 @@ export const getAllInstaAccountsInfoController = async (
             accountId: account.instagramId,
           });
 
-          const leadsCount = await LeadCollection.countDocuments({
+          const leadsCount = await InstaLeadCollection.countDocuments({
             accountId: account.instagramId,
           });
 
@@ -233,7 +233,7 @@ export const getAllInstaAccountsInfoController = async (
             accountId: account.instagramId,
           });
 
-          const leadsCount = await LeadCollection.countDocuments({
+          const leadsCount = await InstaLeadCollection.countDocuments({
             accountId: account.instagramId,
           });
 
@@ -324,7 +324,7 @@ export const getAllInstaAccountsInfoController = async (
           accountId: account.instagramId,
         });
 
-        const leadsCount = await LeadCollection.countDocuments({
+        const leadsCount = await InstaLeadCollection.countDocuments({
           accountId: account.instagramId,
         });
 
@@ -386,7 +386,7 @@ export const getAllInstaAccountsInfoController = async (
           accountId: account.instagramId,
         });
 
-        const leadsCount = await LeadCollection.countDocuments({
+        const leadsCount = await InstaLeadCollection.countDocuments({
           accountId: account.instagramId,
         });
 
@@ -539,7 +539,7 @@ export const getInstaAccountByIdController = async (
       accountId: accountId,
     });
 
-    const leadsCount = await LeadCollection.countDocuments({
+    const leadsCount = await InstaLeadCollection.countDocuments({
       accountId: accountId,
     });
 
@@ -874,7 +874,7 @@ export const updateInstaAccountController = async (
       accountId: accountId,
     });
 
-    const leadsCount = await LeadCollection.countDocuments({
+    const leadsCount = await InstaLeadCollection.countDocuments({
       accountId: accountId,
     });
 
@@ -976,7 +976,7 @@ export const deleteInstaAccountController = async (
     const logsCount = await ReplyLog.countDocuments({
       accountId: accountId,
     });
-    const leadsCount = await LeadCollection.countDocuments({
+    const leadsCount = await InstaLeadCollection.countDocuments({
       accountId: accountId,
     });
 
@@ -991,7 +991,7 @@ export const deleteInstaAccountController = async (
     });
 
     // Delete related leads
-    await LeadCollection.deleteMany({
+    await InstaLeadCollection.deleteMany({
       accountId: accountId,
     });
 
