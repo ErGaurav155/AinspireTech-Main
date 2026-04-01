@@ -756,12 +756,12 @@ export default function AutomationsPage() {
                     <span>👑</span> Collect Email
                   </span>
                 )}
-                {template.delaySeconds && template.delaySeconds > 0 && (
-                  <span className={pageStyles.featureBadgeWithIcon("gray")}>
-                    <Clock className="h-3 w-3" />
-                    {template.delaySeconds}s delay
-                  </span>
-                )}
+
+                <span className={pageStyles.featureBadgeWithIcon("gray")}>
+                  <Clock className="h-3 w-3" />
+                  {template.delaySeconds}s delay
+                </span>
+
                 {template.triggers?.filter(Boolean).length > 0 && (
                   <div className="flex items-center gap-1 ml-auto">
                     {template.triggers

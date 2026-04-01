@@ -14,8 +14,6 @@ import {
   Instagram,
   MessageSquare,
   RefreshCw,
-  Loader2,
-  Clock,
   Activity,
   AlertTriangle,
   CheckCircle,
@@ -29,30 +27,22 @@ import {
   PlayCircle,
   ChevronRight,
   Sparkles,
+  Lock,
+  Crown,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { useRouter } from "next/navigation";
-import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
-import { getUserById } from "@/lib/services/user-actions.api";
 import {
-  cancelRazorPaySubscription,
   deleteInstaAccount,
   getReplyLogs,
   getSubscriptioninfo,
   refreshInstagramToken,
 } from "@/lib/services/insta-actions.api";
 
-import {
-  Button,
-  Orbs,
-  Spinner,
-  Textarea,
-  useThemeStyles,
-} from "@rocketreplai/ui";
+import { Button, Orbs, Spinner, useThemeStyles } from "@rocketreplai/ui";
 
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -90,6 +80,7 @@ interface DashboardAccount {
   updatedAt: string;
   templatesCount: number;
   repliesCount: number;
+  leadsCount: number;
   replyLimit: number;
   accountLimit: number;
   totalAccounts: number;
@@ -104,6 +95,9 @@ interface DashboardData {
   activeAccounts: number;
   totalTemplates: number;
   totalReplies: number;
+  totalLeads: number;
+  totalDMSent: number;
+  totalFollowChecks: number;
   accountLimit: number;
   replyLimit: number;
   engagementRate: number;
@@ -129,7 +123,6 @@ interface SubscriptionInfo {
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
-const FREE_PLAN_REPLY_LIMIT = 200;
 const PRO_PLAN_ACCOUNT_LIMIT = 3;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 
@@ -142,6 +135,9 @@ interface StatCardProps {
   subtitle?: string;
   extra?: string;
   styleIndex: number;
+  isLocked?: boolean;
+  lockedMessage?: string;
+  onClick?: () => void;
 }
 
 const StatCard = React.memo(function StatCard({
@@ -151,6 +147,9 @@ const StatCard = React.memo(function StatCard({
   subtitle,
   extra,
   styleIndex,
+  isLocked = false,
+  lockedMessage = "Upgrade to Pro",
+  onClick,
 }: StatCardProps) {
   const { styles, isDark } = useThemeStyles();
   const colors = [
@@ -191,10 +190,20 @@ const StatCard = React.memo(function StatCard({
     },
   ];
   const s = colors[styleIndex % colors.length];
+
   return (
     <div
-      className={`${s.bg} border ${s.border} rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md transition-shadow`}
+      onClick={onClick}
+      className={`${s.bg} border ${s.border} rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative overflow-hidden ${onClick ? "cursor-pointer" : ""}`}
     >
+      {isLocked && (
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+          <div className="text-center">
+            <Lock className="h-8 w-8 text-white mx-auto mb-2" />
+            <p className="text-white text-xs font-semibold">{lockedMessage}</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div
           className={`w-9 h-9 rounded-xl ${s.iconBg} flex items-center justify-center`}
@@ -222,7 +231,6 @@ const StatCard = React.memo(function StatCard({
 
 export default function Dashboard() {
   const { userId, isLoaded } = useAuth();
-  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -256,21 +264,9 @@ export default function Dashboard() {
   // Dialog states
   const [showAccountLimitDialog, setShowAccountLimitDialog] =
     useState<boolean>(false);
-  const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
-  const [showCancelConfirmDialog, setShowCancelConfirmDialog] =
-    useState<boolean>(false);
   const [showCancelAccountDialog, setShowCancelAccountDialog] =
     useState<boolean>(false);
-
-  // Cancellation state
-  const [selectedSubscriptionId, setSelectedSubscriptionId] =
-    useState<string>("");
-  const [cancellationMode, setCancellationMode] = useState<
-    "Immediate" | "End-of-term"
-  >("End-of-term");
-  const [cancellationReason, setCancellationReason] = useState<string>("");
-  const [isCancelling, setIsCancelling] = useState<boolean>(false);
-  const [isProcessingCancellation, setIsProcessingCancellation] =
+  const [isProcessingDeletion, setIsProcessingDeletion] =
     useState<boolean>(false);
 
   // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -309,8 +305,14 @@ export default function Dashboard() {
       activeAccounts: accounts.filter((a) => a.isActive).length,
       totalTemplates: accounts.reduce((s, a) => s + a.templatesCount, 0),
       totalReplies: accounts.reduce((s, a) => s + (a.accountReply || 0), 0),
+      totalLeads: accounts.reduce((s, a) => s + (a.leadsCount || 0), 0),
+      totalDMSent: accounts.reduce((s, a) => s + (a.accountDMSent || 0), 0),
+      totalFollowChecks: accounts.reduce(
+        (s, a) => s + (a.accountFollowCheck || 0),
+        0,
+      ),
       accountLimit: accounts[0]?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT,
-      replyLimit: accounts[0]?.replyLimit || FREE_PLAN_REPLY_LIMIT,
+      replyLimit: accounts[0]?.replyLimit || 0,
       engagementRate:
         accounts.length > 0
           ? accounts.reduce((s, a) => s + (a.engagementRate || 0), 0) /
@@ -334,12 +336,10 @@ export default function Dashboard() {
   const transformContextAccountsToDashboard = useCallback(
     (accounts: any[]): DashboardAccount[] => {
       // Get subscription info to determine limits
-      const subscriptionInfo =
-        subscriptions.length > 0 ? subscriptions[0] : null;
-      const accountLimit = subscriptionInfo
+      const isPro = subscriptions.length > 0;
+      const accountLimit = isPro
         ? PRO_PLAN_ACCOUNT_LIMIT
         : FREE_PLAN_ACCOUNT_LIMIT;
-      const replyLimit = subscriptionInfo ? 999999 : FREE_PLAN_REPLY_LIMIT;
 
       return accounts.map((acc) => ({
         id: acc._id || acc.instagramId,
@@ -370,13 +370,14 @@ export default function Dashboard() {
         updatedAt: acc.updatedAt,
         templatesCount: acc.templatesCount || 0,
         repliesCount: acc.accountReply || 0,
-        replyLimit: replyLimit,
+        leadsCount: acc.leadsCount || 0,
+        replyLimit: isPro ? Infinity : 0,
         accountLimit: accountLimit,
         totalAccounts: accounts.length,
         engagementRate: 85 + Math.floor(Math.random() * 10), // Placeholder
         successRate: 90 + Math.floor(Math.random() * 8), // Placeholder
         avgResponseTime: Math.floor(Math.random() * 30) + 5, // Placeholder
-        tier: subscriptionInfo ? "pro" : "free",
+        tier: isPro ? "pro" : "free",
       }));
     },
     [subscriptions],
@@ -451,12 +452,8 @@ export default function Dashboard() {
     if (!userId) return;
 
     try {
-      const userData = await getUserById(apiRequest, userId);
-      if (userData) {
-        const { subscriptions: subs } = await getSubscriptioninfo(apiRequest);
-        setSubscriptions(subs || []);
-        setUserInfo(userData);
-      }
+      const { subscriptions: subs } = await getSubscriptioninfo(apiRequest);
+      setSubscriptions(subs || []);
     } catch (err) {
       console.error("Failed to fetch subscriptions:", err);
       showToast("Failed to load subscription information", "error");
@@ -512,91 +509,25 @@ export default function Dashboard() {
     }
   }, [userAccounts.length, subscriptions.length, router]);
 
-  const handleCancelInitiation = useCallback(() => {
-    if (subscriptions.length > 0) {
-      setSelectedSubscriptionId(subscriptions[0].subscriptionId);
-      setShowCancelConfirmDialog(true);
-    }
-  }, [subscriptions]);
-
-  const handleConfirmedCancellation = useCallback(async () => {
-    setShowCancelConfirmDialog(false);
-    if (userAccounts.length > FREE_PLAN_ACCOUNT_LIMIT) {
-      setShowCancelAccountDialog(true);
-    } else {
-      setShowCancelDialog(true);
-    }
-  }, [userAccounts.length]);
-
-  const handleCancelAccountDeletion = useCallback(
-    async (selectedAccountIds: string[]) => {
-      setIsProcessingCancellation(true);
-      setShowCancelAccountDialog(false);
+  const handleDeleteAccount = useCallback(
+    async (accountId: string) => {
+      setIsProcessingDeletion(true);
 
       try {
-        // Delete accounts in parallel
-        await Promise.all(
-          selectedAccountIds.map((accountId) =>
-            deleteInstaAccount(apiRequest, accountId),
-          ),
-        );
-
-        showToast("Accounts deleted successfully", "success");
-
-        // Refresh context to update accounts list
-        await refreshAccounts();
-        setShowCancelDialog(true);
-      } catch (err) {
-        console.error("Error deleting accounts:", err);
-        showToast("Failed to delete accounts", "error");
-      } finally {
-        setIsProcessingCancellation(false);
-      }
-    },
-    [apiRequest, showToast, refreshAccounts],
-  );
-
-  const handleCancelSubscription = useCallback(async () => {
-    if (!selectedSubscriptionId) {
-      showToast("No subscription selected", "error");
-      return;
-    }
-
-    setIsCancelling(true);
-
-    try {
-      const result = await cancelRazorPaySubscription(apiRequest, {
-        subscriptionId: selectedSubscriptionId,
-        subscriptionType: "insta",
-        reason: cancellationReason || CANCELLATION_REASON_PLACEHOLDER,
-        mode: cancellationMode,
-      });
-
-      if (result.success) {
-        showToast("Subscription cancelled successfully", "success");
-        setSubscriptions([]);
+        await deleteInstaAccount(apiRequest, accountId);
+        showToast("Account deleted successfully", "success");
         await refreshAccounts();
         await fetchDashboardData();
-      } else {
-        showToast(result.message || "Failed to cancel subscription", "error");
+      } catch (err) {
+        console.error("Error deleting account:", err);
+        showToast("Failed to delete account", "error");
+      } finally {
+        setIsProcessingDeletion(false);
+        setShowCancelAccountDialog(false);
       }
-    } catch (err) {
-      console.error("Error cancelling subscription:", err);
-      showToast("Failed to cancel subscription", "error");
-    } finally {
-      setIsCancelling(false);
-      setShowCancelDialog(false);
-      setCancellationReason("");
-    }
-  }, [
-    selectedSubscriptionId,
-    cancellationReason,
-    cancellationMode,
-    apiRequest,
-    showToast,
-    refreshAccounts,
-    fetchDashboardData,
-  ]);
+    },
+    [apiRequest, showToast, refreshAccounts, fetchDashboardData],
+  );
 
   const handleRefreshToken = useCallback(
     async (instagramId: string) => {
@@ -614,32 +545,17 @@ export default function Dashboard() {
 
   // ── Derived values for stat cards ─────────────────────────────────────────────
 
-  const totalAccountReply = useMemo(
-    () => userAccounts.reduce((s, a) => s + (a.accountReply || 0), 0),
-    [userAccounts],
-  );
+  const isPro = subscriptions.length > 0;
 
-  const totalDMSent = useMemo(
-    () => userAccounts.reduce((s, a) => s + (a.accountDMSent || 0), 0),
-    [userAccounts],
-  );
+  // Contacts: Show locked for free users, show count with ∞ for pro
+  const contactDisplay = isPro
+    ? `${dashboardData?.totalLeads ?? 0} / ∞`
+    : "🔒 Pro Feature";
 
-  const totalFollowChecks = useMemo(
-    () => userAccounts.reduce((s, a) => s + (a.accountFollowCheck || 0), 0),
-    [userAccounts],
-  );
-
-  // Accounts with issues (inactive or token expired)
-  const accountsWithIssues = useMemo(
-    () =>
-      userAccounts.filter(
-        (a) =>
-          !a.isActive ||
-          a.isMetaRateLimited ||
-          (a.tokenExpiresAt && new Date(a.tokenExpiresAt) < new Date()),
-      ),
-    [userAccounts],
-  );
+  // DMs: Show only count for free, count with ∞ for pro
+  const dmDisplay = isPro
+    ? `${dashboardData?.totalDMSent ?? 0} / ∞`
+    : `${dashboardData?.totalDMSent ?? 0}`;
 
   // ── Loading state ─────────────────────────────────────────────────────────────
 
@@ -660,7 +576,12 @@ export default function Dashboard() {
       {isDark && <Orbs />}
       <div className="p-4 md:p-6 space-y-5 mx-auto relative z-10">
         {/* ── Automations Not Working Warning ────────────────────────────── */}
-        {accountsWithIssues.length > 0 && (
+        {userAccounts.filter(
+          (a) =>
+            !a.isActive ||
+            a.isMetaRateLimited ||
+            (a.tokenExpiresAt && new Date(a.tokenExpiresAt) < new Date()),
+        ).length > 0 && (
           <div
             className={`rounded-2xl p-5 ${
               isDark
@@ -690,7 +611,16 @@ export default function Dashboard() {
                   }`}
                 >
                   Refresh Permissions for{" "}
-                  {accountsWithIssues.map((a) => `@${a.username}`).join(", ")}
+                  {userAccounts
+                    .filter(
+                      (a) =>
+                        !a.isActive ||
+                        a.isMetaRateLimited ||
+                        (a.tokenExpiresAt &&
+                          new Date(a.tokenExpiresAt) < new Date()),
+                    )
+                    .map((a) => `@${a.username}`)
+                    .join(", ")}
                 </p>
                 <ul className="space-y-1.5">
                   {[
@@ -734,7 +664,7 @@ export default function Dashboard() {
         )}
 
         {/* ── Promo / Early Bird Banner (no subscription) ─────────────────── */}
-        {subscriptions.length === 0 && showPromoBanner && (
+        {!isPro && showPromoBanner && (
           <div
             className={`relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 rounded-2xl p-5 shadow-lg ${
               isDark ? "shadow-pink-500/30" : "shadow-pink-200/50"
@@ -770,75 +700,6 @@ export default function Dashboard() {
                 className="flex-shrink-0 bg-yellow-400 hover:bg-yellow-300 text-gray-900 font-black text-sm px-5 py-2.5 rounded-xl shadow-md transition-colors"
               >
                 <Link href="/insta/pricing">Upgrade Now</Link>
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ── Active Subscription Banner ──────────────────────────────────── */}
-        {subscriptions.length > 0 && (
-          <div
-            className={`rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 ${
-              isDark
-                ? "bg-green-500/10 border border-green-500/20"
-                : "bg-green-50 border border-green-200"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className={`w-9 h-9 rounded-full ${
-                  isDark ? "bg-green-500/20" : "bg-green-100"
-                } flex items-center justify-center`}
-              >
-                <CheckCircle
-                  className={`h-5 w-5 ${
-                    isDark ? "text-green-400" : "text-green-600"
-                  }`}
-                />
-              </div>
-              <div>
-                <p
-                  className={`text-sm font-bold ${
-                    isDark ? "text-green-400" : "text-green-700"
-                  }`}
-                >
-                  {subscriptions[0]?.chatbotType || "Pro"} Active
-                </p>
-                <p
-                  className={`text-xs ${
-                    isDark ? "text-green-400/80" : "text-green-600"
-                  }`}
-                >
-                  Next billing:{" "}
-                  {subscriptions[0]?.expiresAt
-                    ? new Date(subscriptions[0].expiresAt).toLocaleDateString()
-                    : "N/A"}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                asChild
-                variant="outline"
-                className={`text-xs rounded-full px-4 ${
-                  isDark
-                    ? "border-green-500/30 text-green-400 hover:bg-green-500/10"
-                    : "border-green-300 text-green-700 hover:bg-green-100"
-                }`}
-              >
-                <Link href="/insta/pricing">Upgrade</Link>
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleCancelInitiation}
-                disabled={isCancelling || isProcessingCancellation}
-                className={`text-xs rounded-full px-4 ${
-                  isDark
-                    ? "bg-red-500/80 hover:bg-red-500 text-white"
-                    : "bg-red-500 hover:bg-red-600 text-white"
-                }`}
-              >
-                {isCancelling ? "Cancelling…" : "Cancel"}
               </Button>
             </div>
           </div>
@@ -1002,35 +863,39 @@ export default function Dashboard() {
             <StatCard
               title="Contacts"
               icon={Users}
-              value={`${dashboardData?.totalReplies ?? 0} / ${dashboardData?.replyLimit === 999999 ? "∞" : (dashboardData?.replyLimit ?? 1000)}`}
-              subtitle={`This month`}
-              extra={`Total: ${dashboardData?.totalReplies ?? 0}`}
+              value={contactDisplay}
+              subtitle={`Collected this month`}
               styleIndex={1}
+              isLocked={!isPro}
+              lockedMessage="Upgrade to Pro"
+              onClick={() => !isPro && router.push("/insta/pricing")}
             />
             <StatCard
-              title="Messages"
+              title="DMs"
               icon={MessageSquare}
-              value={`${totalDMSent} / ${dashboardData?.replyLimit === 999999 ? "∞" : 2000}`}
-              subtitle="This month"
-              extra="Total: 0  (Deleted automations excluded)"
+              value={dmDisplay}
+              subtitle="Sent this month"
               styleIndex={2}
             />
             <StatCard
               title="Public Replies"
               icon={MessageCircle}
-              value={totalAccountReply}
+              value={dashboardData?.totalReplies ?? 0}
+              subtitle="Sent this month"
               styleIndex={3}
             />
             <StatCard
               title="Welcome Messages"
               icon={Send}
-              value={totalDMSent}
+              value={dashboardData?.totalDMSent ?? 0}
+              subtitle="Sent this month"
               styleIndex={4}
             />
             <StatCard
               title="Follow Requests"
               icon={UserCheck}
-              value={totalFollowChecks}
+              value={dashboardData?.totalFollowChecks ?? 0}
+              subtitle="Sent this month"
               styleIndex={0}
             />
           </div>
@@ -1164,7 +1029,7 @@ export default function Dashboard() {
                           className={`text-xs ${isDark ? "text-white/40" : "text-gray-400"}`}
                         >
                           {account.followersCount?.toLocaleString() || 0}{" "}
-                          followers
+                          followers • {account.leadsCount || 0} leads
                         </p>
                       </div>
                     </div>
@@ -1194,6 +1059,18 @@ export default function Dashboard() {
                       >
                         Manage
                       </Link>
+                      <button
+                        onClick={() => {
+                          setShowCancelAccountDialog(true);
+                        }}
+                        className={`text-xs px-3 py-1 rounded-full font-semibold transition-colors ${
+                          isDark
+                            ? "text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20"
+                            : "text-red-600 bg-red-50 border border-red-200 hover:bg-red-100"
+                        }`}
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
                 );
@@ -1248,138 +1125,24 @@ export default function Dashboard() {
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
         currentAccounts={userAccounts.length}
-        accountLimit={subscriptions.length === 0 ? 1 : 3}
+        accountLimit={isPro ? PRO_PLAN_ACCOUNT_LIMIT : FREE_PLAN_ACCOUNT_LIMIT}
         dashboardType="insta"
       />
 
-      {/* Confirm Cancellation Dialog */}
+      {/* Delete Account Confirmation Dialog */}
       <ConfirmDialog
-        open={showCancelConfirmDialog}
-        onOpenChange={setShowCancelConfirmDialog}
-        onConfirm={handleConfirmedCancellation}
-        title="Confirm Cancellation"
-        description="Are you sure you want to cancel your subscription? Your plan will revert to the Free plan which only allows 1 Instagram account."
-        confirmText="Continue"
-        isDestructive={true}
-        isLoading={isCancelling}
-      />
-
-      {/* Cancel Subscription Reason Dialog */}
-      {showCancelDialog && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div
-            className={`${
-              isDark
-                ? "bg-[#1A1A1E] backdrop-blur-lg border border-white/[0.08]"
-                : "bg-white backdrop-blur-lg border border-gray-200"
-            } rounded-3xl p-7 max-w-md w-full shadow-2xl`}
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h2
-                className={`text-lg font-black ${
-                  isDark ? "text-white" : "text-gray-900"
-                }`}
-              >
-                Cancel Subscription
-              </h2>
-              <button
-                onClick={() => setShowCancelDialog(false)}
-                disabled={isCancelling}
-                className={`p-1.5 rounded-full transition-colors ${
-                  isDark ? "hover:bg-white/[0.06]" : "hover:bg-gray-100"
-                }`}
-              >
-                <X className="h-4 w-4 text-gray-500" />
-              </button>
-            </div>
-            <div className="space-y-5">
-              <div>
-                <label
-                  className={`block text-sm font-semibold mb-2 ${
-                    isDark ? "text-white/80" : "text-gray-700"
-                  }`}
-                >
-                  Please tell us why you&apos;re leaving
-                </label>
-                <Textarea
-                  value={cancellationReason}
-                  onChange={(e) => setCancellationReason(e.target.value)}
-                  className={styles.input}
-                  placeholder="Cancellation reason…"
-                  disabled={isCancelling}
-                />
-              </div>
-              <div
-                className={`rounded-xl p-4 space-y-1.5 ${
-                  isDark ? "bg-white/[0.03]" : "bg-gray-50"
-                }`}
-              >
-                <p
-                  className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
-                >
-                  <strong>Immediate:</strong> Service ends now
-                </p>
-                <p
-                  className={`text-xs ${isDark ? "text-white/60" : "text-gray-600"}`}
-                >
-                  <strong>End-of-term:</strong> Service continues until billing
-                  period ends
-                </p>
-              </div>
-              <div className="flex gap-3">
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    setCancellationMode("Immediate");
-                    handleCancelSubscription();
-                  }}
-                  disabled={isCancelling}
-                  className={`flex-1 rounded-full ${
-                    isDark
-                      ? "bg-red-500/80 hover:bg-red-500 text-white"
-                      : "bg-red-500 hover:bg-red-600 text-white"
-                  }`}
-                >
-                  {isCancelling ? "Cancelling…" : "Cancel Now"}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setCancellationMode("End-of-term");
-                    handleCancelSubscription();
-                  }}
-                  disabled={isCancelling}
-                  className={`flex-1 rounded-full ${
-                    isDark
-                      ? "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
-                      : "bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white"
-                  }`}
-                >
-                  {isCancelling ? "Cancelling…" : "End of Term"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Account Selection Dialog for Cancellation */}
-      <AccountSelectionDialog
-        isOpen={showCancelAccountDialog}
-        onClose={() => setShowCancelAccountDialog(false)}
-        onConfirm={handleCancelAccountDeletion}
-        accounts={userAccounts}
-        newPlan={{
-          id: "Insta-Automation-Free",
-          name: "Free",
-          description: "",
-          monthlyPrice: 0,
-          yearlyPrice: 0,
-          account: 1,
-          limit: 500,
-          features: [],
-          popular: false,
+        open={showCancelAccountDialog}
+        onOpenChange={setShowCancelAccountDialog}
+        onConfirm={() => {
+          if (userAccounts.length > 0) {
+            handleDeleteAccount(userAccounts[0]?.instagramId);
+          }
         }}
-        isLoading={isProcessingCancellation}
+        title="Delete Account"
+        description="Are you sure you want to delete this Instagram account? All associated automations and data will be permanently removed."
+        confirmText="Delete"
+        isDestructive={true}
+        isLoading={isProcessingDeletion}
       />
     </div>
   );

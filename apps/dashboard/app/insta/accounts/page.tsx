@@ -26,7 +26,6 @@ import Link from "next/link";
 import Image, { StaticImageData } from "next/image";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { getUserById } from "@/lib/services/user-actions.api";
 import {
   refreshInstagramToken,
@@ -59,7 +58,6 @@ interface InstagramAccount {
   createdAt: string;
   rateLimitInfo?: {
     metaCallsUsed: number;
-    metaCallsRemaining: number;
     isMetaRateLimited: boolean;
   };
 }
@@ -70,7 +68,6 @@ const FREE_PLAN_ACCOUNT_LIMIT = 1;
 
 export default function AccountsPage() {
   const { userId, isLoaded } = useAuth();
-  const { resolvedTheme } = useTheme();
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
@@ -141,8 +138,6 @@ export default function AccountsPage() {
       createdAt: acc.createdAt || new Date().toISOString(),
       rateLimitInfo: {
         metaCallsUsed: acc.metaCallsThisHour || 0,
-        metaCallsRemaining:
-          (acc.metaCallsRemaining ?? 200) - (acc.metaCallsThisHour || 0),
         isMetaRateLimited: acc.isMetaRateLimited || false,
       },
     }));
@@ -181,6 +176,7 @@ export default function AccountsPage() {
       const transformed = transformAccounts(contextAccounts);
       setAccounts(transformed);
       setIsLoading(false);
+      console.log("Accounts loaded from:", transformed);
     } else if (
       !isAccLoading &&
       contextAccounts &&
@@ -208,6 +204,7 @@ export default function AccountsPage() {
         acc.instagramId === accountId ? { ...acc, [field]: value } : acc,
       ),
     );
+    console.log("Accounts loaded from context:", account);
 
     try {
       const settings: any = {};
@@ -291,10 +288,11 @@ export default function AccountsPage() {
       (sum, acc) => sum + acc.followersCount,
       0,
     );
-    const totalReplies = accounts.reduce(
-      (sum, acc) => sum + acc.accountReply,
-      0,
-    );
+    const totalReplies =
+      accounts.reduce(
+        (sum, acc) => sum + acc?.rateLimitInfo?.metaCallsUsed!,
+        0,
+      ) || 0;
     const totalPost = accounts.reduce((sum, acc) => sum + acc.mediaCount, 0);
 
     const totalDMs = accounts.reduce((sum, acc) => sum + acc.accountDMSent, 0);
@@ -480,7 +478,7 @@ export default function AccountsPage() {
           </div>
           <div className={`${styles.card} rounded-xl p-4`}>
             <div className="flex items-center justify-between mb-2">
-              <p className={pageStyles.statLabel}>Auto Replies</p>
+              <p className={pageStyles.statLabel}>Total Calls/Hrs</p>
               <Zap
                 className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
               />
@@ -489,7 +487,7 @@ export default function AccountsPage() {
               className={`text-2xl font-bold ${isDark ? "text-purple-400" : "text-purple-600"}`}
             >
               {stats.totalReplies} /
-              {userInfo?.accountLimit > 1 ? "unlimited" : replyLimit}
+              {userInfo?.accountLimit > 1 ? "∞" : replyLimit}
             </p>
           </div>
           <div className={`${styles.card} rounded-xl p-4`}>
@@ -517,6 +515,7 @@ export default function AccountsPage() {
                 isDark={isDark}
                 styles={styles}
                 pageStyles={pageStyles}
+                accountLimit={accountLimit}
                 isUpdating={isUpdatingAccount === account.instagramId}
                 hasError={hasError.includes(account.instagramId)}
                 onToggleAccount={handleToggleAccount}
@@ -553,6 +552,7 @@ interface AccountCardProps {
   styles: ReturnType<typeof useThemeStyles>["styles"];
   pageStyles: any;
   isUpdating: boolean;
+  accountLimit: number;
   hasError: boolean;
   onToggleAccount: (accountId: string, field: string, value: boolean) => void;
   onRefreshToken: (instagramId: string) => void;
@@ -566,6 +566,7 @@ const AccountCard: React.FC<AccountCardProps> = ({
   styles,
   pageStyles,
   isUpdating,
+  accountLimit,
   hasError,
   onToggleAccount,
   onRefreshToken,
@@ -656,7 +657,9 @@ const AccountCard: React.FC<AccountCardProps> = ({
           {account.rateLimitInfo && (
             <div className={pageStyles.accountStatItem}>
               <p className={pageStyles.accountStatValue}>
-                {account.rateLimitInfo.metaCallsRemaining}
+                {accountLimit > 1
+                  ? "∞"
+                  : 200 - (account.rateLimitInfo?.metaCallsUsed || 0)}
               </p>
               <p className={pageStyles.accountStatLabel}>API Calls Left</p>
             </div>

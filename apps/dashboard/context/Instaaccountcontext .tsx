@@ -39,8 +39,6 @@ export interface InstaAccount {
   metaCallsThisHour: number;
   createdAt: string;
   updatedAt: string;
-  // Rate limit info merged in
-  metaCallsRemaining?: number;
 }
 
 interface InstaAccountContextValue {
@@ -125,7 +123,6 @@ function mapAccount(item: any): InstaAccount {
     tokenExpiresAt: ai.tokenExpiresAt,
     isMetaRateLimited: rl.isMetaRateLimited ?? ai.isMetaRateLimited ?? false,
     metaCallsThisHour: ai.metaCallsThisHour ?? 0,
-    metaCallsRemaining: rl.metaCallsRemaining,
     createdAt: ai.createdAt || new Date().toISOString(),
     updatedAt: ai.updatedAt || new Date().toISOString(),
   };
@@ -164,7 +161,7 @@ export function InstaAccountProvider({
       } else if (Array.isArray(response)) {
         raw = response;
       }
-
+      console.log("InstaAccountContext: fetched accounts", raw);
       // Map and sort oldest-first so default is the oldest account
       const mapped: InstaAccount[] = raw
         .map(mapAccount)

@@ -12,6 +12,7 @@ import {
   Crown,
   Check,
   Contact,
+  Lock,
 } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@clerk/nextjs";
@@ -22,13 +23,19 @@ import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const BOTTOM_NAV_ITEMS = [
+// Base nav items - Contacts will be conditionally added
+const BASE_NAV_ITEMS = [
   { label: "Home", href: "/insta", icon: LayoutDashboard },
   { label: "Auto", href: "/insta/automations", icon: MessageSquare },
   { label: "Accounts", href: "/insta/accounts", icon: Users },
-  { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings },
 ] as const;
+
+const CONTACTS_ITEM = {
+  label: "Contacts",
+  href: "/insta/lead",
+  icon: Contact,
+} as const;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -64,6 +71,18 @@ export default function InstaBottomNavbar() {
     };
     fetch();
   }, [userId, apiRequest]);
+
+  const BOTTOM_NAV_ITEMS = useMemo(() => {
+    if (accountLimit > 1) {
+      return [
+        ...BASE_NAV_ITEMS.slice(0, 3),
+        CONTACTS_ITEM,
+        ...BASE_NAV_ITEMS.slice(3),
+      ];
+    }
+    // Free user - no Contacts
+    return BASE_NAV_ITEMS;
+  }, [accountLimit]);
 
   // ── Active check ──────────────────────────────────────────────────────────
 
@@ -171,6 +190,12 @@ export default function InstaBottomNavbar() {
       safeArea: isDark
         ? "h-safe-area-inset-bottom bg-[#0a0a16]"
         : "h-safe-area-inset-bottom bg-white",
+      // New styles for locked contact item
+      lockedNavItem: `flex flex-col items-center justify-center gap-1 flex-1 py-2 relative group opacity-50`,
+      lockedNavIcon: isDark ? "h-5 w-5 text-white/40" : "h-5 w-5 text-gray-400",
+      lockedNavLabel: isDark
+        ? "text-[10px] font-semibold text-white/40"
+        : "text-[10px] font-semibold text-gray-400",
     }),
     [isDark, styles],
   );
@@ -206,7 +231,8 @@ export default function InstaBottomNavbar() {
                   @{selectedAccount.username}
                 </p>
                 <p className={localStyles.accountHandle}>
-                  {selectedAccount.followersCount.toLocaleString()} followers
+                  {selectedAccount.followersCount?.toLocaleString() || 0}{" "}
+                  followers
                 </p>
               </div>
               {isSubscribed && (
@@ -343,22 +369,48 @@ export default function InstaBottomNavbar() {
       {/* Bottom nav bar */}
       <nav className={`${localStyles.nav} backdrop-blur-lg`}>
         <div className="flex items-center justify-around h-16 md:px-2">
-          {/* Regular nav links */}
+          {/* Regular nav links - conditionally rendered based on account limit */}
           {BOTTOM_NAV_ITEMS.map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
+
+            // Check if this is a locked item (Contacts for free users)
+            const isLocked = item.label === "Contacts" && accountLimit === 1;
+
             return (
               <Link
                 key={item.href}
-                href={item.href}
-                className={localStyles.navItem}
+                href={isLocked ? "/insta/pricing" : item.href}
+                className={
+                  isLocked ? localStyles.lockedNavItem : localStyles.navItem
+                }
+                onClick={(e) => {
+                  if (isLocked) {
+                    e.preventDefault();
+                    router.push("/insta/pricing");
+                  }
+                }}
               >
-                <span className={localStyles.navItemBg(active)} />
+                {!isLocked && (
+                  <span className={localStyles.navItemBg(active)} />
+                )}
                 <span className="relative">
-                  <Icon className={localStyles.navIcon(active)} />
-                  {active && <span className={localStyles.navActiveDot} />}
+                  {isLocked ? (
+                    <Lock className={localStyles.lockedNavIcon} />
+                  ) : (
+                    <Icon className={localStyles.navIcon(active)} />
+                  )}
+                  {active && !isLocked && (
+                    <span className={localStyles.navActiveDot} />
+                  )}
                 </span>
-                <span className={localStyles.navLabel(active)}>
+                <span
+                  className={
+                    isLocked
+                      ? localStyles.lockedNavLabel
+                      : localStyles.navLabel(active)
+                  }
+                >
                   {item.label}
                 </span>
               </Link>

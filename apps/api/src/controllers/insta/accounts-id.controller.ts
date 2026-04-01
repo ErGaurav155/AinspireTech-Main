@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import ReplyLog from "@/models/insta/ReplyLog.model";
+import LeadCollection from "@/models/insta/LeadCollection.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow } from "@/services/rate-limit.service";
@@ -110,7 +111,6 @@ export const getAllInstaAccountsInfoController = async (
     // Find all Instagram accounts for this user
     const accounts = await InstagramAccount.find({
       userId: userId,
-      // isActive: true, // Only fetch active accounts
     }).sort({ createdAt: -1 });
 
     if (!accounts || accounts.length === 0) {
@@ -119,6 +119,15 @@ export const getAllInstaAccountsInfoController = async (
         data: {
           accounts: [],
           totalAccounts: 0,
+          summary: {
+            totalAccounts: 0,
+            activeAccounts: 0,
+            totalFollowers: 0,
+            totalMedia: 0,
+            totalReplies: 0,
+            totalDMsSent: 0,
+            totalFollowChecks: 0,
+          },
         },
         timestamp: new Date().toISOString(),
       });
@@ -143,10 +152,57 @@ export const getAllInstaAccountsInfoController = async (
     const accountsPromises = accounts.map(async (account) => {
       try {
         if (!account.accessToken) {
+          // Return account with DB data even if no token
+          const templatesCount = await ReplyTemplate.countDocuments({
+            accountId: account.instagramId,
+          });
+
+          const leadsCount = await LeadCollection.countDocuments({
+            accountId: account.instagramId,
+          });
+
           return {
             success: false,
             error: "Account not properly connected",
-            timestamp: new Date().toISOString(),
+            instagramInfo: {
+              id: account.instagramId,
+              username: account.username,
+              profile_picture_url: account.profilePicture,
+            },
+            accountInfo: {
+              _id: account._id,
+              instagramId: account.instagramId,
+              userId: account.userId,
+              username: account.username,
+              profilePicture: account.profilePicture,
+              isActive: account.isActive,
+              autoReplyEnabled: account.autoReplyEnabled,
+              autoDMEnabled: account.autoDMEnabled,
+              followCheckEnabled: account.followCheckEnabled,
+              storyAutomationsEnabled: account.storyAutomationsEnabled,
+              trackDmUrlEnabled: account.trackDmUrlEnabled,
+              requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+              metaCallsThisHour: account.metaCallsThisHour,
+              isMetaRateLimited: account.isMetaRateLimited,
+              tokenExpiresAt: account.tokenExpiresAt,
+              createdAt: account.createdAt,
+              updatedAt: account.updatedAt,
+              lastActivity: account.lastActivity,
+              // Statistics
+              accountReply: account.accountReply || 0,
+              accountDMSent: account.accountDMSent || 0,
+              accountFollowCheck: account.accountFollowCheck || 0,
+              followersCount: account.followersCount || 0,
+              followingCount: account.followingCount || 0,
+              mediaCount: account.mediaCount || 0,
+              templatesCount,
+              leadsCount,
+            },
+            rateLimitInfo: {
+              metaCallsUsed: account.metaCallsThisHour,
+              isMetaRateLimited: account.isMetaRateLimited,
+              metaRateLimitResetAt: account.metaRateLimitResetAt,
+            },
           };
         }
 
@@ -172,13 +228,60 @@ export const getAllInstaAccountsInfoController = async (
             );
           }
 
+          // Get counts for this account
+          const templatesCount = await ReplyTemplate.countDocuments({
+            accountId: account.instagramId,
+          });
+
+          const leadsCount = await LeadCollection.countDocuments({
+            accountId: account.instagramId,
+          });
+
           // Return account with DB data as fallback
           return {
             success: false,
             error:
               errorData.error?.message ||
               `Instagram API error: ${response.statusText}`,
-            timestamp: new Date().toISOString(),
+            instagramInfo: {
+              id: account.instagramId,
+              username: account.username,
+              profile_picture_url: account.profilePicture,
+            },
+            accountInfo: {
+              _id: account._id,
+              instagramId: account.instagramId,
+              userId: account.userId,
+              username: account.username,
+              profilePicture: account.profilePicture,
+              isActive: account.isActive,
+              autoReplyEnabled: account.autoReplyEnabled,
+              autoDMEnabled: account.autoDMEnabled,
+              followCheckEnabled: account.followCheckEnabled,
+              storyAutomationsEnabled: account.storyAutomationsEnabled,
+              trackDmUrlEnabled: account.trackDmUrlEnabled,
+              requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+              metaCallsThisHour: account.metaCallsThisHour,
+              isMetaRateLimited: account.isMetaRateLimited,
+              tokenExpiresAt: account.tokenExpiresAt,
+              createdAt: account.createdAt,
+              updatedAt: account.updatedAt,
+              lastActivity: account.lastActivity,
+              // Statistics
+              accountReply: account.accountReply || 0,
+              accountDMSent: account.accountDMSent || 0,
+              accountFollowCheck: account.accountFollowCheck || 0,
+              followersCount: account.followersCount || 0,
+              followingCount: account.followingCount || 0,
+              mediaCount: account.mediaCount || 0,
+              templatesCount,
+              leadsCount,
+            },
+            rateLimitInfo: {
+              metaCallsUsed: account.metaCallsThisHour,
+              isMetaRateLimited: account.isMetaRateLimited,
+              metaRateLimitResetAt: account.metaRateLimitResetAt,
+            },
           };
         }
 
@@ -215,9 +318,14 @@ export const getAllInstaAccountsInfoController = async (
           { instagramId: account.instagramId },
           updateData,
         );
+
+        // Get counts for this account
         const templatesCount = await ReplyTemplate.countDocuments({
           accountId: account.instagramId,
-          isActive: true,
+        });
+
+        const leadsCount = await LeadCollection.countDocuments({
+          accountId: account.instagramId,
         });
 
         // Return combined data for this account
@@ -250,14 +358,19 @@ export const getAllInstaAccountsInfoController = async (
             tokenExpiresAt: account.tokenExpiresAt,
             createdAt: account.createdAt,
             updatedAt: account.updatedAt,
+            lastActivity: account.lastActivity,
+            // Statistics
+            accountReply: account.accountReply || 0,
+            accountDMSent: account.accountDMSent || 0,
+            accountFollowCheck: account.accountFollowCheck || 0,
             followersCount: data.followers_count || account.followersCount || 0,
             followingCount: data.follows_count || account.followingCount || 0,
             mediaCount: data.media_count || account.mediaCount || 0,
             templatesCount,
+            leadsCount,
           },
           rateLimitInfo: {
             metaCallsUsed: account.metaCallsThisHour,
-            metaCallsRemaining: Math.max(0, 200 - account.metaCallsThisHour),
             isMetaRateLimited: false,
             metaRateLimitResetAt: account.metaRateLimitResetAt,
           },
@@ -268,11 +381,58 @@ export const getAllInstaAccountsInfoController = async (
           error,
         );
 
+        // Get counts for this account
+        const templatesCount = await ReplyTemplate.countDocuments({
+          accountId: account.instagramId,
+        });
+
+        const leadsCount = await LeadCollection.countDocuments({
+          accountId: account.instagramId,
+        });
+
         // Return account with DB data as fallback
         return {
           success: false,
           error: error.message || "Failed to fetch Instagram data",
-          timestamp: new Date().toISOString(),
+          instagramInfo: {
+            id: account.instagramId,
+            username: account.username,
+            profile_picture_url: account.profilePicture,
+          },
+          accountInfo: {
+            _id: account._id,
+            instagramId: account.instagramId,
+            userId: account.userId,
+            username: account.username,
+            profilePicture: account.profilePicture,
+            isActive: account.isActive,
+            autoReplyEnabled: account.autoReplyEnabled,
+            autoDMEnabled: account.autoDMEnabled,
+            followCheckEnabled: account.followCheckEnabled,
+            storyAutomationsEnabled: account.storyAutomationsEnabled,
+            trackDmUrlEnabled: account.trackDmUrlEnabled,
+            requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            metaCallsThisHour: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            tokenExpiresAt: account.tokenExpiresAt,
+            createdAt: account.createdAt,
+            updatedAt: account.updatedAt,
+            lastActivity: account.lastActivity,
+            // Statistics
+            accountReply: account.accountReply || 0,
+            accountDMSent: account.accountDMSent || 0,
+            accountFollowCheck: account.accountFollowCheck || 0,
+            followersCount: account.followersCount || 0,
+            followingCount: account.followingCount || 0,
+            mediaCount: account.mediaCount || 0,
+            templatesCount,
+            leadsCount,
+          },
+          rateLimitInfo: {
+            metaCallsUsed: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            metaRateLimitResetAt: account.metaRateLimitResetAt,
+          },
         };
       }
     });
@@ -290,6 +450,26 @@ export const getAllInstaAccountsInfoController = async (
       ),
       totalMedia: accountsData.reduce(
         (sum, acc) => sum + (acc.accountInfo?.mediaCount || 0),
+        0,
+      ),
+      totalReplies: accountsData.reduce(
+        (sum, acc) => sum + (acc.accountInfo?.accountReply || 0),
+        0,
+      ),
+      totalDMsSent: accountsData.reduce(
+        (sum, acc) => sum + (acc.accountInfo?.accountDMSent || 0),
+        0,
+      ),
+      totalFollowChecks: accountsData.reduce(
+        (sum, acc) => sum + (acc.accountInfo?.accountFollowCheck || 0),
+        0,
+      ),
+      totalTemplates: accountsData.reduce(
+        (sum, acc) => sum + (acc.accountInfo?.templatesCount || 0),
+        0,
+      ),
+      totalLeads: accountsData.reduce(
+        (sum, acc) => sum + (acc.accountInfo?.leadsCount || 0),
         0,
       ),
       accountsWithErrors: accountsData.filter((acc) => !acc.success).length,
@@ -354,19 +534,83 @@ export const getInstaAccountByIdController = async (
         timestamp: new Date().toISOString(),
       });
     }
+    // Get counts for this account
+    const templatesCount = await ReplyTemplate.countDocuments({
+      accountId: accountId,
+    });
+
+    const leadsCount = await LeadCollection.countDocuments({
+      accountId: accountId,
+    });
+
+    const logsCount = await ReplyLog.countDocuments({
+      accountId: accountId,
+    });
+
+    // Get recent activity (last 7 days)
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+    const recentLogs = await ReplyLog.find({
+      accountId: accountId,
+      createdAt: { $gte: sevenDaysAgo },
+    })
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     if (!account.accessToken) {
       return res.status(400).json({
         success: false,
         error: "Instagram account not properly connected",
+        data: {
+          accountInfo: {
+            _id: account._id,
+            instagramId: account.instagramId,
+            userId: account.userId,
+            username: account.username,
+            profilePicture: account.profilePicture,
+            isActive: account.isActive,
+            autoReplyEnabled: account.autoReplyEnabled,
+            autoDMEnabled: account.autoDMEnabled,
+            followCheckEnabled: account.followCheckEnabled,
+            storyAutomationsEnabled: account.storyAutomationsEnabled,
+            trackDmUrlEnabled: account.trackDmUrlEnabled,
+            requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            // Statistics
+            accountReply: account.accountReply || 0,
+            accountDMSent: account.accountDMSent || 0,
+            accountFollowCheck: account.accountFollowCheck || 0,
+            followersCount: account.followersCount || 0,
+            followingCount: account.followingCount || 0,
+            mediaCount: account.mediaCount || 0,
+            metaCallsThisHour: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            tokenExpiresAt: account.tokenExpiresAt,
+            createdAt: account.createdAt,
+            updatedAt: account.updatedAt,
+            lastActivity: account.lastActivity,
+            templatesCount,
+            leadsCount,
+            logsCount,
+            recentActivity: recentLogs.map((log) => ({
+              type: log.automationType,
+              success: log.success,
+              commenterUsername: log.commenterUsername,
+              createdAt: log.createdAt,
+              replyType: log.replyType,
+            })),
+          },
+          rateLimitInfo: {
+            metaCallsUsed: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            metaRateLimitResetAt: account.metaRateLimitResetAt,
+          },
+        },
         timestamp: new Date().toISOString(),
       });
     }
 
     // NO rate limiting for dashboard operations
-    // This is a user-initiated request, not an incoming webhook
-    // Just fetch the data directly
-
     const fieldsArray = [
       "id",
       "username",
@@ -378,7 +622,7 @@ export const getInstaAccountByIdController = async (
     ];
 
     const fieldsStr = fieldsArray.join(",");
-    const url = `https://graph.instagram.com/v23.0/me?fields=${fieldsStr}&access_token=${account.accessToken}`;
+    const url = `https://graph.instagram.com/v23.0/${account.instagramId}?fields=${fieldsStr}&access_token=${account.accessToken}`;
 
     const response = await fetch(url);
 
@@ -402,6 +646,50 @@ export const getInstaAccountByIdController = async (
         error:
           errorData.error?.message ||
           `Instagram API error: ${response.statusText}`,
+        data: {
+          accountInfo: {
+            _id: account._id,
+            instagramId: account.instagramId,
+            userId: account.userId,
+            username: account.username,
+            profilePicture: account.profilePicture,
+            isActive: account.isActive,
+            autoReplyEnabled: account.autoReplyEnabled,
+            autoDMEnabled: account.autoDMEnabled,
+            followCheckEnabled: account.followCheckEnabled,
+            storyAutomationsEnabled: account.storyAutomationsEnabled,
+            trackDmUrlEnabled: account.trackDmUrlEnabled,
+            requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            // Statistics
+            accountReply: account.accountReply || 0,
+            accountDMSent: account.accountDMSent || 0,
+            accountFollowCheck: account.accountFollowCheck || 0,
+            followersCount: account.followersCount || 0,
+            followingCount: account.followingCount || 0,
+            mediaCount: account.mediaCount || 0,
+            metaCallsThisHour: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            tokenExpiresAt: account.tokenExpiresAt,
+            createdAt: account.createdAt,
+            updatedAt: account.updatedAt,
+            lastActivity: account.lastActivity,
+            templatesCount,
+            leadsCount,
+            logsCount,
+            recentActivity: recentLogs.map((log) => ({
+              type: log.automationType,
+              success: log.success,
+              commenterUsername: log.commenterUsername,
+              createdAt: log.createdAt,
+              replyType: log.replyType,
+            })),
+          },
+          rateLimitInfo: {
+            metaCallsUsed: account.metaCallsThisHour,
+            isMetaRateLimited: account.isMetaRateLimited,
+            metaRateLimitResetAt: account.metaRateLimitResetAt,
+          },
+        },
         timestamp: new Date().toISOString(),
       });
     }
@@ -435,12 +723,8 @@ export const getInstaAccountByIdController = async (
     }
 
     await InstagramAccount.updateOne({ instagramId: accountId }, updateData);
-    // Get templates count
-    const templatesCount = await ReplyTemplate.countDocuments({
-      accountId: accountId,
-      isActive: true,
-    });
-    // Format response with account info
+
+    // Format response with complete account info
     const formattedData = {
       instagramInfo: {
         id: data.id,
@@ -455,30 +739,45 @@ export const getInstaAccountByIdController = async (
         _id: account._id,
         instagramId: account.instagramId,
         userId: account.userId,
-        username: account.username,
-        profilePicture: account.profilePicture,
-        followersCount: account.followersCount || 0,
-        followingCount: account.followingCount || 0,
-        mediaCount: account.mediaCount || 0,
-        accountReply: account.accountReply || 0, // Add this
-        accountDMSent: account.accountDMSent || 0, // Add this
-        accountFollowCheck: account.accountFollowCheck || 0, // Add this
-        lastActivity: account.lastActivity || new Date().toISOString(), // Add this
+        username: data.username || account.username,
+        profilePicture: data.profile_picture_url || account.profilePicture,
         isActive: account.isActive,
         autoReplyEnabled: account.autoReplyEnabled,
         autoDMEnabled: account.autoDMEnabled,
         followCheckEnabled: account.followCheckEnabled,
+        storyAutomationsEnabled: account.storyAutomationsEnabled,
+        trackDmUrlEnabled: account.trackDmUrlEnabled,
         requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+        // Statistics
+        accountReply: account.accountReply || 0,
+        accountDMSent: account.accountDMSent || 0,
+        accountFollowCheck: account.accountFollowCheck || 0,
+        followersCount: data.followers_count || account.followersCount || 0,
+        followingCount: data.follows_count || account.followingCount || 0,
+        mediaCount: data.media_count || account.mediaCount || 0,
         metaCallsThisHour: account.metaCallsThisHour,
-        isMetaRateLimited: account.isMetaRateLimited,
+        isMetaRateLimited: false,
         tokenExpiresAt: account.tokenExpiresAt,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
+        lastActivity: account.lastActivity,
         templatesCount,
+        leadsCount,
+        logsCount,
+        recentActivity: recentLogs.map((log) => ({
+          id: log._id,
+          type: log.automationType,
+          success: log.success,
+          commenterUsername: log.commenterUsername,
+          commentText: log.commentText,
+          replyText: log.replyText,
+          replyType: log.replyType,
+          dmFlowStage: log.dmFlowStage,
+          createdAt: log.createdAt,
+        })),
       },
       rateLimitInfo: {
         metaCallsUsed: account.metaCallsThisHour,
-        metaCallsRemaining: Math.max(0, 200 - account.metaCallsThisHour),
         isMetaRateLimited: account.isMetaRateLimited,
         metaRateLimitResetAt: account.metaRateLimitResetAt,
       },
@@ -531,8 +830,8 @@ export const updateInstaAccountController = async (
       autoDMEnabled,
       followCheckEnabled,
       requireFollowForFreeUsers,
-      storyAutomationsEnabled, // New field
-      trackDmUrlEnabled, // New field
+      storyAutomationsEnabled,
+      trackDmUrlEnabled,
     } = req.body;
 
     await connectToDatabase();
@@ -551,8 +850,6 @@ export const updateInstaAccountController = async (
       updateFields.followCheckEnabled = followCheckEnabled;
     if (requireFollowForFreeUsers !== undefined)
       updateFields.requireFollowForFreeUsers = requireFollowForFreeUsers;
-
-    // New settings fields
     if (storyAutomationsEnabled !== undefined)
       updateFields.storyAutomationsEnabled = storyAutomationsEnabled;
     if (trackDmUrlEnabled !== undefined)
@@ -572,11 +869,41 @@ export const updateInstaAccountController = async (
       });
     }
 
+    // Get counts after update
+    const templatesCount = await ReplyTemplate.countDocuments({
+      accountId: accountId,
+    });
+
+    const leadsCount = await LeadCollection.countDocuments({
+      accountId: accountId,
+    });
+
     return res.status(200).json({
       success: true,
       data: {
-        success: true,
-        account: account,
+        account: {
+          _id: account._id,
+          instagramId: account.instagramId,
+          username: account.username,
+          profilePicture: account.profilePicture,
+          isActive: account.isActive,
+          autoReplyEnabled: account.autoReplyEnabled,
+          autoDMEnabled: account.autoDMEnabled,
+          followCheckEnabled: account.followCheckEnabled,
+          storyAutomationsEnabled: account.storyAutomationsEnabled,
+          trackDmUrlEnabled: account.trackDmUrlEnabled,
+          requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+          accountReply: account.accountReply || 0,
+          accountDMSent: account.accountDMSent || 0,
+          accountFollowCheck: account.accountFollowCheck || 0,
+          followersCount: account.followersCount || 0,
+          followingCount: account.followingCount || 0,
+          mediaCount: account.mediaCount || 0,
+          templatesCount,
+          leadsCount,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt,
+        },
         message: "Account updated successfully",
       },
       timestamp: new Date().toISOString(),
@@ -642,6 +969,17 @@ export const deleteInstaAccountController = async (
       });
     }
 
+    // Get counts before deleting related data
+    const templatesCount = await ReplyTemplate.countDocuments({
+      accountId: accountId,
+    });
+    const logsCount = await ReplyLog.countDocuments({
+      accountId: accountId,
+    });
+    const leadsCount = await LeadCollection.countDocuments({
+      accountId: accountId,
+    });
+
     // Delete related templates
     await ReplyTemplate.deleteMany({
       accountId: accountId,
@@ -649,6 +987,11 @@ export const deleteInstaAccountController = async (
 
     // Delete related reply logs
     await ReplyLog.deleteMany({
+      accountId: accountId,
+    });
+
+    // Delete related leads
+    await LeadCollection.deleteMany({
       accountId: accountId,
     });
 
@@ -662,8 +1005,16 @@ export const deleteInstaAccountController = async (
           _id: deletedAccount._id,
           instagramId: deletedAccount.instagramId,
           username: deletedAccount.username,
+          profilePicture: deletedAccount.profilePicture,
+          followersCount: deletedAccount.followersCount || 0,
+          accountReply: deletedAccount.accountReply || 0,
+          accountDMSent: deletedAccount.accountDMSent || 0,
+          accountFollowCheck: deletedAccount.accountFollowCheck || 0,
+          templatesDeleted: templatesCount,
+          logsDeleted: logsCount,
+          leadsDeleted: leadsCount,
         },
-        message: "Account deleted successfully",
+        message: "Account and all related data deleted successfully",
       },
       timestamp: new Date().toISOString(),
     });

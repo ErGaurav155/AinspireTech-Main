@@ -22,6 +22,7 @@ import {
   X,
   Plus,
   Contact,
+  Lock,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -41,7 +42,7 @@ const NAV_ITEMS = [
     isNew: false,
   },
   { label: "Accounts", href: "/insta/accounts", icon: Users, isNew: false },
-  { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: true },
+  { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: false },
   { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings, isNew: false },
 ] as const;
@@ -374,7 +375,11 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             return (
               <Link
                 key={item.href}
-                href={item.href}
+                href={
+                  accountLimit === 1 && item.label === "Contacts"
+                    ? "/insta/pricing"
+                    : item.href
+                }
                 onClick={() => {
                   if (window.innerWidth < 768) onToggle();
                 }}
@@ -386,6 +391,11 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 </div>
                 {item.isNew && (
                   <Badge className={localStyles.newBadge}>NEW</Badge>
+                )}
+                {accountLimit === 1 && item.label === "Contacts" && (
+                  <Badge className="p-2 text-red-400/40 bg-red-400/10  hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                    <Lock className="h-4 w-4" />
+                  </Badge>
                 )}
                 {active && <div className="w-1 h-6 rounded-full bg-pink-500" />}
               </Link>

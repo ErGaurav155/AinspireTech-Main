@@ -7,7 +7,6 @@ import Link from "next/link";
 import Image, { StaticImageData } from "next/image";
 import Default from "@/public/assets/img/default-img.jpg";
 
-import { useTheme } from "next-themes";
 import {
   ArrowLeft,
   Instagram,
@@ -27,7 +26,14 @@ import {
   Shield,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
+import {
+  Button,
+  Orbs,
+  Switch,
+  toast,
+  useThemeStyles,
+  Spinner,
+} from "@rocketreplai/ui";
 
 import {
   updateAccountSettings,
@@ -36,6 +42,7 @@ import {
 } from "@/lib/services/insta-actions.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { getUserById } from "@/lib/services/user-actions.api";
 
 // Types
 interface AccountDetails {
@@ -58,7 +65,6 @@ interface AccountDetails {
   tokenExpiresAt?: string;
   isMetaRateLimited: boolean;
   metaCallsThisHour: number;
-  metaCallsRemaining?: number;
   metaRateLimitResetAt?: string;
   templatesCount: number;
   createdAt: string;
@@ -72,7 +78,6 @@ export default function AccountDetailsPage() {
   const accountId = params.accountId as string;
   const { userId, isLoaded } = useAuth();
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
@@ -93,6 +98,7 @@ export default function AccountDetailsPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [isRefreshingToken, setIsRefreshingToken] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
   // Page-specific styles (not in central theme)
   const pageStyles = useMemo(() => {
@@ -198,11 +204,29 @@ export default function AccountDetailsPage() {
     }
     return null;
   }, [accounts, accountId]);
+  // Fetch user subscriptions
+  const fetchSubscriptions = useCallback(async (): Promise<void> => {
+    if (!userId) return;
 
+    try {
+      const userData = await getUserById(apiRequest, userId);
+      if (userData) {
+        setUserInfo(userData);
+      }
+    } catch (error) {
+      console.error("Failed to fetch subscriptions:", error);
+    }
+  }, [userId, apiRequest]);
   // Initialize account from context
   useEffect(() => {
     if (!isLoaded || isAccLoading) return;
+    const initializeData = async () => {
+      setIsLoading(true);
+      await fetchSubscriptions();
+      setIsLoading(false);
+    };
 
+    initializeData();
     const contextAccount = findAccountFromContext();
 
     if (contextAccount) {
@@ -232,7 +256,6 @@ export default function AccountDetailsPage() {
         accountDMSent: contextAccount.accountDMSent || 0,
         accountFollowCheck: contextAccount.accountFollowCheck || 0,
         lastActivity: contextAccount.lastActivity || new Date().toISOString(),
-        metaCallsRemaining: contextAccount.metaCallsRemaining,
       });
 
       setSettings({
@@ -362,15 +385,9 @@ export default function AccountDetailsPage() {
     new Date(account.tokenExpiresAt) <
       new Date(Date.now() + 24 * 60 * 60 * 1000);
 
+  // Loading state
   if (!isLoaded || isLoading || isAccLoading) {
-    return (
-      <div className={pageStyles.loadingContainer}>
-        <div className="flex flex-col items-center gap-3">
-          <div className={pageStyles.loadingSpinner} />
-          <p className={pageStyles.loadingText}>Loading account details...</p>
-        </div>
-      </div>
-    );
+    return <Spinner label="Loading accounts..." />;
   }
 
   if (!account) {
@@ -469,13 +486,19 @@ export default function AccountDetailsPage() {
                   : pageStyles.statValue
               }
             >
-              {account.metaCallsThisHour} / 200
+              {account.metaCallsThisHour} /
+              {userInfo?.accountLimit > 1 ? "∞" : 200}
             </p>
-            {account.metaCallsRemaining !== undefined && (
-              <p className={pageStyles.statLabel}>
-                {account.metaCallsRemaining} remaining
+            {
+              <p className={`${pageStyles.statLabel} flex items-center gap-1`}>
+                <span className="flex items-center mt-1">
+                  {userInfo?.accountLimit > 1
+                    ? "∞"
+                    : 200 - account.metaCallsThisHour}
+                </span>
+                remaining
               </p>
-            )}
+            }
           </div>
         </div>
 
