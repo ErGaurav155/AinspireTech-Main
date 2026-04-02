@@ -447,7 +447,10 @@ async function startNewDMConversation(
     console.log(
       `✅ New DM conversation started for ${senderId} with template "${matchingTemplate.name}" in stage "${initialStage}"`,
     );
-
+    await InstaReplyTemplate.findByIdAndUpdate(matchingTemplate._id, {
+      $inc: { usageCount: 1 },
+      $set: { lastUsed: new Date() },
+    });
     return {
       success: true,
       message: "Welcome message sent",

@@ -323,23 +323,14 @@ export const exportLeadsToCSV = async (
   if (params.search) searchParams.set("search", params.search);
 
   // For export, we need to get the raw response as blob
-  const token = await (apiRequest as any).token?.();
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL}/api/insta/leads/export?${searchParams.toString()}`,
+  const response = apiRequest(
+    `/insta/leads/export?${searchParams.toString()}`,
     {
       method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
     },
   );
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Export failed");
-  }
-
-  const csv = await response.text();
+  const csv = await response.then((res) => res.csv);
   const filename = `leads_${new Date().toISOString().split("T")[0]}.csv`;
 
   return {

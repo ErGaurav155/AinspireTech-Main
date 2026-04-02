@@ -182,7 +182,11 @@ export const exportLeadsController = async (req: Request, res: Response) => {
       `attachment; filename=leads_${new Date().toISOString().split("T")[0]}.csv`,
     );
 
-    return res.status(200).send(csvContent);
+    return res.status(200).json({
+      success: true,
+      data: { csv: csvContent },
+      timestamp: new Date().toISOString(),
+    });
   } catch (error: any) {
     console.error("Error exporting leads:", error);
     return res.status(500).json({
