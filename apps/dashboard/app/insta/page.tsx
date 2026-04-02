@@ -884,13 +884,7 @@ export default function Dashboard() {
               subtitle="Sent this month"
               styleIndex={3}
             />
-            <StatCard
-              title="Welcome Messages"
-              icon={Send}
-              value={dashboardData?.totalDMSent ?? 0}
-              subtitle="Sent this month"
-              styleIndex={4}
-            />
+
             <StatCard
               title="Follow Requests"
               icon={UserCheck}
@@ -914,16 +908,6 @@ export default function Dashboard() {
                     Recent Activity
                   </h3>
                 </div>
-                <Link
-                  href="/insta/analytics"
-                  className={`text-xs ${
-                    isDark
-                      ? "bg-pink-500/10 border border-pink-500/20 text-pink-400"
-                      : "bg-pink-100 text-pink-600 border-pink-200"
-                  } font-semibold flex items-center gap-1 hover:opacity-80 rounded-md px-3 py-1`}
-                >
-                  View All <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
               </div>
               <div className={`divide-y ${styles.divider}`}>
                 {(dashboardData.recentActivity as RecentActivity[]).map(
@@ -960,7 +944,7 @@ export default function Dashboard() {
         {userAccounts.length > 0 && (
           <div className={`rounded-2xl border ${styles.card}`}>
             <div
-              className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
+              className={`p-5 border-b ${styles.divider} flex flex-wrap items-center justify-between gap-1`}
             >
               <div className="flex items-center gap-2">
                 <Instagram className={`h-4 w-4 text-pink-400`} />
@@ -989,7 +973,7 @@ export default function Dashboard() {
                 return (
                   <div
                     key={account.id}
-                    className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.06] ${
+                    className={`flex  items-center justify-between px-5  py-4 hover:bg-white/[0.03] transition-colors border-b border-white/[0.06] ${
                       isDark ? "" : "border-gray-50 hover:bg-gray-50/50"
                     }`}
                   >
@@ -1033,7 +1017,7 @@ export default function Dashboard() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       {isTokenExpiring && userId && (
                         <button
                           onClick={() =>

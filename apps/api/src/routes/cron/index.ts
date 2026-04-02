@@ -4,6 +4,7 @@ import { resetWebTokensController } from "@/controllers/cron/web-token.controlle
 import { hourlyWindowResetController } from "@/controllers/cron/hourly-window-reset.controller";
 import { processCommissionsController } from "@/controllers/cron/process-commissions.controller";
 import { followupCronController } from "@/controllers/cron/followup.controller";
+import { resetInstaController } from "@/controllers/cron/insta-reset.controller";
 
 const router = Router();
 
@@ -23,6 +24,9 @@ router.post("/hourly-window-reset", hourlyWindowResetController);
 
 // GET /api/cron/web-token - Monthly web token reset
 router.get("/web-token", resetWebTokensController);
+
+// GET /api/cron/insta - Monthly insta info reset
+router.get("/insta", resetInstaController);
 
 // GET /api/cron/process-commissions - Process affiliate commissions
 router.get("/process-commissions", processCommissionsController);

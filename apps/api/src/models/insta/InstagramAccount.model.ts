@@ -17,6 +17,8 @@ export interface IInstagramAccount extends Document {
   followersCount?: number;
   followingCount?: number;
   mediaCount?: number;
+  lastResetAt: Date;
+  nextResetAt: Date;
   createdAt: Date;
   updatedAt: Date;
 
@@ -53,6 +55,14 @@ const InstagramAccountSchema = new Schema<IInstagramAccount>(
     followersCount: { type: Number },
     followingCount: { type: Number },
     mediaCount: { type: Number },
+    lastResetAt: {
+      type: Date,
+      default: Date.now,
+    },
+    nextResetAt: {
+      type: Date,
+      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    },
 
     autoReplyEnabled: { type: Boolean, default: true },
     autoDMEnabled: { type: Boolean, default: true },

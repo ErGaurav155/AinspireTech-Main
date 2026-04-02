@@ -19,6 +19,7 @@ import webFaq from "@/models/web/webFaq.model";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
+import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 
 export const TIER_LIMITS = {
   free: 200,
@@ -322,6 +323,7 @@ export async function deleteUserData(clerkId: string) {
     InstagramAccount.deleteMany({ userId: clerkId }),
     RateLimitQueue.deleteMany({ clerkId }),
     RateUserRateLimit.deleteMany({ clerkId }),
+    InstaLeadCollection.deleteMany({ userId: clerkId }),
     // Affiliate Data
     Affiliate.deleteMany({ userId: clerkId }),
     AffiReferral.deleteMany({ referredUserId: clerkId }),
