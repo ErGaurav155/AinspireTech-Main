@@ -3,7 +3,6 @@
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
-import Link from "next/link";
 import {
   Bot,
   Check,
