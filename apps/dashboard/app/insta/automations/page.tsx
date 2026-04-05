@@ -10,6 +10,7 @@ import {
   Zap,
   Clock,
   ArrowUpDown,
+  Instagram,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
@@ -21,7 +22,7 @@ import {
   TemplateType,
   updateTemplate,
 } from "@/lib/services/insta-actions.api";
-import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
+import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
@@ -486,18 +487,38 @@ export default function AutomationsPage() {
   // Show message if no account is selected
   if (!selectedAccount) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-gray-500 dark:text-gray-400 mb-4">
-            No Instagram account connected
-          </p>
-          <Link
-            href="/insta/accounts/add"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-pink-500 hover:bg-pink-600 text-white rounded-xl text-sm font-medium transition-colors"
+      <div className="min-h-screen flex items-center justify-center p-5 md:p-10">
+        <div
+          className={`rounded-2xl border ${styles.card} p-5 md:p-10 text-center  w-full`}
+        >
+          <div
+            className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+              isDark
+                ? "bg-pink-500/20 border border-pink-500/30"
+                : "bg-pink-100"
+            }`}
           >
-            <Plus className="h-4 w-4" />
-            Connect Instagram Account
-          </Link>
+            <Instagram className={`h-8 w-8 text-pink-400`} />
+          </div>
+          <h3 className={`text-base font-bold ${styles.text.primary} mb-2`}>
+            No accounts connected yet
+          </h3>
+          <p
+            className={`text-sm ${isDark ? "text-white/40" : "text-gray-500"} mb-5`}
+          >
+            Connect your Instagram Business account to start automating
+          </p>
+          <Button
+            asChild
+            className={`bg-gradient-to-r from-pink-500 to-pink-300 text-white rounded-full font-bold px-7 shadow-md ${
+              isDark ? "shadow-pink-500/20" : "shadow-pink-200/50"
+            }`}
+          >
+            <Link href="/insta/accounts/add">
+              <Plus className="h-4 w-4 mr-2" />
+              Connect Your Account
+            </Link>
+          </Button>
         </div>
       </div>
     );

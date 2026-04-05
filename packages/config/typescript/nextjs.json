@@ -3,14 +3,15 @@
   "display": "Next.js",
   "extends": "./base.json",
   "compilerOptions": {
-    "target": "ES5",
+    "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
     "jsx": "preserve",
     "allowJs": true,
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "module": "ESNext",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "ignoreDeprecations": "6.0"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

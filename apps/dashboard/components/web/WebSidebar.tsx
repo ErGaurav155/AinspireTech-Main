@@ -66,12 +66,6 @@ const CHATBOT_ITEMS = [
 
 const BOTTOM_NAV_ITEMS = [
   {
-    label: "Token Dashboard",
-    href: "/web/tokens",
-    icon: Coins,
-    isNew: false,
-  },
-  {
     label: "Refer & Earn",
     href: "/web/refer",
     icon: Share2,
