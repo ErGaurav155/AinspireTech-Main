@@ -529,7 +529,7 @@ export default function SettingsPage() {
   // Show message if no account is selected
   if (!selectedAccount) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-5 md:p-10">
+      <div className="min-h-screen flex items-start justify-center p-5 md:p-10">
         <div
           className={`rounded-2xl border ${styles.card} p-5 md:p-10 text-center  w-full`}
         >

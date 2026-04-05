@@ -197,7 +197,7 @@ const StatCard = React.memo(function StatCard({
       className={`${s.bg} border ${s.border} rounded-2xl p-5 flex flex-col gap-3 hover:shadow-md transition-shadow relative overflow-hidden ${onClick ? "cursor-pointer" : ""}`}
     >
       {isLocked && (
-        <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-10 rounded-2xl">
+        <div className="absolute inset-0 bg-black/50 backdrop-blur-0 flex items-center justify-center z-10 rounded-2xl">
           <div className="text-center">
             <Lock className="h-8 w-8 text-white mx-auto mb-2" />
             <p className="text-white text-xs font-semibold">{lockedMessage}</p>
@@ -550,7 +550,7 @@ export default function Dashboard() {
   // Contacts: Show locked for free users, show count with ∞ for pro
   const contactDisplay = isPro
     ? `${dashboardData?.totalLeads ?? 0} / ∞`
-    : "🔒 Pro Feature";
+    : "0 / ∞";
 
   // DMs: Show only count for free, count with ∞ for pro
   const dmDisplay = isPro
