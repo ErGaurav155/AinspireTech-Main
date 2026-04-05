@@ -439,7 +439,7 @@ export async function checkAndPrepareScrape({
       message: "Website already scraped, skipping process",
       data: {
         fileName: chatbot.scrappedFile || "",
-        domain: new URL(chatbot.websiteUrl).hostname,
+        domain: new URL(chatbot?.websiteUrl!).hostname,
         userId,
         chatbotId,
         totalPages: 0,

@@ -154,7 +154,7 @@ export function SetupProcess() {
 
   return (
     <motion.section
-      className={`w-full py-20 bg-transparent ${themeStyles.textPrimary}`}
+      className={`w-full pt-20 bg-transparent ${themeStyles.textPrimary}`}
       initial={{ opacity: 0, scale: 0.9 }}
       whileInView={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.5, delay: 0.2 }}
@@ -396,7 +396,7 @@ export function SetupProcess() {
                                 variants={buttonHoverVariants}
                                 onClick={() =>
                                   router.push(
-                                    "https://app.rocketreplai.com/signin",
+                                    "https://app.rocketreplai.com/sign-in",
                                   )
                                 }
                                 whileHover="hover"

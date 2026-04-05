@@ -60,7 +60,7 @@ async function connectServices() {
 
   // DATABASE
   try {
-    const { connectToDatabase } = await import("@/config/database.config");
+    const { connectToDatabase } = await import("@/config/database.config.js");
     await connectToDatabase();
     console.log("✅ Database connected");
   } catch (dbError: any) {
@@ -71,7 +71,7 @@ async function connectServices() {
   // REDIS (Optional)
   try {
     const { connectToRedis, redisHelpers } =
-      await import("./config/redis.config");
+      await import("./config/redis.config.js");
 
     const redisConnected = await connectToRedis();
 
@@ -81,7 +81,7 @@ async function connectServices() {
       // Start webhook workers
       try {
         const { createWebhookWorkers } =
-          await import("./workers/webhook.worker");
+          await import("./workers/webhook.worker.js");
 
         const workerCount = parseInt(process.env.WEBHOOK_WORKERS || "5", 10);
 
@@ -117,7 +117,7 @@ function startStatsLogging() {
     async () => {
       try {
         const { getCurrentWindow, isAppLimitReached } =
-          await import("./services/rate-limit.service");
+          await import("./services/rate-limit.service.js");
 
         const window = getCurrentWindow();
         const appLimit = await isAppLimitReached();

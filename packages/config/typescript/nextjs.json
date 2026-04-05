@@ -10,8 +10,7 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "module": "ESNext",
-    "moduleResolution": "bundler",
-    "ignoreDeprecations": "6.0"
+    "moduleResolution": "bundler"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

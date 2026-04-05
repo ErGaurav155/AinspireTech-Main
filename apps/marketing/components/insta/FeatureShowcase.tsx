@@ -434,7 +434,7 @@ export function FeatureShowcase() {
               <div className="w-full flex items-center justify-between relative z-10">
                 <motion.button
                   onClick={() => {
-                    router.push("https://app.rocketreplai.com/signin");
+                    router.push("https://app.rocketreplai.com/sign-in");
                   }}
                   className={`inline-flex items-center transition-colors duration-300 ${themeStyles.ctaText}`}
                   variants={textVariants}

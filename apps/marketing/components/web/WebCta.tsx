@@ -208,7 +208,7 @@ export function WebCTASection() {
                     className="btn-gradient-cyan text-lg px-8 hover:opacity-90 transition-opacity"
                     asChild
                   >
-                    <Link href="https://app.rocketreplai.com/signin">
+                    <Link href="https://app.rocketreplai.com/sign-in">
                       Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>

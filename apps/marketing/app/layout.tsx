@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@rocketreplai/ui";
+// @ts-ignore
 import "./globals.css";
 import StarsBackground from "../../../packages/ui/src/components/shared/StarsBackground";
 

@@ -59,7 +59,7 @@ export async function handlePostbackAutomation(
       return { success: false, message: "Template not found" };
     }
 
-    const { getUserTier } = await import("@/services/rate-limit.service");
+    const { getUserTier } = await import("@/services/rate-limit.service.js");
     const userTier = await getUserTier(clerkId);
 
     switch (action) {

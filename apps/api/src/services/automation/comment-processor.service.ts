@@ -94,7 +94,7 @@ export async function processCommentAutomation(
       }
     }
 
-    const { getUserTier } = await import("@/services/rate-limit.service");
+    const { getUserTier } = await import("@/services/rate-limit.service.js");
     const userTier = await getUserTier(clerkId);
 
     // Process public reply if enabled

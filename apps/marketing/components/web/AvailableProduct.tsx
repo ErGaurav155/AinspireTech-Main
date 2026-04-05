@@ -27,9 +27,11 @@ const AvailableProduct = ({ showAvailableOnly }: AvailableProductProps) => {
 
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
+
     return {
       textPrimary: isDark ? "text-white" : "text-n-7",
       cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
+      badgeBg: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
     };
   }, [currentTheme]);
 
@@ -57,16 +59,19 @@ const AvailableProduct = ({ showAvailableOnly }: AvailableProductProps) => {
 
   return (
     <div className="w-full p-4 sm:p-8 relative bg-transparent  z-10">
-      {showAvailableOnly ? (
-        <h1 className="text-3xl md:text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-          Popular Products
-        </h1>
-      ) : (
-        <h1 className="text-3xl md:text-4xl font-bold text-center mb-12 bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-          All Products
-        </h1>
-      )}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="flex items-center justify-center text-blue-700 mb-4">
+        <span
+          className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBg} rounded-full px-4 py-1`}
+        >
+          Our Products
+        </span>
+      </div>
+      <h2
+        className={`text-3xl font-bold mb-4 gradient-text-main text-center ${themeStyles.textPrimary}`}
+      >
+        Types Of AI Chatbots We Provide
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {products.map((product) => (
           <div
             key={product.productId}

@@ -696,7 +696,7 @@ async function processQueuedWebhook(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const { processInstagramWebhook } =
-      await import("@/services/webhook/instagram-processor.service");
+      await import("@/services/webhook/instagram-processor.service.js");
     const result = await processInstagramWebhook(job.metadata?.originalPayload);
     return { success: result.success };
   } catch (error) {

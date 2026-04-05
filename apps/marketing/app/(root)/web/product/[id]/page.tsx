@@ -60,9 +60,7 @@ const ProductDetail = ({ params }: { params: Promise<ProductParams> }) => {
   }
 
   return (
-    <div
-      className={`flex flex-col items-center justify-center min-h-screen ${themeStyles.containerBg}`}
-    >
+    <div className={`min-h-screen max-w-7xl m-auto ${themeStyles.containerBg}`}>
       <BreadcrumbsDefault />
 
       <div className="wrapper2 mt-8 flex flex-col md:flex-row items-center justify-center gap-10 min-h-[80vh] w-full max-w-6xl p-4">

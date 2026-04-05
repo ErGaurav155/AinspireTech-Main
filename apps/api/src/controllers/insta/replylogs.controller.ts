@@ -78,7 +78,7 @@ export const getInstaReplyLogsController = async (
           replyType: log.replyType,
           replyText:
             log.replyText?.substring(0, 100) +
-            (log.replyText?.length > 100 ? "..." : ""),
+            (log.replyText?.length! > 100 ? "..." : ""),
           dmFlowStage: log.dmFlowStage,
           followChecked: log.followChecked,
           userFollows: log.userFollows,

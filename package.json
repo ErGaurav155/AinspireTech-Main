@@ -27,7 +27,9 @@
     "fresh:next": "npm run clean:next && npm install"
   },
   "devDependencies": {
+    "@types/node": "^25.5.2",
     "concurrently": "^8.2.2",
-    "turbo": "^2.8.13"
+    "turbo": "^2.8.13",
+    "typescript": "^6.0.2"
   }
 }

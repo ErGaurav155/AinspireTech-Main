@@ -44,7 +44,16 @@ export const updatePaymentDetailsController = async (
     }
 
     // Prepare payment details based on method
-    let paymentDetails;
+    let paymentDetails:
+      | {
+          method: "bank";
+          accountName: string;
+          accountNumber: string;
+          bankName: string;
+          ifscCode: string;
+        }
+      | { method: "upi"; upiId: string }
+      | { method: "paypal"; paypalEmail: string };
 
     if (paymentMethod === "bank") {
       if (!accountName || !accountNumber || !bankName || !ifscCode) {
@@ -93,8 +102,9 @@ export const updatePaymentDetailsController = async (
       });
     }
 
-    // Update affiliate with payment details
+    // Update affiliate record
     affiliate.paymentDetails = paymentDetails;
+
     await affiliate.save();
 
     return res.status(200).json({

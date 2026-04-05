@@ -3,7 +3,7 @@
 import Image from "next/image";
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
-import cup from "public/assets/img/pricecup.png";
+import cup from "@/public/assets/img/pricecup.png";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { features } from "@rocketreplai/shared";
@@ -300,7 +300,7 @@ const ComparisonTable: React.FC = () => {
             whileInView="visible"
             viewport={{ once: false }}
             onClick={() => {
-              router.push("https://app.rocketreplai.com/signin");
+              router.push("https://app.rocketreplai.com/sign-in");
             }}
             initial="hidden"
             whileHover={{ scale: 1.05 }}

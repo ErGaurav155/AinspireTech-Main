@@ -69,7 +69,7 @@ export async function processStoryAutomation(
       }
     }
 
-    const { getUserTier } = await import("@/services/rate-limit.service");
+    const { getUserTier } = await import("@/services/rate-limit.service.js");
     const userTier = await getUserTier(clerkId);
 
     const dmResult = await processStoryDMFlow(

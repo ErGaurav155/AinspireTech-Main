@@ -367,7 +367,7 @@ export default function AffiliateLandingPage() {
               viewport={{ once: false }}
               className="flex flex-col sm:flex-row gap-4 justify-center"
             >
-              <Link href="https://app.rocketreplai.com/signin">
+              <Link href="https://app.rocketreplai.com/sign-in">
                 <Button
                   size="lg"
                   className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#00F0FF]/90 text-white px-8 rounded-full"
@@ -809,7 +809,7 @@ export default function AffiliateLandingPage() {
                 income with our program.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="https://app.rocketreplai.com/signin">
+                <Link href="https://app.rocketreplai.com/sign-in">
                   <Button
                     size="lg"
                     className="bg-white text-gray-900 hover:bg-gray-100 px-12 rounded-full font-semibold"
@@ -965,7 +965,7 @@ export default function AffiliateLandingPage() {
                   </div>
                 </div>
               </div>
-              <Link href="https://app.rocketreplai.com/signin">
+              <Link href="https://app.rocketreplai.com/sign-in">
                 <Button
                   size="lg"
                   className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#B026FF]/90 text-white px-8 rounded-full"

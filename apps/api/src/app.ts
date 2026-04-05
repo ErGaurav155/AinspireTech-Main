@@ -201,7 +201,7 @@ app.get("/health", (_, res) => {
 // Detailed health check
 app.get("/health/detailed", async (_, res) => {
   try {
-    const { checkDatabaseHealth } = await import("@/config/database.config");
+    const { checkDatabaseHealth } = await import("@/config/database.config.js");
 
     const dbHealth = await checkDatabaseHealth();
 
@@ -214,7 +214,7 @@ app.get("/health/detailed", async (_, res) => {
 
     try {
       const { getCurrentWindow, isAppLimitReached } =
-        await import("@/services/rate-limit.service");
+        await import("@/services/rate-limit.service.js");
 
       const window = getCurrentWindow();
       const appLimit = await isAppLimitReached();

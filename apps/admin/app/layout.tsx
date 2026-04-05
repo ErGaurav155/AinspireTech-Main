@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
 import { ThemeProvider } from "@rocketreplai/ui";
+// @ts-ignore
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ClerkThemeProvider } from "@rocketreplai/ui";

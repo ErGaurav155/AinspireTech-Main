@@ -116,7 +116,7 @@ export const processCommissionsController = async (
         referral.subscriptionType === "monthly" &&
         referral.monthsRemaining > 0
       ) {
-        if (currentDate >= referral.nextCommissionDate) {
+        if (currentDate >= referral.nextCommissionDate!) {
           commissionAmount =
             referral.monthlyCommission ||
             referral.subscriptionPrice * referral.commissionRate;

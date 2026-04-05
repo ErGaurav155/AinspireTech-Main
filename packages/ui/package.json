@@ -11,6 +11,9 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.7.2",
+    "@heroicons/react": "^2.1.1",
+    "@material-tailwind/react": "^2.1.9",
     "@radix-ui/react-accordion": "^1.2.11",
     "@radix-ui/react-alert-dialog": "^1.0.5",
     "@radix-ui/react-aspect-ratio": "^1.1.7",
@@ -41,19 +44,16 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
-    "embla-carousel-react": "^8.5.1",
     "embla-carousel-auto-scroll": "^8.5.1",
     "embla-carousel-autoplay": "^8.5.1",
+    "embla-carousel-react": "^8.5.1",
+    "framer-motion": "^11.11.11",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.556.0",
     "react-day-picker": "^9.7.0",
     "tailwind-merge": "^3.4.0",
     "tailwindcss-animate": "^1.0.7",
-    "vaul": "^1.1.2",
-    "@heroicons/react": "^2.1.1",
-    "@fortawesome/fontawesome-free": "^6.7.2",
-    "@material-tailwind/react": "^2.1.9",
-    "framer-motion": "^11.11.11"
+    "vaul": "^1.1.2"
   },
   "peerDependencies": {
     "react": "^19.2.1",
@@ -61,8 +61,9 @@
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {
+    "@types/node": "^25.5.2",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "typescript": "^5.7.3"
+    "typescript": "^6.0.2"
   }
 }

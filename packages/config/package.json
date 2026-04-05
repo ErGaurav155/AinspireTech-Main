@@ -13,6 +13,7 @@
     "./eslint/next": "./eslint/next.js"
   },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "@types/node": "^25.5.2",
+    "typescript": "^6.0.2"
   }
 }

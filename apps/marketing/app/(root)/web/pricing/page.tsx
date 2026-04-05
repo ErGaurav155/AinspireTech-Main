@@ -233,7 +233,7 @@ const PricingContent = () => {
   // Handle Get Started/Start Automating click
   const handleStartAutomation = () => {
     // Redirect to external sign-in page
-    window.location.href = "https://app.rocketreplai.com/signin";
+    window.location.href = "https://app.rocketreplai.com/sign-in";
   };
 
   // Render functions
@@ -846,7 +846,7 @@ const PricingContent = () => {
 
   return (
     <div
-      className={`flex flex-col items-center min-h-screen relative z-10 max-w-7xl md:px-4 mx-auto ${themeStyles.containerBg} ${themeStyles.textPrimary}`}
+      className={` min-h-screen relative z-10 max-w-7xl md:px-4 mx-auto ${themeStyles.containerBg} ${themeStyles.textPrimary}`}
     >
       <BreadcrumbsDefault />
 

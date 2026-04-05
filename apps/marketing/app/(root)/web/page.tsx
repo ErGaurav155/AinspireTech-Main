@@ -8,6 +8,7 @@ import WebFeaturesGrid from "@/components/web/WebFeatureGrid";
 import { WebCTASection } from "@/components/web/WebCta";
 import { useEffect, useState } from "react";
 import Faq from "../../../../../packages/ui/src/components/shared/Faq";
+import AvailableProduct from "@/components/web/AvailableProduct";
 export default function Home() {
   const [mounted, setMounted] = useState(false);
 
@@ -29,6 +30,7 @@ export default function Home() {
       <AIAgentHero />
       <SetupProcess />
       <div className="container mx-auto px-4 py-20">
+        <AvailableProduct showAvailableOnly />
         <WebFeaturesGrid />
         <FeatureComparisonTable />
         <WebTestimonialsSection />

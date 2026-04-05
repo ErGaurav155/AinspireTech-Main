@@ -217,7 +217,7 @@ export const sendWhatsAppInfoController = async (
     }
 
     // Format phone number for WhatsApp
-    const formattedPhoneNumber = phoneNumber.startsWith("+")
+    const formattedPhoneNumber = phoneNumber?.startsWith("+")
       ? phoneNumber
       : `+${phoneNumber}`;
     const whatsappNumber = `whatsapp:${formattedPhoneNumber}`;

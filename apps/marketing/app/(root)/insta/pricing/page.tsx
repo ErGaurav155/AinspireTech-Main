@@ -159,7 +159,9 @@ export default function Pricing() {
     );
   }
   return (
-    <div className={`min-h-screen ${themeStyles.textPrimary} bg-transparent`}>
+    <div
+      className={`min-h-screen ${themeStyles.textPrimary} bg-transparent max-w-7xl mx-auto`}
+    >
       <BreadcrumbsDefault />
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -259,7 +261,7 @@ export default function Pricing() {
               <Button
                 variant="outline"
                 onClick={() =>
-                  router.push("https://app.rocketreplai.com/signin")
+                  router.push("https://app.rocketreplai.com/sign-in")
                 }
                 className="flex-[20%] w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#FF2E9F]/80 to-[#FF2E9F] text-black"
               >
@@ -338,7 +340,7 @@ export default function Pricing() {
                     <Button
                       variant="outline"
                       onClick={() =>
-                        router.push("https://app.rocketreplai.com/signin")
+                        router.push("https://app.rocketreplai.com/sign-in")
                       }
                       className={`w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#00F0FF]/80 to-[#00F0FF] text-black`}
                     >

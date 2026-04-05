@@ -587,7 +587,7 @@ const FeatureComparisonTable = () => {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() =>
-                    router.push("https://app.rocketreplai.com/signin")
+                    router.push("https://app.rocketreplai.com/sign-in")
                   }
                   className="bg-gradient-to-r from-[#0ce05d] to-[#054e29] text-white font-semibold px-6 py-3 rounded-lg"
                 >
