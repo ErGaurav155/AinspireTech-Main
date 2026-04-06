@@ -49,7 +49,7 @@ export default async function RootLayout({
     "userId":"user_3BwWyVtmCQMqb8QfJAKq7N8Roff",
     "isAuthorized":true,
     "chatbotType":"chatbot-education",
-    "apiUrl":"https://rocketreplai.com",
+    "apiUrl":"https://api.rocketreplai.com",
     "primaryColor":"#10B981",
     "position":"bottom-right",
     "welcomeMessage":"Hello! How can I help you today?",
