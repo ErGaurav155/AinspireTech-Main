@@ -628,7 +628,7 @@ export default function AdminWebPage() {
                   >
                     User Information
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p
                         className={`text-xs ${isDark ? "text-blue-400" : "text-blue-600"} mb-1`}

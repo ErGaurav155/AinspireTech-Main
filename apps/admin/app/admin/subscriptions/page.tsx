@@ -786,7 +786,7 @@ export default function AdminSubscriptionsPage() {
                   >
                     User Information
                   </h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className={`text-xs mb-1 ${styles.text.muted}`}>
                         Name

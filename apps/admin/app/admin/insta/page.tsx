@@ -88,8 +88,6 @@ interface CombinedAccount {
 
 export default function AdminInstagramPage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
@@ -127,10 +125,13 @@ export default function AdminInstagramPage() {
         getInstaAccounts(apiRequest),
         getUsers(apiRequest),
       ]);
+      const userMap = new Map(
+        users && Array.isArray(users)
+          ? users.map((u: User) => [u.clerkId, u])
+          : [],
+      );
 
-      const userMap = new Map(users?.map((u: User) => [u.clerkId, u]));
-
-      const transformed: CombinedAccount[] = instaAccounts.accounts.map(
+      const transformed: CombinedAccount[] = instaAccounts.data.map(
         (acc: InstaAccount) => ({
           instagramId: acc.instagramId,
           username: acc.username,
@@ -534,7 +535,7 @@ export default function AdminInstagramPage() {
               <tbody className={`divide-y ${styles.divider}`}>
                 {filteredAccounts.map((acc, idx) => (
                   <tr
-                    key={acc.id}
+                    key={acc.instagramId}
                     className={`transition-colors ${styles.rowHover}`}
                   >
                     <td className="px-6 py-4">
@@ -650,7 +651,9 @@ export default function AdminInstagramPage() {
       <Dialog.Root open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
         <Dialog.Portal>
           <Dialog.Overlay className={styles.dialogOverlay} />
-          <Dialog.Content className={styles.dialogContent}>
+          <Dialog.Content
+            className={`${styles.dialogContent} max-w-3xl max-h-[80vh] overflow-y-auto`}
+          >
             <Dialog.Title className="sr-only">
               Instagram Account Details
             </Dialog.Title>
@@ -659,7 +662,7 @@ export default function AdminInstagramPage() {
             </Dialog.Close>
 
             {selectedAccount && (
-              <div className="space-y-4">
+              <div className="space-y-4 ">
                 <h3
                   className={`text-lg font-semibold mb-4 ${styles.text.primary}`}
                 >
@@ -675,7 +678,7 @@ export default function AdminInstagramPage() {
                   >
                     Account Information
                   </h4>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className={`text-xs mb-1 ${styles.text.muted}`}>
                         Username
@@ -743,7 +746,7 @@ export default function AdminInstagramPage() {
                   >
                     Owner Information
                   </h4>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className={`text-xs mb-1 ${styles.text.muted}`}>
                         Name

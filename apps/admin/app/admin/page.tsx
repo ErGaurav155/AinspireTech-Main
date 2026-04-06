@@ -933,7 +933,7 @@ export default function AdminDashboard() {
 
           {/* ── Rate Limits ──────────────────────────────────────────── */}
           {activeTab === "rate-limits" && (
-            <div className={`rounded-2xl p-6 ${styles.card}`}>
+            <div className={`rounded-2xl p-3 md:p-6 ${styles.card}`}>
               <div className="relative z-10">
                 <RateLimitDashboard />
               </div>

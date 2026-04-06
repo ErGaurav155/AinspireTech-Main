@@ -40,7 +40,7 @@ const NAV_ITEMS = [
     label: "Rate Limits",
     href: "/admin/rate-limits",
     icon: Activity,
-    color: "amber",
+    color: "red",
   },
   {
     label: "Instagram Users",
@@ -127,11 +127,7 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
           ? "hover:bg-white/[0.03]"
           : "hover:bg-gray-50";
 
-      const dot = active
-        ? isDark
-          ? `bg-${color}-400`
-          : `bg-${color}-600`
-        : "";
+      const dot = active ? `bg-${color}-500` : "";
 
       return { base, text, hover, dot };
     },

@@ -43,6 +43,19 @@ export default async function RootLayout({
         >
           <ClerkThemeProvider>
             <div className="relative z-10 min-h-screen">{children}</div>
+            <script
+              src="https://app.rocketreplai.com/mcqchatbotembed.js"
+              data-mcq-chatbot='{
+    "userId":"user_3BwWyVtmCQMqb8QfJAKq7N8Roff",
+    "isAuthorized":true,
+    "chatbotType":"chatbot-education",
+    "apiUrl":"https://rocketreplai.com",
+    "primaryColor":"#10B981",
+    "position":"bottom-right",
+    "welcomeMessage":"Hello! How can I help you today?",
+    "chatbotName":"AskMe"
+  }'
+            ></script>
           </ClerkThemeProvider>
         </ThemeProvider>
       </body>

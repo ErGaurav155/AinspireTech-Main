@@ -7,6 +7,7 @@ import { getTokenBalanceController } from "@/controllers/embed/token/balance.con
 import { postTokenUsageController } from "@/controllers/embed/token/usage.controller";
 import { getWebQuestionsController } from "@/controllers/embed/webquestion.controller";
 import { createAppointmentController } from "@/controllers/misc/misc-actions.controller";
+import { getEmbedConfigController } from "@/controllers/embed/config.controller";
 
 const router = Router();
 
@@ -22,8 +23,11 @@ router.post("/mcqchatbot", handleMcqChatbotRequest);
 router.get("/token/balance", getTokenBalanceController);
 // POST /api/embed/token/usage - Record token usage
 router.post("/token/usage", postTokenUsageController);
+// GET /api/embed/config/:chatbotId - Create a new appointment
+router.get("/config/:chatbotId", getEmbedConfigController);
 // POST /api/embed/webquestion - Get appointment questions
 router.post("/webquestion", getWebQuestionsController);
 // POST /api/misc/appointments - Create a new appointment
 router.post("/appointments", createAppointmentController);
+
 export default router;

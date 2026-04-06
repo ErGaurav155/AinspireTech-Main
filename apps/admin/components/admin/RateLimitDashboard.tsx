@@ -327,13 +327,16 @@ function TierBlock({
         {title}
       </h4>
       <div className="space-y-2">
-        <KVRow label="Users" value={data.count} />
-        <KVRow label="Total Calls" value={data.totalCalls.toLocaleString()} />
+        <KVRow label="Users" value={data?.count || 0} />
+        <KVRow
+          label="Total Calls"
+          value={data?.totalCalls?.toLocaleString() || 0}
+        />
         <KVRow
           label="Avg Calls/User"
-          value={data.averageCallsPerUser.toFixed(1)}
+          value={data?.averageCallsPerUser?.toFixed(1) || 0}
         />
-        <KVRow label="Limit/User" value={data.limit} />
+        <KVRow label="Limit/User" value={data.limit || 0} />
       </div>
     </div>
   );
@@ -649,8 +652,11 @@ export default function RateLimitDashboard({ clerkId }: { clerkId?: string }) {
 
           {/* Tier breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TierBlock title="Free Tier" data={windowStats.users.byTier.free} />
-            <TierBlock title="Pro Tier" data={windowStats.users.byTier.pro} />
+            <TierBlock
+              title="Free Tier"
+              data={windowStats?.users?.byTier.free}
+            />
+            <TierBlock title="Pro Tier" data={windowStats?.users?.byTier.pro} />
           </div>
         </>
       )}
