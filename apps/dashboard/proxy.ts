@@ -6,6 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-up(.*)",
   "/chatbotembed.js",
   "/mcqchatbotembed.js",
+  "/embed/chat/[chatbotId]",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

@@ -44,16 +44,17 @@ export default async function RootLayout({
           <ClerkThemeProvider>
             <div className="relative z-10 min-h-screen">{children}</div>
             <script
-              src="https://app.rocketreplai.com/mcqchatbotembed.js"
-              data-mcq-chatbot='{
+              src="https://app.rocketreplai.com/chatbotembed.js"
+              data-chatbot-config='{
     "userId":"user_3BwWyVtmCQMqb8QfJAKq7N8Roff",
     "isAuthorized":true,
-    "chatbotType":"chatbot-education",
+    "filename":"https://res.cloudinary.com/dr6yywiz8/raw/upload/v1775471297/scraped-data/criconai.com_1775471295374",
+    "chatbotType":"chatbot-lead-generation",
     "apiUrl":"https://api.rocketreplai.com",
-    "primaryColor":"#10B981",
+    "primaryColor":"#8B5CF6",
     "position":"bottom-right",
-    "welcomeMessage":"Hello! How can I help you today?",
-    "chatbotName":"AskMe"
+    "welcomeMessage":"Hi! How can I help you today?",
+    "chatbotName":"Interior Designer"
   }'
             ></script>
           </ClerkThemeProvider>
