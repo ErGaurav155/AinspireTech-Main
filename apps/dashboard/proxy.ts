@@ -4,9 +4,9 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/embed(.*)",
   "/chatbotembed.js",
   "/mcqchatbotembed.js",
-  "/embed/chat/[chatbotId]",
 ]);
 
 export default clerkMiddleware(async (auth, request) => {
@@ -16,5 +16,9 @@ export default clerkMiddleware(async (auth, request) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next|favicon.ico).*)"],
+  matcher: [
+    // Run on all routes except static files and Next.js internals
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|js|css|woff|woff2|ttf)).*)",
+    "/",
+  ],
 };
