@@ -39,12 +39,12 @@ export default async function RootLayout({
         <ClerkThemeProvider>
           <div className="relative z-10 min-h-screen">{children}</div>
         </ClerkThemeProvider>
-        <script
-          src="https://app.rocketreplai.com/chatbotembed.js"
-          data-chatbot-id="69d38ab4c07c500723d530e2"
-          async
-        ></script>
       </ThemeProvider>
+      <script
+        src="https://app.rocketreplai.com/chatbotembed.js"
+        data-chatbot-id="69d38ab4c07c500723d530e2"
+        async
+      ></script>
     </main>
   );
 }

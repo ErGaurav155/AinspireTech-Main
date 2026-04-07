@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
   "/sign-up(.*)",
   "/embed(.*)",
+  "/embed/chat/(.*)",
   "/chatbotembed.js",
   "/mcqchatbotembed.js",
 ]);

@@ -8,17 +8,27 @@ export const dynamic = "force-dynamic";
 import ChatWidgetClient from "@/components/embed/ChatWidgetClient";
 
 interface Props {
-  params: { chatbotId: string };
-  searchParams: { origin?: string };
+  params: Promise<{ chatbotId: string }> | { chatbotId: string };
+  searchParams: Promise<{ origin?: string }> | { origin?: string };
 }
 
-export default function EmbedChatPage({ params, searchParams }: Props) {
-  return (
-    <ChatWidgetClient
-      chatbotId={params.chatbotId}
-      originUrl={
-        searchParams.origin ? decodeURIComponent(searchParams.origin) : ""
-      }
-    />
-  );
+export default async function EmbedChatPage({ params, searchParams }: Props) {
+  // Handle both sync and async params (Next.js 15+)
+  const resolvedParams = await params;
+  const resolvedSearchParams = await searchParams;
+
+  const chatbotId = resolvedParams.chatbotId;
+  const originUrl = resolvedSearchParams.origin
+    ? decodeURIComponent(resolvedSearchParams.origin)
+    : "";
+
+  if (!chatbotId) {
+    return (
+      <div style={{ padding: 20, textAlign: "center", color: "red" }}>
+        Invalid chatbot configuration
+      </div>
+    );
+  }
+
+  return <ChatWidgetClient chatbotId={chatbotId} originUrl={originUrl} />;
 }

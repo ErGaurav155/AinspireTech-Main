@@ -37,16 +37,53 @@ export default function ChatWidgetClient({
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Validate chatbotId
+  if (!chatbotId || chatbotId === "undefined") {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#fff",
+          borderRadius: 16,
+          padding: 20,
+          textAlign: "center",
+          fontSize: 13,
+          color: "#666",
+        }}
+      >
+        Invalid chatbot configuration. Please check your embed code.
+      </div>
+    );
+  }
+
   // ── Load public config from your existing embed API ────────────────────────
-  // Uses: GET /api/embed/chatbot/config/:chatbotId
-  // (add this endpoint — see Express section below)
   useEffect(() => {
-    fetch(`${API_BASE}/api/embed/config/${encodeURIComponent(chatbotId)}`)
-      .then((r) => r.json())
-      .then((data) => {
+    if (!chatbotId || chatbotId === "undefined") {
+      setError("Invalid chatbot ID");
+      setIsLoading(false);
+      return;
+    }
+
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE}/api/embed/config/${encodeURIComponent(chatbotId)}`,
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+
         if (data.success && data.data) {
           setConfig(data.data);
           setMessages([
@@ -57,19 +94,28 @@ export default function ChatWidgetClient({
             },
           ]);
         } else {
-          setError("Chatbot not found or inactive.");
+          setError(data.error || "Chatbot not found or inactive.");
         }
-      })
-      .catch(() => setError("Failed to load chatbot."));
+      } catch (err) {
+        console.error("Failed to load chatbot:", err);
+        setError("Failed to load chatbot. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchConfig();
   }, [chatbotId]);
 
   // ── Tell parent we're ready ────────────────────────────────────────────────
   useEffect(() => {
-    window.parent.postMessage(
-      { source: "rocketreplai-widget", type: "ready" },
-      PARENT_ORIGIN,
-    );
-  }, []);
+    if (!error && !isLoading) {
+      window.parent.postMessage(
+        { source: "rocketreplai-widget", type: "ready" },
+        PARENT_ORIGIN,
+      );
+    }
+  }, [error, isLoading]);
 
   // ── Listen for messages from parent ───────────────────────────────────────
   useEffect(() => {
@@ -115,12 +161,10 @@ export default function ChatWidgetClient({
     setIsTyping(true);
 
     try {
-      // This calls your EXISTING chatbot.controller.ts in apps/api/controllers/embed/
       const res = await fetch(`${API_BASE}/api/embed/chatbot`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": "your_32byte_encryption_key_here_12345",
         },
         body: JSON.stringify({
           userId: config.userId,
@@ -164,6 +208,39 @@ export default function ChatWidgetClient({
 
   const color = config?.primaryColor || "#ec4899";
 
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#fff",
+          borderRadius: 16,
+        }}
+      >
+        <div
+          style={{
+            width: 30,
+            height: 30,
+            border: `3px solid ${color}`,
+            borderTopColor: "transparent",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+          }}
+        />
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
   // ── Error state ────────────────────────────────────────────────────────────
   if (error) {
     return (
@@ -195,10 +272,10 @@ export default function ChatWidgetClient({
         aria-label="Open chat support"
         style={{
           position: "fixed",
-          bottom: 0,
-          right: 0,
-          width: 64,
-          height: 64,
+          bottom: 20,
+          right: 20,
+          width: 60,
+          height: 60,
           borderRadius: "50%",
           background: color,
           border: "none",
@@ -207,6 +284,7 @@ export default function ChatWidgetClient({
           alignItems: "center",
           justifyContent: "center",
           boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+          zIndex: 999999,
         }}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
@@ -221,7 +299,12 @@ export default function ChatWidgetClient({
     <div
       style={{
         position: "fixed",
-        inset: 0,
+        bottom: 20,
+        right: 20,
+        width: 380,
+        height: 600,
+        maxWidth: "calc(100vw - 40px)",
+        maxHeight: "calc(100vh - 40px)",
         display: "flex",
         flexDirection: "column",
         fontFamily:
@@ -230,6 +313,8 @@ export default function ChatWidgetClient({
         background: "#fff",
         borderRadius: 16,
         overflow: "hidden",
+        boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+        zIndex: 999999,
       }}
     >
       {/* Header */}
@@ -245,21 +330,34 @@ export default function ChatWidgetClient({
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              background: "rgba(255,255,255,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
-            </svg>
-          </div>
+          {config?.logoUrl ? (
+            <img
+              src={config.logoUrl}
+              alt={config.name}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                objectFit: "cover",
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: "rgba(255,255,255,0.25)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" />
+              </svg>
+            </div>
+          )}
           <div>
             <div style={{ fontWeight: 600, fontSize: 15, lineHeight: 1.2 }}>
               {config?.name || "Chat Support"}
