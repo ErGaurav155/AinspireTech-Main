@@ -165,6 +165,8 @@ export default function ChatWidgetClient({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "x-api-key":
+            process.env.NEXT_PUBLIC_API_KEY || process.env.API_KEY || "",
         },
         body: JSON.stringify({
           userId: config.userId,
