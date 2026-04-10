@@ -1,17 +1,16 @@
+// apps/api/controllers/web/appointment-question.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import AppointmentQuestions from "@/models/web/AppointmentQuestions.model";
+import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
 import { getAuth } from "@clerk/express";
 
-// GET /api/web/appointment-question - Get appointment questions
+// ── GET /api/web/appointment-question?chatbotType= ────────────────────────────
 export const getAppointmentQuestionsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
-    // Get userId from auth headers
     const { userId } = getAuth(req);
-
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -20,96 +19,35 @@ export const getAppointmentQuestionsController = async (
       });
     }
 
-    const chatbotType = req.query.chatbotType as string;
+    const chatbotType =
+      (req.query.chatbotType as string | undefined)?.trim() ||
+      "chatbot-lead-generation";
 
-    if (!chatbotType) {
+    if (chatbotType !== "chatbot-lead-generation") {
       return res.status(400).json({
         success: false,
-        error: "Chatbot type is required",
+        error:
+          "Appointment questions are only available for chatbot-lead-generation",
         timestamp: new Date().toISOString(),
       });
     }
 
     await connectToDatabase();
 
-    const questions = await AppointmentQuestions.findOne({
+    const doc = await WebAppointmentQuestions.findOne({
       clerkId: userId,
-      chatbotType: chatbotType,
-    });
-
-    if (!questions) {
-      // Return default questions if none exist
-      const defaultQuestions = {
-        clerkId: userId,
-        chatbotType: chatbotType,
-        questions: [
-          {
-            id: 1,
-            question: "What is your full name?",
-            type: "text",
-            required: true,
-            placeholder: "Enter your full name",
-          },
-          {
-            id: 2,
-            question: "What is your email address?",
-            type: "email",
-            required: true,
-            placeholder: "Enter your email address",
-            validation: {
-              pattern: "^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$",
-            },
-          },
-          {
-            id: 3,
-            question: "What is your phone number?",
-            type: "tel",
-            required: true,
-            placeholder: "Enter your phone number",
-          },
-          {
-            id: 4,
-            question: "What service are you interested in?",
-            type: "select",
-            options: ["Consultation", "Service A", "Service B", "Other"],
-            required: true,
-          },
-          {
-            id: 5,
-            question: "Preferred appointment date and time?",
-            type: "date",
-            required: true,
-          },
-          {
-            id: 6,
-            question: "Additional comments or questions?",
-            type: "textarea",
-            required: false,
-            placeholder: "Any additional information you'd like to share...",
-          },
-        ],
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      // Create default questions if they don't exist
-      const createdQuestions =
-        await AppointmentQuestions.create(defaultQuestions);
-
-      return res.status(200).json({
-        success: true,
-        data: { appointmentQuestions: createdQuestions, isDefault: true },
-        timestamp: new Date().toISOString(),
-      });
-    }
+      chatbotType,
+    }).lean();
 
     return res.status(200).json({
       success: true,
-      data: { appointmentQuestions: questions, isDefault: false },
+      data: {
+        appointmentQuestions: doc || { questions: [] },
+      },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Appointment questions fetch error:", error);
+    console.error("getAppointmentQuestionsController error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal server error",
@@ -118,15 +56,13 @@ export const getAppointmentQuestionsController = async (
   }
 };
 
-// POST /api/web/appointment-question - Save appointment questions
+// ── POST /api/web/appointment-question ───────────────────────────────────────
 export const saveAppointmentQuestionsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
-    // Get userId from auth headers
     const { userId } = getAuth(req);
-
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -137,61 +73,52 @@ export const saveAppointmentQuestionsController = async (
 
     const { chatbotType, questions } = req.body;
 
-    if (!chatbotType || !questions) {
+    if (!chatbotType || !Array.isArray(questions)) {
       return res.status(400).json({
         success: false,
-        error: "Chatbot type and questions are required",
+        error: "chatbotType and questions array are required",
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Validate questions array
-    if (!Array.isArray(questions) || questions.length === 0) {
+    if (chatbotType !== "chatbot-lead-generation") {
       return res.status(400).json({
         success: false,
-        error: "Questions must be a non-empty array",
+        error:
+          "Appointment questions are only available for chatbot-lead-generation",
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Validate each question object
-    for (const [index, question] of questions.entries()) {
-      if (!question.question || !question.type) {
+    if (questions.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "At least one question is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const validTypes = ["text", "email", "tel", "date", "select", "textarea"];
+
+    for (const q of questions) {
+      if (!q.question?.trim()) {
         return res.status(400).json({
           success: false,
-          error: `Question at index ${index} is missing required fields (question, type)`,
+          error: "All questions must have non-empty text",
           timestamp: new Date().toISOString(),
         });
       }
-
-      // Validate question type
-      const validTypes = [
-        "text",
-        "email",
-        "tel",
-        "select",
-        "textarea",
-        "date",
-        "datetime-local",
-        "checkbox",
-        "radio",
-      ];
-      if (!validTypes.includes(question.type)) {
+      if (!validTypes.includes(q.type)) {
         return res.status(400).json({
           success: false,
-          error: `Invalid question type "${question.type}" at index ${index}. Valid types: ${validTypes.join(", ")}`,
+          error: `Invalid field type "${q.type}". Valid types: ${validTypes.join(", ")}`,
           timestamp: new Date().toISOString(),
         });
       }
-
-      // Validate options for select type
-      if (
-        question.type === "select" &&
-        (!question.options || !Array.isArray(question.options))
-      ) {
+      if (q.type === "select" && (!q.options || q.options.length === 0)) {
         return res.status(400).json({
           success: false,
-          error: `Select type question at index ${index} must have an options array`,
+          error: `Dropdown field "${q.question}" needs at least one option`,
           timestamp: new Date().toISOString(),
         });
       }
@@ -199,38 +126,34 @@ export const saveAppointmentQuestionsController = async (
 
     await connectToDatabase();
 
-    const result = await AppointmentQuestions.updateOne(
-      {
-        clerkId: userId,
-        chatbotType,
-      },
+    const updated = await WebAppointmentQuestions.findOneAndUpdate(
+      { clerkId: userId, chatbotType },
       {
         $set: {
-          questions,
-          updatedAt: new Date(),
-        },
-        $setOnInsert: {
           clerkId: userId,
           chatbotType,
-          createdAt: new Date(),
+          questions: questions.map((q: any) => ({
+            id: q.id,
+            question: q.question.trim(),
+            type: q.type,
+            required: Boolean(q.required),
+            options: Array.isArray(q.options) ? q.options : [],
+          })),
         },
       },
-      { upsert: true },
+      { upsert: true, new: true },
     );
 
     return res.status(200).json({
       success: true,
       data: {
         message: "Appointment questions saved successfully",
-        upserted: result.upsertedCount > 0,
-        modified: result.modifiedCount > 0,
-        chatbotType,
-        questionsCount: questions.length,
+        appointmentQuestions: updated,
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Appointment questions save error:", error);
+    console.error("saveAppointmentQuestionsController error:", error);
     return res.status(500).json({
       success: false,
       error: "Internal server error",

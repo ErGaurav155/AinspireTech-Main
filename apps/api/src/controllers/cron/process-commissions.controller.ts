@@ -1,163 +1,113 @@
+// apps/api/controllers/cron/process-commissions.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
+import AffiReferral from "@/models/affiliate/Referral";
+import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import Affiliate from "@/models/affiliate/Affiliate";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
-import CommissionRecord from "@/models/affiliate/CommissionRecord";
-import Referral from "@/models/affiliate/Referral";
 
-// Define Instagram pricing plans interface
-interface InstagramPlan {
-  id: string;
-  name: string;
-  price: number;
-}
-
-// Define product subscription details interface
-interface ProductDetail {
-  name: string;
-  price: number;
-}
-
-// Instagram pricing plans
-const instagramPricingPlans: InstagramPlan[] = [
-  { id: "pro", name: "Pro Plan", price: 5 },
-];
-
-// Product subscription details with proper type safety
-const productSubscriptionDetails: Record<string, ProductDetail> = {
-  "basic-web": { name: "Basic Web Chatbot", price: 29.99 },
-  "pro-web": { name: "Pro Web Chatbot", price: 59.99 },
-  "enterprise-web": { name: "Enterprise Web Chatbot", price: 99.99 },
-};
-
-// Helper function to safely get product detail
-const getProductDetail = (
-  chatbotType: string | undefined,
-): ProductDetail | null => {
-  if (!chatbotType) return null;
-  return productSubscriptionDetails[chatbotType] || null;
-};
-
-// GET /api/cron/process-commissions - Process affiliate commissions
 export const processCommissionsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
-    // Check API key
     const cronKey = req.headers["x-cron-key"] as string;
-
     if (!cronKey || cronKey !== process.env.CRON_SECRET) {
-      return res.status(401).json({
-        error: "Unauthorized: Invalid cron key",
-        timestamp: new Date().toISOString(),
-      });
+      return res.status(401).json({ success: false, error: "Unauthorized" });
     }
 
     await connectToDatabase();
 
-    const currentDate = new Date();
-    const currentPeriod = `${currentDate.getFullYear()}-${(
-      currentDate.getMonth() + 1
-    )
-      .toString()
-      .padStart(2, "0")}`;
+    const now = new Date();
+    const currentPeriod = now.toISOString().slice(0, 7);
 
-    console.log(`Processing commissions for period: ${currentPeriod}`);
-
-    // Get all active referrals
-    const activeReferrals = await Referral.find({
+    // Find active referrals that need commission processing
+    const referrals = await AffiReferral.find({
       status: "active",
-    }).populate("referredUserId", "clerkId");
+      nextCommissionDate: { $lte: now },
+    });
 
     let processedCount = 0;
     let totalCommission = 0;
-    const commissionsProcessed: any[] = [];
+    const results = [];
 
-    for (const referral of activeReferrals) {
-      // Check if subscription is still active
-      let subscriptionActive = false;
-      let productName = "";
-
-      if (referral.subscriptionModel === "WebSubscription") {
-        const subscription = await WebSubscription.findById(
-          referral.subscriptionId,
-        );
-        if (subscription && subscription.status === "active") {
-          subscriptionActive = true;
-          const productDetail = getProductDetail(referral.chatbotType);
-          productName = productDetail?.name || "Web Chatbot";
+    for (const referral of referrals) {
+      try {
+        // Verify that the subscription is still active
+        let subscriptionActive = false;
+        if (referral.subscriptionModel === "WebSubscription") {
+          const sub = await WebSubscription.findById(referral.subscriptionId);
+          if (sub && sub.status === "active") subscriptionActive = true;
+        } else if (referral.subscriptionModel === "InstaSubscription") {
+          const sub = await InstaSubscription.findById(referral.subscriptionId);
+          if (sub && sub.status === "active") subscriptionActive = true;
         }
-      } else if (referral.subscriptionModel === "InstaSubscription") {
-        const subscription = await InstaSubscription.findById(
-          referral.subscriptionId,
-        );
-        if (subscription && subscription.status === "active") {
-          subscriptionActive = true;
-          const planDetail = instagramPricingPlans.find(
-            (p) => p.id === referral.instaPlan,
+
+        if (!subscriptionActive) {
+          console.log(
+            `Referral ${referral._id}: subscription inactive, marking as cancelled`,
           );
-          productName = planDetail?.name || "Instagram Automation";
+          referral.status = "cancelled";
+          await referral.save();
+          await Affiliate.findByIdAndUpdate(referral.affiliateId, {
+            $inc: { activeReferrals: -1 },
+          });
+          continue;
         }
-      }
 
-      if (!subscriptionActive) {
-        referral.status = "cancelled";
-        await referral.save();
-        continue;
-      }
-
-      // Process commission based on subscription type
-      let commissionAmount = 0;
-      let shouldProcess = false;
-
-      if (
-        referral.subscriptionType === "monthly" &&
-        referral.monthsRemaining > 0
-      ) {
-        if (currentDate >= referral.nextCommissionDate!) {
-          commissionAmount =
-            referral.monthlyCommission ||
-            referral.subscriptionPrice * referral.commissionRate;
-          referral.monthsRemaining -= 1;
-          shouldProcess = true;
-        }
-      } else if (
-        referral.subscriptionType === "yearly" &&
-        referral.yearsRemaining > 0
-      ) {
-        // Check if it's time for yearly commission (once per year)
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        // Determine commission amount and remaining periods
+        let commissionAmount = 0;
+        let updatedMonthsRemaining = referral.monthsRemaining;
+        let updatedYearsRemaining = referral.yearsRemaining;
 
         if (
-          !referral.lastCommissionDate ||
-          referral.lastCommissionDate <= oneYearAgo
+          referral.subscriptionType === "monthly" &&
+          referral.monthsRemaining > 0
         ) {
-          commissionAmount =
-            referral.yearlyCommission ||
-            referral.subscriptionPrice * referral.commissionRate;
-          referral.yearsRemaining -= 1;
-          shouldProcess = true;
+          commissionAmount = referral?.monthlyCommission!;
+          updatedMonthsRemaining -= 1;
+        } else if (
+          referral.subscriptionType === "yearly" &&
+          referral.yearsRemaining > 0
+        ) {
+          commissionAmount = referral?.yearlyCommission!;
+          updatedYearsRemaining -= 1;
         }
-      }
 
-      if (shouldProcess && commissionAmount > 0) {
+        if (commissionAmount <= 0) {
+          console.log(`Referral ${referral._id}: no commission due`);
+          continue;
+        }
+
+        // Check if commission for this period already exists
+        const existing = await AffiCommissionRecord.findOne({
+          referralId: referral._id,
+          period: currentPeriod,
+        });
+
+        if (existing) {
+          console.log(`Commission already exists for period ${currentPeriod}`);
+          continue;
+        }
+
         // Create commission record
-        const commissionRecord = await CommissionRecord.create({
+        const commissionRecord = await AffiCommissionRecord.create({
           affiliateId: referral.affiliateId,
           referralId: referral._id,
           referredUserId: referral.referredUserId,
           amount: commissionAmount,
           period: currentPeriod,
           productType: referral.productType,
-          productName,
+          productName:
+            referral.productType === "web-chatbot"
+              ? referral.chatbotType || "Web Chatbot"
+              : referral.instaPlan || "Instagram Automation",
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });
 
-        // Update affiliate earnings
+        // Update affiliate pending earnings
         await Affiliate.findByIdAndUpdate(referral.affiliateId, {
           $inc: {
             pendingEarnings: commissionAmount,
@@ -165,12 +115,14 @@ export const processCommissionsController = async (
           },
         });
 
-        // Update referral
+        // Update referral record
         referral.totalCommissionEarned += commissionAmount;
-        referral.lastCommissionDate = currentDate;
+        referral.monthsRemaining = updatedMonthsRemaining;
+        referral.yearsRemaining = updatedYearsRemaining;
+        referral.lastCommissionDate = now;
 
-        // Set next commission date
-        const nextDate = new Date(currentDate);
+        // Calculate next commission date
+        const nextDate = new Date(now);
         if (referral.subscriptionType === "monthly") {
           nextDate.setMonth(nextDate.getMonth() + 1);
         } else {
@@ -178,40 +130,45 @@ export const processCommissionsController = async (
         }
         referral.nextCommissionDate = nextDate;
 
-        // Check if commission period is completed
-        if (referral.monthsRemaining === 0 && referral.yearsRemaining === 0) {
+        if (
+          (referral.subscriptionType === "monthly" &&
+            updatedMonthsRemaining <= 0) ||
+          (referral.subscriptionType === "yearly" && updatedYearsRemaining <= 0)
+        ) {
           referral.status = "completed";
-          referral.completionDate = currentDate;
+          referral.completionDate = now;
+          await Affiliate.findByIdAndUpdate(referral.affiliateId, {
+            $inc: { activeReferrals: -1 },
+          });
         }
 
         await referral.save();
 
-        commissionsProcessed.push({
-          referralId: referral._id,
-          commission: commissionAmount,
-          product: productName,
-        });
-
         processedCount++;
         totalCommission += commissionAmount;
+        results.push({
+          referralId: referral._id,
+          amount: commissionAmount,
+          period: currentPeriod,
+        });
+      } catch (error) {
+        console.error(`Error processing referral ${referral._id}:`, error);
       }
     }
 
     return res.status(200).json({
       success: true,
       data: {
-        message: `Processed ${processedCount} referrals with $${totalCommission.toFixed(
-          2,
-        )} total commission`,
+        message: `Processed ${processedCount} referrals, total commission ${totalCommission}`,
         processedCount,
         totalCommission,
         period: currentPeriod,
-        commissions: commissionsProcessed,
+        results,
       },
-      timestamp: new Date().toISOString(),
+      timestamp: now.toISOString(),
     });
   } catch (error: any) {
-    console.error("Error processing commissions:", error);
+    console.error("Commission processing error:", error);
     return res.status(500).json({
       success: false,
       error: error.message || "Internal server error",

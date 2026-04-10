@@ -1,7 +1,16 @@
+// apps/api/services/ai.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import OpenAI from "openai";
 
-// Cache for OpenAI instance
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export interface ConvMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+// ─── DeepSeek client (singleton) ─────────────────────────────────────────────
+
 let openaiInstance: OpenAI | Error | null = null;
 
 function getOpenAI(): OpenAI | Error {
@@ -22,11 +31,13 @@ function getOpenAI(): OpenAI | Error {
   return openaiInstance;
 }
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 async function downloadCloudinaryContent(
   cloudinaryUrl: string,
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
 
   try {
     const response = await fetch(cloudinaryUrl, {
@@ -71,16 +82,35 @@ function formatContextFromData(data: any): string {
       .join("\n\n");
   }
 
-  // Handle string data
-  return String(data).substring(0, 4000); // Limit context length
+  // Handle plain string data
+  return String(data).substring(0, 4000);
 }
+
+// ─── Lead generation / general chatbot ───────────────────────────────────────
+//
+// HOW MEMORY WORKS
+// ─────────────────
+// DeepSeek (like OpenAI) is stateless — each call has no memory of previous
+// calls. To give the bot session memory we accept the full conversationHistory
+// from the client and inject it between the system prompt and the current
+// user message:
+//
+//   [ system, ...history (max 20 turns), { role: "user", content: userInput } ]
+//
+// The client (ChatWidget.tsx) keeps history in React state and sends the full
+// array on every POST /api/embed/chatbot. This means the model can answer
+// follow-up questions, reference earlier replies, and behave like a real chat.
 
 export const generateGptResponse = async ({
   userInput,
   userfileName,
+  conversationHistory = [],
 }: {
   userInput: string;
   userfileName: string;
+  // Previous turns in this browser session. Client sends the full list;
+  // we cap at 20 here to prevent token overflow.
+  conversationHistory?: ConvMessage[];
 }) => {
   const openai = getOpenAI();
   if (openai instanceof Error) {
@@ -103,6 +133,20 @@ export const generateGptResponse = async ({
       }
     }
 
+    // Sanitise history — only valid roles, non-empty content, max 20 turns
+    const sanitisedHistory: ConvMessage[] = Array.isArray(conversationHistory)
+      ? conversationHistory
+          .filter(
+            (m) =>
+              m &&
+              typeof m.role === "string" &&
+              typeof m.content === "string" &&
+              (m.role === "user" || m.role === "assistant") &&
+              m.content.trim().length > 0,
+          )
+          .slice(-20)
+      : [];
+
     const completion = await openai.chat.completions.create({
       model: "deepseek-chat",
       messages: [
@@ -110,6 +154,12 @@ export const generateGptResponse = async ({
           role: "system",
           content: `You are a helpful assistant. Use this context to answer questions:\n\n${context}\n\nKeep responses to 2-3 lines and only use the provided context.`,
         },
+        // Inject previous turns so the model has session memory
+        ...sanitisedHistory.map((m) => ({
+          role: m.role as "user" | "assistant",
+          content: m.content,
+        })),
+        // Current user message
         { role: "user", content: userInput },
       ],
       max_tokens: 300,
@@ -123,6 +173,7 @@ export const generateGptResponse = async ({
       completion_tokens: 0,
       total_tokens: 0,
     };
+
     return {
       response,
       tokens: usage.total_tokens,
@@ -136,6 +187,9 @@ export const generateGptResponse = async ({
     );
   }
 };
+
+// ─── MCQ / Education chatbot ──────────────────────────────────────────────────
+
 export const generateMcqResponse = async ({
   userInput,
   isMCQRequest,
@@ -147,6 +201,7 @@ export const generateMcqResponse = async ({
   if (openai instanceof Error) {
     throw openai;
   }
+
   const systemMessage = isMCQRequest
     ? `Generate 10 MCQs in JSON format.Must follow below structure also dont provide any heading and json word text:
     {
@@ -168,6 +223,7 @@ export const generateMcqResponse = async ({
       { role: "user", content: userInput },
     ],
   });
+
   const content = completion.choices[0]?.message?.content ?? "";
 
   const usage = completion.usage ?? {
@@ -175,6 +231,7 @@ export const generateMcqResponse = async ({
     completion_tokens: 0,
     total_tokens: 0,
   };
+
   return {
     content,
     tokens: usage.total_tokens,

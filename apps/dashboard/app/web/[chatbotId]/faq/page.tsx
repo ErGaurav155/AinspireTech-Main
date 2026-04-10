@@ -1,8 +1,10 @@
 "use client";
+// apps/dashboard/app/web/[chatbotId]/faq/page.tsx
 
 import { useState, useEffect, useCallback } from "react";
-import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
+import Link from "next/link";
 import {
   MessageCircle,
   Plus,
@@ -19,9 +21,9 @@ import { useApi } from "@/lib/useApi";
 import { getFAQ, saveFAQ, getChatbots } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { useParams, useRouter } from "next/navigation";
 
 type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+
 interface FAQQuestion {
   id: string;
   question: string;
@@ -60,6 +62,20 @@ const TYPE_CONFIG: Record<
   },
 };
 
+const CATEGORIES = ["General", "Support", "Pricing", "Technical", "Services"];
+
+const BADGE_COLORS: Record<string, string> = {
+  General: "bg-blue-100 text-blue-700 border border-blue-200",
+  Support: "bg-green-100 text-green-700 border border-green-200",
+  Pricing: "bg-purple-100 text-purple-700 border border-purple-200",
+  Technical: "bg-orange-100 text-orange-700 border border-orange-200",
+  Services: "bg-pink-100 text-pink-700 border border-pink-200",
+};
+
+function uid() {
+  return `faq_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
 export default function FAQPage() {
   const params = useParams();
   const router = useRouter();
@@ -68,8 +84,8 @@ export default function FAQPage() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const isValidType = VALID_IDS.includes(rawId as ChatbotTypeId);
-  const chatbotType = isValidType ? (rawId as ChatbotTypeId) : null;
+  const isValid = VALID_IDS.includes(rawId as ChatbotTypeId);
+  const chatbotType = isValid ? (rawId as ChatbotTypeId) : null;
   const cfg = chatbotType ? TYPE_CONFIG[chatbotType] : null;
   const isLead = chatbotType === "chatbot-lead-generation";
 
@@ -77,7 +93,7 @@ export default function FAQPage() {
     "checking" | "not-built" | "ready"
   >("checking");
   const [questions, setQuestions] = useState<FAQQuestion[]>([]);
-  const [filteredQuestions, setFilteredQuestions] = useState<FAQQuestion[]>([]);
+  const [filtered, setFiltered] = useState<FAQQuestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -87,16 +103,15 @@ export default function FAQPage() {
   const [categories, setCategories] = useState<string[]>([]);
 
   useEffect(() => {
-    if (!isValidType) router.replace("/web");
-  }, [isValidType, router]);
+    if (!isValid) router.replace("/web");
+  }, [isValid, router]);
 
-  // ── check chatbot exists first, then load FAQ ─────────────────────────────
   useEffect(() => {
     if (!userId || !chatbotType) return;
     const init = async () => {
       try {
-        const data = await getChatbots(apiRequest);
-        const found = (data.chatbots || []).find(
+        const bots = await getChatbots(apiRequest);
+        const found = (bots.chatbots || []).find(
           (b: any) => b.type === chatbotType,
         );
         if (!found) {
@@ -106,12 +121,11 @@ export default function FAQPage() {
         setPageStatus("ready");
         setIsLoading(true);
         const faqData = await getFAQ(apiRequest, chatbotType);
-        const faqQs: FAQQuestion[] = faqData.faq?.questions || [];
-        setQuestions(faqQs);
-        setFilteredQuestions(faqQs);
-        setCategories(
-          Array.from(new Set(faqQs.map((q) => q.category))) as string[],
-        );
+        const qs: FAQQuestion[] =
+          faqData.faq?.questions || faqData.questions || [];
+        setQuestions(qs);
+        setFiltered(qs);
+        setCategories(Array.from(new Set(qs.map((q) => q.category))));
       } catch {
         toast({
           title: "Failed to load FAQ",
@@ -127,83 +141,79 @@ export default function FAQPage() {
 
   useEffect(() => {
     let f = questions;
-    if (searchTerm)
+    if (searchTerm) {
       f = f.filter(
         (q) =>
           q.question.toLowerCase().includes(searchTerm.toLowerCase()) ||
           q.answer.toLowerCase().includes(searchTerm.toLowerCase()),
       );
-    if (categoryFilter !== "all")
+    }
+    if (categoryFilter !== "all") {
       f = f.filter((q) => q.category === categoryFilter);
-    setFilteredQuestions(f);
+    }
+    setFiltered(f);
   }, [questions, searchTerm, categoryFilter]);
 
-  const handleAddQuestion = () => {
+  function handleAddQuestion() {
     const newQ: FAQQuestion = {
-      id: Date.now().toString(),
+      id: uid(),
       question: "",
       answer: "",
       category: "General",
     };
     setQuestions((p) => [...p, newQ]);
     setEditingId(newQ.id);
-  };
+  }
 
-  const handleUpdateQuestion = (id: string, field: string, value: string) =>
+  function handleUpdateQuestion(
+    id: string,
+    field: keyof FAQQuestion,
+    value: string,
+  ) {
     setQuestions((p) =>
       p.map((q) => (q.id === id ? { ...q, [field]: value } : q)),
     );
+  }
 
-  const handleSaveFAQ = async (updatedQs = questions) => {
-    if (!userId || !chatbotType) return;
-    if (updatedQs.some((q) => !q.question.trim() || !q.answer.trim())) {
-      toast({
-        title: "Validation Error",
-        description: "Fill in all questions and answers",
-        variant: "destructive",
-        duration: 3000,
-      });
-      return;
-    }
-    setIsSaving(true);
-    try {
-      await saveFAQ(apiRequest, userId, chatbotType, updatedQs);
-      setCategories(
-        Array.from(new Set(updatedQs.map((q) => q.category))) as string[],
-      );
-      setEditingId(null);
-      toast({ title: "FAQ Saved", duration: 3000 });
-    } catch {
-      toast({
-        title: "Failed to save FAQ",
-        variant: "destructive",
-        duration: 3000,
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
+  const handleSaveFAQ = useCallback(
+    async (updatedQs = questions) => {
+      if (!userId || !chatbotType) return;
+      if (updatedQs.some((q) => !q.question.trim() || !q.answer.trim())) {
+        toast({
+          title: "Validation Error",
+          description: "Fill in all questions and answers before saving.",
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
+      }
+      setIsSaving(true);
+      try {
+        await saveFAQ(apiRequest, userId, chatbotType, updatedQs);
+        setCategories(Array.from(new Set(updatedQs.map((q) => q.category))));
+        setEditingId(null);
+        toast({ title: "FAQ Saved", duration: 3000 });
+      } catch {
+        toast({
+          title: "Failed to save FAQ",
+          variant: "destructive",
+          duration: 3000,
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    },
+    [questions, userId, chatbotType, apiRequest],
+  );
 
-  const handleDeleteQuestion = async (id: string) => {
+  async function handleDeleteQuestion(id: string) {
     const updated = questions.filter((q) => q.id !== id);
     setQuestions(updated);
     setDeleteId(null);
     await handleSaveFAQ(updated);
-  };
+  }
 
-  const getCategoryColor = (cat: string) =>
-    (
-      ({
-        General: styles.badge.blue,
-        Support: styles.badge.green,
-        Pricing: styles.badge.purple,
-        Technical: styles.badge.orange,
-        Services: styles.badge.pink,
-      }) as Record<string, string>
-    )[cat] || styles.badge.gray;
-
-  // ─── early returns ────────────────────────────────────────────────────────
-  if (!isValidType || !cfg) return null;
+  if (!isValid || !cfg) return null;
 
   if (pageStatus === "checking") {
     return (
@@ -211,13 +221,14 @@ export default function FAQPage() {
         className={`${styles.page} flex items-center justify-center min-h-[40vh]`}
       >
         <div
-          className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${isDark ? "border-purple-400" : "border-purple-500"}`}
+          className={`w-5 h-5 border-2 border-t-transparent rounded-full animate-spin ${
+            isDark ? "border-purple-400" : "border-purple-500"
+          }`}
         />
       </div>
     );
   }
 
-  // ── not built yet ─────────────────────────────────────────────────────────
   if (pageStatus === "not-built") {
     return (
       <div className={styles.page}>
@@ -236,8 +247,7 @@ export default function FAQPage() {
             Build your {cfg.label} chatbot first
           </h2>
           <p className={`text-sm ${styles.text.secondary} max-w-md mb-8`}>
-            You need to create your {cfg.label} chatbot before you can manage
-            its FAQ questions.
+            Create your chatbot before you can manage its FAQ questions.
           </p>
           <Link
             href={cfg.buildPath}
@@ -251,7 +261,7 @@ export default function FAQPage() {
     );
   }
 
-  if (isLoading) return <Spinner label="Loading FAQ..." />;
+  if (isLoading) return <Spinner label="Loading FAQ…" />;
 
   const ringClass = isLead
     ? isDark
@@ -294,17 +304,29 @@ export default function FAQPage() {
             <Button
               onClick={() => handleSaveFAQ()}
               disabled={isSaving}
-              className={`${isDark ? "bg-green-500/80 hover:bg-green-500" : "bg-green-500 hover:bg-green-600"} text-white rounded-xl p-2 md:p-4 disabled:opacity-50`}
+              className={`${
+                isDark
+                  ? "bg-green-500/80 hover:bg-green-500"
+                  : "bg-green-500 hover:bg-green-600"
+              } text-white rounded-xl p-2 md:p-4 disabled:opacity-50`}
             >
               <Save className="h-4 w-4 mr-1 md:mr-2" />
-              {isSaving ? "Saving..." : "Save Changes"}
+              {isSaving ? "Saving…" : "Save Changes"}
             </Button>
           </div>
         </div>
 
         {/* Type badge */}
         <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium w-fit ${isLead ? (isDark ? "bg-purple-500/10 border border-purple-500/20 text-purple-400" : "bg-purple-50 border border-purple-100 text-purple-700") : isDark ? "bg-green-500/10 border border-green-500/20 text-green-400" : "bg-green-50 border border-green-100 text-green-700"}`}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium w-fit ${
+            isLead
+              ? isDark
+                ? "bg-purple-500/10 border border-purple-500/20 text-purple-400"
+                : "bg-purple-50 border border-purple-100 text-purple-700"
+              : isDark
+                ? "bg-green-500/10 border border-green-500/20 text-green-400"
+                : "bg-green-50 border border-green-100 text-green-700"
+          }`}
         >
           {isLead ? (
             <Bot className="h-3.5 w-3.5" />
@@ -323,7 +345,7 @@ export default function FAQPage() {
             />
             <input
               type="text"
-              placeholder="Search questions or answers..."
+              placeholder="Search questions or answers…"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className={`w-full rounded-xl pl-9 pr-4 py-2.5 text-sm border outline-none focus:ring-1 transition-all ${styles.input}`}
@@ -354,13 +376,15 @@ export default function FAQPage() {
 
         {/* FAQ list */}
         <div className="space-y-4">
-          {filteredQuestions.length > 0 ? (
-            filteredQuestions.map((faq) => {
+          {filtered.length > 0 ? (
+            filtered.map((faq) => {
               const isEditing = editingId === faq.id;
               return (
                 <div
                   key={faq.id}
-                  className={`${styles.card} p-5 transition-all ${isEditing ? ringClass : ""}`}
+                  className={`${styles.card} p-5 transition-all ${
+                    isEditing ? ringClass : ""
+                  }`}
                 >
                   <div className="space-y-4">
                     <div className="flex flex-col md:flex-row items-start gap-4">
@@ -376,7 +400,7 @@ export default function FAQPage() {
                                 e.target.value,
                               )
                             }
-                            placeholder="Enter question..."
+                            placeholder="Enter question…"
                             className={`${styles.input} w-full rounded-lg p-2`}
                           />
                         ) : (
@@ -389,7 +413,10 @@ export default function FAQPage() {
                       </div>
                       <div className="flex flex-wrap items-center gap-1">
                         <span
-                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${getCategoryColor(faq.category)}`}
+                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
+                            BADGE_COLORS[faq.category] ||
+                            "bg-gray-100 text-gray-700"
+                          }`}
                         >
                           {faq.category}
                         </span>
@@ -406,13 +433,7 @@ export default function FAQPage() {
                               }
                               className={`px-3 py-1.5 rounded-lg text-xs ${styles.input}`}
                             >
-                              {[
-                                "General",
-                                "Support",
-                                "Pricing",
-                                "Technical",
-                                "Services",
-                              ].map((c) => (
+                              {CATEGORIES.map((c) => (
                                 <option
                                   key={c}
                                   value={c}
@@ -426,7 +447,11 @@ export default function FAQPage() {
                             </select>
                             <button
                               onClick={() => setEditingId(null)}
-                              className={`p-1.5 ${styles.text.muted} hover:text-green-500 rounded-lg ${isDark ? "hover:bg-green-500/10" : "hover:bg-green-50"}`}
+                              className={`p-1.5 ${styles.text.muted} hover:text-green-500 rounded-lg ${
+                                isDark
+                                  ? "hover:bg-green-500/10"
+                                  : "hover:bg-green-50"
+                              }`}
                             >
                               <CheckCircle className="h-4 w-4" />
                             </button>
@@ -434,14 +459,24 @@ export default function FAQPage() {
                         ) : (
                           <button
                             onClick={() => setEditingId(faq.id)}
-                            className={`p-1.5 ${styles.text.muted} rounded-lg ${isLead ? (isDark ? "hover:text-purple-400 hover:bg-purple-500/10" : "hover:text-purple-600 hover:bg-purple-50") : isDark ? "hover:text-green-400 hover:bg-green-500/10" : "hover:text-green-600 hover:bg-green-50"}`}
+                            className={`p-1.5 ${styles.text.muted} rounded-lg ${
+                              isLead
+                                ? isDark
+                                  ? "hover:text-purple-400 hover:bg-purple-500/10"
+                                  : "hover:text-purple-600 hover:bg-purple-50"
+                                : isDark
+                                  ? "hover:text-green-400 hover:bg-green-500/10"
+                                  : "hover:text-green-600 hover:bg-green-50"
+                            }`}
                           >
                             <Edit className="h-4 w-4" />
                           </button>
                         )}
                         <button
                           onClick={() => setDeleteId(faq.id)}
-                          className={`p-1.5 ${styles.text.muted} hover:text-red-500 rounded-lg ${isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"}`}
+                          className={`p-1.5 ${styles.text.muted} hover:text-red-500 rounded-lg ${
+                            isDark ? "hover:bg-red-500/10" : "hover:bg-red-50"
+                          }`}
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -458,7 +493,7 @@ export default function FAQPage() {
                               e.target.value,
                             )
                           }
-                          placeholder="Enter answer..."
+                          placeholder="Enter answer…"
                           rows={3}
                           className={`${styles.input} w-full rounded-lg p-2`}
                         />
@@ -489,7 +524,7 @@ export default function FAQPage() {
               <p className={`text-sm ${styles.text.secondary} mb-6`}>
                 {searchTerm || categoryFilter !== "all"
                   ? "No questions match your current filter"
-                  : `Add the first FAQ question for your ${cfg.label} chatbot`}
+                  : `Add FAQ questions for your ${cfg.label} chatbot`}
               </p>
               {!searchTerm && categoryFilter === "all" && (
                 <Button
@@ -504,6 +539,7 @@ export default function FAQPage() {
           )}
         </div>
       </div>
+
       <ConfirmDialog
         open={!!deleteId}
         onOpenChange={() => setDeleteId(null)}

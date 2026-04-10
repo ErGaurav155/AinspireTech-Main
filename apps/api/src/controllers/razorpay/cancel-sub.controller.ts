@@ -4,8 +4,8 @@ import {
 } from "@/services/subscription.service";
 import { getAuth } from "@clerk/express";
 import { Request, Response } from "express";
+import { connectToDatabase } from "@/config/database.config";
 
-// POST /api/razorpay/subscription/cancel - Cancel Instagram subscription
 export const cancelInstaSubscriptionController = async (
   req: Request,
   res: Response,
@@ -13,6 +13,7 @@ export const cancelInstaSubscriptionController = async (
   try {
     const { subscriptionId, reason, mode, subcriptionType } = req.body;
     const { userId: clerkId } = getAuth(req);
+
     if (!subscriptionId || !mode || !subcriptionType) {
       return res.status(400).json({
         success: false,
@@ -21,22 +22,20 @@ export const cancelInstaSubscriptionController = async (
       });
     }
 
-    // Get user ID from auth
-
     if (!clerkId) {
       return res.status(401).json({
         success: false,
-        error: "Unauthorized - User ID required",
+        error: "Unauthorized",
         timestamp: new Date().toISOString(),
       });
     }
 
-    // Verify user owns this subscription
+    await connectToDatabase();
+
     const subscription = await getSubscriptionById(
       subscriptionId,
       subcriptionType,
     );
-
     if (!subscription || subscription.clerkId !== clerkId) {
       return res.status(403).json({
         success: false,
@@ -58,29 +57,21 @@ export const cancelInstaSubscriptionController = async (
         subscriptionId,
         mode,
         cancelledAt: new Date(),
-        message: "Instagram subscription cancelled successfully",
+        message: "Subscription cancelled successfully",
       },
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error("Instagram subscription cancellation error:", error);
-
-    // Handle specific error cases
+    console.error("Subscription cancellation error:", error);
     let statusCode = 500;
-    let errorMessage =
-      error.message || "Failed to cancel Instagram subscription";
-
+    let errorMessage = error.message || "Failed to cancel subscription";
     if (
       error.message.includes("Invalid subscription") ||
       error.message.includes("BAD_REQUEST")
-    ) {
+    )
       statusCode = 400;
-    } else if (error.message.includes("Subscription not found")) {
-      statusCode = 404;
-    } else if (error.message.includes("not authorized")) {
-      statusCode = 403;
-    }
-
+    else if (error.message.includes("Subscription not found")) statusCode = 404;
+    else if (error.message.includes("not authorized")) statusCode = 403;
     return res.status(statusCode).json({
       success: false,
       error: errorMessage,

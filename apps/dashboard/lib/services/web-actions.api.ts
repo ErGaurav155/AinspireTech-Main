@@ -1,3 +1,4 @@
+// apps/dashboard/lib/services/web-actions.api.ts
 import { ApiRequestFn } from "../useApi";
 
 /* =========================
@@ -104,6 +105,10 @@ export const getAnalytics = (
     method: "GET",
   });
 
+/* =========================
+   SCRAPE
+========================= */
+
 export const scrapeWebsite = (
   apiRequest: ApiRequestFn,
   url: string,
@@ -132,6 +137,17 @@ export const getConversations = (
 ) =>
   apiRequest(
     `/web/conversations/${chatbotType}?limit=${limit}&offset=${offset}`,
+    { method: "GET" },
+  );
+
+// Alias used by conversations page (accepts options object)
+export const getConversationsByType = (
+  apiRequest: ApiRequestFn,
+  chatbotType: string,
+  opts: { limit?: number; offset?: number } = {},
+) =>
+  apiRequest(
+    `/web/conversations/${chatbotType}?limit=${opts.limit ?? 20}&offset=${opts.offset ?? 0}`,
     { method: "GET" },
   );
 

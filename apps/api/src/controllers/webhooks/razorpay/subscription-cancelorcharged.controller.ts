@@ -1,3 +1,4 @@
+// apps/api/controllers/webhooks/razorpay/subscription-cancel.controller.ts
 import { Request, Response } from "express";
 import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
@@ -9,6 +10,8 @@ import ReplyLog from "@/models/insta/ReplyLog.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import User from "@/models/user.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
+import AffiReferral from "@/models/affiliate/Referral";
+import Affiliate from "@/models/affiliate/Affiliate";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
@@ -178,6 +181,58 @@ async function handleInstaAccountLimit(userId: string) {
   }
 }
 
+// Helper function to handle referral cancellation when subscription ends
+async function handleReferralCancellation(
+  subscriptionId: string,
+  clerkId: string,
+) {
+  try {
+    // Find the subscription object first to get its _id
+    let subscription = await InstaSubscription.findOne({ subscriptionId });
+    let isWeb = false;
+
+    if (!subscription) {
+      subscription = await WebSubscription.findOne({ subscriptionId });
+      isWeb = true;
+    }
+
+    if (!subscription) {
+      console.log(
+        `⚠️ No subscription found for referral cancellation: ${subscriptionId}`,
+      );
+      return;
+    }
+
+    // Find active referral for this subscription
+    const referral = await AffiReferral.findOne({
+      subscriptionId: subscription._id.toString(),
+      status: "active",
+    });
+
+    if (referral) {
+      // Update referral status to cancelled
+      referral.status = "cancelled";
+      await referral.save();
+      console.log(`✅ Referral ${referral._id} marked as cancelled`);
+
+      // Decrement active referrals count for affiliate
+      await Affiliate.findByIdAndUpdate(referral.affiliateId, {
+        $inc: { activeReferrals: -1 },
+      });
+
+      console.log(
+        `📊 Decremented active referrals for affiliate ${referral.affiliateId}`,
+      );
+    } else {
+      console.log(
+        `ℹ️ No active referral found for subscription ${subscription._id}`,
+      );
+    }
+  } catch (error) {
+    console.error("Error handling referral cancellation:", error);
+  }
+}
+
 // Helper function to handle subscription cancelled/expired/halted
 async function handleSubscriptionEnded(subscriptionId: string) {
   // Try to update in InstaSubscription first
@@ -193,11 +248,16 @@ async function handleSubscriptionEnded(subscriptionId: string) {
     { new: true },
   );
 
-  // If it's an Instagram subscription, handle account cleanup
+  // If it's an Instagram subscription, handle account cleanup and referral cancellation
   if (updatedSub) {
     console.log(
       `Instagram subscription ${subscriptionId} ended for user ${updatedSub.clerkId}`,
     );
+
+    // Handle referral cancellation
+    await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
+
+    // Handle Instagram account cleanup (downgrade to free plan)
     await handleInstaAccountLimit(updatedSub.clerkId);
   } else {
     // If not found, try WebSubscription
@@ -213,18 +273,21 @@ async function handleSubscriptionEnded(subscriptionId: string) {
       { new: true },
     );
 
-    // For web subscriptions, just update the status without account cleanup
+    // For web subscriptions, just update the status and handle referral cancellation
     if (updatedSub) {
       console.log(
         `Web subscription ${subscriptionId} ended for user ${updatedSub.clerkId}`,
       );
+
+      // Handle referral cancellation for web subscription
+      await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
     } else {
       console.warn(`Subscription ${subscriptionId} not found in any model`);
     }
   }
 }
 
-// POST /api/razorpay/subscription-cancel - Handle Razorpay subscription webhooks
+// POST /api/webhooks/razorpay/subscription-cancel - Handle Razorpay subscription cancellation webhooks
 export const razorpaySubsCancelWebhookController = async (
   req: Request,
   res: Response,
@@ -232,14 +295,11 @@ export const razorpaySubsCancelWebhookController = async (
   try {
     // Get raw body for signature verification
     const rawBody = (req as any).rawBody || JSON.stringify(req.body);
-    const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-
-    // Verify Razorpay signature
     const razorpaySignature = req.headers["x-razorpay-signature"] as string;
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
     if (!webhookSecret) {
-      console.error("RAZORPAY_WEBHOOK_SECRET not configured");
+      console.error("❌ RAZORPAY_WEBHOOK_SECRET not configured");
       return res.status(500).json({
         success: false,
         error: "Webhook configuration error",
@@ -247,13 +307,14 @@ export const razorpaySubsCancelWebhookController = async (
       });
     }
 
+    // Verify Razorpay signature
     const expectedSignature = crypto
       .createHmac("sha256", webhookSecret)
       .update(rawBody)
       .digest("hex");
 
     if (expectedSignature !== razorpaySignature) {
-      console.error("Invalid Razorpay webhook signature");
+      console.error("❌ Invalid Razorpay webhook signature");
       return res.status(401).json({
         success: false,
         error: "Invalid signature",
@@ -261,6 +322,7 @@ export const razorpaySubsCancelWebhookController = async (
       });
     }
 
+    const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
     const subscriptionId = body.payload?.subscription?.entity?.id;
     const event = body.event;
 
@@ -272,7 +334,7 @@ export const razorpaySubsCancelWebhookController = async (
       });
     }
 
-    console.log("Processing Razorpay webhook:", {
+    console.log("🔄 Processing Razorpay webhook:", {
       event,
       subscriptionId,
       timestamp: new Date().toISOString(),
@@ -281,7 +343,7 @@ export const razorpaySubsCancelWebhookController = async (
     await connectToDatabase();
 
     // Handle subscription ended events (cancelled, halted, expired)
-    // All have the same behavior - downgrade user to free plan
+    // All have the same behavior - downgrade user to free plan and cancel referral
     if (
       event === "subscription.cancelled" ||
       event === "subscription.halted" ||
@@ -289,7 +351,7 @@ export const razorpaySubsCancelWebhookController = async (
     ) {
       await handleSubscriptionEnded(subscriptionId);
     } else {
-      console.log(`Unhandled Razorpay event: ${event}`);
+      console.log(`ℹ️ Unhandled Razorpay event: ${event}`);
       // Return 200 for unhandled events to avoid retries
       return res.status(200).json({
         success: true,
@@ -312,7 +374,7 @@ export const razorpaySubsCancelWebhookController = async (
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    console.error("Razorpay webhook error:", error);
+    console.error("❌ Razorpay webhook error:", error);
     return res.status(500).json({
       success: false,
       error: "Webhook handler failed",

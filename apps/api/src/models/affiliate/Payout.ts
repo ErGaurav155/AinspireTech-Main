@@ -10,9 +10,11 @@ export interface IPayout extends Document {
   paymentDetails?: Record<string, unknown>;
   transactionId?: string;
   notes?: string;
+  completedAt?: Date; // ✅ Added to fix TypeScript error
   createdAt: Date;
   updatedAt: Date;
 }
+
 const PayoutSchema = new Schema(
   {
     affiliateId: {
@@ -40,6 +42,10 @@ const PayoutSchema = new Schema(
     paymentDetails: Schema.Types.Mixed,
     transactionId: String,
     notes: String,
+    completedAt: {
+      // ✅ Added field
+      type: Date,
+    },
   },
   {
     timestamps: true,

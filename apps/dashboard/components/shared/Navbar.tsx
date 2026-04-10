@@ -153,7 +153,7 @@ export function Navbar({
                   asChild
                   className={`text-xs font-semibold ${isDark ? "text-pink-400 border-pink-500/30 hover:bg-white/[0.06]" : "text-pink-500 border-pink-200 hover:bg-pink-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
                 >
-                  <Link href={`/web/${chatbotType}/build`}>
+                  <Link href={`/web/${chatbotType}/create`}>
                     <Bot className="h-3.5 w-3.5 mr-1.5" />
                     <span className="hidden sm:inline">Build</span>
                   </Link>

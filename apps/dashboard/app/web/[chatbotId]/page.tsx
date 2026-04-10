@@ -26,6 +26,12 @@ import {
   AlertTriangle,
   Trash2,
   Loader2,
+  ExternalLink,
+  MessageCircle,
+  Code2,
+  Settings,
+  Coins,
+  Globe,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -33,6 +39,7 @@ import {
   getConversations,
   getChatbots,
   deleteChatbot,
+  getTokenBalance,
 } from "@/lib/services/web-actions.api";
 import { formatDistanceToNow } from "date-fns";
 import { Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
@@ -60,12 +67,22 @@ interface ChatbotInfo {
   name: string;
   type: string;
   isBuilt: boolean;
+  websiteUrl?: string;
+  settings?: {
+    primaryColor?: string;
+    welcomeMessage?: string;
+    position?: string;
+  };
   stats: {
     conversations: number;
   };
+  createdAt?: string;
 }
 
 type StatsType = LeadStats | EducationStats | null;
+
+const CDN_URL =
+  process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.rocketreplai.com";
 
 export default function DynamicOverviewPage() {
   const params = useParams();
@@ -81,6 +98,7 @@ export default function DynamicOverviewPage() {
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
   const [stats, setStats] = useState<StatsType>(null);
   const [recentItems, setRecentItems] = useState<any[]>([]);
+  const [tokenBalance, setTokenBalance] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,11 +243,14 @@ export default function DynamicOverviewPage() {
 
       if (foundChatbot) {
         setChatbot({
-          id: foundChatbot.id,
+          id: foundChatbot.id || foundChatbot._id,
           name: foundChatbot.name,
           type: foundChatbot.type,
           isBuilt: true,
+          websiteUrl: foundChatbot.websiteUrl,
+          settings: foundChatbot.settings,
           stats: foundChatbot.stats || { conversations: 0 },
+          createdAt: foundChatbot.createdAt,
         });
       } else {
         setChatbot({
@@ -261,10 +282,15 @@ export default function DynamicOverviewPage() {
       setIsLoading(true);
       setError(null);
 
-      const [analyticsData, conversationsData] = await Promise.all([
+      const [analyticsData, conversationsData, tokenData] = await Promise.all([
         getAnalytics(apiRequest, chatbotType),
         getConversations(apiRequest, chatbotType),
+        getTokenBalance(apiRequest).catch(() => null),
       ]);
+
+      if (tokenData) {
+        setTokenBalance(tokenData);
+      }
 
       if (isLeadGeneration) {
         // Lead generation stats
@@ -367,9 +393,15 @@ export default function DynamicOverviewPage() {
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await loadData();
+    await Promise.all([loadChatbot(), loadData()]);
     setIsRefreshing(false);
+    toast({
+      title: "Dashboard Refreshed",
+      description: "Latest data loaded successfully",
+      duration: 2000,
+    });
   };
+
   // ── Delete handler ───────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!chatbot) return;
@@ -383,6 +415,8 @@ export default function DynamicOverviewPage() {
       });
       setShowDeleteConfirm(false);
       setChatbot(null);
+      // Redirect to web page after deletion
+      router.push("/web");
     } catch (err: any) {
       toast({
         title: "Delete failed",
@@ -394,6 +428,7 @@ export default function DynamicOverviewPage() {
       setIsDeleting(false);
     }
   };
+
   // Error state
   if (error) {
     return (
@@ -460,65 +495,158 @@ export default function DynamicOverviewPage() {
       </div>
     );
   }
+
   if (
     chatbotId !== "chatbot-lead-generation" &&
     chatbotId !== "chatbot-education"
   ) {
     return null;
   }
+
   const Icon = displayInfo.icon;
   const primaryColor = displayInfo.primaryColor;
+  const pc =
+    chatbot?.settings?.primaryColor ||
+    (isLeadGeneration ? "#8b5cf6" : "#10b981");
+  const landingUrl =
+    userId && chatbot?.isBuilt ? `${CDN_URL}/${userId}/${chatbotType}` : "";
+
+  // Quick links configuration
+  const quickLinks = [
+    {
+      label: "Conversations",
+      desc: isLeadGeneration
+        ? "View leads and bookings"
+        : "View student responses",
+      href: `/web/${chatbotType}/conversations`,
+      icon: <MessageCircle className="h-5 w-5" />,
+      color: pc,
+    },
+    {
+      label: "FAQ",
+      desc: "Knowledge base articles",
+      href: `/web/${chatbotType}/faq`,
+      icon: <MessageSquare className="h-5 w-5" />,
+      color: "#1a56db",
+    },
+    ...(isLeadGeneration
+      ? [
+          {
+            label: "Appointments",
+            desc: "Booking form questions",
+            href: `/web/${chatbotType}/appointments`,
+            icon: <Calendar className="h-5 w-5" />,
+            color: "#f59e0b",
+          },
+        ]
+      : []),
+    {
+      label: "Integration",
+      desc: "Embed code & landing URL",
+      href: `/web/${chatbotType}/integration`,
+      icon: <Code2 className="h-5 w-5" />,
+      color: "#0891b2",
+    },
+    {
+      label: "Settings",
+      desc: "Name, colour, welcome msg",
+      href: `/web/${chatbotType}/settings`,
+      icon: <Settings className="h-5 w-5" />,
+      color: "#6b7280",
+    },
+  ];
+
+  const availableTokens =
+    (tokenBalance?.freeTokens || 0) + (tokenBalance?.purchasedTokens || 0);
 
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
-        {/* Header with refresh */}
-        <div className="flex flex-wrap gap-2 items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-12 h-12 rounded-xl bg-gradient-to-br ${displayInfo.gradient} flex items-center justify-center ${isDark ? "opacity-90" : ""} shadow-lg`}
-            >
-              <Icon className="h-6 w-6 text-white" />
+        {/* Hero Header */}
+        <div
+          className={`rounded-3xl overflow-hidden bg-gradient-to-br ${displayInfo.gradient} p-6 relative`}
+        >
+          <div
+            className="absolute -right-8 -top-8 w-32 h-32 rounded-full opacity-20"
+            style={{ background: "rgba(255,255,255,0.5)" }}
+          />
+          <div
+            className="absolute right-4 bottom-0 w-20 h-20 rounded-full opacity-10"
+            style={{ background: "rgba(255,255,255,0.7)" }}
+          />
+
+          <div className="relative flex items-start justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-white/25 flex items-center justify-center border border-white/30">
+                {isLeadGeneration ? (
+                  <Bot className="h-7 w-7 text-white" />
+                ) : (
+                  <GraduationCap className="h-7 w-7 text-white" />
+                )}
+              </div>
+              <div>
+                <h1 className="text-white font-bold text-xl leading-tight">
+                  {chatbot?.name || displayInfo.name}
+                </h1>
+                <p className="text-white/70 text-sm mt-0.5">
+                  {displayInfo.name}
+                </p>
+                {chatbot?.websiteUrl && (
+                  <a
+                    href={chatbot.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-white/60 text-xs mt-0.5 hover:text-white/90 transition-colors"
+                  >
+                    <Globe className="h-3 w-3" />
+                    {chatbot.websiteUrl}
+                  </a>
+                )}
+              </div>
             </div>
-            <div>
-              <h1 className={`text-2xl font-bold ${styles.text.primary}`}>
-                {displayInfo.name}
-              </h1>
-              <p className={`text-sm ${styles.text.secondary}`}>
-                {isLeadGeneration
-                  ? "Track and manage your leads"
-                  : "Monitor student progress and engagement"}
-              </p>
+
+            <div className="flex items-center gap-2">
+              {/* Status Badge */}
+              <span className="px-3 py-1.5 bg-white/20 text-white text-xs font-semibold rounded-full border border-white/30">
+                {chatbot?.isBuilt ? "✓ Active" : "Inactive"}
+              </span>
+
+              {/* Refresh Button */}
+              <button
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="p-2 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-colors disabled:opacity-50"
+                title="Refresh dashboard"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+              </button>
+
+              {/* Delete Button */}
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                className="p-2 bg-white/20 text-white rounded-xl hover:bg-red-500/80 transition-colors"
+                title="Delete chatbot"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+
+              {/* Settings Button */}
+              <Link
+                href={`/web/${chatbotType}/settings`}
+                className="p-2 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-colors"
+                title="Settings"
+              >
+                <Settings className="h-4 w-4" />
+              </Link>
             </div>
-          </div>
-          <div className="flex items-center justify-center flex-wrap gap-2">
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className={`flex items-center justify-center gap-2 px-4 py-2 rounded-xl border transition-colors text-sm font-medium ${
-                isDark
-                  ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
-                  : "border-red-200 text-red-600 hover:bg-red-50"
-              }`}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete Chatbot
-            </button>
-            <button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm ${styles.pill} disabled:opacity-50`}
-            >
-              <RefreshCw
-                className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </button>
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {displayInfo.stats.map((stat, index) => {
             const StatIcon = stat.icon;
             const value = stats ? (stats as any)[stat.key] : 0;
@@ -550,6 +678,38 @@ export default function DynamicOverviewPage() {
           })}
         </div>
 
+        {/* Token Balance Row */}
+        <div
+          className={`${styles.card} p-4 rounded-2xl flex flex-wrap items-center gap-3`}
+        >
+          <div
+            className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: `${pc}18` }}
+          >
+            <Coins className="h-4 w-4" style={{ color: pc }} />
+          </div>
+          <div className="flex-1">
+            <p
+              className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
+            >
+              Token Balance
+            </p>
+            <p
+              className={`text-sm text-nowrap font-bold ${styles.text.primary}`}
+            >
+              {availableTokens.toLocaleString()} tokens available
+            </p>
+          </div>
+          <Link
+            href="/web/tokens"
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
+            style={{ background: pc, color: "#fff" }}
+          >
+            Buy More
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </div>
+
         {/* Recent Activity */}
         <div className={`${styles.card} overflow-hidden`}>
           <div
@@ -566,7 +726,7 @@ export default function DynamicOverviewPage() {
                 />
               )}
               <h3 className={`text-sm font-bold ${styles.text.primary}`}>
-                {isLeadGeneration ? "Recent Leads" : "Faq Management"}
+                {isLeadGeneration ? "Recent Leads" : "Recent Student Responses"}
               </h3>
             </div>
             <Link
@@ -691,44 +851,89 @@ export default function DynamicOverviewPage() {
             )}
           </div>
         </div>
-
-        {/* Quick Actions Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayInfo.actions.map((action, index) => {
-            const ActionIcon = action.icon;
-            return (
-              <Link
-                key={index}
-                href={action.href}
-                className={`${styles.card} p-5 hover:border-${primaryColor}-200 hover:shadow-sm transition-all group`}
+        {/* Landing Page URL */}
+        {chatbot?.isBuilt && landingUrl && (
+          <div
+            className={`${styles.card} p-4 rounded-2xl flex flex-wrap items-center gap-3`}
+          >
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: `${pc}18` }}
+            >
+              <Globe className="h-4 w-4" style={{ color: pc }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p
+                className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
               >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-xl ${styles.icon[primaryColor as keyof typeof styles.icon] || styles.icon.purple} flex items-center justify-center group-hover:scale-110 transition-transform`}
-                  >
-                    <ActionIcon
-                      className={
-                        isDark
-                          ? `text-${primaryColor}-400`
-                          : `text-${primaryColor}-600`
-                      }
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <h4 className={`font-semibold ${styles.text.primary} mb-1`}>
-                      {action.label}
-                    </h4>
-                    <p className={`text-xs ${styles.text.muted}`}>
-                      Click to manage
-                    </p>
-                  </div>
-                  <ArrowUpRight
-                    className={`h-5 w-5 transition-colors ${isDark ? "text-white/20 group-hover:text-${primaryColor}-400" : "text-gray-300 group-hover:text-${primaryColor}-400"}`}
-                  />
+                Shareable Landing Page
+              </p>
+              <p
+                className={`text-xs font-mono truncate ${
+                  isDark ? "text-white/60" : "text-gray-600"
+                }`}
+              >
+                {landingUrl}
+              </p>
+            </div>
+            <a
+              href={landingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                isDark
+                  ? "bg-white/[0.07] text-white/80 hover:bg-white/[0.12]"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              Open
+            </a>
+            <Link
+              href={`/web/${chatbotType}/integration`}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
+              style={{ background: pc, color: "#fff" }}
+            >
+              <Code2 className="h-3.5 w-3.5" />
+              Get Embed Code
+            </Link>
+          </div>
+        )}
+        {/* Quick Links Grid */}
+        <div>
+          <h2
+            className={`text-sm font-semibold ${styles.text.secondary} mb-3 uppercase tracking-wide`}
+          >
+            Manage
+          </h2>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {quickLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`flex flex-wrap items-start gap-3 p-4 rounded-2xl border transition-all hover:scale-[1.02] hover:shadow-md ${
+                  isDark
+                    ? "bg-white/[0.03] border-white/[0.07] hover:bg-white/[0.06]"
+                    : "bg-white border-gray-200 hover:border-gray-300"
+                }`}
+              >
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${link.color}18`, color: link.color }}
+                >
+                  {link.icon}
+                </div>
+                <div className="min-w-0">
+                  <p className={`text-sm font-semibold ${styles.text.primary}`}>
+                    {link.label}
+                  </p>
+                  <p className={`text-xs ${styles.text.secondary} mt-0.5`}>
+                    {link.desc}
+                  </p>
                 </div>
               </Link>
-            );
-          })}
+            ))}
+          </div>
         </div>
 
         {/* Additional Info Card */}
@@ -775,6 +980,7 @@ export default function DynamicOverviewPage() {
           </div>
         </div>
       </div>
+
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={showDeleteConfirm}
