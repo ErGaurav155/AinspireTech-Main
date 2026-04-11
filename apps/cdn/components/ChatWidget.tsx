@@ -17,6 +17,7 @@
 //   • Disabled input while bot is typing or during date/time selection
 //   • "How may I help you? 👋" bubble shown when widget is closed
 //   • "Powered by RocketReplAI ⚡" footer on every screen
+//   • Fully responsive: full screen on mobile, fixed size on desktop
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
@@ -142,6 +143,10 @@ function validateField(type: string, value: string): string | null {
   return null;
 }
 
+function isMobileDevice(): boolean {
+  return window.innerWidth <= 768;
+}
+
 // ─── CalendarPicker ───────────────────────────────────────────────────────────
 
 const CalendarPicker = memo(function CalendarPicker({
@@ -196,7 +201,6 @@ const CalendarPicker = memo(function CalendarPicker({
         marginRight: 4,
       }}
     >
-      {/* Month navigation */}
       <div
         style={{
           display: "flex",
@@ -271,7 +275,6 @@ const CalendarPicker = memo(function CalendarPicker({
         </button>
       </div>
 
-      {/* Day header row */}
       <div
         style={{
           display: "grid",
@@ -295,7 +298,6 @@ const CalendarPicker = memo(function CalendarPicker({
         ))}
       </div>
 
-      {/* Day cells */}
       <div
         style={{
           display: "grid",
@@ -462,7 +464,6 @@ function ChatBubble({
         pointerEvents: "none",
       }}
     >
-      {/* Greeting bubble */}
       {showBubble && (
         <div
           onClick={onOpen}
@@ -486,7 +487,6 @@ function ChatBubble({
         </div>
       )}
 
-      {/* The chat button */}
       <button
         onClick={onOpen}
         aria-label="Open chat"
@@ -693,6 +693,7 @@ export default function ChatWidget({
   const [isOpen, setIsOpen] = useState(mode === "landing");
   const [showBubble, setShowBubble] = useState(true);
   const [tab, setTab] = useState<Tab>("chat");
+  const [isMobile, setIsMobile] = useState(false);
 
   // ── Loading / config ───────────────────────────────────────────────────────
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
@@ -724,6 +725,20 @@ export default function ChatWidget({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // ── Check mobile on mount and resize ──────────────────────────────────────
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(isMobileDevice());
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    window.addEventListener("orientationchange", checkMobile);
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      window.removeEventListener("orientationchange", checkMobile);
+    };
+  }, []);
 
   // ── Init: fetch config + FAQ + appointment questions ───────────────────────
   useEffect(() => {
@@ -757,13 +772,11 @@ export default function ChatWidget({
             : Promise.resolve(null),
         ]);
 
-        // Config
         if (cfgRes.status === "fulfilled" && cfgRes.value.ok) {
           const d = await cfgRes.value.json();
           if (d.success && d.data) setConfig(d.data);
         }
 
-        // FAQ
         if (faqRes.status === "fulfilled" && faqRes.value.ok) {
           const d = await faqRes.value.json();
           if (d.success) {
@@ -771,7 +784,6 @@ export default function ChatWidget({
           }
         }
 
-        // Appointment questions
         if (apptRes.status === "fulfilled" && apptRes.value) {
           const r = apptRes.value as Response;
           if (r.ok) {
@@ -819,8 +831,6 @@ export default function ChatWidget({
     };
 
     window.addEventListener("message", handler);
-
-    // Notify parent we're ready
     window.parent.postMessage({ source: "rocketreplai", type: "ready" }, "*");
 
     return () => window.removeEventListener("message", handler);
@@ -904,7 +914,6 @@ export default function ChatWidget({
     setInput("");
     addUserMsg(text);
 
-    // If in appointment question flow, route to that handler
     if (
       tab === "appointment" &&
       apptStarted &&
@@ -915,7 +924,6 @@ export default function ChatWidget({
       return;
     }
 
-    // ── Regular AI chat ──────────────────────────────────────────────────────
     const newHistory: ConvMsg[] = [
       ...convHistory,
       { role: "user", content: text },
@@ -935,8 +943,6 @@ export default function ChatWidget({
           agentId: config.chatbotType,
           userInput: text,
           fileData: config.filename || "",
-          // Full conversation history (excluding the message we just sent)
-          // gives the model memory across the whole session
           conversationHistory: newHistory.slice(0, -1),
         }),
       });
@@ -986,7 +992,6 @@ export default function ChatWidget({
       const currentQ = apptQuestions[apptStep];
       if (!currentQ) return;
 
-      // Validate
       const err = currentQ.required
         ? validateField(currentQ.type, answer)
         : null;
@@ -1012,7 +1017,6 @@ export default function ChatWidget({
         setApptStep(nextStep);
 
         if (nextQ.type === "date") {
-          // Date field → switch to calendar phase
           setApptPhase("date");
           setTimeout(
             () =>
@@ -1028,7 +1032,6 @@ export default function ChatWidget({
           );
         }
       } else {
-        // All text questions done → go to date picker
         setApptPhase("date");
         setTimeout(
           () =>
@@ -1068,7 +1071,6 @@ export default function ChatWidget({
       setApptPhase("done");
 
       try {
-        // Build formData array from answers + date/time
         const formData = apptQuestions.map((q) => ({
           question: q.question,
           answer: apptData[q.id] || "",
@@ -1078,7 +1080,6 @@ export default function ChatWidget({
           answer: formattedDT,
         });
 
-        // Try to figure out customer name + email from answers
         let customerName = "Anonymous";
         let customerEmail = "";
 
@@ -1150,7 +1151,6 @@ export default function ChatWidget({
             addBotMsg(q.question + (q.required ? " ✦" : ""));
           }
         } else {
-          // No custom questions → go straight to date
           setApptPhase("date");
           addBotMsg(
             "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
@@ -1279,31 +1279,33 @@ export default function ChatWidget({
     );
   }
 
+  // ─── Responsive chat window styles ─────────────────────────────────────────
+
+  const chatWindowStyles: React.CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    width: "100%",
+    height: "100%",
+    background: "#fff",
+    borderRadius: mode === "embed" && !isMobile ? 20 : 0,
+    overflow: "hidden",
+    fontFamily:
+      "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    animation:
+      mode === "embed" && !isMobile
+        ? "scaleIn 0.25s cubic-bezier(0.4,0,0.2,1)"
+        : undefined,
+  };
+
   // ─── The chat window ───────────────────────────────────────────────────────
 
   const chatWindow = (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-        background: "#fff",
-        borderRadius: mode === "embed" ? 20 : 0,
-        overflow: "hidden",
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        animation:
-          mode === "embed"
-            ? "scaleIn 0.25s cubic-bezier(0.4,0,0.2,1)"
-            : undefined,
-      }}
-    >
+    <div style={chatWindowStyles}>
       {/* ════ HEADER ════ */}
       <div
         style={{
           background: `linear-gradient(135deg, ${pc} 0%, ${pc}bb 100%)`,
-          padding: "13px 15px",
+          padding: isMobile ? "16px 15px" : "13px 15px",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
@@ -1311,7 +1313,6 @@ export default function ChatWidget({
           boxShadow: "0 2px 12px rgba(0,0,0,0.1)",
         }}
       >
-        {/* Bot identity */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {config?.logoUrl ? (
             <img
@@ -1348,7 +1349,7 @@ export default function ChatWidget({
             <div
               style={{
                 fontWeight: 700,
-                fontSize: 15,
+                fontSize: isMobile ? 16 : 15,
                 color: "#fff",
                 lineHeight: 1.2,
               }}
@@ -1371,9 +1372,7 @@ export default function ChatWidget({
           </div>
         </div>
 
-        {/* Header controls */}
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {/* Restart */}
           <button
             onClick={restartChat}
             title="Restart conversation"
@@ -1403,7 +1402,6 @@ export default function ChatWidget({
             </svg>
           </button>
 
-          {/* Close (embed only) */}
           {mode === "embed" && (
             <button
               onClick={handleClose}
@@ -1446,13 +1444,12 @@ export default function ChatWidget({
           overflow: "hidden",
         }}
       >
-        {/* ── Chat / Appointment message area ── */}
         {(tab === "chat" || tab === "appointment") && (
           <div
             style={{
               flex: 1,
               overflowY: "auto",
-              padding: "14px 12px 8px",
+              padding: isMobile ? "16px 12px 8px" : "14px 12px 8px",
               background: "#f9fafb",
               display: "flex",
               flexDirection: "column",
@@ -1465,7 +1462,6 @@ export default function ChatWidget({
 
             {isTyping && <TypingIndicator primaryColor={pc} />}
 
-            {/* Inline calendar */}
             {tab === "appointment" && apptPhase === "date" && (
               <div style={{ animation: "fadeIn 0.3s ease" }}>
                 <CalendarPicker
@@ -1476,7 +1472,6 @@ export default function ChatWidget({
               </div>
             )}
 
-            {/* Inline time slots */}
             {tab === "appointment" &&
               apptPhase === "time" &&
               timeSlots.length > 0 && (
@@ -1494,7 +1489,6 @@ export default function ChatWidget({
           </div>
         )}
 
-        {/* ── FAQ tab ── */}
         {tab === "faq" && (
           <div
             style={{
@@ -1505,7 +1499,6 @@ export default function ChatWidget({
               background: "#fff",
             }}
           >
-            {/* Search bar */}
             <div
               style={{
                 padding: "12px 14px",
@@ -1550,7 +1543,6 @@ export default function ChatWidget({
               </div>
             </div>
 
-            {/* Categories label */}
             {!faqSearch && (
               <div
                 style={{
@@ -1565,7 +1557,6 @@ export default function ChatWidget({
               </div>
             )}
 
-            {/* FAQ accordion list */}
             <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
               {filteredFAQ.length === 0 ? (
                 <div
@@ -1591,7 +1582,6 @@ export default function ChatWidget({
                         animation: "fadeIn 0.2s ease",
                       }}
                     >
-                      {/* Question row */}
                       <button
                         onClick={() => setOpenFaqId(isExp ? null : faq.id)}
                         style={{
@@ -1618,7 +1608,6 @@ export default function ChatWidget({
                           ).style.background = "#fff")
                         }
                       >
-                        {/* Icon */}
                         <div
                           style={{
                             width: 34,
@@ -1641,7 +1630,6 @@ export default function ChatWidget({
                           </svg>
                         </div>
 
-                        {/* Text */}
                         <div style={{ flex: 1 }}>
                           <div
                             style={{
@@ -1665,7 +1653,6 @@ export default function ChatWidget({
                           )}
                         </div>
 
-                        {/* Chevron */}
                         <svg
                           width="14"
                           height="14"
@@ -1681,7 +1668,6 @@ export default function ChatWidget({
                         </svg>
                       </button>
 
-                      {/* Answer */}
                       {isExp && (
                         <div
                           style={{
@@ -1718,13 +1704,12 @@ export default function ChatWidget({
       >
         <div
           style={{
-            padding: "8px 10px 4px",
+            padding: isMobile ? "10px 10px 4px" : "8px 10px 4px",
             display: "flex",
             alignItems: "center",
             gap: 6,
           }}
         >
-          {/* Date picker bar (shown during appointment date/time selection) */}
           {tab === "appointment" &&
           (apptPhase === "date" || apptPhase === "time") ? (
             <div
@@ -1763,7 +1748,6 @@ export default function ChatWidget({
               </span>
             </div>
           ) : (
-            /* Normal text input */
             <input
               ref={inputRef}
               type="text"
@@ -1774,7 +1758,7 @@ export default function ChatWidget({
               disabled={isInputDisabled}
               style={{
                 flex: 1,
-                padding: "9px 13px",
+                padding: isMobile ? "11px 13px" : "9px 13px",
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 fontSize: 13.5,
@@ -1792,7 +1776,6 @@ export default function ChatWidget({
             />
           )}
 
-          {/* Send button — only visible when there is something to send */}
           {(tab === "chat" ||
             (tab === "appointment" && apptPhase === "questions")) && (
             <button
@@ -1800,8 +1783,8 @@ export default function ChatWidget({
               disabled={isInputDisabled || !input.trim()}
               aria-label="Send message"
               style={{
-                width: 36,
-                height: 36,
+                width: isMobile ? 44 : 36,
+                height: isMobile ? 44 : 36,
                 borderRadius: "50%",
                 background: isInputDisabled || !input.trim() ? "#e5e7eb" : pc,
                 border: "none",
@@ -1849,8 +1832,8 @@ export default function ChatWidget({
               label: "Chat",
               icon: (
                 <svg
-                  width="19"
-                  height="19"
+                  width={isMobile ? 21 : 19}
+                  height={isMobile ? 21 : 19}
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -1863,8 +1846,8 @@ export default function ChatWidget({
               label: "Knowledge Base",
               icon: (
                 <svg
-                  width="19"
-                  height="19"
+                  width={isMobile ? 21 : 19}
+                  height={isMobile ? 21 : 19}
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -1877,8 +1860,8 @@ export default function ChatWidget({
               label: "Appointment",
               icon: (
                 <svg
-                  width="19"
-                  height="19"
+                  width={isMobile ? 21 : 19}
+                  height={isMobile ? 21 : 19}
                   viewBox="0 0 24 24"
                   fill="currentColor"
                 >
@@ -1895,7 +1878,7 @@ export default function ChatWidget({
               onClick={() => handleTabChange(key)}
               style={{
                 flex: 1,
-                padding: "9px 4px 7px",
+                padding: isMobile ? "12px 4px 9px" : "9px 4px 7px",
                 border: "none",
                 borderTop: active
                   ? `2.5px solid ${pc}`
@@ -1907,7 +1890,7 @@ export default function ChatWidget({
                 alignItems: "center",
                 gap: 3,
                 color: active ? pc : "#9ca3af",
-                fontSize: 10,
+                fontSize: isMobile ? 11 : 10,
                 fontWeight: active ? 700 : 400,
                 transition: "color 0.15s, border-color 0.15s",
               }}
@@ -1924,10 +1907,14 @@ export default function ChatWidget({
   // ─── Render ────────────────────────────────────────────────────────────────
 
   if (mode === "embed") {
+    // For embed mode on mobile, full screen; on desktop, fixed size
+    if (isMobile) {
+      return <div style={{ position: "fixed", inset: 0 }}>{chatWindow}</div>;
+    }
     return <div style={{ position: "fixed", inset: 0 }}>{chatWindow}</div>;
   }
 
-  // Landing page mode — centered card on gradient background
+  // Landing page mode — responsive centered card
   return (
     <div
       style={{
@@ -1937,17 +1924,17 @@ export default function ChatWidget({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        padding: isMobile ? 0 : 16,
       }}
     >
       <div
         style={{
           width: "100%",
-          maxWidth: 480,
-          height: "min(700px, 92vh)",
-          borderRadius: 24,
+          maxWidth: isMobile ? "100%" : 480,
+          height: isMobile ? "100vh" : "min(700px, 92vh)",
+          borderRadius: isMobile ? 0 : 24,
           overflow: "hidden",
-          boxShadow: "0 25px 70px rgba(0,0,0,0.14)",
+          boxShadow: isMobile ? "none" : "0 25px 70px rgba(0,0,0,0.14)",
         }}
       >
         {chatWindow}
