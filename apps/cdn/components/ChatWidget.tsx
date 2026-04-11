@@ -741,7 +741,7 @@ export default function ChatWidget({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-API-KEY": API_KEY,
+              "x-api-key": API_KEY,
             },
             body: JSON.stringify({ userId, chatbotType }),
           }),
@@ -750,7 +750,7 @@ export default function ChatWidget({
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
-                  "X-API-KEY": API_KEY,
+                  "x-api-key": API_KEY,
                 },
                 body: JSON.stringify({ userId, chatbotType }),
               })
@@ -928,7 +928,7 @@ export default function ChatWidget({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-API-KEY": API_KEY,
+          "x-api-key": API_KEY,
         },
         body: JSON.stringify({
           userId: config.userId,
@@ -1092,7 +1092,7 @@ export default function ChatWidget({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-API-KEY": API_KEY,
+            "x-api-key": API_KEY,
           },
           body: JSON.stringify({
             chatbotType,

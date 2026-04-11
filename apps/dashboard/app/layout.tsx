@@ -45,6 +45,10 @@ export default async function RootLayout({
             <div className="relative z-10 min-h-screen">{children}</div>
           </ClerkThemeProvider>
         </ThemeProvider>
+
+        <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
+          user_3BEup7vMQ7rRDP8jsrg9pRoWMor,chatbot-lead-generation
+        </script>
       </body>
     </html>
   );
