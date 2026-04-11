@@ -89,15 +89,66 @@
     "allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox",
   );
 
+  // ── Helper to check if device is mobile ──────────────────────────────────
+  function isMobile() {
+    return window.innerWidth <= 768;
+  }
+
+  // ── Helper to get responsive dimensions ──────────────────────────────────
+  function getResponsiveDimensions(isOpen, isMobileDevice) {
+    if (!isOpen) {
+      // Closed state - always bubble
+      return {
+        width: "68px",
+        height: "68px",
+        borderRadius: "50%",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.15)",
+        bottom: "20px",
+        right: "20px",
+        left: "auto",
+      };
+    }
+
+    // Open state - responsive
+    if (isMobileDevice) {
+      // Mobile: full screen with small margins
+      return {
+        width: "calc(100vw - 20px)",
+        height: "calc(100vh - 20px)",
+        borderRadius: "16px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+        bottom: "10px",
+        right: "10px",
+        left: "10px",
+      };
+    } else {
+      // Desktop: fixed size
+      return {
+        width: "420px",
+        height: "620px",
+        borderRadius: "20px",
+        boxShadow: "0 20px 60px rgba(0,0,0,0.18)",
+        bottom: "20px",
+        right: "20px",
+        left: "auto",
+      };
+    }
+  }
+
   // ── Initial style: closed bubble ─────────────────────────────────────────
   var s = iframe.style;
+  var isWidgetOpen = false;
+  var isMobileDevice = isMobile();
+
+  var initialDimensions = getResponsiveDimensions(false, isMobileDevice);
   s.position = "fixed";
-  s.bottom = "20px";
-  s.right = "20px";
-  s.width = "68px";
-  s.height = "68px";
+  s.bottom = initialDimensions.bottom;
+  s.right = initialDimensions.right;
+  s.left = initialDimensions.left;
+  s.width = initialDimensions.width;
+  s.height = initialDimensions.height;
   s.border = "none";
-  s.borderRadius = "50%";
+  s.borderRadius = initialDimensions.borderRadius;
   s.zIndex = "2147483647";
   s.overflow = "hidden";
   s.background = "transparent";
@@ -106,8 +157,58 @@
     "width 0.3s cubic-bezier(0.4,0,0.2,1)," +
     "height 0.3s cubic-bezier(0.4,0,0.2,1)," +
     "border-radius 0.3s cubic-bezier(0.4,0,0.2,1)," +
-    "box-shadow 0.3s ease";
-  s.boxShadow = "0 4px 24px rgba(0,0,0,0.15)";
+    "box-shadow 0.3s ease," +
+    "bottom 0.3s cubic-bezier(0.4,0,0.2,1)," +
+    "right 0.3s cubic-bezier(0.4,0,0.2,1)," +
+    "left 0.3s cubic-bezier(0.4,0,0.2,1)";
+  s.boxShadow = initialDimensions.boxShadow;
+
+  // ── Handle window resize for responsive layout ───────────────────────────
+  function handleResize() {
+    var newIsMobile = isMobile();
+
+    // Only update if mobile state changed or widget is open
+    if (newIsMobile !== isMobileDevice || isWidgetOpen) {
+      isMobileDevice = newIsMobile;
+
+      var dimensions = getResponsiveDimensions(isWidgetOpen, isMobileDevice);
+      s.width = dimensions.width;
+      s.height = dimensions.height;
+      s.borderRadius = dimensions.borderRadius;
+      s.boxShadow = dimensions.boxShadow;
+      s.bottom = dimensions.bottom;
+      s.right = dimensions.right;
+      s.left = dimensions.left;
+
+      // Notify iframe about orientation change
+      if (isWidgetOpen && iframe.contentWindow) {
+        iframe.contentWindow.postMessage(
+          {
+            source: "rocketreplai-parent",
+            type: "resize",
+            isMobile: isMobileDevice,
+            dimensions: {
+              width: dimensions.width,
+              height: dimensions.height,
+            },
+          },
+          CDN_ORIGIN,
+        );
+      }
+    }
+  }
+
+  // Debounced resize handler
+  var resizeTimeout;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimeout);
+    resizeTimeout = setTimeout(handleResize, 100);
+  });
+
+  // Also listen to orientation change
+  window.addEventListener("orientationchange", function () {
+    setTimeout(handleResize, 50);
+  });
 
   // ── Inject iframe ────────────────────────────────────────────────────────
   function inject() {
@@ -132,21 +233,32 @@
     switch (d.type) {
       // Widget opened → expand iframe to full chat window
       case "open":
-        s.width = "420px";
-        s.height = "620px";
-        s.borderRadius = "20px";
-        s.boxShadow = "0 20px 60px rgba(0,0,0,0.18)";
+        isWidgetOpen = true;
+        isMobileDevice = isMobile();
+        var openDimensions = getResponsiveDimensions(true, isMobileDevice);
+        s.width = openDimensions.width;
+        s.height = openDimensions.height;
+        s.borderRadius = openDimensions.borderRadius;
+        s.boxShadow = openDimensions.boxShadow;
+        s.bottom = openDimensions.bottom;
+        s.right = openDimensions.right;
+        s.left = openDimensions.left;
         break;
 
       // Widget closed → shrink back to circle button
       case "close":
-        s.width = "68px";
-        s.height = "68px";
-        s.borderRadius = "50%";
-        s.boxShadow = "0 4px 24px rgba(0,0,0,0.15)";
+        isWidgetOpen = false;
+        var closeDimensions = getResponsiveDimensions(false, isMobileDevice);
+        s.width = closeDimensions.width;
+        s.height = closeDimensions.height;
+        s.borderRadius = closeDimensions.borderRadius;
+        s.boxShadow = closeDimensions.boxShadow;
+        s.bottom = closeDimensions.bottom;
+        s.right = closeDimensions.right;
+        s.left = closeDimensions.left;
         break;
 
-      // Widget is loaded and ready → send page context
+      // Widget is loaded and ready → send page context and device info
       case "ready":
         if (iframe.contentWindow) {
           iframe.contentWindow.postMessage(
@@ -155,6 +267,7 @@
               type: "context",
               pageUrl: window.location.href,
               pageTitle: document.title,
+              isMobile: isMobile(),
             },
             CDN_ORIGIN,
           );
@@ -187,6 +300,17 @@
           CDN_ORIGIN,
         );
       }
+    },
+    /** Get current widget state */
+    getState: function () {
+      return {
+        isOpen: isWidgetOpen,
+        isMobile: isMobile(),
+        dimensions: {
+          width: s.width,
+          height: s.height,
+        },
+      };
     },
   };
 })();
