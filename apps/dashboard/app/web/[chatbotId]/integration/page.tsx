@@ -34,12 +34,12 @@ const TYPE_CONFIG: Record<
   "chatbot-lead-generation": {
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
-    buildPath: "/web/chatbot-lead-generation/build",
+    buildPath: "/web/chatbot-lead-generation/create",
   },
   "chatbot-education": {
     label: "Education (MCQ)",
     gradient: "from-green-500 to-emerald-500",
-    buildPath: "/web/chatbot-education/build",
+    buildPath: "/web/chatbot-education/create",
   },
 };
 
@@ -356,18 +356,20 @@ export default function Layout({ children }) {
                 : "bg-gray-50 border-gray-200"
             }`}
           >
-            <Globe
-              className={`h-4 w-4 flex-shrink-0 ${
-                isDark ? "text-purple-400" : "text-purple-500"
-              }`}
-            />
-            <span
-              className={`flex-1 text-sm font-mono break-all ${
-                isDark ? "text-white/80" : "text-gray-700"
-              }`}
-            >
-              {landingPageUrl}
-            </span>
+            <div className="flex flex-wrap gap-2 min-w-0">
+              <Globe
+                className={`h-4 w-4 flex-shrink-0 ${
+                  isDark ? "text-purple-400" : "text-purple-500"
+                }`}
+              />
+              <span
+                className={`flex-1 text-sm font-mono truncate break-all ${
+                  isDark ? "text-white/80" : "text-gray-700"
+                }`}
+              >
+                {landingPageUrl}
+              </span>
+            </div>
             <div className="flex items-center gap-1">
               <CopyButton
                 text={landingPageUrl}
@@ -522,71 +524,70 @@ export default function Layout({ children }) {
 
         {/* Quick links */}
         <div className="grid grid-cols-2 gap-3">
-          {(
-            isLead
-              ? [
-                  {
-                    label: "Manage FAQ",
-                    href: `/web/${chatbotType}/faq`,
-                    icon: "📚",
-                    desc: "Add knowledge base articles",
-                  },
-                  {
-                    label: "Appointment Questions",
-                    href: `/web/${chatbotType}/appointments`,
-                    icon: "📅",
-                    desc: "Customise booking form fields",
-                  },
-                  {
-                    label: "Conversations",
-                    href: `/web/${chatbotType}/conversations`,
-                    icon: "💬",
-                    desc: "View leads & bookings",
-                  },
-                  {
-                    label: "Settings",
-                    href: `/web/${chatbotType}/settings`,
-                    icon: "⚙️",
-                    desc: "Colours, welcome message",
-                  },
-                ]
-              : [
-                  {
-                    label: "Manage FAQ",
-                    href: `/web/${chatbotType}/faq`,
-                    icon: "📚",
-                    desc: "Add revision FAQs",
-                  },
-                  {
-                    label: "Conversations",
-                    href: `/web/${chatbotType}/conversations`,
-                    icon: "💬",
-                    desc: "Review student chats",
-                  },
-                  {
-                    label: "Settings",
-                    href: `/web/${chatbotType}/settings`,
-                    icon: "⚙️",
-                    desc: "Colours, welcome message",
-                  },
-                  {
-                    label: "Overview",
-                    href: `/web/${chatbotType}`,
-                    icon: "📈",
-                    desc: "See education bot stats",
-                  },
-                ]
+          {(isLead
+            ? [
+                {
+                  label: "Manage FAQ",
+                  href: `/web/${chatbotType}/faq`,
+                  icon: "📚",
+                  desc: "Add knowledge base articles",
+                },
+                {
+                  label: "Appointment Questions",
+                  href: `/web/${chatbotType}/appointments`,
+                  icon: "📅",
+                  desc: "Customise booking form fields",
+                },
+                {
+                  label: "Conversations",
+                  href: `/web/${chatbotType}/conversations`,
+                  icon: "💬",
+                  desc: "View leads & bookings",
+                },
+                {
+                  label: "Settings",
+                  href: `/web/${chatbotType}/settings`,
+                  icon: "⚙️",
+                  desc: "Colours, welcome message",
+                },
+              ]
+            : [
+                {
+                  label: "Manage FAQ",
+                  href: `/web/${chatbotType}/faq`,
+                  icon: "📚",
+                  desc: "Add revision FAQs",
+                },
+                {
+                  label: "Conversations",
+                  href: `/web/${chatbotType}/conversations`,
+                  icon: "💬",
+                  desc: "Review student chats",
+                },
+                {
+                  label: "Settings",
+                  href: `/web/${chatbotType}/settings`,
+                  icon: "⚙️",
+                  desc: "Colours, welcome message",
+                },
+                {
+                  label: "Overview",
+                  href: `/web/${chatbotType}`,
+                  icon: "📈",
+                  desc: "See education bot stats",
+                },
+              ]
           ).map((link) => (
             <Link
               key={link.href}
               href={link.href}
-              className={`flex items-start gap-3 p-4 rounded-xl border transition-all hover:scale-[1.02] ${
+              className={`flex flex-wrap gap-1 items-start md:gap-3 p-4 rounded-xl border transition-all hover:scale-[1.02] ${
                 isDark
                   ? "bg-white/[0.03] border-white/[0.08] hover:bg-white/[0.06]"
                   : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"
               }`}
             >
-              <span className="text-xl hidden md:flex">{link.icon}</span>
+              <span className="text-xl flex">{link.icon}</span>
               <div>
                 <div className={`text-sm font-semibold ${styles.text.primary}`}>
                   {link.label}

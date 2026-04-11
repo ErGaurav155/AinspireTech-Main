@@ -86,13 +86,13 @@ const TYPE_CONFIG = {
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
     pc: "#8b5cf6",
-    buildPath: "/web/chatbot-lead-generation/build",
+    buildPath: "/web/chatbot-lead-generation/create",
   },
   "chatbot-education": {
     label: "Education (MCQ)",
     gradient: "from-green-500 to-emerald-500",
     pc: "#10b981",
-    buildPath: "/web/chatbot-education/build",
+    buildPath: "/web/chatbot-education/create",
   },
 } as const;
 
@@ -930,7 +930,7 @@ export default function ConversationsPage() {
 
           {/* Status filter */}
           <div
-            className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl border max-w-min ${
               isDark
                 ? "bg-white/[0.05] border-white/[0.09]"
                 : "bg-white border-gray-200"

@@ -485,7 +485,7 @@ export default function DynamicOverviewPage() {
               : "Create an education chatbot to engage students with interactive MCQ quizzes."}
           </p>
           <Link
-            href={`/web/${chatbotId}/build`}
+            href={`/web/${chatbotId}/create`}
             className={`inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r ${displayInfo.gradient} text-white font-medium rounded-xl hover:opacity-90 transition-opacity`}
           >
             <Bot className="h-5 w-5" />
@@ -711,7 +711,7 @@ export default function DynamicOverviewPage() {
         </div>
 
         {/* Recent Activity */}
-        <div className={`${styles.card} overflow-hidden`}>
+        <div className={`${styles.card} overflow-x-auto`}>
           <div
             className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
           >
@@ -745,8 +745,8 @@ export default function DynamicOverviewPage() {
             {recentItems.length > 0 ? (
               recentItems.map((item) => (
                 <div
-                  key={item.id}
-                  className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors ${styles.divider}`}
+                  key={item.id + item.timestamp}
+                  className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors ${styles.divider} gap-2`}
                 >
                   <div className="flex items-center gap-3 flex-1">
                     <div
@@ -823,7 +823,9 @@ export default function DynamicOverviewPage() {
                         {item.score >= 80 ? "Passed" : "Review Needed"}
                       </span>
                     )}
-                    <span className={`text-xs ${styles.text.muted}`}>
+                    <span
+                      className={`text-xs text-nowrap ${styles.text.muted}`}
+                    >
                       {formatDistanceToNow(
                         new Date(item.date || item.timestamp),
                         { addSuffix: true },
@@ -856,27 +858,35 @@ export default function DynamicOverviewPage() {
           <div
             className={`${styles.card} p-4 rounded-2xl flex flex-wrap items-center gap-3`}
           >
+            {/* Icon */}
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${pc}18` }}
             >
               <Globe className="h-4 w-4" style={{ color: pc }} />
             </div>
-            <div className="flex-1 min-w-0">
+
+            {/* TEXT SECTION (IMPORTANT FIX) */}
+            <div className="flex flex-col min-w-0 w-1/2">
               <p
-                className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
+                className={`text-xs text-nowrap font-semibold ${styles.text.secondary} mb-0.5`}
               >
                 Shareable Landing Page
               </p>
+
               <p
                 className={`text-xs font-mono truncate ${
                   isDark ? "text-white/60" : "text-gray-600"
                 }`}
+                title={landingUrl} // 👈 tooltip on hover
               >
                 {landingUrl}
               </p>
             </div>
-            <a
+
+            {/* BUTTONS */}
+            {/* <div className="flex items-center gap-1 flex-shrink-0"> */}
+            <Link
               href={landingUrl}
               target="_blank"
               rel="noopener noreferrer"
@@ -888,15 +898,17 @@ export default function DynamicOverviewPage() {
             >
               <ExternalLink className="h-3.5 w-3.5" />
               Open
-            </a>
+            </Link>
+
             <Link
               href={`/web/${chatbotType}/integration`}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium"
               style={{ background: pc, color: "#fff" }}
             >
               <Code2 className="h-3.5 w-3.5" />
               Get Embed Code
             </Link>
+            {/* </div> */}
           </div>
         )}
         {/* Quick Links Grid */}

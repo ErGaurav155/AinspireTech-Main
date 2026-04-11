@@ -51,14 +51,14 @@ const TYPE_CONFIG: Record<
     gradient: "from-purple-500 to-pink-500",
     accentDark: "text-purple-400",
     accentLight: "text-purple-600",
-    buildPath: "/web/chatbot-lead-generation/build",
+    buildPath: "/web/chatbot-lead-generation/create",
   },
   "chatbot-education": {
     label: "Education (MCQ)",
     gradient: "from-green-500 to-emerald-500",
     accentDark: "text-green-400",
     accentLight: "text-green-600",
-    buildPath: "/web/chatbot-education/build",
+    buildPath: "/web/chatbot-education/create",
   },
 };
 
@@ -354,7 +354,7 @@ export default function FAQPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className={`px-3 py-1.5 rounded-lg text-xs ${styles.input}`}
+            className={`px-3 py-2 rounded-lg text-xs ${styles.input} max-w-min`}
           >
             <option
               value="all"

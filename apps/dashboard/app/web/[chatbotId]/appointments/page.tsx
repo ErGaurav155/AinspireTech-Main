@@ -535,7 +535,7 @@ export default function AppointmentQuestionsPage() {
             questions.
           </p>
           <Link
-            href="/web/chatbot-lead-generation/build"
+            href="/web/chatbot-lead-generation/create"
             className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
           >
             Build Chatbot

@@ -53,13 +53,13 @@ const TYPE_CONFIG: Record<
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
     defaultColor: "#8B5CF6",
-    buildPath: "/web/chatbot-lead-generation/build",
+    buildPath: "/web/chatbot-lead-generation/create",
   },
   "chatbot-education": {
     label: "Education (MCQ)",
     gradient: "from-green-500 to-emerald-500",
     defaultColor: "#10B981",
-    buildPath: "/web/chatbot-education/build",
+    buildPath: "/web/chatbot-education/create",
   },
 };
 
