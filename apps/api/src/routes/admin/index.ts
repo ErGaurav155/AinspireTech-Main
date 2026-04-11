@@ -47,6 +47,6 @@ router.get("/insta-accounts", getInstaAccountsController);
 router.get("/web-chatbots", getAllChatbotsController);
 // GET /api/admin/payouts - List payouts
 router.get("/payouts", listPayoutsController);
-// POST /api/admin/payouts/:payoutId/approve - Approve a payout
-router.post("/payouts/:payoutId/approve", approvePayoutController);
+// POST /api/admin/payouts/:payoutId - Approve a payout
+router.post("/payouts/:payoutId", approvePayoutController);
 export default router;

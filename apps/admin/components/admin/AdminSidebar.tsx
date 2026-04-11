@@ -17,6 +17,7 @@ import {
   LogOut,
   CreditCard,
   X,
+  CurrencyIcon,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { verifyOwner } from "@/lib/services/admin-actions.api";
@@ -41,6 +42,12 @@ const NAV_ITEMS = [
     href: "/admin/rate-limits",
     icon: Activity,
     color: "red",
+  },
+  {
+    label: "Payouts",
+    href: "/admin/payouts",
+    icon: CurrencyIcon,
+    color: "yellow",
   },
   {
     label: "Instagram Users",

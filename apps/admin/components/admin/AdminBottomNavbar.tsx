@@ -15,6 +15,7 @@ import {
   Globe,
   Shield,
   ChevronRight,
+  CurrencyIcon,
 } from "lucide-react";
 import { Badge, useThemeStyles } from "@rocketreplai/ui";
 // Admin menu sections
@@ -50,6 +51,14 @@ const ADMIN_SECTIONS = [
     icon: Activity,
     color: "#f59e0b",
     description: "API limits",
+  },
+  {
+    id: "payouts",
+    label: "Payouts",
+    href: "/admin/payouts",
+    icon: CurrencyIcon,
+    color: "#eadf1f",
+    description: "Payouts and earnings",
   },
   {
     id: "instagram",

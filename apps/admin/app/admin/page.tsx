@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, JSX, useCallback, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useUser, useClerk } from "@clerk/nextjs";
 import Link from "next/link";
 import {
   Users,
@@ -34,7 +34,6 @@ import {
   Layers,
   BarChart,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import RateLimitDashboard from "@/components/admin/RateLimitDashboard";
 import {
   getAppointments,
@@ -237,6 +236,7 @@ export default function AdminDashboard() {
   const { user, isLoaded } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles(); // centralised theme
+  const { signOut } = useClerk();
 
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [subscriptions, setSubscriptions] = useState<CombinedSubscription[]>(
@@ -262,6 +262,9 @@ export default function AdminDashboard() {
       const { isOwner: ownerFlag } = await verifyOwner(apiRequest);
       setIsOwner(ownerFlag);
       if (!ownerFlag) {
+        await signOut({
+          redirectUrl: "/sign-in", // optional
+        });
         setError("ACCESS_DENIED");
         return;
       }

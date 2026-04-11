@@ -69,3 +69,63 @@ export const getUserRateLimitStats = (apiRequest: ApiRequestFn) => {
     method: "GET",
   });
 };
+
+/* =========================
+   PAYOUT METHODS  [NEW]
+========================= */
+
+export type PayoutStatus = "processing" | "completed" | "failed";
+
+export interface AdminAffiliateSummary {
+  _id?: string;
+  userId?: string;
+  affiliateCode?: string;
+  totalEarnings?: number;
+}
+
+export interface PayoutRecord {
+  _id: string;
+  amount: number;
+  period: string;
+  status: PayoutStatus;
+  paymentMethod: "bank" | "upi" | "paypal";
+  paymentDetails: {
+    accountName?: string;
+    accountNumber?: string;
+    bankName?: string;
+    ifscCode?: string;
+    upiId?: string;
+    paypalEmail?: string;
+  };
+  notes?: string;
+  transactionId?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  affiliateId: string | AdminAffiliateSummary;
+}
+
+export const getPayouts = (
+  apiRequest: ApiRequestFn,
+  status: PayoutStatus | "all" = "all",
+) => {
+  const query = status === "all" ? "" : `?status=${status}`;
+  return apiRequest<{ payouts: PayoutRecord[] }>(`/admin/payouts${query}`, {
+    method: "GET",
+  });
+};
+
+export const updatePayoutStatus = (
+  apiRequest: ApiRequestFn,
+  payoutId: string,
+  transactionId?: string,
+  notes?: string,
+) =>
+  apiRequest<{
+    message: string;
+    payout: PayoutRecord;
+    commissionsUpdated: number;
+  }>(`/admin/payouts/${payoutId}`, {
+    method: "POST",
+    body: JSON.stringify({ transactionId, notes }),
+  });

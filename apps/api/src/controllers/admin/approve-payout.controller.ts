@@ -5,7 +5,7 @@ import AffiPayout from "@/models/affiliate/Payout";
 import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import Affiliate from "@/models/affiliate/Affiliate";
 
-// POST /api/admin/payouts/:payoutId/approve
+// POST /api/admin/payouts/:payoutId
 export const approvePayoutController = async (req: Request, res: Response) => {
   try {
     // Admin authentication should be handled by middleware

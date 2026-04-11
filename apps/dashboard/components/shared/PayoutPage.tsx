@@ -1,19 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useApi } from "@/lib/useApi";
 import {
   ArrowLeft,
   Zap,
-  Instagram,
-  Globe,
   Copy,
   CheckCircle2,
 } from "lucide-react";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import {
+  type AffiliateDashboardData,
+  type AffiliatePaymentMethod,
   getAffiliateDashInfo,
   requestPayout,
   saveAffiPaymentDetails,
@@ -41,9 +41,8 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
   const [requesting, setRequesting] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "paypal" | "bank">(
-    "bank",
-  );
+  const [paymentMethod, setPaymentMethod] =
+    useState<AffiliatePaymentMethod>("bank");
   const [availableBalance, setAvailableBalance] = useState(0);
   const [payoutAmount, setPayoutAmount] = useState(0);
   const [copiedUpi, setCopiedUpi] = useState(false);
@@ -65,7 +64,6 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
     dashboardType === "insta"
       ? "from-pink-500 to-rose-500"
       : "from-purple-500 to-pink-500";
-  const Icon = dashboardType === "insta" ? Instagram : Globe;
   const backRoute = dashboardType === "insta" ? "/insta/refer" : "/web/refer";
 
   useEffect(() => {
@@ -73,7 +71,9 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
 
     const fetchData = async () => {
       try {
-        const data = await getAffiliateDashInfo(apiRequest);
+        const data: AffiliateDashboardData = await getAffiliateDashInfo(
+          apiRequest,
+        );
 
         if (!data.isAffiliate) {
           toast({
@@ -87,6 +87,12 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
         }
 
         setAvailableBalance(data.stats?.pendingEarnings || 0);
+        setPayoutAmount(
+          Math.max(
+            0,
+            Math.floor((data.stats?.pendingEarnings || 0) / 100) * 100,
+          ),
+        );
 
         if (data.affiliate?.paymentDetails) {
           const details = data.affiliate.paymentDetails;
@@ -177,20 +183,16 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
         }
       }
 
-      const response = await saveAffiPaymentDetails(apiRequest, {
+      await saveAffiPaymentDetails(apiRequest, {
         paymentMethod,
         ...formData,
       });
 
-      if (response.success) {
-        toast({
-          title: "Payment details saved!",
-          description: "You can now request payouts",
-          duration: 3000,
-        });
-      } else {
-        throw new Error(response.error);
-      }
+      toast({
+        title: "Payment details saved!",
+        description: "You can now request payouts",
+        duration: 3000,
+      });
     } catch (error: any) {
       toast({
         title: "Failed to save",
@@ -208,6 +210,16 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
       toast({
         title: "Invalid amount",
         description: "Please select a payout amount",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (payoutAmount < 1000) {
+      toast({
+        title: "Minimum payout is ₹1000",
+        description: "Please choose at least ₹1000",
         variant: "destructive",
         duration: 3000,
       });
@@ -232,18 +244,14 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
     setRequesting(true);
 
     try {
-      const response = await requestPayout(apiRequest, payoutAmount);
+      await requestPayout(apiRequest, payoutAmount);
 
-      if (response.success) {
-        toast({
-          title: "Payout requested!",
-          description: "Your payout request has been submitted",
-          duration: 3000,
-        });
-        router.push(backRoute);
-      } else {
-        throw new Error(response.error);
-      }
+      toast({
+        title: "Payout requested!",
+        description: "Your payout request has been submitted",
+        duration: 3000,
+      });
+      router.push(backRoute);
     } catch (error: any) {
       toast({
         title: "Request failed",
@@ -652,7 +660,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
           </div>
 
           <Button
-            onClick={() => setShowConfirmDialog(true)}
+            onClick={handleRequestPayout}
             disabled={
               requesting ||
               availableBalance === 0 ||

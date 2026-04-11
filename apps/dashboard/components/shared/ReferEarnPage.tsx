@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { useAuth } from "@clerk/nextjs";
@@ -18,7 +18,11 @@ import {
   Globe,
 } from "lucide-react";
 
-import { getAffiliateDashInfo } from "@/lib/services/affiliate-actions.api";
+import {
+  type AffiliateDashboardData,
+  type AffiliateReferralRecord,
+  getAffiliateDashInfo,
+} from "@/lib/services/affiliate-actions.api";
 import {
   Button,
   EmptyState,
@@ -74,7 +78,8 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const [affiliateData, setAffiliateData] = useState<any>(null);
+  const [affiliateData, setAffiliateData] =
+    useState<AffiliateDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState("");
@@ -103,6 +108,8 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
             variant: "destructive",
             duration: 3000,
           });
+          setLoading(false);
+          return;
         }
 
         setAffiliateData(data);
@@ -184,7 +191,35 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
     return <Spinner label="Loading referral program…" />;
   }
 
-  const stats = affiliateData?.stats || {};
+  const stats = affiliateData?.stats;
+
+  const getReferralDisplay = (referral: AffiliateReferralRecord) => {
+    const user =
+      typeof referral.referredUserId === "string"
+        ? null
+        : referral.referredUserId;
+
+    const name =
+      [user?.firstName, user?.lastName].filter(Boolean).join(" ") ||
+      user?.name ||
+      user?.email ||
+      (typeof referral.referredUserId === "string"
+        ? referral.referredUserId.slice(0, 8)
+        : "User");
+
+    const subtitle = [
+      referral.productType === "web-chatbot"
+        ? referral.chatbotType || "Web chatbot"
+        : referral.instaPlan || "Instagram automation",
+      referral.subscriptionType,
+    ].join(" • ");
+
+    return {
+      initial: name.charAt(0).toUpperCase() || "U",
+      name,
+      subtitle,
+    };
+  };
 
   return (
     <div className={styles.page}>
@@ -254,7 +289,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
             <div
               className={`flex-1 rounded-xl px-4 py-3 text-sm font-mono overflow-x-auto whitespace-nowrap ${styles.innerCard}`}
             >
-              {affiliateData?.affiliateLink || "Loading..."}
+              {affiliateData?.affiliateLink || "Link unavailable"}
             </div>
             <div className="flex gap-2">
               <Button onClick={handleCopyLink} className={styles.pill}>
@@ -377,21 +412,21 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
           {[
             {
               label: "Signups",
-              value: stats.totalReferrals || 0,
+              value: stats?.totalReferrals || 0,
             },
             {
               label: "Paid Referrals",
-              value: stats.activeReferrals || 0,
+              value: stats?.activeReferrals || 0,
             },
             {
               label: "Total Earned",
-              value: stats.totalEarnings
+              value: stats?.totalEarnings
                 ? `₹${stats.totalEarnings.toFixed(2)}`
                 : "₹0.00",
             },
             {
               label: "Available Balance",
-              value: stats.pendingEarnings
+              value: stats?.pendingEarnings
                 ? `₹${stats.pendingEarnings.toFixed(2)}`
                 : "₹0.00",
             },
@@ -448,7 +483,10 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
 
           {affiliateData?.referrals && affiliateData.referrals.length > 0 && (
             <div className="space-y-4">
-              {affiliateData.referrals.slice(0, 5).map((referral: any) => {
+              {affiliateData.referrals
+                .slice(0, 5)
+                .map((referral: AffiliateReferralRecord) => {
+                const display = getReferralDisplay(referral);
                 const iconBgClass =
                   styles.icon[primaryColor as keyof typeof styles.icon] ||
                   styles.icon.purple;
@@ -462,16 +500,15 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
                         className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgClass}`}
                       >
                         <span className="text-sm font-semibold">
-                          {referral.referredUserId?.firstName?.[0] || "U"}
+                          {display.initial}
                         </span>
                       </div>
                       <div>
                         <p className={`font-medium ${styles.text.primary}`}>
-                          {referral.referredUserId?.firstName}{" "}
-                          {referral.referredUserId?.lastName}
+                          {display.name}
                         </p>
                         <p className={`text-sm ${styles.text.secondary}`}>
-                          {new Date(referral.createdAt).toLocaleDateString()}
+                          {display.subtitle}
                         </p>
                       </div>
                     </div>
@@ -482,7 +519,8 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
                       <p
                         className={`text-sm capitalize ${styles.text.secondary}`}
                       >
-                        {referral.status}
+                        {referral.status} •{" "}
+                        {new Date(referral.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                   </div>

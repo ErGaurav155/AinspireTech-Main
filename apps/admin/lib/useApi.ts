@@ -36,7 +36,7 @@ export const useApi = () => {
 
         if (!response.ok) {
           if (response.status === 401) {
-            // Avoid hard reload infinite loop
+            // // Avoid hard reload infinite loop
             if (typeof window !== "undefined") {
               window.location.href = "/sign-in";
             }

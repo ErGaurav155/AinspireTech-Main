@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Search,
@@ -27,7 +26,6 @@ import {
   FileText,
   X,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { getAppointments, verifyOwner } from "@/lib/services/admin-actions.api";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -53,8 +51,6 @@ interface Appointment {
 
 export default function AdminAppointmentsPage() {
   const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 

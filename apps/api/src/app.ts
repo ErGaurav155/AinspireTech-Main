@@ -1,3 +1,4 @@
+// apps/api/app.ts
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
@@ -11,9 +12,13 @@ import routes from "@/routes";
 
 const app = express();
 
-/* ============================================================
-   ENV VALIDATION
-============================================================ */
+// ✅ CRITICAL FIX: Enable trust proxy for Railway/Cloudflare
+// This allows express-rate-limit to correctly read X-Forwarded-For headers
+app.set("trust proxy", 1); // Trust first proxy (Railway/Cloudflare)
+
+// Or for more control:
+// app.set("trust proxy", true); // Trust all proxies
+// app.set("trust proxy", "loopback, linklocal, uniquelocal"); // Specific proxies
 
 console.log("🔐 Clerk initialization...");
 console.log(
@@ -106,6 +111,16 @@ const limiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => req.path === "/health" || req.path === "/",
+  // ✅ Fix: Add key generator that works with trust proxy
+  keyGenerator: (req) => {
+    // Use the IP from the request (trust proxy ensures correct IP)
+    const ip =
+      req.ip ||
+      (req.headers["x-forwarded-for"] as string)?.split(",")[0] ||
+      req.socket.remoteAddress ||
+      "unknown";
+    return ip;
+  },
   message: {
     success: false,
     error: "Too many requests",

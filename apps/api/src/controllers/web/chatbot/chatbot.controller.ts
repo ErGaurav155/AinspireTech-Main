@@ -1,3 +1,4 @@
+// apps/api/controllers/web/chatbot/chatbot.controller.ts
 import { Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/config/database.config";
@@ -7,7 +8,8 @@ import webFaq from "@/models/web/webFaq.model";
 import WebConversation from "@/models/web/Conversation.model";
 import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
 
-// Only these two types are valid — mirrors VALID_IDS on the frontend
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const VALID_CHATBOT_TYPES = [
   "chatbot-lead-generation",
   "chatbot-education",
@@ -15,73 +17,85 @@ const VALID_CHATBOT_TYPES = [
 
 type ChatbotTypeId = (typeof VALID_CHATBOT_TYPES)[number];
 
-// Per-type defaults — mirrors TYPE_CONFIG on the frontend
+const CDN_URL = process.env.CDN_URL || "https://cdn.rocketreplai.com";
+
 const TYPE_DEFAULTS: Record<
   ChatbotTypeId,
   {
     welcomeMessage: string;
     primaryColor: string;
-    scriptSrc: string;
-    dataAttr: string;
   }
 > = {
   "chatbot-lead-generation": {
     welcomeMessage: "Hi! How can I help you today?",
     primaryColor: "#8B5CF6",
-    scriptSrc: "https://app.rocketreplai.com/chatbotembed.js",
-    dataAttr: "data-chatbot-config",
   },
   "chatbot-education": {
     welcomeMessage: "Hello! How can I help you today?",
     primaryColor: "#10B981",
-    scriptSrc: "https://app.rocketreplai.com/mcqchatbotembed.js",
-    dataAttr: "data-mcq-chatbot",
   },
 };
+
+// Default appointment questions seeded when a lead-gen chatbot is first created.
+// These are sensible defaults the user can edit later from the Appointments page.
+const DEFAULT_APPOINTMENT_QUESTIONS = [
+  {
+    id: "daq_1",
+    question: "What is your full name?",
+    type: "text" as const,
+    required: true,
+    options: [],
+  },
+  {
+    id: "daq_2",
+    question: "What is your email address?",
+    type: "email" as const,
+    required: true,
+    options: [],
+  },
+  {
+    id: "daq_3",
+    question: "What is your phone number?",
+    type: "tel" as const,
+    required: true,
+    options: [],
+  },
+  {
+    id: "daq_4",
+    question: "What service are you interested in?",
+    type: "select" as const,
+    required: true,
+    options: ["Consultation", "Service A", "Service B", "Other"],
+  },
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const isValidType = (type: string): type is ChatbotTypeId =>
   VALID_CHATBOT_TYPES.includes(type as ChatbotTypeId);
 
-const buildEmbedCode = (
-  chatbotId: string,
-  type: ChatbotTypeId,
-  userId: string,
-  websiteUrl?: string,
-): string => {
-  const defaults = TYPE_DEFAULTS[type];
-  const apiUrl = process.env.API_URL || "https://api.rocketreplai.com";
-
-  const isLead = type === "chatbot-lead-generation";
-
-  const config = isLead
-    ? {
-        userId,
-        isAuthorized: false, // becomes true after scraping completes
-        filename: "",
-        chatbotType: type,
-        apiUrl: "https://app.rocketreplai.com",
-        primaryColor: defaults.primaryColor,
-        position: "bottom-right",
-        welcomeMessage: defaults.welcomeMessage,
-        chatbotName: "Lead Bot",
-      }
-    : {
-        userId,
-        isAuthorized: true,
-        chatbotType: type,
-        apiUrl: "https://app.rocketreplai.com",
-        primaryColor: defaults.primaryColor,
-        position: "bottom-right",
-        welcomeMessage: defaults.welcomeMessage,
-        chatbotName: "Education Bot",
-      };
-
-  return `<script \n  src="${defaults.scriptSrc}" \n  ${defaults.dataAttr}='${JSON.stringify(config, null, 2)}'>\n</script>`;
+/**
+ * Build the new CDN-based embed snippet.
+ *
+ * New format (matches website-bot.js):
+ *   <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
+ *     userId,chatbotType
+ *   </script>
+ *
+ * The script reads userId and chatbotType from the tag's text content,
+ * injects a resizing iframe, and bridges postMessages.
+ */
+const buildEmbedCode = (userId: string, type: ChatbotTypeId): string => {
+  return `<!-- RocketReplAI Website Chatbot -->
+<!-- Paste this just before the closing </body> tag -->
+<script
+  src="${CDN_URL}/website-bot.js"
+  defer
+>${userId},${type}</script>`;
 };
 
-// ─── POST /api/web/chatbot/create ────────────────────────────────────────────
+// ─── POST /api/web/chatbot/create ─────────────────────────────────────────────
+
 export const createChatbotController = async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
@@ -96,7 +110,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     const { name, type, websiteUrl } = req.body;
 
-    // ── Validate required fields ────────────────────────────────────────
     if (!name?.trim() || !type) {
       return res.status(400).json({
         success: false,
@@ -105,7 +118,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    // ── Validate type — only two types exist now ────────────────────────
     if (!isValidType(type)) {
       return res.status(400).json({
         success: false,
@@ -114,7 +126,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    // ── Lead generation requires a websiteUrl ──────────────────────────
     if (type === "chatbot-lead-generation") {
       if (!websiteUrl?.trim()) {
         return res.status(400).json({
@@ -136,8 +147,7 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     await connectToDatabase();
 
-    // ── One chatbot per type per user ───────────────────────────────────
-    // Also enforced by the unique MongoDB index: { clerkId: 1, type: 1 }
+    // One chatbot per type per user
     const existingChatbot = await WebChatbot.findOne({ clerkId: userId, type });
     if (existingChatbot) {
       return res.status(409).json({
@@ -148,15 +158,11 @@ export const createChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    // ── Create chatbot ─────────────────────────────────────────────────
     const chatbotId = new ObjectId();
     const defaults = TYPE_DEFAULTS[type];
-    const embedCode = buildEmbedCode(
-      chatbotId.toString(),
-      type,
-      userId,
-      websiteUrl?.trim(),
-    );
+
+    // Build new CDN embed code (userId + type, no secrets)
+    const embedCode = buildEmbedCode(userId, type);
 
     const newChatbot = new WebChatbot({
       _id: chatbotId,
@@ -186,6 +192,32 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     const created = await newChatbot.save();
 
+    // ── Seed default appointment questions for lead-gen chatbots ──────────
+    // This means the widget's "Book Appointment" tab works immediately
+    // without the user having to configure questions manually first.
+    if (type === "chatbot-lead-generation") {
+      try {
+        await WebAppointmentQuestions.findOneAndUpdate(
+          { clerkId: userId, chatbotType: type },
+          {
+            $setOnInsert: {
+              clerkId: userId,
+              chatbotType: type,
+              questions: DEFAULT_APPOINTMENT_QUESTIONS,
+            },
+          },
+          { upsert: true, new: true },
+        );
+        console.log(
+          `✅ Default appointment questions seeded for user ${userId}`,
+        );
+      } catch (apptErr) {
+        // Non-fatal — chatbot was created successfully, questions can be
+        // added manually from the dashboard.
+        console.error("Failed to seed default appointment questions:", apptErr);
+      }
+    }
+
     console.log(`✅ Chatbot created: ${type} for user ${userId}`);
 
     return res.status(201).json({
@@ -200,7 +232,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {
-    // Catch duplicate key from MongoDB unique index (race condition fallback)
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -217,7 +248,8 @@ export const createChatbotController = async (req: Request, res: Response) => {
   }
 };
 
-// ─── GET /api/web/chatbot/list ───────────────────────────────────────────────
+// ─── GET /api/web/chatbot/list ────────────────────────────────────────────────
+
 export const getChatbotsController = async (req: Request, res: Response) => {
   try {
     const { userId } = getAuth(req);
@@ -255,14 +287,14 @@ export const getChatbotsController = async (req: Request, res: Response) => {
   }
 };
 
-// GET /api/web/chatbot - Get all chatbots for authenticated user
+// ─── GET /api/web/chatbot (legacy alias) ──────────────────────────────────────
+
 export const getUserChatbotsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
     const { userId } = getAuth(req);
-
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -271,19 +303,15 @@ export const getUserChatbotsController = async (
       });
     }
 
-    // Connect to database
     await connectToDatabase();
 
-    // Fetch user chatbots
     const userChatbots = await WebChatbot.find({ clerkId: userId })
       .sort({ createdAt: -1 })
       .lean();
 
     return res.status(200).json({
       success: true,
-      data: {
-        chatbots: userChatbots,
-      },
+      data: { chatbots: userChatbots },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -296,7 +324,8 @@ export const getUserChatbotsController = async (
   }
 };
 
-// GET /api/web/chatbot/:chatbot - Get specific chatbot
+// ─── GET /api/web/chatbot/:chatbotId ─────────────────────────────────────────
+
 export const getChatbotByIdController = async (req: Request, res: Response) => {
   try {
     const { chatbotId } = req.params;
@@ -340,7 +369,8 @@ export const getChatbotByIdController = async (req: Request, res: Response) => {
   }
 };
 
-// PUT /api/web/chatbot/:chatbot - Update chatbot
+// ─── PUT /api/web/chatbot/:chatbotId ─────────────────────────────────────────
+
 export const updateChatbotController = async (req: Request, res: Response) => {
   try {
     const { chatbotId } = req.params;
@@ -359,16 +389,8 @@ export const updateChatbotController = async (req: Request, res: Response) => {
     await connectToDatabase();
 
     const result = await WebChatbot.updateOne(
-      {
-        type: chatbotId,
-        clerkId: userId,
-      },
-      {
-        $set: {
-          ...updateData,
-          updatedAt: new Date(),
-        },
-      },
+      { type: chatbotId, clerkId: userId },
+      { $set: { ...updateData, updatedAt: new Date() } },
     );
 
     if (result.matchedCount === 0) {
@@ -381,9 +403,7 @@ export const updateChatbotController = async (req: Request, res: Response) => {
 
     return res.status(200).json({
       success: true,
-      data: {
-        message: "Chatbot updated successfully",
-      },
+      data: { message: "Chatbot updated successfully" },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -396,7 +416,8 @@ export const updateChatbotController = async (req: Request, res: Response) => {
   }
 };
 
-// DELETE /api/web/chatbot/:chatbot - Delete chatbot
+// ─── DELETE /api/web/chatbot/:chatbotId ──────────────────────────────────────
+
 export const deleteChatbotController = async (req: Request, res: Response) => {
   try {
     const { chatbotId } = req.params;
@@ -424,24 +445,20 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     }
-    const deleteChatbotFaq = await webFaq.deleteMany({
-      clerkId: userId,
-      chatbotType: chatbotId,
-    });
-    const deleteChatbotConvo = await WebConversation.deleteMany({
-      clerkId: userId,
-      chatbotType: chatbotId,
-    });
-    const deleteChatbotAppo = await WebAppointmentQuestions.deleteMany({
-      clerkId: userId,
-      chatbotType: chatbotId,
-    });
+
+    // Cascade delete all associated data
+    await Promise.all([
+      webFaq.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
+      WebConversation.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
+      WebAppointmentQuestions.deleteMany({
+        clerkId: userId,
+        chatbotType: chatbotId,
+      }),
+    ]);
 
     return res.status(200).json({
       success: true,
-      data: {
-        message: "Chatbot deleted successfully",
-      },
+      data: { message: "Chatbot deleted successfully" },
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
