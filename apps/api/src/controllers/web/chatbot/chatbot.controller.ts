@@ -7,6 +7,9 @@ import { getAuth } from "@clerk/express";
 import webFaq from "@/models/web/webFaq.model";
 import WebConversation from "@/models/web/Conversation.model";
 import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
+import { uploadTextToCloudinary } from "@/services/transaction.service";
+import puppeteer from "puppeteer";
+import multer from "multer";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -37,7 +40,6 @@ const TYPE_DEFAULTS: Record<
 };
 
 // Default appointment questions seeded when a lead-gen chatbot is first created.
-// These are sensible defaults the user can edit later from the Appointments page.
 const DEFAULT_APPOINTMENT_QUESTIONS = [
   {
     id: "daq_1",
@@ -69,22 +71,35 @@ const DEFAULT_APPOINTMENT_QUESTIONS = [
   },
 ];
 
+// ─── Multer configuration for file uploads ────────────────────────────────────
+
+const storage = multer.memoryStorage();
+export const uploadKnowledgeMiddleware = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "text/plain",
+      "application/pdf",
+      "text/markdown",
+      "application/json",
+      "text/csv",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ];
+    if (allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Invalid file type. Allowed: .txt, .pdf, .md, .json, .csv"));
+    }
+  },
+}).single("file");
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const isValidType = (type: string): type is ChatbotTypeId =>
   VALID_CHATBOT_TYPES.includes(type as ChatbotTypeId);
 
-/**
- * Build the new CDN-based embed snippet.
- *
- * New format (matches website-bot.js):
- *   <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
- *     userId,chatbotType
- *   </script>
- *
- * The script reads userId and chatbotType from the tag's text content,
- * injects a resizing iframe, and bridges postMessages.
- */
 const buildEmbedCode = (userId: string, type: ChatbotTypeId): string => {
   return `<!-- RocketReplAI Website Chatbot -->
 <!-- Paste this just before the closing </body> tag -->
@@ -93,6 +108,76 @@ const buildEmbedCode = (userId: string, type: ChatbotTypeId): string => {
   defer
 >${userId},${type}</script>`;
 };
+
+// Helper: Scrape single page
+async function scrapeSinglePage(url: string): Promise<any> {
+  let browser = null;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
+      ],
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124 Safari/537.36",
+    );
+    await page.goto(url, { waitUntil: "load", timeout: 30000 });
+
+    const scrapedData = await page.evaluate(() => {
+      const getDescription = (): string => {
+        const el =
+          document.querySelector('meta[name="description"]') ||
+          document.querySelector('meta[property="og:description"]') ||
+          document.querySelector('meta[name="twitter:description"]');
+        return el ? (el.getAttribute("content") ?? "") : "";
+      };
+
+      const getHeadings = (tag: string): string[] => {
+        return Array.from(document.querySelectorAll(tag))
+          .map((el) => (el.textContent ?? "").trim())
+          .filter((text) => text.length > 0);
+      };
+
+      const getContent = (): string => {
+        const el =
+          document.querySelector("main") ||
+          document.querySelector("article") ||
+          document.querySelector(".content") ||
+          document.querySelector("#content") ||
+          document.querySelector('[role="main"]') ||
+          document.body;
+        if (!el) return "";
+        let text = (el.textContent || "").replace(/\s+/g, " ").trim();
+        return text.length > 800 ? text.substring(0, 800) + "..." : text;
+      };
+
+      return {
+        url: window.location.href,
+        title: document.title ?? "",
+        description: getDescription(),
+        headings: {
+          h1: getHeadings("h1"),
+          h2: getHeadings("h2"),
+          h3: getHeadings("h3"),
+        },
+        content: getContent(),
+      };
+    });
+
+    await page.close();
+    return scrapedData;
+  } finally {
+    if (browser) await browser.close();
+  }
+}
 
 // ─── POST /api/web/chatbot/create ─────────────────────────────────────────────
 
@@ -147,7 +232,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     await connectToDatabase();
 
-    // One chatbot per type per user
     const existingChatbot = await WebChatbot.findOne({ clerkId: userId, type });
     if (existingChatbot) {
       return res.status(409).json({
@@ -160,8 +244,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     const chatbotId = new ObjectId();
     const defaults = TYPE_DEFAULTS[type];
-
-    // Build new CDN embed code (userId + type, no secrets)
     const embedCode = buildEmbedCode(userId, type);
 
     const newChatbot = new WebChatbot({
@@ -192,9 +274,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     const created = await newChatbot.save();
 
-    // ── Seed default appointment questions for lead-gen chatbots ──────────
-    // This means the widget's "Book Appointment" tab works immediately
-    // without the user having to configure questions manually first.
     if (type === "chatbot-lead-generation") {
       try {
         await WebAppointmentQuestions.findOneAndUpdate(
@@ -212,8 +291,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
           `✅ Default appointment questions seeded for user ${userId}`,
         );
       } catch (apptErr) {
-        // Non-fatal — chatbot was created successfully, questions can be
-        // added manually from the dashboard.
         console.error("Failed to seed default appointment questions:", apptErr);
       }
     }
@@ -446,7 +523,6 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    // Cascade delete all associated data
     await Promise.all([
       webFaq.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
       WebConversation.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
@@ -466,6 +542,298 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
     return res.status(500).json({
       success: false,
       error: "Internal server error",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// KNOWLEDGE BASE CONTROLLERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── POST /api/web/chatbot/update-knowledge ───────────────────────────────────
+// Updates website URL and rescrapes the website for knowledge base
+
+export const updateWebsiteKnowledgeController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+    const { url, chatbotId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!url || !chatbotId) {
+      return res.status(400).json({
+        success: false,
+        error: "URL and chatbotId are required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await connectToDatabase();
+
+    const chatbot = await WebChatbot.findOne({
+      _id: chatbotId,
+      clerkId: userId,
+    });
+
+    if (!chatbot) {
+      return res.status(404).json({
+        success: false,
+        error: "Chatbot not found",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check if URL is the same and already scraped
+    const isSameUrl = chatbot.websiteUrl === url;
+    const isAlreadyScraped = chatbot.isScrapped && chatbot.scrappedFile;
+
+    if (isSameUrl && isAlreadyScraped) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          alreadyScrapped: true,
+          message:
+            "Website already scraped with current URL. No changes needed.",
+          cloudinaryUrl: chatbot.scrappedFile,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Update the website URL first
+    await WebChatbot.updateOne(
+      { _id: chatbotId, clerkId: userId },
+      {
+        $set: {
+          websiteUrl: url,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    // Scrape the website
+    console.log(`🕷️ Scraping website: ${url}`);
+    const scrapedData = await scrapeSinglePage(url);
+
+    // Format data for storage
+    const formattedData = {
+      [url]: `Title: ${scrapedData.title}. Description: ${scrapedData.description}. Content: ${scrapedData.content.substring(0, 500)}`,
+    };
+
+    // Upload to Cloudinary
+    const fileName = `${chatbotId}_${Date.now()}_knowledge`;
+    const cloudinaryUrl = await uploadTextToCloudinary(
+      JSON.stringify(formattedData, null, 2),
+      fileName,
+    );
+
+    // Update chatbot with scraped data
+    await WebChatbot.updateOne(
+      { _id: chatbotId, clerkId: userId },
+      {
+        $set: {
+          scrappedFile: cloudinaryUrl,
+          isScrapped: true,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    console.log(`✅ Knowledge base updated for chatbot ${chatbotId}`);
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        alreadyScrapped: false,
+        message: "Website scraped and knowledge base updated successfully",
+        cloudinaryUrl,
+        scrapedData: {
+          title: scrapedData.title,
+          description: scrapedData.description,
+        },
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Update knowledge error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to update knowledge base",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// ─── POST /api/web/chatbot/upload-knowledge ───────────────────────────────────
+// Uploads a file to the knowledge base
+
+export const uploadKnowledgeFileController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+    const { chatbotId } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!chatbotId) {
+      return res.status(400).json({
+        success: false,
+        error: "Chatbot ID is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: "No file uploaded",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await connectToDatabase();
+
+    const chatbot = await WebChatbot.findOne({
+      _id: chatbotId,
+      clerkId: userId,
+    });
+
+    if (!chatbot) {
+      return res.status(404).json({
+        success: false,
+        error: "Chatbot not found",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Read file content
+    const fileContent = req.file.buffer.toString("utf-8");
+    const fileName = `${chatbotId}_file_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
+
+    // Get existing knowledge base if any
+    let existingData: any = {};
+    if (chatbot.scrappedFile) {
+      try {
+        const response = await fetch(chatbot.scrappedFile);
+        const text = await response.text();
+        existingData = JSON.parse(text);
+      } catch (error) {
+        console.error("Failed to fetch existing data:", error);
+      }
+    }
+
+    // Add new file data
+    existingData[fileName] = {
+      type: "file_upload",
+      name: req.file.originalname,
+      contentType: req.file.mimetype,
+      content: fileContent.substring(0, 3000),
+      uploadedAt: new Date().toISOString(),
+    };
+
+    // Upload merged data to Cloudinary
+    const mergedCloudinaryUrl = await uploadTextToCloudinary(
+      JSON.stringify(existingData, null, 2),
+      `${chatbotId}_knowledge_base`,
+    );
+
+    // Update chatbot
+    await WebChatbot.updateOne(
+      { _id: chatbotId, clerkId: userId },
+      {
+        $set: {
+          scrappedFile: mergedCloudinaryUrl,
+          isScrapped: true,
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        message: "File uploaded and knowledge base updated",
+        fileName: req.file.originalname,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("File upload error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to upload file",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+// ─── GET /api/web/chatbot/knowledge-status/:chatbotId ─────────────────────────
+// Gets the current knowledge base status
+
+export const getKnowledgeStatusController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+    const { chatbotId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await connectToDatabase();
+
+    const chatbot = await WebChatbot.findOne({
+      _id: chatbotId,
+      clerkId: userId,
+    });
+
+    if (!chatbot) {
+      return res.status(404).json({
+        success: false,
+        error: "Chatbot not found",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        isScrapped: chatbot.isScrapped,
+        hasKnowledgeBase: !!chatbot.scrappedFile,
+        websiteUrl: chatbot.websiteUrl,
+        lastUpdated: chatbot.updatedAt,
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Get knowledge status error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to get knowledge status",
       timestamp: new Date().toISOString(),
     });
   }

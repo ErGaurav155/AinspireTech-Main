@@ -93,6 +93,43 @@ export const deleteChatbot = (apiRequest: ApiRequestFn, chatbotId: string) =>
   });
 
 /* =========================
+   KNOWLEDGE BASE METHODS
+========================= */
+
+export const updateWebsiteKnowledge = (
+  apiRequest: ApiRequestFn,
+  url: string,
+  chatbotId: string,
+) =>
+  apiRequest("/web/chatbot/update-knowledge", {
+    method: "POST",
+    body: JSON.stringify({ url, chatbotId }),
+  });
+
+export const uploadKnowledgeFile = (
+  apiRequest: ApiRequestFn,
+  file: File,
+  chatbotId: string,
+) => {
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("chatbotId", chatbotId);
+
+  return apiRequest("/web/chatbot/upload-knowledge", {
+    method: "POST",
+    body: formData,
+  });
+};
+
+export const getKnowledgeStatus = (
+  apiRequest: ApiRequestFn,
+  chatbotId: string,
+) =>
+  apiRequest(`/web/chatbot/knowledge-status/${chatbotId}`, {
+    method: "GET",
+  });
+
+/* =========================
    ANALYTICS
 ========================= */
 
@@ -140,7 +177,6 @@ export const getConversations = (
     { method: "GET" },
   );
 
-// Alias used by conversations page (accepts options object)
 export const getConversationsByType = (
   apiRequest: ApiRequestFn,
   chatbotType: string,

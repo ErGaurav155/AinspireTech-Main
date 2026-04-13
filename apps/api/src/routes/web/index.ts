@@ -12,8 +12,12 @@ import {
   createChatbotController,
   deleteChatbotController,
   getChatbotByIdController,
+  getKnowledgeStatusController,
   getUserChatbotsController,
   updateChatbotController,
+  updateWebsiteKnowledgeController,
+  uploadKnowledgeFileController,
+  uploadKnowledgeMiddleware,
 } from "@/controllers/web/chatbot/chatbot.controller";
 import {
   createOrUpdateFaqController,
@@ -54,6 +58,17 @@ router.get("/chatbot/:chatbotId", getChatbotByIdController);
 router.put("/chatbot/:chatbotId", updateChatbotController);
 // DELETE /api/web/chatbot/:chatbotId - Delete chatbot
 router.delete("/chatbot/:chatbotId", deleteChatbotController);
+// Knowledge Base routes
+router.post("/chatbot/update-knowledge", updateWebsiteKnowledgeController);
+router.post(
+  "/chatbot/upload-knowledge",
+  uploadKnowledgeMiddleware,
+  uploadKnowledgeFileController,
+);
+router.get(
+  "/chatbot/knowledge-status/:chatbotId",
+  getKnowledgeStatusController,
+);
 
 //faq
 // GET /api/web/faq - Get FAQ

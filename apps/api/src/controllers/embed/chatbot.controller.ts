@@ -12,7 +12,6 @@ import { Request, Response } from "express";
 // POST /api/embed/chatbot - Handle chatbot requests
 export const handleChatbotRequest = async (req: Request, res: Response) => {
   try {
-    // Check API key
     const apiKey = req.headers["x-api-key"] as string;
 
     if (!apiKey || apiKey !== process.env.API_KEY) {
@@ -23,26 +22,13 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
       });
     }
 
-    const {
-      userInput,
-      fileData,
-      userId,
-      agentId,
-      // Full conversation history from the client (client keeps this in state
-      // and sends it with every request — gives the model session memory)
-      conversationHistory,
-    }: {
-      userInput: string;
-      fileData?: string;
-      userId: string;
-      agentId: string;
-      conversationHistory?: ConvMessage[];
-    } = req.body;
+    const { userInput, userId, agentId, fileData, conversationHistory } =
+      req.body;
 
-    if (!userInput || !userId || !agentId || !fileData) {
+    if (!userInput || !userId || !agentId) {
       return res.status(400).json({
         success: false,
-        error: "Message is required",
+        error: "Missing required fields",
         timestamp: new Date().toISOString(),
       });
     }
@@ -51,6 +37,8 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
       userInput,
       userfileName: fileData || "default",
       conversationHistory: conversationHistory || [],
+      clerkId: userId, // Pass clerkId for FAQ context
+      chatbotType: agentId, // Pass chatbot type for FAQ context
     });
 
     return res.status(200).json({

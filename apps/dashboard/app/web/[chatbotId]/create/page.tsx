@@ -161,7 +161,7 @@ export default function BuildChatbotPage() {
         type: chatbotType,
         websiteUrl: isLead ? websiteUrl.trim() : undefined,
       });
-      const newId = chatbotData.chatbot?.id || chatbotData.chatbot?._id;
+      const newId = chatbotData.chatbot?.id;
 
       if (isLead && newId) {
         setStep("scraping");

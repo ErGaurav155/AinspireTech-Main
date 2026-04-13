@@ -28,10 +28,8 @@ export const useApi = () => {
           {
             ...options,
             headers: {
-              // Only add Content-Type for non-FormData requests
               ...(!isFormData && { "Content-Type": "application/json" }),
               Authorization: `Bearer ${token}`,
-              // Caller-supplied headers come last so they can override if needed
               ...(options.headers || {}),
             },
           },
@@ -39,7 +37,6 @@ export const useApi = () => {
 
         if (!response.ok) {
           if (response.status === 401) {
-            // Avoid hard reload infinite loop
             if (typeof window !== "undefined") {
               window.location.href = "/sign-in";
             }
@@ -64,7 +61,7 @@ export const useApi = () => {
         throw error;
       }
     },
-    [getToken], // 🔥 CRITICAL — keeps apiRequest stable
+    [getToken],
   );
 
   return { apiRequest };

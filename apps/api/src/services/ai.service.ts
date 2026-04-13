@@ -1,6 +1,7 @@
-// apps/api/services/ai.service.ts
+// apps/api/services/ai.service.ts (updated)
 import { connectToDatabase } from "@/config/database.config";
 import OpenAI from "openai";
+import WebFaq from "@/models/web/webFaq.model";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -37,7 +38,7 @@ async function downloadCloudinaryContent(
   cloudinaryUrl: string,
 ): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
     const response = await fetch(cloudinaryUrl, {
@@ -60,14 +61,32 @@ async function downloadCloudinaryContent(
 function formatContextFromData(data: any): string {
   if (!data) return "No data available";
 
-  // Handle URL->description object format
+  // Handle URL->description object format (from website scrape)
   if (typeof data === "object" && !Array.isArray(data)) {
+    const sections: string[] = [];
+
+    // Extract website pages
     const urlKeys = Object.keys(data).filter((key) => key.startsWith("http"));
     if (urlKeys.length > 0) {
-      return urlKeys
-        .map((url) => `Page: ${url}\nInfo: ${data[url]}`)
-        .join("\n\n");
+      sections.push("=== WEBSITE CONTENT ===");
+      sections.push(
+        urlKeys.map((url) => `Page: ${url}\nInfo: ${data[url]}`).join("\n\n"),
+      );
     }
+
+    // Extract file uploads
+    const fileKeys = Object.keys(data).filter((key) => key.startsWith("file_"));
+    if (fileKeys.length > 0) {
+      sections.push("=== UPLOADED DOCUMENTS ===");
+      for (const key of fileKeys) {
+        const fileData = data[key];
+        sections.push(`Document: ${fileData.name || key}`);
+        sections.push(`Content: ${fileData.content || "No content preview"}`);
+        sections.push("");
+      }
+    }
+
+    return sections.join("\n\n");
   }
 
   // Handle array of pages format
@@ -86,31 +105,44 @@ function formatContextFromData(data: any): string {
   return String(data).substring(0, 4000);
 }
 
+async function getFAQContext(
+  clerkId: string,
+  chatbotType: string,
+): Promise<string> {
+  try {
+    const faqData = await WebFaq.findOne({ clerkId, chatbotType });
+    if (!faqData || !faqData.questions || faqData.questions.length === 0) {
+      return "";
+    }
+
+    const faqContext = faqData.questions
+      .map(
+        (q) =>
+          `Q: ${q.question}\nA: ${q.answer}\nCategory: ${q.category || "General"}`,
+      )
+      .join("\n\n");
+
+    return `\n=== FAQ KNOWLEDGE BASE ===\n${faqContext}\n`;
+  } catch (error) {
+    console.error("Failed to fetch FAQ:", error);
+    return "";
+  }
+}
+
 // ─── Lead generation / general chatbot ───────────────────────────────────────
-//
-// HOW MEMORY WORKS
-// ─────────────────
-// DeepSeek (like OpenAI) is stateless — each call has no memory of previous
-// calls. To give the bot session memory we accept the full conversationHistory
-// from the client and inject it between the system prompt and the current
-// user message:
-//
-//   [ system, ...history (max 20 turns), { role: "user", content: userInput } ]
-//
-// The client (ChatWidget.tsx) keeps history in React state and sends the full
-// array on every POST /api/embed/chatbot. This means the model can answer
-// follow-up questions, reference earlier replies, and behave like a real chat.
 
 export const generateGptResponse = async ({
   userInput,
   userfileName,
   conversationHistory = [],
+  clerkId,
+  chatbotType,
 }: {
   userInput: string;
   userfileName: string;
-  // Previous turns in this browser session. Client sends the full list;
-  // we cap at 20 here to prevent token overflow.
   conversationHistory?: ConvMessage[];
+  clerkId?: string;
+  chatbotType?: string;
 }) => {
   const openai = getOpenAI();
   if (openai instanceof Error) {
@@ -120,8 +152,9 @@ export const generateGptResponse = async ({
   try {
     await connectToDatabase();
 
-    let context = "No website data available. Please scrape a website first.";
+    let context = "No knowledge base data available.";
 
+    // Fetch website/scraped data
     if (userfileName) {
       try {
         const cloudinaryContent = await downloadCloudinaryContent(userfileName);
@@ -133,7 +166,15 @@ export const generateGptResponse = async ({
       }
     }
 
-    // Sanitise history — only valid roles, non-empty content, max 20 turns
+    // Fetch FAQ data for additional context
+    let faqContext = "";
+    if (clerkId && chatbotType) {
+      faqContext = await getFAQContext(clerkId, chatbotType);
+    }
+
+    const fullContext = context + faqContext;
+
+    // Sanitise history
     const sanitisedHistory: ConvMessage[] = Array.isArray(conversationHistory)
       ? conversationHistory
           .filter(
@@ -152,17 +193,25 @@ export const generateGptResponse = async ({
       messages: [
         {
           role: "system",
-          content: `You are a helpful assistant. Use this context to answer questions:\n\n${context}\n\nKeep responses to 2-3 lines and only use the provided context.`,
+          content: `You are a helpful customer support assistant. Use the following knowledge base to answer questions accurately. If you cannot find the answer in the knowledge base, politely say you don't have that information and suggest checking the website or contacting support.
+
+Knowledge Base:
+${fullContext}
+
+Guidelines:
+- Keep responses to 2-3 lines when possible
+- Be friendly and helpful
+- Use the provided context only
+- If asked about appointments, guide the user to the appointment tab
+- If asked about pricing or services, provide information from the knowledge base`,
         },
-        // Inject previous turns so the model has session memory
         ...sanitisedHistory.map((m) => ({
           role: m.role as "user" | "assistant",
           content: m.content,
         })),
-        // Current user message
         { role: "user", content: userInput },
       ],
-      max_tokens: 300,
+      max_tokens: 500,
       temperature: 0.7,
     });
 
@@ -188,7 +237,7 @@ export const generateGptResponse = async ({
   }
 };
 
-// ─── MCQ / Education chatbot ──────────────────────────────────────────────────
+// ─── MCQ / Education chatbot (unchanged) ──────────────────────────────────────
 
 export const generateMcqResponse = async ({
   userInput,

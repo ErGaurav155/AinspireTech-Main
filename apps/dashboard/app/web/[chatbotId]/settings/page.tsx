@@ -23,12 +23,19 @@ import {
   EyeOff,
   Smartphone,
   Laptop,
+  Upload,
+  FileText,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
   getChatbots,
   updateWebChatbot,
   deleteChatbot,
+  scrapeWebsite,
+  processScrapedData,
 } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -53,13 +60,13 @@ const TYPE_CONFIG: Record<
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
     defaultColor: "#8B5CF6",
-    buildPath: "/web/chatbot-lead-generation/create",
+    buildPath: "/web/chatbot-lead-generation/build",
   },
   "chatbot-education": {
     label: "Education (MCQ)",
     gradient: "from-green-500 to-emerald-500",
     defaultColor: "#10B981",
-    buildPath: "/web/chatbot-education/create",
+    buildPath: "/web/chatbot-education/build",
   },
 };
 
@@ -155,7 +162,6 @@ function WidgetPreview({
       }`}
       style={{ maxWidth: 300 }}
     >
-      {/* Header */}
       <div
         style={{ background: `linear-gradient(135deg, ${pc}, ${pc}cc)` }}
         className="p-3 flex items-center gap-2"
@@ -174,7 +180,6 @@ function WidgetPreview({
           </p>
         </div>
       </div>
-      {/* Messages */}
       <div className="p-3 bg-gray-50 space-y-2">
         <div className="flex items-end gap-1.5">
           <div
@@ -194,7 +199,6 @@ function WidgetPreview({
           </div>
         </div>
       </div>
-      {/* Tabs */}
       <div className="flex border-t border-gray-200 bg-white">
         {isLead
           ? ["Chat", "FAQ", "Book"].map((t, i) => (
@@ -262,6 +266,21 @@ export default function ChatbotSettingsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [previewEnabled, setPreviewEnabled] = useState(false);
 
+  // URL update state
+  const [isUpdatingUrl, setIsUpdatingUrl] = useState(false);
+  const [urlUpdateStatus, setUrlUpdateStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+  const [urlUpdateMessage, setUrlUpdateMessage] = useState("");
+
+  // File upload state
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<
+    "idle" | "success" | "error"
+  >("idle");
+  const [uploadMessage, setUploadMessage] = useState("");
+
   useEffect(() => {
     if (!isValid) router.replace("/web");
   }, [isValid, router]);
@@ -301,6 +320,7 @@ export default function ChatbotSettingsPage() {
   function update<K extends keyof BotSettings>(key: K, val: BotSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: val }));
     setIsDirty(true);
+    setUrlUpdateStatus("idle");
   }
 
   async function handleSave() {
@@ -330,6 +350,150 @@ export default function ChatbotSettingsPage() {
       setIsSaving(false);
     }
   }
+
+  // Handle website URL update and rescrape
+  const handleUpdateAndRescrape = async () => {
+    if (!chatbotType || !isLead) return;
+
+    const url = settings.websiteUrl.trim();
+    if (!url) {
+      toast({
+        title: "Please enter a website URL",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    if (!/^https?:\/\//i.test(url)) {
+      toast({
+        title: "URL must start with http:// or https://",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsUpdatingUrl(true);
+    setUrlUpdateStatus("idle");
+    setUrlUpdateMessage("");
+
+    try {
+      // First update the website URL
+      await updateWebChatbot(apiRequest, chatbotType, {
+        websiteUrl: url,
+      });
+
+      // Then rescrape the website
+      const scrapeResult = await scrapeWebsite(
+        apiRequest,
+        url,
+        chatbot?._id || chatbotType,
+      );
+
+      if (scrapeResult.alreadyScrapped) {
+        setUrlUpdateStatus("success");
+        setUrlUpdateMessage("Website already scraped, using existing data.");
+        toast({ title: "Website already scraped", duration: 3000 });
+      } else if (scrapeResult.success) {
+        const processResult = await processScrapedData(apiRequest, {
+          ...scrapeResult.data,
+          chatbotId: chatbot?._id || chatbotType,
+        });
+
+        if (processResult.success) {
+          setUrlUpdateStatus("success");
+          setUrlUpdateMessage(
+            "Website scraped and knowledge base updated successfully!",
+          );
+          toast({ title: "Knowledge base updated!", duration: 3000 });
+
+          // Refresh chatbot data
+          const data = await getChatbots(apiRequest);
+          const found = (data.chatbots || []).find(
+            (b: any) => b.type === chatbotType,
+          );
+          if (found) {
+            setChatbot(found);
+          }
+        } else {
+          throw new Error("Data processing failed");
+        }
+      } else {
+        throw new Error("Scraping failed");
+      }
+    } catch (err: any) {
+      setUrlUpdateStatus("error");
+      setUrlUpdateMessage(err.message || "Failed to update knowledge base");
+      toast({
+        title: "Update failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsUpdatingUrl(false);
+    }
+  };
+
+  // Handle file upload for knowledge base
+  const handleFileUpload = async () => {
+    if (!uploadedFile) {
+      toast({
+        title: "Please select a file",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadStatus("idle");
+    setUploadMessage("");
+
+    try {
+      const formData = new FormData();
+      formData.append("file", uploadedFile);
+      formData.append("chatbotId", chatbot?._id || chatbotType || "");
+      formData.append("userId", userId || "");
+
+      const response = await fetch("/api/misc/upload-knowledge", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setUploadStatus("success");
+        setUploadMessage("File uploaded and added to knowledge base!");
+        toast({ title: "Knowledge base updated!", duration: 3000 });
+        setUploadedFile(null);
+
+        // Refresh chatbot data
+        const data = await getChatbots(apiRequest);
+        const found = (data.chatbots || []).find(
+          (b: any) => b.type === chatbotType,
+        );
+        if (found) {
+          setChatbot(found);
+        }
+      } else {
+        throw new Error(result.error || "Upload failed");
+      }
+    } catch (err: any) {
+      setUploadStatus("error");
+      setUploadMessage(err.message || "Failed to upload file");
+      toast({
+        title: "Upload failed",
+        description: err.message || "Please try again",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   const handleDeleteChatbot = async () => {
     if (!chatbot) return;
@@ -479,27 +643,128 @@ export default function ChatbotSettingsPage() {
                       >
                         Website URL
                       </label>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div
+                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                            isDark
+                              ? "bg-white/[0.05] border-white/[0.09]"
+                              : "bg-white border-gray-200"
+                          }`}
+                        >
+                          <Globe className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          <input
+                            type="url"
+                            value={settings.websiteUrl}
+                            onChange={(e) =>
+                              update("websiteUrl", e.target.value)
+                            }
+                            placeholder="https://yourwebsite.com"
+                            className={`flex-1 text-sm bg-transparent outline-none ${
+                              isDark
+                                ? "text-white placeholder-white/30"
+                                : "text-gray-700 placeholder-gray-400"
+                            }`}
+                          />
+                        </div>
+                        <button
+                          onClick={handleUpdateAndRescrape}
+                          disabled={isUpdatingUrl}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                            isLead
+                              ? "bg-purple-500 hover:bg-purple-600 text-white"
+                              : "bg-green-500 hover:bg-green-600 text-white"
+                          } disabled:opacity-50`}
+                        >
+                          {isUpdatingUrl ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-3 w-3" />
+                          )}
+                          Update
+                        </button>
+                      </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        {urlUpdateStatus === "success" && (
+                          <span className="flex items-center gap-1 text-xs text-green-500">
+                            <CheckCircle className="h-3 w-3" />
+                            {urlUpdateMessage}
+                          </span>
+                        )}
+                        {urlUpdateStatus === "error" && (
+                          <span className="flex items-center gap-1 text-xs text-red-500">
+                            <XCircle className="h-3 w-3" />
+                            {urlUpdateMessage}
+                          </span>
+                        )}
+                      </div>
+                      {chatbot?.isScrapped && (
+                        <p className={`text-xs mt-1.5 ${styles.text.muted}`}>
+                          ✓ Knowledge base is active with{" "}
+                          {chatbot?.scrappedFile ? "website data" : "no data"}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* File Upload Section */}
+                    <div className="pt-2 border-t border-gray-200 dark:border-white/[0.08]">
+                      <label
+                        className={`block text-xs font-medium mb-1.5 ${styles.text.secondary}`}
+                      >
+                        Upload Knowledge Base File
+                      </label>
                       <div
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border overflow-hidden ${
                           isDark
                             ? "bg-white/[0.05] border-white/[0.09]"
                             : "bg-white border-gray-200"
                         }`}
                       >
-                        <Globe className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                        <FileText className="h-4 w-4 text-gray-400 flex-shrink-0" />
                         <input
-                          type="url"
-                          value={settings.websiteUrl}
-                          onChange={(e) => update("websiteUrl", e.target.value)}
-                          placeholder="https://yourwebsite.com"
-                          className={`flex-1 text-sm bg-transparent outline-none ${
-                            isDark
-                              ? "text-white placeholder-white/30"
-                              : "text-gray-700 placeholder-gray-400"
-                          }`}
+                          type="file"
+                          accept=".txt,.pdf,.md,.json,.csv"
+                          onChange={(e) =>
+                            setUploadedFile(e.target.files?.[0] || null)
+                          }
+                          className="flex-1  text-sm bg-transparent outline-none file:mr-2 file:py-1 file:px-3 file:rounded-lg file:text-xs file:font-medium file:border-0 file:cursor-pointer file:bg-purple-500 file:text-white hover:file:bg-purple-600"
                         />
                       </div>
+                      <div className="mt-2 flex items-center gap-2">
+                        <button
+                          onClick={handleFileUpload}
+                          disabled={isUploading || !uploadedFile}
+                          className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
+                            isLead
+                              ? "bg-purple-500 hover:bg-purple-600 text-white"
+                              : "bg-green-500 hover:bg-green-600 text-white"
+                          } disabled:opacity-50`}
+                        >
+                          {isUploading ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                          ) : (
+                            <Upload className="h-3 w-3" />
+                          )}
+                          Upload File
+                        </button>
+                        {uploadStatus === "success" && (
+                          <span className="flex items-center gap-1 text-xs text-green-500">
+                            <CheckCircle className="h-3 w-3" />
+                            {uploadMessage}
+                          </span>
+                        )}
+                        {uploadStatus === "error" && (
+                          <span className="flex items-center gap-1 text-xs text-red-500">
+                            <XCircle className="h-3 w-3" />
+                            {uploadMessage}
+                          </span>
+                        )}
+                      </div>
+                      <p className={`text-xs mt-1.5 ${styles.text.muted}`}>
+                        Supported formats: .txt, .pdf, .md, .json, .csv (Max
+                        10MB)
+                      </p>
                     </div>
+
                     <div>
                       <label
                         className={`block text-xs font-medium mb-1.5 ${styles.text.secondary}`}
@@ -701,6 +966,45 @@ export default function ChatbotSettingsPage() {
                 Updates as you type
               </p>
             </div>
+
+            {/* Knowledge Base Status */}
+            {isLead && (
+              <div className={`${styles.card} p-4 rounded-2xl`}>
+                <h3
+                  className={`text-sm font-semibold ${styles.text.primary} mb-3`}
+                >
+                  Knowledge Base Status
+                </h3>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs ${styles.text.secondary}`}>
+                      Website URL:
+                    </span>
+                    <span
+                      className={`text-xs font-mono ${styles.text.primary}`}
+                    >
+                      {settings.websiteUrl ? "✓ Configured" : "❌ Not set"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs ${styles.text.secondary}`}>
+                      Scraped Data:
+                    </span>
+                    <span className={`text-xs ${styles.text.primary}`}>
+                      {chatbot?.isScrapped ? "✓ Active" : "❌ Not scraped"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs ${styles.text.secondary}`}>
+                      Knowledge Base:
+                    </span>
+                    <span className={`text-xs ${styles.text.primary}`}>
+                      {chatbot?.scrappedFile ? "✓ Ready" : "❌ Empty"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Danger Zone */}
             <div

@@ -463,7 +463,6 @@ export const Checkout = ({
       setScrapingStatus("Creating your chatbot...");
 
       const chatbot = await createChatbot(data);
-
       if (chatbot) {
         setCreatedChatbotId(chatbot.id);
         setChatbotCreationComplete(true);

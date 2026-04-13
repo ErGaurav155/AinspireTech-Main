@@ -502,14 +502,16 @@ export default function DynamicOverviewPage() {
   ) {
     return null;
   }
-
+  const botTypeLabel = isLeadGeneration ? "chatbot" : "mcq";
   const Icon = displayInfo.icon;
   const primaryColor = displayInfo.primaryColor;
   const pc =
     chatbot?.settings?.primaryColor ||
     (isLeadGeneration ? "#8b5cf6" : "#10b981");
   const landingUrl =
-    userId && chatbot?.isBuilt ? `${CDN_URL}/${userId}/${chatbotType}` : "";
+    userId && chatbot?.isBuilt
+      ? `${CDN_URL}/${botTypeLabel}/${userId}/${chatbotType}`
+      : "";
 
   // Quick links configuration
   const quickLinks = [

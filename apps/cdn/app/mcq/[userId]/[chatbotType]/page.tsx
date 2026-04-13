@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import type { Metadata } from "next";
 import MCQWidget from "@/components/MCQWidget";
 
 interface Props {
@@ -9,14 +8,7 @@ interface Props {
     | { userId: string; chatbotType: string };
 }
 
-export async function generateMetadata(): Promise<Metadata> {
-  return {
-    title: "Practice with our MCQ bot | RocketReplAI",
-    description: "Ask doubts, generate quizzes, and browse FAQs with our education bot.",
-  };
-}
-
-export default async function MCQLandingPage({ params }: Props) {
+export default async function MCQEmbedPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
@@ -25,13 +17,16 @@ export default async function MCQLandingPage({ params }: Props) {
     return (
       <div
         style={{
-          minHeight: "100vh",
+          position: "fixed",
+          inset: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #eff6ff, #f8fafc)",
+          background: "#fff",
           color: "#64748b",
-          fontSize: 14,
+          fontSize: 13,
+          textAlign: "center",
+          padding: 20,
         }}
       >
         Invalid MCQ bot configuration.
@@ -39,5 +34,5 @@ export default async function MCQLandingPage({ params }: Props) {
     );
   }
 
-  return <MCQWidget userId={userId} chatbotType={chatbotType} mode="landing" />;
+  return <MCQWidget userId={userId} chatbotType={chatbotType} mode="embed" />;
 }
