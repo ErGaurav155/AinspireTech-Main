@@ -1,3 +1,4 @@
+// apps/api/routes/index.ts
 import { Router } from "express";
 import healthRoutes from "@/routes/health";
 import adminRoutes from "@/routes/admin";
@@ -17,19 +18,22 @@ import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
 
-// Register all routes
-router.use("/admin", adminRoutes);
-router.use("/affiliates", affiliateRoutes);
+// Public routes (no authentication required)
+router.use("/health", healthRoutes);
+router.use("/webhooks", webhooksRoutes);
+
 router.use("/cron", embedCors, cronRoutes);
 router.use("/embed", embedCors, embedRoutes);
-router.use("/health", healthRoutes);
+
+// Protected routes (require Clerk authentication)
+router.use("/admin", adminRoutes);
+router.use("/affiliates", affiliateRoutes);
 router.use("/insta", instaRoutes);
 router.use("/rate-limit", rateLimitRoutes);
 router.use("/razorpay", razorpayRoutes);
 router.use("/scrape", scrapeRoutes);
 router.use("/tokens", tokensRoutes);
 router.use("/web", webRoutes);
-router.use("/webhooks", webhooksRoutes);
 router.use("/user", userRoutes);
 router.use("/misc", miscRoutes);
 

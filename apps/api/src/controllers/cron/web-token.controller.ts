@@ -5,17 +5,6 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 // GET /api/cron/web-token - Reset free web tokens for users
 export const resetWebTokensController = async (req: Request, res: Response) => {
   try {
-    // Check API key
-    const cronKey = req.headers["x-cron-key"] as string;
-
-    if (!cronKey || cronKey !== process.env.CRON_SECRET) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid cron key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     await connectToDatabase();
 
     const now = new Date();

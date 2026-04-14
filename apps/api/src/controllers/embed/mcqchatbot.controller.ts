@@ -4,17 +4,6 @@ import { Request, Response } from "express";
 // POST /api/embed/mcqchatbot - Handle MCQ chatbot requests
 export const handleMcqChatbotRequest = async (req: Request, res: Response) => {
   try {
-    // Check API key
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const { userInput, userId, chatbotType, isMCQRequest } = req.body;
 
     if (!userInput || !userId || !chatbotType) {

@@ -14,17 +14,6 @@ export const handleConversationRequest = async (
   res: Response,
 ) => {
   try {
-    // Check API key
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const {
       chatbotType,
       userId,

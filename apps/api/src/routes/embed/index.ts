@@ -1,5 +1,6 @@
 // apps/api/routes/embed/index.ts
 import { Router } from "express";
+import { embedAuth } from "@/middleware/secret-auth.middleware";
 import { handleChatbotRequest } from "@/controllers/embed/chatbot.controller";
 import { handleConversationRequest } from "@/controllers/embed/conversation.controller";
 import { handleFaqRequest } from "@/controllers/embed/faq.controller";
@@ -12,56 +13,35 @@ import { getEmbedConfigByTypeController } from "@/controllers/embed/config.contr
 
 const router = Router();
 
-// All embed routes need CORS - handled by embedCors middleware in parent router
-// But we also add OPTIONS handlers for each route
-
-// Helper to handle OPTIONS for each route
-const handleOptions = (req: any, res: any, next: any) => {
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.setHeader(
-      "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, x-api-key",
-    );
-    return res.status(200).end();
-  }
-  next();
-};
+// Apply embed authentication to ALL embed routes
+// This ensures only requests with valid API_KEY can access these endpoints
+router.use(embedAuth());
 
 // POST /api/embed/chatbot - Handle chatbot requests
-router.post("/chatbot", handleOptions, handleChatbotRequest);
+router.post("/chatbot", handleChatbotRequest);
+
 // POST /api/embed/conversation - Handle conversation creation
-router.post("/conversation", handleOptions, handleConversationRequest);
+router.post("/conversation", handleConversationRequest);
+
 // POST /api/embed/faq - Get FAQ for user and chatbot type
-router.post("/faq", handleOptions, handleFaqRequest);
+router.post("/faq", handleFaqRequest);
+
 // POST /api/embed/mcqchatbot - Handle MCQ chatbot requests
-router.post("/mcqchatbot", handleOptions, handleMcqChatbotRequest);
+router.post("/mcqchatbot", handleMcqChatbotRequest);
+
 // GET /api/embed/token/balance - Get user's token balance
-router.get("/token/balance", handleOptions, getTokenBalanceController);
+router.get("/token/balance", getTokenBalanceController);
+
 // POST /api/embed/token/usage - Record token usage
-router.post("/token/usage", handleOptions, postTokenUsageController);
+router.post("/token/usage", postTokenUsageController);
 
 // POST /api/embed/webquestion - Get appointment questions
-router.post("/webquestion", handleOptions, getWebQuestionsController);
-// POST /api/embed/appointments - Create a new appointment (note: path should be /appointments not /misc/appointments)
-router.post("/appointments", handleOptions, createAppointmentController);
-// Get config by userId + chatbotType (used by new CDN widget)
-router.get("/config-by-type", handleOptions, getEmbedConfigByTypeController);
+router.post("/webquestion", getWebQuestionsController);
 
-// Also add OPTIONS handler for the route itself
-router.options("/webquestion", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-api-key");
-  res.status(200).end();
-});
+// POST /api/embed/appointments - Create a new appointment
+router.post("/appointments", createAppointmentController);
 
-router.options("/appointments", (req, res) => {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-api-key");
-  res.status(200).end();
-});
+// GET /api/embed/config-by-type - Get config by userId + chatbotType
+router.get("/config-by-type", getEmbedConfigByTypeController);
 
 export default router;

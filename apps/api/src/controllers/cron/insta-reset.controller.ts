@@ -1,3 +1,4 @@
+// apps/api/controllers/cron/insta-reset.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
@@ -5,16 +6,8 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 // GET /api/cron/insta - Reset Insta Info for users
 export const resetInstaController = async (req: Request, res: Response) => {
   try {
-    // Check API key
-    const cronKey = req.headers["x-cron-key"] as string;
-
-    if (!cronKey || cronKey !== process.env.CRON_SECRET) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid cron key",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    // Authentication is handled by middleware
+    // No need to check cron key here anymore
 
     await connectToDatabase();
 

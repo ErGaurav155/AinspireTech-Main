@@ -12,11 +12,6 @@ export const processCommissionsController = async (
   res: Response,
 ) => {
   try {
-    const cronKey = req.headers["x-cron-key"] as string;
-    if (!cronKey || cronKey !== process.env.CRON_SECRET) {
-      return res.status(401).json({ success: false, error: "Unauthorized" });
-    }
-
     await connectToDatabase();
 
     const now = new Date();

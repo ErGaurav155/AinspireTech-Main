@@ -8,17 +8,6 @@ export const getWebQuestionsController = async (
   res: Response,
 ) => {
   try {
-    // 1. Check the API key from headers
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     // 2. Parse and validate the request body
     const { chatbotType, userId } = req.body;
 

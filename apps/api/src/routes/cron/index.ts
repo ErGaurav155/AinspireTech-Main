@@ -1,4 +1,6 @@
+// apps/api/routes/cron/index.ts
 import { Router } from "express";
+import { cronAuth } from "@/middleware/secret-auth.middleware";
 
 import { resetWebTokensController } from "@/controllers/cron/web-token.controller";
 import { hourlyWindowResetController } from "@/controllers/cron/hourly-window-reset.controller";
@@ -8,16 +10,19 @@ import { resetInstaController } from "@/controllers/cron/insta-reset.controller"
 
 const router = Router();
 
-// Disable CORS for all cron routes
-const disableCorsForCron = (req: any, res: any, next: any) => {
-  // Remove CORS headers for cron endpoints
-  res.removeHeader("Access-Control-Allow-Origin");
-  res.removeHeader("Access-Control-Allow-Headers");
-  res.removeHeader("Access-Control-Allow-Methods");
-  next();
-};
+// Define allowed origins for cron jobs (Railway cron service URLs)
+// You can get these from Railway dashboard for each cron job
+const allowedCronOrigins = [
+  process.env.CRON_JOB_1_URL!, // Default to localhost for local testing
+  process.env.CRON_JOB_2_URL!,
+  process.env.CRON_JOB_3_URL!,
+  process.env.CRON_JOB_4_URL!,
+  process.env.CRON_JOB_5_URL!,
+];
 
-router.use(disableCorsForCron);
+// Apply cron authentication to ALL cron routes
+// This ensures only requests with valid CRON_SECRET can access these endpoints
+router.use(cronAuth(allowedCronOrigins));
 
 // POST /api/cron/hourly-window-reset - Hourly window reset
 router.post("/hourly-window-reset", hourlyWindowResetController);

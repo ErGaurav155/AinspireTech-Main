@@ -12,15 +12,8 @@ import { Request, Response } from "express";
 // POST /api/embed/chatbot - Handle chatbot requests
 export const handleChatbotRequest = async (req: Request, res: Response) => {
   try {
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    // API key validation is handled by embedAuth middleware
+    // No need to check x-api-key header here anymore
 
     const { userInput, userId, agentId, fileData, conversationHistory } =
       req.body;

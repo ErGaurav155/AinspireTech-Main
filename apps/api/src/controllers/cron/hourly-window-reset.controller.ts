@@ -1,3 +1,4 @@
+// apps/api/controllers/cron/hourly-window-reset.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import { resetHourlyWindow } from "@/services/rate-limit.service";
@@ -7,26 +8,8 @@ export const hourlyWindowResetController = async (
   res: Response,
 ) => {
   try {
-    // Verify cron job secret
-    const cronSecret = req.headers["x-cron-secret"] as string;
-    const expectedSecret = process.env.CRON_SECRET;
-
-    if (!expectedSecret) {
-      console.error("CRON_SECRET not configured");
-      return res.status(500).json({
-        success: false,
-        error: "Cron configuration error",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    if (cronSecret !== expectedSecret) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized",
-        timestamp: new Date().toISOString(),
-      });
-    }
+    // Authentication is handled by middleware
+    // No need to check secret here anymore
 
     await connectToDatabase();
 
