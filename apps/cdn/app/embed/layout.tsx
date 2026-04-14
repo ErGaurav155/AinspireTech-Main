@@ -1,11 +1,16 @@
 // apps/cdn/app/embed/layout.tsx
-// Wraps all /embed/* pages (served inside iframe on customer websites).
-// Must have transparent background and no chrome.
+// Legacy embed layout - redirects to new structure
+// Kept for backward compatibility
+
+import { redirect } from "next/navigation";
+
 export default function EmbedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // This layout is kept for backward compatibility
+  // New embeds should use /lead/embed or /mcq/embed
   return (
     <div
       style={{
@@ -19,3 +24,5 @@ export default function EmbedLayout({
     </div>
   );
 }
+
+export const dynamic = "force-dynamic";

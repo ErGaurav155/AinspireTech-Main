@@ -1,10 +1,10 @@
-// apps/cdn/app/embed/[userId]/[chatbotType]/page.tsx
-// Legacy embed route - redirects to new structure
-// Served at: cdn.rocketreplai.com/embed/{userId}/{chatbotType}
+// apps/cdn/app/mcq/embed/[userId]/[chatbotType]/page.tsx
+// MCQ/Education Bot - Embed version (for iframe)
+// Served at: cdn.rocketreplai.com/mcq/embed/{userId}/{chatbotType}
 
 export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
+import MCQWidget from "@/components/MCQWidget";
 
 interface Props {
   params:
@@ -12,7 +12,7 @@ interface Props {
     | { userId: string; chatbotType: string };
 }
 
-export default async function LegacyEmbedPage({ params }: Props) {
+export default async function MCQBotEmbedPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
@@ -27,25 +27,16 @@ export default async function LegacyEmbedPage({ params }: Props) {
           alignItems: "center",
           justifyContent: "center",
           background: "#fff",
+          color: "#64748b",
           fontSize: 13,
-          color: "#6b7280",
           textAlign: "center",
           padding: 20,
-          borderRadius: 16,
         }}
       >
-        Invalid widget configuration.
+        Invalid MCQ bot configuration.
       </div>
     );
   }
 
-  // Redirect to appropriate embed route
-  const isEducationBot =
-    chatbotType.includes("education") || chatbotType.includes("mcq");
-
-  if (isEducationBot) {
-    redirect(`/mcq/embed/${userId}/${chatbotType}`);
-  } else {
-    redirect(`/lead/embed/${userId}/${chatbotType}`);
-  }
+  return <MCQWidget userId={userId} chatbotType={chatbotType} mode="embed" />;
 }

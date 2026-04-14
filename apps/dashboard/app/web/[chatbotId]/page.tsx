@@ -502,7 +502,7 @@ export default function DynamicOverviewPage() {
   ) {
     return null;
   }
-  const botTypeLabel = isLeadGeneration ? "chatbot" : "mcq";
+  const botTypeLabel = isLeadGeneration ? "lead" : "mcq";
   const Icon = displayInfo.icon;
   const primaryColor = displayInfo.primaryColor;
   const pc =

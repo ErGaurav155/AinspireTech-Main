@@ -1,10 +1,10 @@
-// apps/cdn/app/embed/[userId]/[chatbotType]/page.tsx
-// Legacy embed route - redirects to new structure
-// Served at: cdn.rocketreplai.com/embed/{userId}/{chatbotType}
+// apps/cdn/app/lead/embed/[userId]/[chatbotType]/page.tsx
+// Lead Generation Bot - Embed version (for iframe)
+// Served at: cdn.rocketreplai.com/lead/embed/{userId}/{chatbotType}
 
 export const dynamic = "force-dynamic";
 
-import { redirect } from "next/navigation";
+import ChatWidget from "@/components/ChatWidget";
 
 interface Props {
   params:
@@ -12,7 +12,7 @@ interface Props {
     | { userId: string; chatbotType: string };
 }
 
-export default async function LegacyEmbedPage({ params }: Props) {
+export default async function LeadBotEmbedPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
@@ -39,13 +39,5 @@ export default async function LegacyEmbedPage({ params }: Props) {
     );
   }
 
-  // Redirect to appropriate embed route
-  const isEducationBot =
-    chatbotType.includes("education") || chatbotType.includes("mcq");
-
-  if (isEducationBot) {
-    redirect(`/mcq/embed/${userId}/${chatbotType}`);
-  } else {
-    redirect(`/lead/embed/${userId}/${chatbotType}`);
-  }
+  return <ChatWidget userId={userId} chatbotType={chatbotType} mode="embed" />;
 }

@@ -1,6 +1,4 @@
-// apps/cdn/app/page.tsx
 // Public docs / landing page for cdn.rocketreplai.com
-// Not meant to be embedded — just informational
 
 export default function HomePage() {
   return (
@@ -67,10 +65,10 @@ export default function HomePage() {
         >
           RocketReplAI
         </a>
-        . Embed an AI chatbot on any website with one script tag.
+        . Embed AI chatbots on any website.
       </p>
 
-      {/* Card: Website embed */}
+      {/* Lead Generation Bot */}
       <div
         style={{
           background: "#fff",
@@ -94,7 +92,7 @@ export default function HomePage() {
             margin: "0 0 12px",
           }}
         >
-          📌 Website Embed — floating chatbot button
+          💬 Lead Generation Bot
         </p>
         <pre
           style={{
@@ -109,11 +107,23 @@ export default function HomePage() {
             fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
           }}
         >
-          {`<!-- Paste before </body> -->\n<script\n  src="https://cdn.rocketreplai.com/website-bot.js"\n  defer\n>userId,chatbotType</script>`}
+          {`<!-- Embed on your website -->\n<script\n  src="https://cdn.rocketreplai.com/website-bot.js"\n  defer\n>userId,chatbot-lead-generation</script>`}
         </pre>
+        <p style={{ marginTop: 12, fontSize: 12, color: "#6b7280" }}>
+          🔗 Landing page:{" "}
+          <code
+            style={{
+              background: "#f3f4f6",
+              padding: "2px 6px",
+              borderRadius: 6,
+            }}
+          >
+            https://cdn.rocketreplai.com/lead/&#123;userId&#125;/&#123;chatbotType&#125;
+          </code>
+        </p>
       </div>
 
-      {/* Card: Landing page */}
+      {/* MCQ/Education Bot */}
       <div
         style={{
           background: "#fff",
@@ -124,7 +134,7 @@ export default function HomePage() {
           width: "100%",
           textAlign: "left",
           boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-          marginBottom: 40,
+          marginBottom: 16,
         }}
       >
         <p
@@ -137,12 +147,12 @@ export default function HomePage() {
             margin: "0 0 12px",
           }}
         >
-          🔗 Shareable Landing Page Bot
+          📚 MCQ / Education Bot
         </p>
         <pre
           style={{
             background: "#0d0d0d",
-            color: "#a5b4fc",
+            color: "#86efac",
             borderRadius: 10,
             padding: "14px 16px",
             fontSize: 12,
@@ -152,11 +162,23 @@ export default function HomePage() {
             fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
           }}
         >
-          {`https://cdn.rocketreplai.com/{userId}/{chatbotType}`}
+          {`<!-- Embed on your website -->\n<script\n  src="https://cdn.rocketreplai.com/mcq-bot.js"\n  defer\n>userId,chatbot-education</script>`}
         </pre>
+        <p style={{ marginTop: 12, fontSize: 12, color: "#6b7280" }}>
+          🔗 Landing page:{" "}
+          <code
+            style={{
+              background: "#f3f4f6",
+              padding: "2px 6px",
+              borderRadius: 6,
+            }}
+          >
+            https://cdn.rocketreplai.com/mcq/&#123;userId&#125;/&#123;chatbotType&#125;
+          </code>
+        </p>
       </div>
 
-      <p style={{ fontSize: 12, color: "#9ca3af" }}>
+      <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16 }}>
         Get your embed code from the{" "}
         <a
           href="https://app.rocketreplai.com"

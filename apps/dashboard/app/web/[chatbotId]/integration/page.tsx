@@ -178,8 +178,9 @@ export default function IntegrationPage() {
 >${userId},${chatbotType}</script>`
     : "";
 
+  // ✅ FIXED: Added "/lead" for lead bots
   const landingPageUrl = userId
-    ? `${CDN_URL}${isLead ? "" : "/mcq"}/${userId}/${chatbotType}`
+    ? `${CDN_URL}${isLead ? "/lead" : "/mcq"}/${userId}/${chatbotType}`
     : "";
 
   const wordPressCode = userId

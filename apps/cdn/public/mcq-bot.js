@@ -1,8 +1,8 @@
 /**
- * RocketReplAI MCQ Bot
+ * RocketReplAI MCQ/Education Bot
  * Usage:
  *   <script src="https://cdn.rocketreplai.com/mcq-bot.js" defer>
- *     yourClerkUserId,chatbot-education
+ *     userId,chatbot-education
  *   </script>
  */
 (function () {
@@ -58,7 +58,7 @@
 
   var embedUrl =
     CDN_ORIGIN +
-    "/embed/mcq/" +
+    "/mcq/embed/" +
     encodeURIComponent(userId) +
     "/" +
     encodeURIComponent(chatbotType);

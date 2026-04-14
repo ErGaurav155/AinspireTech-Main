@@ -1,6 +1,6 @@
-// apps/cdn/app/embed/[userId]/[chatbotType]/page.tsx
-// Legacy embed route - redirects to new structure
-// Served at: cdn.rocketreplai.com/embed/{userId}/{chatbotType}
+// apps/cdn/app/[userId]/[chatbotType]/page.tsx
+// Universal landing page - auto-detects bot type and redirects to appropriate route
+// Served at: cdn.rocketreplai.com/{userId}/{chatbotType}
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ interface Props {
     | { userId: string; chatbotType: string };
 }
 
-export default async function LegacyEmbedPage({ params }: Props) {
+export default async function UniversalLandingPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
@@ -21,31 +21,27 @@ export default async function LegacyEmbedPage({ params }: Props) {
     return (
       <div
         style={{
-          position: "fixed",
-          inset: 0,
+          minHeight: "100vh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#fff",
-          fontSize: 13,
+          background: "linear-gradient(135deg, #eff6ff, #f5f3ff)",
+          fontSize: 14,
           color: "#6b7280",
-          textAlign: "center",
-          padding: 20,
-          borderRadius: 16,
         }}
       >
-        Invalid widget configuration.
+        Invalid bot configuration.
       </div>
     );
   }
 
-  // Redirect to appropriate embed route
+  // Auto-detect bot type and redirect to appropriate landing page
   const isEducationBot =
     chatbotType.includes("education") || chatbotType.includes("mcq");
 
   if (isEducationBot) {
-    redirect(`/mcq/embed/${userId}/${chatbotType}`);
+    redirect(`/mcq/${userId}/${chatbotType}`);
   } else {
-    redirect(`/lead/embed/${userId}/${chatbotType}`);
+    redirect(`/lead/${userId}/${chatbotType}`);
   }
 }

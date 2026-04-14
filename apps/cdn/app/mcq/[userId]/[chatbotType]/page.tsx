@@ -1,5 +1,10 @@
+// apps/cdn/app/mcq/[userId]/[chatbotType]/page.tsx
+// MCQ/Education Bot - Full page landing page
+// Served at: cdn.rocketreplai.com/mcq/{userId}/{chatbotType}
+
 export const dynamic = "force-dynamic";
 
+import type { Metadata } from "next";
 import MCQWidget from "@/components/MCQWidget";
 
 interface Props {
@@ -8,7 +13,18 @@ interface Props {
     | { userId: string; chatbotType: string };
 }
 
-export default async function MCQEmbedPage({ params }: Props) {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const resolved = await params;
+  const chatbotType = decodeURIComponent(resolved.chatbotType || "");
+
+  return {
+    title: "MCQ Practice Bot | RocketReplAI",
+    description: "Generate practice quizzes and test your knowledge with AI.",
+    robots: "noindex, nofollow",
+  };
+}
+
+export default async function MCQBotLandingPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
@@ -17,16 +33,13 @@ export default async function MCQEmbedPage({ params }: Props) {
     return (
       <div
         style={{
-          position: "fixed",
-          inset: 0,
+          minHeight: "100vh",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "#fff",
-          color: "#64748b",
-          fontSize: 13,
-          textAlign: "center",
-          padding: 20,
+          background: "linear-gradient(135deg, #eff6ff, #f5f3ff)",
+          fontSize: 14,
+          color: "#6b7280",
         }}
       >
         Invalid MCQ bot configuration.
@@ -34,5 +47,5 @@ export default async function MCQEmbedPage({ params }: Props) {
     );
   }
 
-  return <MCQWidget userId={userId} chatbotType={chatbotType} mode="embed" />;
+  return <MCQWidget userId={userId} chatbotType={chatbotType} mode="landing" />;
 }

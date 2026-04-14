@@ -1,8 +1,6 @@
-// apps/cdn/app/[userId]/[chatbotType]/page.tsx
-// Served at: cdn.rocketreplai.com/{userId}/{chatbotType}
-// Full-page standalone bot — share this URL directly.
-// Example: https://cdn.rocketreplai.com/user_abc123/chatbot-lead-generation
-// Public route — no auth.
+// apps/cdn/app/lead/[userId]/[chatbotType]/page.tsx
+// Lead Generation Bot - Full page landing page
+// Served at: cdn.rocketreplai.com/lead/{userId}/{chatbotType}
 
 export const dynamic = "force-dynamic";
 
@@ -16,14 +14,20 @@ interface Props {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const resolved = await params;
+  const chatbotType = decodeURIComponent(resolved.chatbotType || "");
+
   return {
-    title: "Chat with us | RocketReplAI",
+    title: chatbotType.includes("lead")
+      ? "Book an Appointment | RocketReplAI"
+      : "Chat with us | RocketReplAI",
     description:
-      "Book an appointment or get instant answers from our AI assistant.",
+      "Schedule your appointment or get instant answers from our AI assistant.",
+    robots: "noindex, nofollow",
   };
 }
 
-export default async function LandingBotPage({ params }: Props) {
+export default async function LeadBotLandingPage({ params }: Props) {
   const resolved = await params;
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
