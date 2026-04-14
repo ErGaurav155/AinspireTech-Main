@@ -44,12 +44,16 @@ console.log("🔧 Allowed origins:", allowedOrigins);
    GLOBAL ORIGIN CHECK MIDDLEWARE (for ALL routes)
 ============================================================ */
 
-// This middleware runs BEFORE any route handlers
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Skip origin check for health check endpoints (these are internal)
+  // Skip origin check for health check endpoints
   if (req.path === "/health" || req.path === "/health/detailed") {
+    return next();
+  }
+
+  // ✅ ADD THIS LINE - Skip origin check for embed routes (they handle their own CORS)
+  if (req.path.startsWith("/api/embed")) {
     return next();
   }
 
