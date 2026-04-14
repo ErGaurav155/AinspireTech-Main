@@ -35,7 +35,7 @@ router.get("/token/balance", getTokenBalanceController);
 // POST /api/embed/token/usage - Record token usage
 router.post("/token/usage", postTokenUsageController);
 
-// POST /api/embed/webquestion - Get appointment questions
+// POST /api/embed/webquestion - Get appointment questions (Note: This is POST, not GET)
 router.post("/webquestion", getWebQuestionsController);
 
 // POST /api/embed/appointments - Create a new appointment

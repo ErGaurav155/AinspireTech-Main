@@ -22,6 +22,7 @@ const router = Router();
 router.use("/health", healthRoutes);
 router.use("/webhooks", webhooksRoutes);
 
+// Embed and Cron routes - apply CORS but handle auth internally
 router.use("/cron", embedCors, cronRoutes);
 router.use("/embed", embedCors, embedRoutes);
 

@@ -16,10 +16,6 @@ const app = express();
 // This allows express-rate-limit to correctly read X-Forwarded-For headers
 app.set("trust proxy", 1); // Trust first proxy (Railway/Cloudflare)
 
-// Or for more control:
-// app.set("trust proxy", true); // Trust all proxies
-// app.set("trust proxy", "loopback, linklocal, uniquelocal"); // Specific proxies
-
 console.log("🔐 Clerk initialization...");
 console.log(
   "Clerk Secret Key:",
@@ -42,11 +38,18 @@ console.log("🔧 Allowed origins:", allowedOrigins);
 
 /* ============================================================
    GLOBAL ORIGIN CHECK MIDDLEWARE (for ALL routes)
+   EXCEPT embed and cron routes which handle their own auth
 ============================================================ */
 
 // This middleware runs BEFORE any route handlers
 app.use((req, res, next) => {
   const origin = req.headers.origin;
+
+  // ✅ IMPORTANT: Skip origin check for embed and cron routes
+  // These routes handle their own authentication via API keys and cron secrets
+  if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
+    return next();
+  }
 
   // Skip origin check for health check endpoints (these are internal)
   if (req.path === "/health" || req.path === "/health/detailed") {
@@ -110,7 +113,13 @@ const limiter = rateLimit({
   max: isProduction() ? 100 : 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  skip: (req) => req.path === "/health" || req.path === "/",
+  skip: (req) => {
+    // Skip rate limiting for health checks, embed, and cron routes
+    return req.path === "/health" || 
+           req.path === "/" ||
+           req.path.startsWith("/api/embed/") ||
+           req.path.startsWith("/api/cron/");
+  },
   // ✅ Fix: Add key generator that works with trust proxy
   keyGenerator: (req) => {
     // Use the IP from the request (trust proxy ensures correct IP)
@@ -137,7 +146,19 @@ app.use("/api", limiter);
 app.use(
   cors({
     origin: function (origin, callback) {
-      if (!origin) return callback(null, true); // allow server-to-server
+      // Allow requests with no origin (server-to-server)
+      if (!origin) return callback(null, true);
+      
+      // ✅ Allow embed and cron routes from any origin
+      // They have their own authentication via API keys
+      const url = (origin as string) || "";
+      const isEmbedOrCron = url.includes("/api/embed/") || url.includes("/api/cron/");
+      
+      // Always allow embed and cron routes through CORS
+      // Their security is handled by API key validation
+      if (isEmbedOrCron) {
+        return callback(null, true);
+      }
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -166,14 +187,27 @@ app.use(
 
 /* ============================================================
    CLERK AUTHENTICATION
+   Skip for embed and cron routes
 ============================================================ */
 
-app.use(
+// Custom middleware to skip Clerk for embed and cron routes
+app.use((req, res, next) => {
+  // Skip Clerk authentication for embed and cron routes
+  if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
+    return next();
+  }
+  
+  // Skip for health checks
+  if (req.path === "/health" || req.path === "/health/detailed") {
+    return next();
+  }
+  
+  // Apply Clerk for all other routes
   clerkMiddleware({
     secretKey: process.env.CLERK_SECRET_KEY,
     publishableKey: process.env.CLERK_PUBLISHABLE_KEY,
-  }),
-);
+  })(req, res, next);
+});
 
 /* ============================================================
    ROUTES
@@ -184,22 +218,11 @@ app.get("/favicon.ico", (_, res) => {
   res.status(204).end();
 });
 
-// Root route - also returns forbidden for unauthorized origins
+// Root route
 app.get("/", (req, res) => {
-  const origin = req.headers.origin;
-
-  // If origin is not allowed, return forbidden
-  if (origin && !allowedOrigins.includes(origin)) {
-    return res.status(403).json({
-      success: false,
-      message: "Forbidden: Origin not allowed",
-      timestamp: new Date().toISOString(),
-    });
-  }
-
-  return res.status(403).json({
-    success: false,
-    message: "Forbidden: Origin not allowed",
+  return res.status(200).json({
+    success: true,
+    message: "API Server Running",
     timestamp: new Date().toISOString(),
   });
 });
@@ -278,6 +301,16 @@ app.use("/api", routes);
 
 app.use("*", (req, res) => {
   const origin = req.headers.origin;
+
+  // Skip origin check for embed and cron routes
+  if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
+    return res.status(404).json({
+      success: false,
+      error: "Not found",
+      path: req.originalUrl,
+      timestamp: new Date().toISOString(),
+    });
+  }
 
   // Check origin for 404 responses as well
   if (origin && !allowedOrigins.includes(origin)) {
