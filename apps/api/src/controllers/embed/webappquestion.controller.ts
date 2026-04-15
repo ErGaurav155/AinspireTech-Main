@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import AppointmentQuestions from "@/models/web/AppointmentQuestions.model";
 
-// POST /api/embed/webquestion - Get appointment questions
+// POST /api/embed/webappquestion - Get appointment questions
 export const getWebQuestionsController = async (
   req: Request,
   res: Response,

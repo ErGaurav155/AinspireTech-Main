@@ -8,16 +8,6 @@ export const getTokenBalanceController = async (
   res: Response,
 ) => {
   try {
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     // Get userId from query parameter
     const userId = req.query.userId as string;
 

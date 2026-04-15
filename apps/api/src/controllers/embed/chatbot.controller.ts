@@ -6,7 +6,6 @@
 // See ai.service.ts for the full explanation of how memory works.
 
 import { generateGptResponse } from "@/services/ai.service";
-import type { ConvMessage } from "@/services/ai.service";
 import { Request, Response } from "express";
 
 // POST /api/embed/chatbot - Handle chatbot requests

@@ -7,9 +7,9 @@ import { handleFaqRequest } from "@/controllers/embed/faq.controller";
 import { handleMcqChatbotRequest } from "@/controllers/embed/mcqchatbot.controller";
 import { getTokenBalanceController } from "@/controllers/embed/token/balance.controller";
 import { postTokenUsageController } from "@/controllers/embed/token/usage.controller";
-import { getWebQuestionsController } from "@/controllers/embed/webquestion.controller";
 import { createAppointmentController } from "@/controllers/misc/misc-actions.controller";
 import { getEmbedConfigByTypeController } from "@/controllers/embed/config.controller";
+import { getWebQuestionsController } from "@/controllers/embed/webappquestion.controller";
 
 const router = Router();
 
@@ -35,8 +35,8 @@ router.get("/token/balance", getTokenBalanceController);
 // POST /api/embed/token/usage - Record token usage
 router.post("/token/usage", postTokenUsageController);
 
-// POST /api/embed/webquestion - Get appointment questions (Note: This is POST, not GET)
-router.post("/webquestion", getWebQuestionsController);
+// POST /api/embed/webappquestion - Get appointment questions (Note: This is POST, not GET)
+router.post("/webappquestion", getWebQuestionsController);
 
 // POST /api/embed/appointments - Create a new appointment
 router.post("/appointments", createAppointmentController);

@@ -5,16 +5,6 @@ import { usedTokens } from "@/services/token.service";
 // POST /api/embed/token/usage - Record token usage
 export const postTokenUsageController = async (req: Request, res: Response) => {
   try {
-    const apiKey = req.headers["x-api-key"] as string;
-
-    if (!apiKey || apiKey !== process.env.API_KEY) {
-      return res.status(401).json({
-        success: false,
-        error: "Unauthorized: Invalid API key",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     // Parse request body
     const { userId, chatbotType, tokensUsed } = req.body;
 

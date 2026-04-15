@@ -751,6 +751,13 @@ export default function ChatWidget({
             `${API_BASE}/api/embed/config-by-type?userId=${encodeURIComponent(
               userId,
             )}&chatbotType=${encodeURIComponent(chatbotType)}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": API_KEY,
+              },
+            },
           ),
           fetch(`${API_BASE}/api/embed/faq`, {
             method: "POST",
@@ -761,7 +768,7 @@ export default function ChatWidget({
             body: JSON.stringify({ userId, chatbotType }),
           }),
           chatbotType === "chatbot-lead-generation"
-            ? fetch(`${API_BASE}/api/embed/webquestion`, {
+            ? fetch(`${API_BASE}/api/embed/webappquestion`, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
