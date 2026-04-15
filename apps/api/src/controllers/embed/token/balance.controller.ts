@@ -1,3 +1,4 @@
+// apps/api/controllers/embed/token/balance.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import { getTokenBalanceSummary } from "@/services/token.service";
@@ -8,7 +9,6 @@ export const getTokenBalanceController = async (
   res: Response,
 ) => {
   try {
-    // Get userId from query parameter
     const userId = req.query.userId as string;
 
     if (!userId) {
@@ -19,10 +19,8 @@ export const getTokenBalanceController = async (
       });
     }
 
-    // Connect to database
     await connectToDatabase();
 
-    // Get token balance
     const tokenBalance = await getTokenBalanceSummary(userId);
 
     return res.status(200).json({

@@ -1,14 +1,13 @@
+// apps/api/controllers/embed/token/usage.controller.ts
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import { usedTokens } from "@/services/token.service";
+import { usedTokens, getTokenBalanceSummary } from "@/services/token.service";
 
 // POST /api/embed/token/usage - Record token usage
 export const postTokenUsageController = async (req: Request, res: Response) => {
   try {
-    // Parse request body
     const { userId, chatbotType, tokensUsed } = req.body;
 
-    // Validate required fields
     if (!userId || !chatbotType || tokensUsed === undefined) {
       return res.status(400).json({
         success: false,
@@ -17,7 +16,6 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
       });
     }
 
-    // Validate tokensUsed is a positive number
     if (typeof tokensUsed !== "number" || tokensUsed <= 0) {
       return res.status(400).json({
         success: false,
@@ -26,48 +24,42 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
       });
     }
 
-    // Connect to database
     await connectToDatabase();
 
-    // Use tokens with approximate cost calculation (0.0000014 per token)
-    const tokenResult = await usedTokens(
-      userId,
-      tokensUsed,
-      chatbotType,
-      tokensUsed * 0.0000014, // Approximate cost calculation
-    );
+    try {
+      const tokenResult = await usedTokens(
+        userId,
+        tokensUsed,
+        chatbotType,
+        tokensUsed * 0.0000014,
+      );
 
-    if (!tokenResult.success) {
-      return res.status(400).json({
-        success: false,
-        error: "Failed to update token usage",
+      return res.status(200).json({
+        success: true,
+        data: {
+          remainingTokens: tokenResult.remainingTokens,
+          freeTokensRemaining: tokenResult.freeTokensRemaining,
+          purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
+          tokensUsed: tokensUsed,
+          usageId: tokenResult.tokenUsage._id,
+        },
         timestamp: new Date().toISOString(),
       });
+    } catch (error: any) {
+      if (error.message === "Insufficient tokens") {
+        const balance = await getTokenBalanceSummary(userId);
+        return res.status(402).json({
+          success: false,
+          error: "Insufficient tokens",
+          availableTokens: balance.availableTokens,
+          requiredTokens: tokensUsed,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      throw error;
     }
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        remainingTokens: tokenResult.remainingTokens,
-        freeTokensRemaining: tokenResult.freeTokensRemaining,
-        purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
-        tokensUsed: tokensUsed,
-        usageId: tokenResult.tokenUsage._id,
-      },
-      timestamp: new Date().toISOString(),
-    });
   } catch (error: any) {
     console.error("Error tracking token usage:", error);
-
-    // Handle specific error cases
-    if (error.message === "Insufficient tokens") {
-      return res.status(400).json({
-        success: false,
-        error: "Insufficient tokens",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     return res.status(500).json({
       success: false,
       error: "Internal server error",

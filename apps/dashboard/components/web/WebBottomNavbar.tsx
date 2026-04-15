@@ -17,6 +17,7 @@ import {
   MessageCircle,
   Settings,
   X,
+  ChartBarStacked,
 } from "lucide-react";
 import { Badge } from "@rocketreplai/ui";
 import { useThemeStyles } from "@rocketreplai/ui";
@@ -74,6 +75,12 @@ const BASE_NAV_ITEMS = [
     getHref: (chatbotHref: string) => `${chatbotHref}/faq`,
     icon: MessageCircle,
     isNew: false,
+  },
+  {
+    label: "Analytics",
+    getHref: (chatbotHref: string) => `${chatbotHref}/analytics`,
+    icon: ChartBarStacked,
+    isNew: true,
   },
   {
     label: "Setting",

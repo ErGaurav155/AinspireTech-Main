@@ -1,3 +1,4 @@
+// apps/api/services/token.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenPurchase from "@/models/web/token/TokenPurchase.model";
@@ -17,6 +18,8 @@ export async function getUserTokenBalance(userId: string) {
       usedFreeTokens: 0,
       usedPurchasedTokens: 0,
       totalTokensUsed: 0,
+      lastResetAt: new Date(),
+      nextResetAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
   }
 
@@ -24,37 +27,52 @@ export async function getUserTokenBalance(userId: string) {
 }
 
 // Helper function to get available tokens
-function getAvailableTokens(tokenBalance: any) {
-  const freeAvailable = tokenBalance.freeTokens - tokenBalance.usedFreeTokens;
-  const purchasedAvailable =
-    tokenBalance.purchasedTokens - tokenBalance.usedPurchasedTokens;
-  return Math.max(0, freeAvailable) + Math.max(0, purchasedAvailable);
+export function getAvailableTokens(tokenBalance: any) {
+  const freeAvailable = Math.max(
+    0,
+    tokenBalance.freeTokens - tokenBalance.usedFreeTokens,
+  );
+  const purchasedAvailable = Math.max(
+    0,
+    tokenBalance.purchasedTokens - tokenBalance.usedPurchasedTokens,
+  );
+  return freeAvailable + purchasedAvailable;
 }
 
 // Helper function to get free tokens remaining
-function getFreeTokensRemaining(tokenBalance: any) {
+export function getFreeTokensRemaining(tokenBalance: any) {
   return Math.max(0, tokenBalance.freeTokens - tokenBalance.usedFreeTokens);
 }
 
 // Helper function to get purchased tokens remaining
-function getPurchasedTokensRemaining(tokenBalance: any) {
+export function getPurchasedTokensRemaining(tokenBalance: any) {
   return Math.max(
     0,
     tokenBalance.purchasedTokens - tokenBalance.usedPurchasedTokens,
   );
 }
 
-// Helper function to use tokens
-async function getTokenBalance(tokenBalance: any, tokens: number) {
-  const freeRemaining = getFreeTokensRemaining(tokenBalance);
+// Helper function to deduct tokens from balance
+async function deductTokensFromBalance(tokenBalance: any, tokens: number) {
+  let remainingTokens = tokens;
 
-  if (freeRemaining >= tokens) {
-    tokenBalance.usedFreeTokens += tokens;
-  } else {
-    const freeUsed = freeRemaining;
-    const purchasedNeeded = tokens - freeUsed;
-    tokenBalance.usedFreeTokens += freeUsed;
-    tokenBalance.usedPurchasedTokens += purchasedNeeded;
+  // First use free tokens
+  const freeRemaining = getFreeTokensRemaining(tokenBalance);
+  if (freeRemaining > 0) {
+    const freeToUse = Math.min(freeRemaining, remainingTokens);
+    tokenBalance.usedFreeTokens += freeToUse;
+    remainingTokens -= freeToUse;
+  }
+
+  // Then use purchased tokens if needed
+  if (remainingTokens > 0) {
+    const purchasedRemaining = getPurchasedTokensRemaining(tokenBalance);
+    if (purchasedRemaining >= remainingTokens) {
+      tokenBalance.usedPurchasedTokens += remainingTokens;
+    } else {
+      // This shouldn't happen if we check availability first
+      throw new Error("Insufficient tokens");
+    }
   }
 
   tokenBalance.totalTokensUsed += tokens;
@@ -92,15 +110,16 @@ export async function usedTokens(
     throw new Error("Insufficient tokens");
   }
 
-  // Use tokens from free then purchased
-  await getTokenBalance(tokenBalance, tokens);
+  // Deduct tokens from balance
+  await deductTokensFromBalance(tokenBalance, tokens);
 
   // Record token usage
   const tokenUsage = await TokenUsage.create({
     userId,
-    chatbotId,
+    chatbotId: chatbotId || "unknown",
     tokensUsed: tokens,
     totalCost,
+    timestamp: new Date(),
   });
 
   return {
@@ -140,12 +159,16 @@ export async function addPurchasedTokens(
     razorpayOrderId: purchaseData.razorpayOrderId,
     expiresAt: purchaseData.expiresAt,
     isOneTime: true,
+    status: "completed",
+    purchasedAt: new Date(),
   });
 
   return {
     success: true,
     tokenPurchase,
     newBalance: getAvailableTokens(tokenBalance),
+    freeTokensRemaining: getFreeTokensRemaining(tokenBalance),
+    purchasedTokensRemaining: getPurchasedTokensRemaining(tokenBalance),
   };
 }
 
@@ -180,7 +203,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          createdAt: { $gte: startDate },
+          timestamp: { $gte: startDate },
         },
       },
       {
@@ -188,6 +211,7 @@ export async function getTokenUsageStats(
           _id: "$chatbotId",
           totalTokens: { $sum: "$tokensUsed" },
           count: { $sum: 1 },
+          totalCost: { $sum: "$totalCost" },
         },
       },
       { $sort: { totalTokens: -1 } },
@@ -198,13 +222,13 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          createdAt: { $gte: startDate },
+          timestamp: { $gte: startDate },
         },
       },
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+            $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
           },
           totalTokens: { $sum: "$tokensUsed" },
           count: { $sum: 1 },
@@ -218,7 +242,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          createdAt: { $gte: startDate },
+          timestamp: { $gte: startDate },
         },
       },
       {
@@ -265,16 +289,7 @@ export async function resetFreeTokens(userId: string) {
     throw new Error("Token balance not found");
   }
 
-  // Check if it's time to reset
-  if (new Date() < tokenBalance.nextResetAt) {
-    return {
-      success: false,
-      message: "Not time to reset yet",
-      nextReset: tokenBalance.nextResetAt,
-    };
-  }
-
-  // Reset free tokens
+  // Reset free tokens regardless of date (for cron job)
   tokenBalance.freeTokens = 10000;
   tokenBalance.usedFreeTokens = 0;
   tokenBalance.lastResetAt = new Date();
@@ -293,8 +308,8 @@ export async function resetFreeTokens(userId: string) {
 export async function getUserTokenPurchases(userId: string) {
   await connectToDatabase();
 
-  const purchases = await TokenPurchase.find({ userId })
-    .sort({ createdAt: -1 })
+  const purchases = await TokenPurchase.find({ userId, status: "completed" })
+    .sort({ purchasedAt: -1 })
     .lean();
 
   return purchases;
@@ -317,7 +332,7 @@ export async function getChatbotTokenUsage(userId: string, chatbotId: string) {
         totalTokens: { $sum: "$tokensUsed" },
         totalCost: { $sum: "$totalCost" },
         count: { $sum: 1 },
-        lastUsed: { $max: "$createdAt" },
+        lastUsed: { $max: "$timestamp" },
       },
     },
   ]);
@@ -330,10 +345,8 @@ export async function checkLowTokenAlert(userId: string) {
   const tokenBalance = await getUserTokenBalance(userId);
   const availableTokens = getAvailableTokens(tokenBalance);
 
-  // Alert when less than 1000 tokens or 10% of free tokens remaining
-  const threshold = Math.min(1000, tokenBalance.freeTokens * 0.1);
-
-  return availableTokens <= threshold;
+  // Alert when less than 1000 tokens remaining
+  return availableTokens <= 1000;
 }
 
 // Get token balance summary
@@ -341,6 +354,7 @@ export async function getTokenBalanceSummary(userId: string) {
   const tokenBalance = await getUserTokenBalance(userId);
 
   return {
+    userId,
     availableTokens: getAvailableTokens(tokenBalance),
     freeTokensRemaining: getFreeTokensRemaining(tokenBalance),
     purchasedTokensRemaining: getPurchasedTokensRemaining(tokenBalance),
@@ -351,5 +365,6 @@ export async function getTokenBalanceSummary(userId: string) {
     totalTokensUsed: tokenBalance.totalTokensUsed,
     lastResetAt: tokenBalance.lastResetAt,
     nextResetAt: tokenBalance.nextResetAt,
+    isLow: getAvailableTokens(tokenBalance) <= 1000,
   };
 }

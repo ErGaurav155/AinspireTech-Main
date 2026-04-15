@@ -1,69 +1,16 @@
-import { getAuth } from "@clerk/express";
+// apps/api/controllers/web/analytics.controller.ts
 import { Request, Response } from "express";
+import { getAuth } from "@clerk/express";
+import { connectToDatabase } from "@/config/database.config";
+import Conversation from "@/models/web/Conversation.model";
 
-// Helper function to generate analytics data based on chatbot type
-const generateAnalyticsData = (chatbotType: string) => {
-  const baseData = {
-    "chatbot-customer-support": {
-      totalConversations: Math.floor(Math.random() * 1000) + 500,
-      totalMessages: Math.floor(Math.random() * 5000) + 2000,
-      averageResponseTime: Math.floor(Math.random() * 10) + 2,
-      satisfactionScore: Math.floor(Math.random() * 20) + 80,
-      resolvedIssues: Math.floor(Math.random() * 800) + 400,
-      pendingTickets: Math.floor(Math.random() * 50) + 10,
-    },
-    "chatbot-e-commerce": {
-      totalConversations: Math.floor(Math.random() * 1500) + 800,
-      totalMessages: Math.floor(Math.random() * 7000) + 3000,
-      salesAssisted: Math.floor(Math.random() * 50000) + 20000,
-      cartRecoveries: Math.floor(Math.random() * 200) + 100,
-      conversionRate: Math.floor(Math.random() * 10) + 8,
-      productInquiries: Math.floor(Math.random() * 2000) + 1000,
-    },
-    "chatbot-lead-generation": {
-      totalConversations: Math.floor(Math.random() * 800) + 300,
-      totalMessages: Math.floor(Math.random() * 3000) + 1500,
-      leadsGenerated: Math.floor(Math.random() * 500) + 200,
-      qualifiedLeads: Math.floor(Math.random() * 200) + 100,
-      conversionRate: Math.floor(Math.random() * 8) + 5,
-      formCompletions: Math.floor(Math.random() * 200) + 70,
-    },
-    "chatbot-education": {
-      totalConversations: Math.floor(Math.random() * 2000) + 1000,
-      totalMessages: Math.floor(Math.random() * 8000) + 4000,
-      commentsReplied: Math.floor(Math.random() * 3000) + 1500,
-      dmsAutomated: Math.floor(Math.random() * 1000) + 500,
-      engagementRate: Math.floor(Math.random() * 10) + 12,
-      followersGrowth: Math.floor(Math.random() * 400) + 200,
-    },
-  };
-
-  return (
-    baseData[chatbotType as keyof typeof baseData] ||
-    baseData["chatbot-customer-support"]
-  );
-};
-
-// Helper function to generate trend data for charts
-const generateTrendData = () => {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  return days.map((day) => ({
-    name: day,
-    conversations: Math.floor(Math.random() * 100) + 20,
-    responses: Math.floor(Math.random() * 90) + 15,
-    engagement: Math.floor(Math.random() * 80) + 10,
-  }));
-};
-
-// GET /api/web/analytics/:chatbotType - Get chatbot analytics
+// GET /api/web/analytics/:chatbotType - Get real chatbot analytics from database
 export const getWebAnalyticsController = async (
   req: Request,
   res: Response,
 ) => {
   try {
     const { chatbotType } = req.params;
-
-    // Get userId from auth headers
     const { userId } = getAuth(req);
 
     if (!userId) {
@@ -86,42 +33,163 @@ export const getWebAnalyticsController = async (
       });
     }
 
-    // Generate analytics data based on chatbot type
+    await connectToDatabase();
+
+    // Calculate date range based on period
+    const now = new Date();
+    const startDate = new Date();
+    switch (period) {
+      case "1d":
+        startDate.setDate(now.getDate() - 1);
+        break;
+      case "7d":
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "30d":
+        startDate.setDate(now.getDate() - 30);
+        break;
+      case "90d":
+        startDate.setDate(now.getDate() - 90);
+        break;
+      case "1y":
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+    }
+
+    // Get all conversations for this user and chatbot type within the period
+    const conversations = await Conversation.find({
+      clerkId: userId,
+      chatbotType: chatbotType,
+      createdAt: { $gte: startDate, $lte: now },
+    }).lean();
+
+    // Total conversations (total leads)
+    const totalConversations = conversations.length;
+
+    // Conversations with formData (appointments booked / qualified leads)
+    const conversationsWithAppointments = conversations.filter(
+      (conv: any) => conv.formData && Object.keys(conv.formData).length > 0,
+    );
+    const totalAppointments = conversationsWithAppointments.length;
+
+    // Calculate conversion rate (appointments / total conversations)
+    const conversionRate =
+      totalConversations > 0
+        ? (totalAppointments / totalConversations) * 100
+        : 0;
+
+    // Calculate average response time
+    let totalResponseTime = 0;
+    let responseCount = 0;
+
+    conversations.forEach((conv: any) => {
+      const messages = conv.messages || [];
+      for (let i = 0; i < messages.length - 1; i++) {
+        const currentMsg = messages[i];
+        const nextMsg = messages[i + 1];
+
+        // If user message followed by bot response, calculate response time
+        if (currentMsg.type === "user" && nextMsg.type === "bot") {
+          const responseTime =
+            new Date(nextMsg.timestamp).getTime() -
+            new Date(currentMsg.timestamp).getTime();
+          // Only count reasonable response times (less than 5 minutes)
+          if (responseTime > 0 && responseTime < 300000) {
+            totalResponseTime += responseTime;
+            responseCount++;
+          }
+        }
+      }
+    });
+
+    const averageResponseTime =
+      responseCount > 0
+        ? Math.round(totalResponseTime / responseCount / 1000) // Convert to seconds
+        : 0;
+
+    // Generate trend data for charts (daily breakdown)
+    const trendData = generateTrendData(conversations, startDate, now, period);
+
+    // Calculate response time distribution
+    const responseTimeDistribution =
+      calculateResponseTimeDistribution(conversations);
+
+    // Get recent conversations for the period
+    const recentConversations = conversations
+      .sort(
+        (a: any, b: any) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      .slice(0, 10);
+
+    // Build overview based on chatbot type
+    let overview: any = {
+      totalConversations,
+      totalMessages: conversations.reduce(
+        (sum: number, conv: any) => sum + (conv.messages?.length || 0),
+        0,
+      ),
+      averageResponseTime,
+    };
+
+    if (chatbotType === "chatbot-lead-generation") {
+      overview = {
+        ...overview,
+        totalLeads: totalConversations,
+        qualifiedLeads: totalAppointments,
+        conversionRate: Math.round(conversionRate * 10) / 10,
+        formCompletions: totalAppointments,
+      };
+    } else if (chatbotType === "chatbot-education") {
+      // For education, calculate additional metrics
+      const completedQuizzes = conversations.filter(
+        (conv: any) =>
+          conv.status === "resolved" || conv.status === "completed",
+      ).length;
+
+      const scores: number[] = [];
+      conversations.forEach((conv: any) => {
+        if (conv.score && typeof conv.score === "number") {
+          scores.push(conv.score);
+        }
+      });
+
+      const averageScore =
+        scores.length > 0
+          ? scores.reduce((a, b) => a + b, 0) / scores.length
+          : 0;
+
+      overview = {
+        ...overview,
+        totalStudents: totalConversations,
+        completedQuizzes,
+        averageScore: Math.round(averageScore * 10) / 10,
+        totalQuestions: conversations.reduce(
+          (sum: number, conv: any) => sum + (conv.totalQuestions || 0),
+          0,
+        ),
+      };
+    }
+
     const analyticsData = {
       chatbotType,
       period,
       userId,
-      overview: generateAnalyticsData(chatbotType),
-      trends: generateTrendData(),
-      responseTime: [
-        { time: "0-30s", count: Math.floor(Math.random() * 200) + 100 },
-        { time: "30s-1m", count: Math.floor(Math.random() * 150) + 50 },
-        { time: "1-2m", count: Math.floor(Math.random() * 100) + 30 },
-        { time: "2-5m", count: Math.floor(Math.random() * 50) + 20 },
-        { time: "5m+", count: Math.floor(Math.random() * 30) + 10 },
-      ],
-      satisfaction: [
-        {
-          name: "Excellent",
-          value: Math.floor(Math.random() * 20) + 40,
-          color: "#00F0FF",
-        },
-        {
-          name: "Good",
-          value: Math.floor(Math.random() * 20) + 30,
-          color: "#B026FF",
-        },
-        {
-          name: "Average",
-          value: Math.floor(Math.random() * 15) + 10,
-          color: "#FF2E9F",
-        },
-        {
-          name: "Poor",
-          value: Math.floor(Math.random() * 10) + 5,
-          color: "#666",
-        },
-      ],
+      overview,
+      trends: trendData,
+      responseTime: responseTimeDistribution,
+      recentConversations: recentConversations.map((conv: any) => ({
+        id: conv._id,
+        customerName: conv.customerName || "Anonymous",
+        customerEmail: conv.customerEmail,
+        messagesCount: conv.messages?.length || 0,
+        hasAppointment: !!(
+          conv.formData && Object.keys(conv.formData).length > 0
+        ),
+        status: conv.status,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+      })),
       timestamp: new Date().toISOString(),
     };
 
@@ -139,3 +207,116 @@ export const getWebAnalyticsController = async (
     });
   }
 };
+
+// Helper function to generate trend data based on period
+function generateTrendData(
+  conversations: any[],
+  startDate: Date,
+  endDate: Date,
+  period: string,
+) {
+  const trends: any[] = [];
+  const currentDate = new Date(startDate);
+  const now = new Date(endDate);
+
+  // Determine interval based on period
+  let interval: "hour" | "day" | "week" | "month" = "day";
+  if (period === "1d") interval = "hour";
+  else if (period === "7d" || period === "30d") interval = "day";
+  else if (period === "90d") interval = "week";
+  else interval = "month";
+
+  while (currentDate <= now) {
+    const periodStart = new Date(currentDate);
+    let periodEnd = new Date(currentDate);
+    let label = "";
+
+    switch (interval) {
+      case "hour":
+        periodEnd.setHours(periodStart.getHours() + 1);
+        label = periodStart.toLocaleTimeString("en-US", {
+          hour: "numeric",
+          hour12: true,
+        });
+        break;
+      case "day":
+        periodEnd.setDate(periodStart.getDate() + 1);
+        label = periodStart.toLocaleDateString("en-US", {
+          month: "short",
+          day: "numeric",
+        });
+        break;
+      case "week":
+        periodEnd.setDate(periodStart.getDate() + 7);
+        label = `Week of ${periodStart.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+        break;
+      case "month":
+        periodEnd.setMonth(periodStart.getMonth() + 1);
+        label = periodStart.toLocaleDateString("en-US", {
+          month: "short",
+          year: "2-digit",
+        });
+        break;
+    }
+
+    // Count conversations in this period
+    const periodConversations = conversations.filter((conv: any) => {
+      const convDate = new Date(conv.createdAt);
+      return convDate >= periodStart && convDate < periodEnd;
+    });
+
+    const appointmentsInPeriod = periodConversations.filter(
+      (conv: any) => conv.formData && Object.keys(conv.formData).length > 0,
+    ).length;
+
+    trends.push({
+      date: label,
+      timestamp: periodStart.toISOString(),
+      conversations: periodConversations.length,
+      appointments: appointmentsInPeriod,
+      conversionRate:
+        periodConversations.length > 0
+          ? (appointmentsInPeriod / periodConversations.length) * 100
+          : 0,
+    });
+
+    currentDate.setTime(periodEnd.getTime());
+  }
+
+  return trends;
+}
+
+// Helper function to calculate response time distribution
+function calculateResponseTimeDistribution(conversations: any[]) {
+  const distribution = [
+    { time: "0-30s", range: [0, 30], count: 0 },
+    { time: "30s-1m", range: [30, 60], count: 0 },
+    { time: "1-2m", range: [60, 120], count: 0 },
+    { time: "2-5m", range: [120, 300], count: 0 },
+    { time: "5m+", range: [300, Infinity], count: 0 },
+  ];
+
+  conversations.forEach((conv: any) => {
+    const messages = conv.messages || [];
+    for (let i = 0; i < messages.length - 1; i++) {
+      const currentMsg = messages[i];
+      const nextMsg = messages[i + 1];
+
+      if (currentMsg.type === "user" && nextMsg.type === "bot") {
+        const responseTime =
+          (new Date(nextMsg.timestamp).getTime() -
+            new Date(currentMsg.timestamp).getTime()) /
+          1000;
+
+        if (responseTime > 0) {
+          const bucket = distribution.find(
+            (d) => responseTime >= d.range[0] && responseTime < d.range[1],
+          );
+          if (bucket) bucket.count++;
+        }
+      }
+    }
+  });
+
+  return distribution;
+}

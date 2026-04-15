@@ -1,3 +1,4 @@
+// apps/dashboard/app/web/[chatbotId]/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
@@ -23,15 +24,14 @@ import {
   Brain,
   Sparkles,
   Bot,
-  AlertTriangle,
   Trash2,
-  Loader2,
   ExternalLink,
   MessageCircle,
   Code2,
   Settings,
   Coins,
   Globe,
+  ChevronRight,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -41,7 +41,6 @@ import {
   deleteChatbot,
   getTokenBalance,
 } from "@/lib/services/web-actions.api";
-import { formatDistanceToNow } from "date-fns";
 import { Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
@@ -81,8 +80,37 @@ interface ChatbotInfo {
 
 type StatsType = LeadStats | EducationStats | null;
 
+// Lead item type for recent leads table
+interface LeadItem {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  service?: string;
+  date: string;
+  hasAppointment: boolean;
+}
+
 const CDN_URL =
   process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.rocketreplai.com";
+
+// Relative time helper
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const s = Math.floor(diff / 1000);
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d ago`;
+  return new Date(dateStr).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
 export default function DynamicOverviewPage() {
   const params = useParams();
@@ -97,15 +125,16 @@ export default function DynamicOverviewPage() {
   // State
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
   const [stats, setStats] = useState<StatsType>(null);
-  const [recentItems, setRecentItems] = useState<any[]>([]);
+  const [recentLeads, setRecentLeads] = useState<LeadItem[]>([]);
   const [tokenBalance, setTokenBalance] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [period, setPeriod] = useState<string>("7d");
 
-  // Determine chatbot type from ID - use useMemo to prevent recalculation
+  // Determine chatbot type from ID
   const { isLeadGeneration, isEducation, chatbotType, displayInfo } =
     useMemo(() => {
       const isLead =
@@ -118,7 +147,6 @@ export default function DynamicOverviewPage() {
           ? "chatbot-education"
           : null;
 
-      // Get display info based on type
       let info = null;
       if (isLead) {
         info = {
@@ -148,28 +176,6 @@ export default function DynamicOverviewPage() {
               suffix: "s",
             },
           ],
-          actions: [
-            {
-              href: `/web/${chatbotId}/conversations`,
-              label: "View All Leads",
-              icon: Users,
-            },
-            {
-              href: `/web/${chatbotId}/faq`,
-              label: "Manage FAQ",
-              icon: MessageSquare,
-            },
-            {
-              href: `/web/${chatbotId}/appointments`,
-              label: "Appointment Questions",
-              icon: Calendar,
-            },
-            {
-              href: `/web/${chatbotId}/integration`,
-              label: "Integration",
-              icon: Zap,
-            },
-          ],
         };
       } else if (isEdu) {
         info = {
@@ -194,23 +200,6 @@ export default function DynamicOverviewPage() {
             },
             { key: "totalQuestions", label: "Total Questions", icon: BookOpen },
           ],
-          actions: [
-            {
-              href: `/web/${chatbotId}/faq`,
-              label: "FAQ Questions",
-              icon: BookOpen,
-            },
-            {
-              href: `/web/${chatbotId}/settings`,
-              label: "Settings",
-              icon: TrendingUp,
-            },
-            {
-              href: `/web/${chatbotId}/integration`,
-              label: "Integration",
-              icon: Zap,
-            },
-          ],
         };
       }
 
@@ -231,7 +220,7 @@ export default function DynamicOverviewPage() {
     };
   }, []);
 
-  // Load chatbot data - memoized with stable dependencies
+  // Load chatbot data
   const loadChatbot = useCallback(async () => {
     if (!userId || !chatbotType || !isLoaded) return;
 
@@ -268,11 +257,10 @@ export default function DynamicOverviewPage() {
     }
   }, [userId, chatbotType, isLoaded, apiRequest, displayInfo?.name]);
 
-  // Load analytics data - memoized with stable dependencies
+  // Load analytics data
   const loadData = useCallback(async () => {
     if (!userId || !chatbotType || !isLoaded) return;
 
-    // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -283,8 +271,8 @@ export default function DynamicOverviewPage() {
       setError(null);
 
       const [analyticsData, conversationsData, tokenData] = await Promise.all([
-        getAnalytics(apiRequest, chatbotType),
-        getConversations(apiRequest, chatbotType),
+        getAnalytics(apiRequest, chatbotType, period),
+        getConversations(apiRequest, chatbotType, 20, 0),
         getTokenBalance(apiRequest).catch(() => null),
       ]);
 
@@ -292,9 +280,9 @@ export default function DynamicOverviewPage() {
         setTokenBalance(tokenData);
       }
 
+      const overview = analyticsData?.analytics?.overview || {};
+
       if (isLeadGeneration) {
-        // Lead generation stats
-        const overview = analyticsData?.analytics?.overview || {};
         setStats({
           totalLeads: overview.totalLeads || 0,
           qualifiedLeads: overview.qualifiedLeads || 0,
@@ -304,51 +292,39 @@ export default function DynamicOverviewPage() {
           trends: analyticsData?.analytics?.trends || [],
         });
 
-        // Transform conversations to leads
-        const leads = (conversationsData?.conversations || [])
-          .filter((conv: any) => conv.formData && conv.formData.length > 0)
-          .map((conv: any) => ({
-            id: conv.id,
-            name:
-              conv.formData.find((f: any) =>
-                /name|full name|your name/i.test(f.question),
-              )?.answer || "Anonymous",
-            email: conv.formData.find((f: any) => /email/i.test(f.question))
-              ?.answer,
-            phone: conv.formData.find((f: any) =>
-              /phone|mobile|contact/i.test(f.question),
-            )?.answer,
-            service: conv.formData.find((f: any) =>
-              /service|interested/i.test(f.question),
-            )?.answer,
-            date: conv.createdAt,
-            status: conv.status === "answered" ? "qualified" : "new",
-          }))
-          .slice(0, 5);
+        // Transform conversations to leads (only recent ones for display)
+        const conversations = conversationsData?.conversations || [];
+        const leads: LeadItem[] = conversations
+          .filter((conv: any) => {
+            // Only show leads from last 24 hours
+            const convDate = new Date(conv.createdAt);
+            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            return convDate >= oneDayAgo;
+          })
+          .map((conv: any) => {
+            const formData = conv.formData || {};
+            const hasAppointment = Object.keys(formData).length > 0;
 
-        setRecentItems(leads);
+            return {
+              id: conv._id,
+              name: formData.name || conv.customerName || "Anonymous",
+              email: formData.email || conv.customerEmail,
+              phone: formData.phone,
+              service: formData.service,
+              date: conv.createdAt,
+              hasAppointment,
+            };
+          })
+          .slice(0, 5); // Only show 5 most recent
+
+        setRecentLeads(leads);
       } else if (isEducation) {
-        // Education stats
-        const overview = analyticsData?.analytics?.overview || {};
         setStats({
           totalStudents: overview.totalStudents || 0,
           completedQuizzes: overview.completedQuizzes || 0,
           averageScore: overview.averageScore || 0,
           totalQuestions: overview.totalQuestions || 0,
         });
-
-        // Transform conversations to student responses
-        const responses = (conversationsData?.conversations || [])
-          .filter((conv: any) => conv.formData && conv.formData.length > 0)
-          .map((conv: any) => ({
-            id: conv.id,
-            studentName: conv.customerName || "Anonymous",
-            score: conv.score || Math.floor(Math.random() * 30) + 70,
-            timestamp: conv.createdAt,
-          }))
-          .slice(0, 5);
-
-        setRecentItems(responses);
       }
     } catch (error: any) {
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
@@ -365,9 +341,10 @@ export default function DynamicOverviewPage() {
     apiRequest,
     isLeadGeneration,
     isEducation,
+    period,
   ]);
 
-  // Initial load - with proper dependencies
+  // Initial load
   useEffect(() => {
     if (!chatbotType || !isLoaded || !userId) return;
     if (
@@ -383,13 +360,12 @@ export default function DynamicOverviewPage() {
 
     init();
 
-    // Cleanup function
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
     };
-  }, [chatbotType, isLoaded, userId, loadChatbot, loadData]);
+  }, [chatbotType, isLoaded, userId, loadChatbot, loadData, chatbotId, router]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -402,7 +378,6 @@ export default function DynamicOverviewPage() {
     });
   };
 
-  // ── Delete handler ───────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!chatbot) return;
     setIsDeleting(true);
@@ -415,7 +390,6 @@ export default function DynamicOverviewPage() {
       });
       setShowDeleteConfirm(false);
       setChatbot(null);
-      // Redirect to web page after deletion
       router.push("/web");
     } catch (err: any) {
       toast({
@@ -502,8 +476,8 @@ export default function DynamicOverviewPage() {
   ) {
     return null;
   }
+
   const botTypeLabel = isLeadGeneration ? "lead" : "mcq";
-  const Icon = displayInfo.icon;
   const primaryColor = displayInfo.primaryColor;
   const pc =
     chatbot?.settings?.primaryColor ||
@@ -513,7 +487,6 @@ export default function DynamicOverviewPage() {
       ? `${CDN_URL}/${botTypeLabel}/${userId}/${chatbotType}`
       : "";
 
-  // Quick links configuration
   const quickLinks = [
     {
       label: "Conversations",
@@ -608,13 +581,34 @@ export default function DynamicOverviewPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
-              {/* Status Badge */}
+            <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1.5 bg-white/20 text-white text-xs font-semibold rounded-full border border-white/30">
-                {chatbot?.isBuilt ? "✓ Active" : "Inactive"}
+                {chatbot?.isBuilt ? "Active" : "Inactive"}
               </span>
 
-              {/* Refresh Button */}
+              {/* Period Selector */}
+              <select
+                value={period}
+                onChange={(e) => setPeriod(e.target.value)}
+                className="px-3 py-1.5 bg-white/20 text-white text-xs font-semibold rounded-full border border-white/30 outline-none cursor-pointer"
+              >
+                <option value="1d" className="text-gray-900">
+                  Last 24h
+                </option>
+                <option value="7d" className="text-gray-900">
+                  Last 7 days
+                </option>
+                <option value="30d" className="text-gray-900">
+                  Last 30 days
+                </option>
+                <option value="90d" className="text-gray-900">
+                  Last 90 days
+                </option>
+                <option value="1y" className="text-gray-900">
+                  Last year
+                </option>
+              </select>
+
               <button
                 onClick={handleRefresh}
                 disabled={isRefreshing}
@@ -626,7 +620,6 @@ export default function DynamicOverviewPage() {
                 />
               </button>
 
-              {/* Delete Button */}
               <button
                 onClick={() => setShowDeleteConfirm(true)}
                 className="p-2 bg-white/20 text-white rounded-xl hover:bg-red-500/80 transition-colors"
@@ -635,7 +628,6 @@ export default function DynamicOverviewPage() {
                 <Trash2 className="h-4 w-4" />
               </button>
 
-              {/* Settings Button */}
               <Link
                 href={`/web/${chatbotType}/settings`}
                 className="p-2 bg-white/20 text-white rounded-xl hover:bg-white/30 transition-colors"
@@ -649,7 +641,7 @@ export default function DynamicOverviewPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {displayInfo.stats.map((stat, index) => {
+          {displayInfo.stats.map((stat) => {
             const StatIcon = stat.icon;
             const value = stats ? (stats as any)[stat.key] : 0;
 
@@ -712,155 +704,184 @@ export default function DynamicOverviewPage() {
           </Link>
         </div>
 
-        {/* Recent Activity */}
-        <div className={`${styles.card} overflow-x-auto`}>
-          <div
-            className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
-          >
-            <div className="flex items-center gap-2">
-              {isLeadGeneration ? (
-                <Target
+        {/* Recent Leads Section - Only for Lead Generation */}
+        {isLeadGeneration && (
+          <div className={`${styles.card} overflow-hidden`}>
+            <div
+              className={`p-5 border-b ${styles.divider} flex items-center justify-between`}
+            >
+              <div className="flex items-center gap-2">
+                <Users
                   className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
                 />
-              ) : (
-                <Users
-                  className={`h-4 w-4 ${isDark ? "text-green-400" : "text-green-500"}`}
-                />
-              )}
-              <h3 className={`text-sm font-bold ${styles.text.primary}`}>
-                {isLeadGeneration ? "Recent Leads" : "Recent Student Responses"}
-              </h3>
-            </div>
-            <Link
-              href={
-                isLeadGeneration
-                  ? `/web/${chatbotId}/conversations`
-                  : `/web/${chatbotId}/faq`
-              }
-              className={`text-xs font-semibold flex items-center gap-1 hover:opacity-80 ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-500`}`}
-            >
-              View All <ArrowUpRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-
-          <div className={`divide-y ${styles.divider}`}>
-            {recentItems.length > 0 ? (
-              recentItems.map((item) => (
-                <div
-                  key={item.id + item.timestamp}
-                  className={`flex items-center justify-between px-5 py-4 hover:bg-white/[0.03] transition-colors ${styles.divider} gap-2`}
-                >
-                  <div className="flex items-center gap-3 flex-1">
-                    <div
-                      className={`w-10 h-10 rounded-full bg-gradient-to-br ${isLeadGeneration ? "from-purple-100 to-pink-100" : "from-green-100 to-emerald-100"} ${isDark ? "opacity-90" : ""} flex items-center justify-center flex-shrink-0`}
-                    >
-                      {isLeadGeneration ? (
-                        <User
-                          className={`h-5 w-5 ${isDark ? "text-purple-400" : "text-purple-600"}`}
-                        />
-                      ) : (
-                        <GraduationCap
-                          className={`h-5 w-5 ${isDark ? "text-green-400" : "text-green-600"}`}
-                        />
-                      )}
-                    </div>
-                    <div>
-                      <p
-                        className={`text-sm font-medium ${styles.text.primary}`}
-                      >
-                        {item.name || item.studentName}
-                      </p>
-                      {isLeadGeneration ? (
-                        <div
-                          className={`flex items-center gap-3 mt-1 text-xs ${styles.text.secondary}`}
-                        >
-                          {item.email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="h-3 w-3" />
-                              {item.email}
-                            </span>
-                          )}
-                          {item.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {item.phone}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <p className={`text-xs ${styles.text.secondary}`}>
-                          Score: {item.score}%
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    {isLeadGeneration ? (
-                      <>
-                        {item.service && (
-                          <span
-                            className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.purple}`}
-                          >
-                            {item.service}
-                          </span>
-                        )}
-                        <span
-                          className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
-                            item.status === "qualified"
-                              ? styles.badge.green
-                              : styles.badge.blue
-                          }`}
-                        >
-                          {item.status}
-                        </span>
-                      </>
-                    ) : (
-                      <span
-                        className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
-                          item.score >= 80
-                            ? styles.badge.green
-                            : styles.badge.purple
-                        }`}
-                      >
-                        {item.score >= 80 ? "Passed" : "Review Needed"}
-                      </span>
-                    )}
-                    <span
-                      className={`text-xs text-nowrap ${styles.text.muted}`}
-                    >
-                      {formatDistanceToNow(
-                        new Date(item.date || item.timestamp),
-                        { addSuffix: true },
-                      )}
-                    </span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="px-5 py-8 text-center">
-                <Users
-                  className={`h-8 w-8 mx-auto mb-3 ${styles.text.muted}`}
-                />
-                <p className={`text-sm ${styles.text.muted}`}>
-                  {isLeadGeneration
-                    ? "No leads yet"
-                    : "No student responses yet"}
-                </p>
-                <p className={`text-xs mt-1 ${styles.text.muted}`}>
-                  {isLeadGeneration
-                    ? "Integrate your chatbot to start capturing leads"
-                    : "Share your education chatbot to collect responses"}
-                </p>
+                <h3 className={`text-sm font-bold ${styles.text.primary}`}>
+                  Recent Leads (Last 24 Hours)
+                </h3>
               </div>
-            )}
+              <Link
+                href={`/web/${chatbotType}/conversations`}
+                className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
+                style={{ background: `${pc}18`, color: pc }}
+              >
+                View All
+                <ArrowUpRight className="h-3 w-3" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr
+                    className={`text-xs font-semibold uppercase tracking-wide ${
+                      isDark
+                        ? "bg-white/[0.04] text-white/40 border-b border-white/[0.06]"
+                        : "bg-gray-50 text-gray-500 border-b border-gray-100"
+                    }`}
+                  >
+                    <th className="px-4 py-3 whitespace-nowrap">Lead</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Contact</th>
+                    <th className="px-4 py-3 whitespace-nowrap">Service</th>
+                    <th className="px-4 py-3 whitespace-nowrap text-center">
+                      Appointment
+                    </th>
+                    <th className="px-4 py-3 whitespace-nowrap">Time</th>
+                    <th className="px-4 py-3" />
+                  </tr>
+                </thead>
+
+                <tbody
+                  className={`divide-y ${
+                    isDark ? "divide-white/[0.05]" : "divide-gray-100"
+                  }`}
+                >
+                  {recentLeads.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-8 text-center">
+                        <Users
+                          className={`h-8 w-8 mx-auto mb-3 ${styles.text.muted}`}
+                        />
+                        <p className={`text-sm ${styles.text.muted}`}>
+                          No leads in the last 24 hours
+                        </p>
+                        <p className={`text-xs mt-1 ${styles.text.muted}`}>
+                          New leads will appear here as they come in
+                        </p>
+                      </td>
+                    </tr>
+                  ) : (
+                    recentLeads.map((lead) => (
+                      <tr
+                        key={lead.id}
+                        className={`cursor-pointer transition-colors ${
+                          isDark
+                            ? "hover:bg-white/[0.03]"
+                            : "hover:bg-gray-50/80"
+                        }`}
+                        onClick={() =>
+                          router.push(`/web/${chatbotType}/conversations`)
+                        }
+                      >
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+                              style={{ background: pc }}
+                            >
+                              {(lead.name || "A")[0].toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <p
+                                className={`text-sm font-semibold truncate max-w-[120px] ${styles.text.primary}`}
+                              >
+                                {lead.name}
+                              </p>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3.5">
+                          <div className="space-y-0.5">
+                            {lead.email && (
+                              <p
+                                className={`text-xs flex items-center gap-1 ${styles.text.muted}`}
+                              >
+                                <Mail className="h-3 w-3" />
+                                <span className="truncate max-w-[150px]">
+                                  {lead.email}
+                                </span>
+                              </p>
+                            )}
+                            {lead.phone && (
+                              <p
+                                className={`text-xs flex items-center gap-1 ${styles.text.muted}`}
+                              >
+                                <Phone className="h-3 w-3" />
+                                <span className="truncate max-w-[150px]">
+                                  {lead.phone}
+                                </span>
+                              </p>
+                            )}
+                            {!lead.email && !lead.phone && (
+                              <span className={`text-xs ${styles.text.muted}`}>
+                                —
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-4 py-3.5 max-w-[150px]">
+                          <p
+                            className={`text-xs truncate ${styles.text.secondary}`}
+                          >
+                            {lead.service || "—"}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-3.5 whitespace-nowrap text-center">
+                          {lead.hasAppointment ? (
+                            <span
+                              className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                                isDark
+                                  ? "bg-purple-500/20 text-purple-300"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}
+                            >
+                              📅 Yes
+                            </span>
+                          ) : (
+                            <span className={`text-xs ${styles.text.muted}`}>
+                              —
+                            </span>
+                          )}
+                        </td>
+
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <p
+                            className={`text-xs font-medium ${styles.text.secondary}`}
+                          >
+                            {relativeTime(lead.date)}
+                          </p>
+                        </td>
+
+                        <td className="px-4 py-3.5 whitespace-nowrap">
+                          <ChevronRight
+                            className={`h-4 w-4 ${styles.text.muted}`}
+                          />
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
+
         {/* Landing Page URL */}
         {chatbot?.isBuilt && landingUrl && (
           <div
             className={`${styles.card} p-4 rounded-2xl flex flex-wrap items-center gap-3`}
           >
-            {/* Icon */}
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${pc}18` }}
@@ -868,26 +889,22 @@ export default function DynamicOverviewPage() {
               <Globe className="h-4 w-4" style={{ color: pc }} />
             </div>
 
-            {/* TEXT SECTION (IMPORTANT FIX) */}
-            <div className="flex flex-col min-w-0 w-1/2">
+            <div className="flex flex-col min-w-0 flex-1">
               <p
-                className={`text-xs text-nowrap font-semibold ${styles.text.secondary} mb-0.5`}
+                className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
               >
                 Shareable Landing Page
               </p>
-
               <p
                 className={`text-xs font-mono truncate ${
                   isDark ? "text-white/60" : "text-gray-600"
                 }`}
-                title={landingUrl} // 👈 tooltip on hover
+                title={landingUrl}
               >
                 {landingUrl}
               </p>
             </div>
 
-            {/* BUTTONS */}
-            {/* <div className="flex items-center gap-1 flex-shrink-0"> */}
             <Link
               href={landingUrl}
               target="_blank"
@@ -910,9 +927,9 @@ export default function DynamicOverviewPage() {
               <Code2 className="h-3.5 w-3.5" />
               Get Embed Code
             </Link>
-            {/* </div> */}
           </div>
         )}
+
         {/* Quick Links Grid */}
         <div>
           <h2
@@ -950,13 +967,13 @@ export default function DynamicOverviewPage() {
           </div>
         </div>
 
-        {/* Additional Info Card */}
+        {/* Pro Tip Card */}
         <div
           className={`${isDark ? `bg-${primaryColor}-500/10 border border-${primaryColor}-500/20` : `bg-${primaryColor}-50 border border-${primaryColor}-200`} rounded-2xl p-6`}
         >
           <div className="flex items-start gap-4">
             <div
-              className={` hidden md:inline-flex w-12 h-12 rounded-xl ${isDark ? `bg-${primaryColor}-500/20 border border-${primaryColor}-500/30` : `bg-${primaryColor}-100`} flex items-center justify-center`}
+              className={`hidden md:inline-flex w-12 h-12 rounded-xl ${isDark ? `bg-${primaryColor}-500/20 border border-${primaryColor}-500/30` : `bg-${primaryColor}-100`} flex items-center justify-center`}
             >
               <Sparkles
                 className={
@@ -968,7 +985,7 @@ export default function DynamicOverviewPage() {
             </div>
             <div className="flex-1">
               <h3
-                className={` text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
+                className={`text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
               >
                 {isLeadGeneration
                   ? "Pro Tip: Qualify Leads Faster"
@@ -981,21 +998,21 @@ export default function DynamicOverviewPage() {
                   ? "Use custom questions to qualify leads automatically. Add specific fields to capture exactly what you need."
                   : "Add more questions with varying difficulty levels to keep students engaged. Track performance by category."}
               </p>
-              <button
-                className={`mt-4 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
+              <Link
+                href={`/web/${chatbotType}/faq`}
+                className={`mt-4 px-4 py-2 rounded-xl text-sm font-medium transition-colors inline-block ${
                   isDark
                     ? `bg-${primaryColor}-500/80 hover:bg-${primaryColor}-500 text-white`
                     : `bg-${primaryColor}-500 hover:bg-${primaryColor}-600 text-white`
                 }`}
               >
-                Learn More
-              </button>
+                {isLeadGeneration ? "Manage FAQ" : "Manage Questions"}
+              </Link>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}

@@ -1,18 +1,15 @@
 // apps/api/controllers/embed/chatbot.controller.ts
 // POST /api/embed/chatbot
-//
-// Updated to accept an optional `conversationHistory` array so DeepSeek
-// can remember previous turns in the same browser session.
-// See ai.service.ts for the full explanation of how memory works.
 
 import { generateGptResponse } from "@/services/ai.service";
 import { Request, Response } from "express";
+import { usedTokens } from "@/services/token.service";
+import { connectToDatabase } from "@/config/database.config";
 
 // POST /api/embed/chatbot - Handle chatbot requests
 export const handleChatbotRequest = async (req: Request, res: Response) => {
   try {
     // API key validation is handled by embedAuth middleware
-    // No need to check x-api-key header here anymore
 
     const { userInput, userId, agentId, fileData, conversationHistory } =
       req.body;
@@ -25,19 +22,59 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
       });
     }
 
+    await connectToDatabase();
+
+    // Generate AI response
     const result = await generateGptResponse({
       userInput,
       userfileName: fileData || "default",
       conversationHistory: conversationHistory || [],
-      clerkId: userId, // Pass clerkId for FAQ context
-      chatbotType: agentId, // Pass chatbot type for FAQ context
+      clerkId: userId,
+      chatbotType: agentId,
     });
+
+    // Deduct tokens from user's balance
+    const tokensUsed = result.tokens || 0;
+
+    if (tokensUsed > 0) {
+      try {
+        const tokenResult = await usedTokens(
+          userId,
+          tokensUsed,
+          agentId,
+          tokensUsed * 0.0000014, // Approximate cost
+        );
+
+        return res.status(200).json({
+          success: true,
+          data: {
+            response: result.response,
+            tokens: tokensUsed,
+            remainingTokens: tokenResult.remainingTokens,
+            freeTokensRemaining: tokenResult.freeTokensRemaining,
+            purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
+          },
+          timestamp: new Date().toISOString(),
+        });
+      } catch (tokenError: any) {
+        // If insufficient tokens, return error
+        if (tokenError.message === "Insufficient tokens") {
+          return res.status(402).json({
+            success: false,
+            error:
+              "Insufficient tokens. Please purchase more tokens to continue.",
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw tokenError;
+      }
+    }
 
     return res.status(200).json({
       success: true,
       data: {
         response: result.response,
-        tokens: result.tokens,
+        tokens: tokensUsed,
       },
       timestamp: new Date().toISOString(),
     });

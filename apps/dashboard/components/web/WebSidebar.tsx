@@ -27,6 +27,7 @@ import {
   Sparkles,
   Coins,
   CreditCard,
+  ChartBarStacked,
 } from "lucide-react";
 import Image from "next/image";
 import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
@@ -518,7 +519,29 @@ export default function WebSidebar({
               <div className={`w-1 h-6 rounded-full bg-purple-500`} />
             )}
           </Link>
-
+          <Link
+            href={`${currentChatbot.href}/analytics`}
+            onClick={() => {
+              if (window.innerWidth < 768) onToggle();
+            }}
+            className={styles.navLink(
+              isActive(`${currentChatbot.href}/analytics`),
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 w-full">
+              <div className="flex items-center justify-start gap-3">
+                <ChartBarStacked
+                  className={styles.navIcon(
+                    isActive(`${currentChatbot.href}/analytics`),
+                  )}
+                />
+                <span className="text-sm font-medium">analytics</span>
+              </div>
+            </div>
+            {isActive(`${currentChatbot.href}/analytics`) && (
+              <div className={`w-1 h-6 rounded-full bg-purple-500`} />
+            )}
+          </Link>
           <Link
             href={`${currentChatbot.href}/settings`}
             onClick={() => {
