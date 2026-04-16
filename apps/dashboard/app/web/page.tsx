@@ -615,7 +615,9 @@ export default function WebDashboardPage() {
                     <div className="space-y-4">
                       {/* Stats Row */}
                       <div className="flex flex-wrap gap-3">
-                        <div className={`${styles.innerCard} p-3 rounded-lg`}>
+                        <div
+                          className={`flex-1 ${styles.innerCard} p-3 rounded-lg`}
+                        >
                           <p className={`text-xs ${styles.text.muted}`}>
                             Conversations
                           </p>
@@ -625,7 +627,9 @@ export default function WebDashboardPage() {
                             {chatbot.conversations.toLocaleString()}
                           </p>
                         </div>
-                        <div className={`${styles.innerCard} p-3 rounded-lg`}>
+                        <div
+                          className={`flex-1 ${styles.innerCard} p-3 rounded-lg`}
+                        >
                           <p className={`text-xs ${styles.text.muted}`}>
                             Messages
                           </p>

@@ -14,6 +14,11 @@ export interface IChatMessage {
   };
 }
 
+export interface IFormField {
+  question: string;
+  answer: string;
+}
+
 export interface IChatConversation extends Document {
   chatbotType: string;
   clerkId: string;
@@ -22,6 +27,7 @@ export interface IChatConversation extends Document {
   customerEmail?: string;
   customerName?: string;
   messages: IChatMessage[];
+  formData?: IFormField[]; // Appointment/form submission data
   totalTokensUsed: number;
   totalMessages: number;
   hasAppointment: boolean;
@@ -82,6 +88,14 @@ const ChatMessageSchema = new Schema<IChatMessage>(
   { _id: false },
 );
 
+const FormFieldSchema = new Schema<IFormField>(
+  {
+    question: { type: String },
+    answer: { type: String },
+  },
+  { _id: false },
+);
+
 const ChatConversationSchema = new Schema<IChatConversation>(
   {
     chatbotType: {
@@ -115,6 +129,7 @@ const ChatConversationSchema = new Schema<IChatConversation>(
       trim: true,
     },
     messages: [ChatMessageSchema],
+    formData: [FormFieldSchema],
     totalTokensUsed: {
       type: Number,
       default: 0,

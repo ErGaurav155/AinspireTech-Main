@@ -8,7 +8,6 @@ import InstaReplyTemplate from "../models/insta/ReplyTemplate.model";
 import RateLimitQueue from "../models/Rate/RateLimitQueue.model";
 import RateUserRateLimit from "../models/Rate/UserRateLimit.model";
 import WebAppointmentQuestions from "../models/web/AppointmentQuestions.model";
-import WebConversation from "../models/web/Conversation.model";
 import WebSubscription from "../models/web/Websubcription.model";
 import WebChatbot from "../models/web/WebChatbot.model";
 import { getCurrentWindow } from "./rate-limit.service";
@@ -20,6 +19,7 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
 
 export const TIER_LIMITS = {
   free: 200,
@@ -308,7 +308,7 @@ export async function deleteUserData(clerkId: string) {
   const deletionPromises = [
     // Web-related data
     WebSubscription.deleteMany({ clerkId }),
-    WebConversation.deleteMany({ clerkId }),
+    WebChatConversation.deleteMany({ clerkId }),
     WebChatbot.deleteMany({ clerkId }),
     webFaq.deleteMany({ clerkId }),
     WebAppointmentQuestions.deleteMany({ clerkId }),

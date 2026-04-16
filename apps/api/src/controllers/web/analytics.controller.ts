@@ -2,7 +2,7 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
-import WebConversation from "@/models/web/Conversation.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
 
 // GET /api/web/analytics/:chatbotType - Get real chatbot analytics from database
 export const getWebAnalyticsController = async (
@@ -57,7 +57,7 @@ export const getWebAnalyticsController = async (
     }
 
     // Get all conversations for this user and chatbot type within the period
-    const conversations = await WebConversation.find({
+    const conversations = await WebChatConversation.find({
       clerkId: userId,
       chatbotType: chatbotType,
       createdAt: { $gte: startDate, $lte: now },

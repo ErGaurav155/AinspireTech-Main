@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import mongoose from "mongoose";
 import { connectToDatabase } from "@/config/database.config";
-import WebConversation from "@/models/web/Conversation.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
 import { getAuth } from "@clerk/express";
 
 // GET /api/web/conversations - Get conversations
@@ -29,7 +29,7 @@ export const getConversationsController = async (
       query.chatbotId = chatbotId;
     }
 
-    const conversations = await WebConversation.find(query)
+    const conversations = await WebChatConversation.find(query)
       .sort({ updatedAt: -1 })
       .limit(50)
       .lean();

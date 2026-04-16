@@ -5,12 +5,11 @@ import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import { getAuth } from "@clerk/express";
 import webFaq from "@/models/web/webFaq.model";
-import WebConversation from "@/models/web/Conversation.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
 import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
 import { uploadTextToCloudinary } from "@/services/transaction.service";
 import puppeteer from "puppeteer";
 import multer from "multer";
-import WebChatConversation from "@/models/web/WebChatConversation.model";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -526,11 +525,7 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
 
     await Promise.all([
       webFaq.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
-      WebConversation.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
-      WebChatConversation.deleteMany({
-        clerkId: userId,
-        chatbotType: chatbotId,
-      }),
+      WebChatConversation.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
       WebAppointmentQuestions.deleteMany({
         clerkId: userId,
         chatbotType: chatbotId,

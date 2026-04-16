@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
-import WebConversation from "@/models/web/Conversation.model";
 import { getAuth } from "@clerk/express";
 
 // GET /api/web/conversations/:chatbotType - Get conversations by chatbot type
@@ -30,23 +29,19 @@ export const getConversationsByTypeController = async (
     const chatConversations = await WebChatConversation.find({
       clerkId: userId,
       chatbotType: chatbotType,
+      status: { $ne: "abandoned" },
     })
       .sort({ lastActivity: -1 })
       .skip(offset)
       .limit(limit)
       .lean();
 
-    // Also get appointment conversations for lead generation
-    let appointmentConversations;
+    // Filter for appointment conversations if lead generation
+    let appointmentConversations: any[] = [];
     if (chatbotType === "chatbot-lead-generation") {
-      appointmentConversations = await WebConversation.find({
-        clerkId: userId,
-        chatbotType: chatbotType,
-      })
-        .sort({ updatedAt: -1 })
-        .skip(offset)
-        .limit(limit)
-        .lean();
+      appointmentConversations = chatConversations.filter(
+        (c: any) => c.hasAppointment || (c.formData && c.formData.length > 0),
+      );
     }
 
     // Combine and format conversations

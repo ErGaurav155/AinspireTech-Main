@@ -206,9 +206,9 @@ export default function AnalyticsPage() {
       setError(null);
 
       const response = await getAnalytics(apiRequest, chatbotType, period);
-
-      if (response?.data?.analytics) {
-        setAnalyticsData(response.data.analytics);
+      console.log("API response for analytics:", response);
+      if (response?.analytics) {
+        setAnalyticsData(response.analytics);
       } else {
         setAnalyticsData(response?.analytics || null);
       }

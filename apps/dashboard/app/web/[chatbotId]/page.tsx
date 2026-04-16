@@ -899,6 +899,7 @@ export default function DynamicOverviewPage() {
           <div
             className={`${styles.card} p-4 rounded-2xl flex flex-wrap items-center gap-3`}
           >
+            {/* Icon */}
             <div
               className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{ background: `${pc}18` }}
@@ -906,22 +907,26 @@ export default function DynamicOverviewPage() {
               <Globe className="h-4 w-4" style={{ color: pc }} />
             </div>
 
-            <div className="flex flex-col min-w-0 flex-1">
+            {/* TEXT SECTION (IMPORTANT FIX) */}
+            <div className="flex flex-col min-w-0 w-1/2">
               <p
-                className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
+                className={`text-xs text-nowrap font-semibold ${styles.text.secondary} mb-0.5`}
               >
                 Shareable Landing Page
               </p>
+
               <p
                 className={`text-xs font-mono truncate ${
                   isDark ? "text-white/60" : "text-gray-600"
                 }`}
-                title={landingUrl}
+                title={landingUrl} // 👈 tooltip on hover
               >
                 {landingUrl}
               </p>
             </div>
 
+            {/* BUTTONS */}
+            {/* <div className="flex items-center gap-1 flex-shrink-0"> */}
             <Link
               href={landingUrl}
               target="_blank"
@@ -944,6 +949,7 @@ export default function DynamicOverviewPage() {
               <Code2 className="h-3.5 w-3.5" />
               Get Embed Code
             </Link>
+            {/* </div> */}
           </div>
         )}
 
