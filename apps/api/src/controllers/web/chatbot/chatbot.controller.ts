@@ -525,7 +525,10 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
 
     await Promise.all([
       webFaq.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
-      WebChatConversation.deleteMany({ clerkId: userId, chatbotType: chatbotId }),
+      WebChatConversation.deleteMany({
+        clerkId: userId,
+        chatbotType: chatbotId,
+      }),
       WebAppointmentQuestions.deleteMany({
         clerkId: userId,
         chatbotType: chatbotId,

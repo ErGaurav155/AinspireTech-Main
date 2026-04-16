@@ -60,7 +60,9 @@ export const handleConversationRequest = async (
     const newConversation = {
       chatbotType: chatbotType,
       clerkId: userId,
-      sessionId: sessionId || `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      sessionId:
+        sessionId ||
+        `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       customerName: customerName || "Anonymous",
       customerEmail: customerEmail || null,
       messages: messages.map((msg: any) => ({
