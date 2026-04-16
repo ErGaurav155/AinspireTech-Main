@@ -112,6 +112,23 @@ function relativeTime(dateStr: string): string {
   });
 }
 
+function normalizeConversationFormData(formData: any): Record<string, any> {
+  if (!formData || typeof formData !== "object") return {};
+  if (Array.isArray(formData)) {
+    return formData.reduce((acc: Record<string, any>, item: any) => {
+      if (item && typeof item === "object") {
+        if (item.question) {
+          acc[item.question] = item.answer ?? "";
+        } else if (item.key) {
+          acc[item.key] = item.value ?? "";
+        }
+      }
+      return acc;
+    }, {});
+  }
+  return formData;
+}
+
 export default function DynamicOverviewPage() {
   const params = useParams();
   const router = useRouter();
@@ -302,7 +319,7 @@ export default function DynamicOverviewPage() {
             return convDate >= oneDayAgo;
           })
           .map((conv: any) => {
-            const formData = conv.formData || {};
+            const formData = normalizeConversationFormData(conv.formData);
             const hasAppointment = Object.keys(formData).length > 0;
 
             return {

@@ -79,6 +79,35 @@ function normalizeFormData(formData: any): FormField[] {
   return [];
 }
 
+function normalizeStatus(status: any): Status {
+  if (!status || typeof status !== "string") return "pending";
+  const lower = status.toLowerCase();
+  if (lower === "completed" || lower === "resolved") return "resolved";
+  if (lower === "active" || lower === "pending" || lower === "abandoned")
+    return "pending";
+  return "pending";
+}
+
+function normalizeMessage(msg: any) {
+  const type =
+    msg?.type === "user" || msg?.type === "bot"
+      ? msg.type
+      : msg?.role === "user" || msg?.role === "bot"
+        ? msg.role
+        : "bot";
+
+  return {
+    id:
+      msg?.id ||
+      `${type}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+    type,
+    content: String(msg?.content || ""),
+    timestamp: msg?.timestamp
+      ? String(msg.timestamp)
+      : new Date().toISOString(),
+  };
+}
+
 // ─── Config ───────────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG = {
@@ -626,6 +655,10 @@ export default function ConversationsPage() {
     return convs.map((conv) => ({
       ...conv,
       formData: normalizeFormData(conv.formData),
+      status: normalizeStatus(conv.status),
+      messages: Array.isArray(conv.messages)
+        ? conv.messages.map(normalizeMessage)
+        : [],
     }));
   }, []);
 
@@ -652,10 +685,10 @@ export default function ConversationsPage() {
           LIMIT,
           reset ? 0 : offset,
         );
-        let convs: Conversation[] =
-          data.data?.conversations || data.conversations || [];
-        const tot: number = data.data?.total || data.total || 0;
-        const more: boolean = data.data?.hasMore || data.hasMore || false;
+
+        let convs: Conversation[] = data.conversations || [];
+        const tot: number = data.total || 0;
+        const more: boolean = data.hasMore || false;
 
         // Normalize conversations
         convs = normalizeConversations(convs);
@@ -667,7 +700,6 @@ export default function ConversationsPage() {
           setConversations((prev) => [...prev, ...convs]);
           setOffset((prev) => prev + LIMIT);
         }
-        console.log("Loaded conversations:", convs);
         setTotal(tot);
         setHasMore(more);
       } catch (error) {

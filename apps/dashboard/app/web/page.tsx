@@ -132,9 +132,6 @@ export default function WebDashboardPage() {
 
       setTokenStats(processedTokenStats);
 
-      console.log("Token balance:", tokenBalance);
-      console.log("Token usage:", tokenUsage);
-
       // Transform chatbot data
       const chatbotList: ChatbotOverview[] = [];
       let totalConvs = 0;
@@ -155,8 +152,8 @@ export default function WebDashboardPage() {
               1000,
               0,
             ); // Get more conversations
-            conversations =
-              convRes?.data?.conversations || convRes?.conversations || [];
+
+            conversations = convRes?.conversations || [];
             totalConvCount = conversations.length;
             totalMsgCount = conversations.reduce(
               (sum: any, conv: any) =>
@@ -569,7 +566,7 @@ export default function WebDashboardPage() {
             </h2>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {chatbots.map((chatbot) => {
               const Icon = getChatbotIcon(chatbot.type);
               const gradient = getChatbotGradient(chatbot.type);
@@ -617,7 +614,7 @@ export default function WebDashboardPage() {
                   {chatbot.isBuilt ? (
                     <div className="space-y-4">
                       {/* Stats Row */}
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="flex flex-wrap gap-3">
                         <div className={`${styles.innerCard} p-3 rounded-lg`}>
                           <p className={`text-xs ${styles.text.muted}`}>
                             Conversations
