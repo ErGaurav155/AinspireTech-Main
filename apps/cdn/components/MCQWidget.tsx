@@ -20,6 +20,52 @@ interface Message {
   id: string;
   role: MessageRole;
   content: string;
+  timestamp?: Date;
+  tokensUsed?: number;
+}
+
+interface TokenBalance {
+  availableTokens: number;
+  freeTokensRemaining: number;
+  purchasedTokensRemaining: number;
+  totalTokensUsed: number;
+  freeTokens: number;
+  purchasedTokens: number;
+  usedFreeTokens: number;
+  usedPurchasedTokens: number;
+  nextResetAt: string;
+}
+
+interface FAQItem {
+  question: string;
+  answer: string;
+  category?: string;
+}
+
+interface QuizQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+}
+
+interface QuizPayload {
+  title?: string;
+  description?: string;
+  questions: QuizQuestion[];
+}
+
+interface BotConfig {
+  name: string;
+  welcomeMessage: string;
+  primaryColor: string;
+  logoUrl?: string | null;
+}
+
+interface Props {
+  userId: string;
+  chatbotType: string;
+  mode: Mode;
 }
 
 interface FAQItem {
@@ -185,6 +231,8 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
   const [selectedAnswers, setSelectedAnswers] = useState<number[]>([]);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const primaryColor = config?.primaryColor || "#2563eb";
@@ -192,9 +240,126 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     config?.welcomeMessage ||
     "Hi! Ask your study doubts, generate a practice quiz, or browse FAQs.";
 
-  const addMessage = useCallback((role: MessageRole, content: string) => {
-    setMessages((prev) => [...prev, { id: uid(), role, content }]);
-  }, []);
+  // Session management
+  useEffect(() => {
+    if (!userId || !chatbotType) return;
+
+    const sessionKey = `mcq_session_${userId}_${chatbotType}`;
+    const storedSession = localStorage.getItem(sessionKey);
+
+    if (storedSession) {
+      setSessionId(storedSession);
+    } else {
+      const newSession = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setSessionId(newSession);
+      localStorage.setItem(sessionKey, newSession);
+    }
+  }, [userId, chatbotType]);
+
+  // Token balance fetching
+  useEffect(() => {
+    if (!userId || !chatbotType || !sessionId) return;
+
+    const fetchTokenBalance = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE}/api/embed/token/balance?userId=${encodeURIComponent(
+            userId,
+          )}&chatbotType=${encodeURIComponent(chatbotType)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": API_KEY,
+            },
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setTokenBalance(data.data || data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch token balance:", error);
+      }
+    };
+
+    fetchTokenBalance();
+    // Refresh token balance every 30 seconds
+    const interval = setInterval(fetchTokenBalance, 30000);
+    return () => clearInterval(interval);
+  }, [userId, chatbotType, sessionId]);
+
+  // Load existing conversation
+  useEffect(() => {
+    if (!userId || !chatbotType || !sessionId) return;
+
+    const loadConversation = async () => {
+      try {
+        const response = await fetch(
+          `${API_BASE}/api/embed/chat-conversations?userId=${encodeURIComponent(
+            userId,
+          )}&chatbotType=${encodeURIComponent(chatbotType)}&sessionId=${encodeURIComponent(sessionId)}`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": API_KEY,
+            },
+          },
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          const conversations =
+            data.data?.conversations || data.conversations || [];
+          if (conversations.length > 0) {
+            // Find the conversation for this session
+            const currentConversation = conversations.find(
+              (conv: any) => conv.sessionId === sessionId,
+            );
+            if (
+              currentConversation &&
+              currentConversation.messages &&
+              currentConversation.messages.length > 0
+            ) {
+              setMessages(
+                currentConversation.messages.map((msg: any) => ({
+                  id: msg.id,
+                  role: msg.role,
+                  content: msg.content,
+                  timestamp: new Date(msg.timestamp),
+                  tokensUsed: msg.tokensUsed,
+                })),
+              );
+              return; // Don't add welcome message if we have existing conversation
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Failed to load conversation:", error);
+      }
+
+      // Add welcome message only if no existing conversation
+      setMessages([{ id: uid(), role: "bot", content: welcomeMessage }]);
+    };
+
+    loadConversation();
+  }, [userId, chatbotType, sessionId, welcomeMessage]);
+
+  const addMessage = useCallback(
+    (role: MessageRole, content: string, tokensUsed?: number) => {
+      const message: Message = {
+        id: uid(),
+        role,
+        content,
+        timestamp: new Date(),
+        tokensUsed,
+      };
+      setMessages((prev) => [...prev, message]);
+    },
+    [],
+  );
 
   useEffect(() => {
     setMessages([{ id: uid(), role: "bot", content: welcomeMessage }]);
@@ -287,43 +452,96 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
 
   const sendRequest = useCallback(
     async (userInput: string, isMCQRequest: boolean) => {
+      // Check token balance before sending request
+      if (!tokenBalance || tokenBalance.availableTokens <= 0) {
+        throw new Error(
+          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+        );
+      }
+
+      const conversationHistory = messages.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+        timestamp: msg.timestamp?.toISOString(),
+      }));
+
       const response = await fetch(`${API_BASE}/api/embed/mcqchatbot`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-api-key": API_KEY,
         },
-        body: JSON.stringify({ userInput, userId, chatbotType, isMCQRequest }),
+        body: JSON.stringify({
+          userInput,
+          userId,
+          chatbotType,
+          isMCQRequest,
+          conversationHistory,
+          sessionId,
+        }),
       });
 
       if (response.status === 402) {
-        throw new Error("This bot is out of tokens right now.");
+        throw new Error(
+          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+        );
       }
       if (!response.ok) {
         throw new Error(`Request failed with status ${response.status}`);
       }
 
       const json = await response.json();
-      return (
+      const botResponse =
         json.data?.response ||
         json.response?.content ||
-        "No response available."
-      );
+        "No response available.";
+      const tokensUsed = json.tokensUsed || 0;
+
+      // Update token balance after successful response
+      if (tokensUsed > 0 && tokenBalance) {
+        setTokenBalance((prev) =>
+          prev
+            ? {
+                ...prev,
+                availableTokens: Math.max(0, prev.availableTokens - tokensUsed),
+                totalTokensUsed: prev.totalTokensUsed + tokensUsed,
+              }
+            : null,
+        );
+      }
+
+      return { response: botResponse, tokensUsed };
     },
-    [chatbotType, userId],
+    [chatbotType, userId, tokenBalance, messages, sessionId],
   );
 
   const handleSendChat = useCallback(async () => {
     const message = chatInput.trim();
     if (!message || isTyping) return;
+
+    // Check if user has tokens before sending
+    if (!tokenBalance || tokenBalance.availableTokens <= 0) {
+      setError(
+        "You have run out of tokens. Please purchase more tokens to continue chatting.",
+      );
+      addMessage(
+        "bot",
+        "You have run out of tokens. Please purchase more tokens to continue chatting.",
+      );
+      return;
+    }
+
     addMessage("user", message);
     setChatInput("");
     setError(null);
     setIsTyping(true);
 
     try {
-      const reply = await sendRequest(message, false);
-      addMessage("bot", reply);
+      const result = await sendRequest(message, false);
+      addMessage("bot", result.response, result.tokensUsed);
+
+      // Save conversation after successful exchange
+      await saveConversation();
     } catch (chatError) {
       const msg =
         chatError instanceof Error
@@ -334,10 +552,45 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     } finally {
       setIsTyping(false);
     }
-  }, [addMessage, chatInput, isTyping, sendRequest]);
+  }, [addMessage, chatInput, isTyping, sendRequest, tokenBalance]);
+
+  const saveConversation = useCallback(async () => {
+    if (!userId || !chatbotType || !sessionId || messages.length === 0) return;
+
+    try {
+      await fetch(`${API_BASE}/api/embed/chat-conversation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+        },
+        body: JSON.stringify({
+          userId,
+          chatbotType,
+          sessionId,
+          messages,
+        }),
+      });
+    } catch (error) {
+      console.error("Failed to save conversation:", error);
+    }
+  }, [userId, chatbotType, sessionId, messages]);
 
   const handleGenerateQuiz = useCallback(async () => {
     if (!quizTopic.trim() || isTyping) return;
+
+    // Check if user has tokens before generating quiz
+    if (!tokenBalance || tokenBalance.availableTokens <= 0) {
+      setError(
+        "You have run out of tokens. Please purchase more tokens to continue.",
+      );
+      addMessage(
+        "bot",
+        "You have run out of tokens. Please purchase more tokens to continue.",
+      );
+      return;
+    }
+
     const prompt = `Generate an MCQ quiz on ${quizTopic.trim()} for ${quizLevel} level${
       quizExam.trim() ? ` aligned to ${quizExam.trim()}` : ""
     }${quizContext.trim() ? `. Focus area: ${quizContext.trim()}` : ""}.`;
@@ -350,13 +603,20 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     setIsTyping(true);
 
     try {
-      const reply = await sendRequest(prompt, true);
-      const parsed = parseQuizResponse(reply);
+      const result = await sendRequest(prompt, true);
+      const parsed = parseQuizResponse(result.response);
       if (!parsed) throw new Error("The generated quiz format was invalid.");
       setQuizData(parsed);
       setSelectedAnswers(new Array(parsed.questions.length).fill(-1));
-      addMessage("bot", "Your quiz is ready in the Quiz tab.");
+      addMessage(
+        "bot",
+        "Your quiz is ready in the Quiz tab.",
+        result.tokensUsed,
+      );
       setActiveTab("quiz");
+
+      // Save conversation after successful quiz generation
+      await saveConversation();
     } catch (quizError) {
       const msg =
         quizError instanceof Error
@@ -375,6 +635,8 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     quizLevel,
     quizTopic,
     sendRequest,
+    tokenBalance,
+    saveConversation,
   ]);
 
   const answeredCount = selectedAnswers.filter((value) => value !== -1).length;
@@ -495,23 +757,56 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
             </div>
           </div>
         </div>
-        {mode === "embed" ? (
-          <button
-            onClick={() => setIsOpen(false)}
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: "50%",
-              border: "none",
-              background: "rgba(255,255,255,0.16)",
-              color: "#fff",
-              cursor: "pointer",
-              fontSize: 18,
-            }}
-          >
-            ×
-          </button>
-        ) : null}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 4,
+          }}
+        >
+          {tokenBalance && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                background: "rgba(255,255,255,0.15)",
+                padding: "4px 8px",
+                borderRadius: 12,
+                fontSize: 11,
+                fontWeight: 600,
+              }}
+            >
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+              >
+                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+              </svg>
+              {tokenBalance.availableTokens.toLocaleString()}
+            </div>
+          )}
+          {mode === "embed" ? (
+            <button
+              onClick={() => setIsOpen(false)}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                border: "none",
+                background: "rgba(255,255,255,0.16)",
+                color: "#fff",
+                cursor: "pointer",
+                fontSize: 18,
+              }}
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   );
@@ -605,7 +900,12 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
                 handleSendChat();
               }
             }}
-            placeholder="Ask a study doubt..."
+            placeholder={
+              !tokenBalance || tokenBalance.availableTokens > 0
+                ? "Ask a study doubt..."
+                : "Out of tokens - please purchase more to continue"
+            }
+            disabled={!tokenBalance || tokenBalance.availableTokens <= 0}
             style={{
               width: "100%",
               flex: 1,
@@ -614,21 +914,48 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               padding: "12px 14px",
               fontSize: 14,
               outline: "none",
-              background: "#fff",
+              background:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#f8fafc"
+                  : "#fff",
+              color:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#94a3b8"
+                  : "#0f172a",
+              cursor:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "text",
             }}
           />
           <button
             onClick={handleSendChat}
-            disabled={!chatInput.trim() || isTyping}
+            disabled={
+              !chatInput.trim() ||
+              isTyping ||
+              !tokenBalance ||
+              tokenBalance.availableTokens <= 0
+            }
             style={{
               width: 42,
               height: 42,
               border: "none",
               borderRadius: "50%",
               background:
-                !chatInput.trim() || isTyping ? "#cbd5e1" : primaryColor,
+                !chatInput.trim() ||
+                isTyping ||
+                !tokenBalance ||
+                tokenBalance.availableTokens <= 0
+                  ? "#cbd5e1"
+                  : primaryColor,
               color: "#fff",
-              cursor: !chatInput.trim() || isTyping ? "not-allowed" : "pointer",
+              cursor:
+                !chatInput.trim() ||
+                isTyping ||
+                !tokenBalance ||
+                tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             ➜
@@ -663,7 +990,12 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
           <input
             value={quizTopic}
             onChange={(e) => setQuizTopic(e.target.value)}
-            placeholder="Topic, chapter, or concept"
+            placeholder={
+              !tokenBalance || tokenBalance.availableTokens > 0
+                ? "Topic, chapter, or concept"
+                : "Out of tokens - please purchase more to continue"
+            }
+            disabled={!tokenBalance || tokenBalance.availableTokens <= 0}
             style={{
               width: "100%",
               borderRadius: 14,
@@ -671,12 +1003,24 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               padding: "12px 14px",
               fontSize: 14,
               outline: "none",
-              background: "#fff",
+              background:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#f8fafc"
+                  : "#fff",
+              color:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#94a3b8"
+                  : "#0f172a",
+              cursor:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "text",
             }}
           />
           <select
             value={quizLevel}
             onChange={(e) => setQuizLevel(e.target.value)}
+            disabled={!tokenBalance || tokenBalance.availableTokens <= 0}
             style={{
               width: "100%",
               borderRadius: 14,
@@ -684,7 +1028,18 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               padding: "12px 14px",
               fontSize: 14,
               outline: "none",
-              background: "#fff",
+              background:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#f8fafc"
+                  : "#fff",
+              color:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#94a3b8"
+                  : "#0f172a",
+              cursor:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {["Beginner", "Intermediate", "Advanced", "Competitive Exam"].map(
@@ -698,6 +1053,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
           <input
             value={quizExam}
             onChange={(e) => setQuizExam(e.target.value)}
+            disabled={!tokenBalance || tokenBalance.availableTokens <= 0}
             placeholder="Optional exam or board"
             style={{
               width: "100%",
@@ -706,12 +1062,24 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               padding: "12px 14px",
               fontSize: 14,
               outline: "none",
-              background: "#fff",
+              background:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#f8fafc"
+                  : "#fff",
+              color:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#94a3b8"
+                  : "#0f172a",
+              cursor:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "text",
             }}
           />
           <textarea
             value={quizContext}
             onChange={(e) => setQuizContext(e.target.value)}
+            disabled={!tokenBalance || tokenBalance.availableTokens <= 0}
             rows={4}
             placeholder="Optional focus area or instruction"
             style={{
@@ -721,13 +1089,29 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               padding: "12px 14px",
               fontSize: 14,
               outline: "none",
-              background: "#fff",
+              background:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#f8fafc"
+                  : "#fff",
+              color:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "#94a3b8"
+                  : "#0f172a",
+              cursor:
+                !tokenBalance || tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "text",
               resize: "vertical",
             }}
           />
           <button
             onClick={handleGenerateQuiz}
-            disabled={!quizTopic.trim() || isTyping}
+            disabled={
+              !quizTopic.trim() ||
+              isTyping ||
+              !tokenBalance ||
+              tokenBalance.availableTokens <= 0
+            }
             style={{
               border: "none",
               borderRadius: 16,
@@ -736,8 +1120,19 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               fontWeight: 700,
               color: "#fff",
               background:
-                !quizTopic.trim() || isTyping ? "#cbd5e1" : primaryColor,
-              cursor: !quizTopic.trim() || isTyping ? "not-allowed" : "pointer",
+                !quizTopic.trim() ||
+                isTyping ||
+                !tokenBalance ||
+                tokenBalance.availableTokens <= 0
+                  ? "#cbd5e1"
+                  : primaryColor,
+              cursor:
+                !quizTopic.trim() ||
+                isTyping ||
+                !tokenBalance ||
+                tokenBalance.availableTokens <= 0
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {isTyping ? "Generating..." : "Generate quiz"}

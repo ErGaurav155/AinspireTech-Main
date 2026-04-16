@@ -242,9 +242,11 @@ Guidelines:
 export const generateMcqResponse = async ({
   userInput,
   isMCQRequest,
+  conversationHistory = [],
 }: {
   userInput: string;
   isMCQRequest: boolean;
+  conversationHistory?: ConvMessage[];
 }) => {
   const openai = getOpenAI();
   if (openai instanceof Error) {
@@ -265,10 +267,28 @@ export const generateMcqResponse = async ({
     }`
     : "You are an AI assistant.Your work is to give satified answer of there question in plain text format";
 
+  // Sanitise history
+  const sanitisedHistory: ConvMessage[] = Array.isArray(conversationHistory)
+    ? conversationHistory
+        .filter(
+          (m) =>
+            m &&
+            typeof m.role === "string" &&
+            typeof m.content === "string" &&
+            (m.role === "user" || m.role === "assistant") &&
+            m.content.trim().length > 0,
+        )
+        .slice(-20)
+    : [];
+
   const completion = await openai.chat.completions.create({
     model: "deepseek-chat",
     messages: [
       { role: "system", content: systemMessage },
+      ...sanitisedHistory.map((m) => ({
+        role: m.role as "user" | "assistant",
+        content: m.content,
+      })),
       { role: "user", content: userInput },
     ],
   });

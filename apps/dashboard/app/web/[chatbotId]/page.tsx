@@ -532,8 +532,8 @@ export default function DynamicOverviewPage() {
   ];
 
   const availableTokens =
-    (tokenBalance?.freeTokens || 0) + (tokenBalance?.purchasedTokens || 0);
-
+    (tokenBalance?.freeTokensRemaining || 0) +
+    (tokenBalance?.purchasedTokensRemaining || 0);
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}

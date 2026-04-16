@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import Conversation from "@/models/web/Conversation.model";
+import WebConversation from "@/models/web/Conversation.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
 import { getUserById } from "@/services/user.service";
 import {
   sendAppointmentEmailToUser,
@@ -22,6 +23,7 @@ export const handleConversationRequest = async (
       messages,
       formData,
       status,
+      sessionId,
     } = req.body;
 
     if (!chatbotType || !userId || !messages) {
@@ -54,7 +56,8 @@ export const handleConversationRequest = async (
         timestamp: new Date().toISOString(),
       });
     }
-    // Create conversation
+
+    // Create conversation in the lead generation model
     const newConversation = {
       chatbotType: chatbotType,
       clerkId: userId,
@@ -71,7 +74,28 @@ export const handleConversationRequest = async (
       updatedAt: new Date(),
     };
 
-    const result = await Conversation.create(newConversation);
+    const result = await WebConversation.create(newConversation);
+
+    // Also update the general chat conversation if sessionId is provided
+    if (sessionId) {
+      try {
+        const chatConversation = await WebChatConversation.findOne({
+          clerkId: userId,
+          sessionId,
+        });
+
+        if (chatConversation) {
+          chatConversation.hasAppointment = true;
+          chatConversation.customerEmail = customerEmail;
+          chatConversation.customerName = customerName;
+          chatConversation.status = "completed";
+          await chatConversation.save();
+        }
+      } catch (chatConvError) {
+        console.error("Error updating chat conversation:", chatConvError);
+        // Don't fail the request
+      }
+    }
 
     // Send notifications for lead generation chatbot
     if (chatbotType === "chatbot-lead-generation") {

@@ -4,7 +4,6 @@ import { useState } from "react";
 import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import Link from "next/link";
 import {
   Zap,
   Check,
@@ -20,7 +19,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { useMemo } from "react";
 import { calculateCustomTokenPrice, tokenPlans } from "@rocketreplai/shared";
 
 import {

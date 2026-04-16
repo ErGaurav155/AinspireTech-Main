@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import Conversation from "@/models/web/Conversation.model";
+import WebChatConversation from "@/models/web/WebChatConversation.model";
+import WebConversation from "@/models/web/Conversation.model";
 import { getAuth } from "@clerk/express";
 
 // GET /api/web/conversations/:chatbotType - Get conversations by chatbot type
@@ -25,134 +26,81 @@ export const getConversationsByTypeController = async (
 
     await connectToDatabase();
 
-    // Get existing conversations
-    const existingConversations = await Conversation.find({
+    // Get chat conversations
+    const chatConversations = await WebChatConversation.find({
       clerkId: userId,
       chatbotType: chatbotType,
     })
-      .sort({ updatedAt: -1 })
+      .sort({ lastActivity: -1 })
       .skip(offset)
       .limit(limit)
       .lean();
 
-    // If no conversations exist, generate mock data
-    if (existingConversations.length === 0) {
-      const mockConversations = [
-        {
-          _id: "mock1",
-          chatbotId: "chatbot1",
-          chatbotType: chatbotType,
-          clerkId: userId,
-          customerName: "John Doe",
-          customerEmail: "john@example.com",
-          messages: [
-            {
-              id: "msg1",
-              type: "user" as const,
-              content: "I want to book an appointment",
-              timestamp: new Date(Date.now() - 120000),
-            },
-            {
-              id: "msg2",
-              type: "bot" as const,
-              content:
-                "I'd be happy to help you book an appointment. Let me get some details from you.",
-              timestamp: new Date(Date.now() - 110000),
-            },
-          ],
-          formData: {
-            name: "John Doe",
-            email: "john@example.com",
-            phone: "+1234567890",
-            service: "Consultation",
-            date: "2024-01-15",
-            message: "Looking for AI consultation services",
-          },
-          status: "answered" as const,
-          tags: [],
-          createdAt: new Date(Date.now() - 120000),
-          updatedAt: new Date(Date.now() - 110000),
-        },
-        {
-          _id: "mock2",
-          chatbotId: "chatbot1",
-          chatbotType: chatbotType,
-          clerkId: userId,
-          customerName: "Jane Smith",
-          customerEmail: "jane@example.com",
-          messages: [
-            {
-              id: "msg3",
-              type: "user" as const,
-              content: "What are your business hours?",
-              timestamp: new Date(Date.now() - 300000),
-            },
-            {
-              id: "msg4",
-              type: "bot" as const,
-              content:
-                "Our business hours are Monday-Friday 9AM-6PM. How can I assist you today?",
-              timestamp: new Date(Date.now() - 290000),
-            },
-          ],
-          status: "answered" as const,
-          tags: [],
-          createdAt: new Date(Date.now() - 300000),
-          updatedAt: new Date(Date.now() - 290000),
-        },
-        {
-          _id: "mock3",
-          chatbotId: "chatbot1",
-          chatbotType: chatbotType,
-          clerkId: userId,
-          customerName: "Mike Johnson",
-          customerEmail: "mike@example.com",
-          messages: [
-            {
-              id: "msg5",
-              type: "user" as const,
-              content: "I need help with pricing",
-              timestamp: new Date(Date.now() - 600000),
-            },
-          ],
-          formData: {
-            name: "Mike Johnson",
-            email: "mike@example.com",
-            phone: "+1987654321",
-            service: "Service A",
-            date: "2024-01-16",
-            message: "Interested in your premium services",
-          },
-          status: "pending" as const,
-          tags: [],
-          createdAt: new Date(Date.now() - 600000),
-          updatedAt: new Date(Date.now() - 600000),
-        },
-      ];
-
-      return res.status(200).json({
-        success: true,
-        data: {
-          conversations: mockConversations,
-          total: mockConversations.length,
-          hasMore: false,
-        },
-        timestamp: new Date().toISOString(),
-      });
+    // Also get appointment conversations for lead generation
+    let appointmentConversations;
+    if (chatbotType === "chatbot-lead-generation") {
+      appointmentConversations = await WebConversation.find({
+        clerkId: userId,
+        chatbotType: chatbotType,
+      })
+        .sort({ updatedAt: -1 })
+        .skip(offset)
+        .limit(limit)
+        .lean();
     }
 
-    // Get total count for pagination
-    const total = await Conversation.countDocuments({
-      clerkId: userId,
-      chatbotType: chatbotType,
+    // Combine and format conversations
+    const conversations = [
+      ...chatConversations.map((conv) => ({
+        _id: conv._id,
+        chatbotType: conv.chatbotType,
+        clerkId: conv.clerkId,
+        sessionId: conv.sessionId,
+        customerName: conv.customerName || "Anonymous",
+        customerEmail: conv.customerEmail,
+        messages: conv.messages,
+        totalTokensUsed: conv.totalTokensUsed,
+        totalMessages: conv.totalMessages,
+        hasAppointment: conv.hasAppointment,
+        status: conv.status,
+        tags: conv.tags,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        lastActivity: conv.lastActivity,
+        type: "chat",
+      })),
+      ...appointmentConversations!.map((conv) => ({
+        _id: conv._id,
+        chatbotType: conv.chatbotType,
+        clerkId: conv.clerkId,
+        customerName: conv.customerName || "Anonymous",
+        customerEmail: conv.customerEmail,
+        messages: conv.messages,
+        formData: conv.formData,
+        status: conv.status,
+        tags: conv.tags,
+        createdAt: conv.createdAt,
+        updatedAt: conv.updatedAt,
+        type: "appointment",
+      })),
+    ];
+
+    // Sort by last activity/updated time
+    conversations.sort((a, b) => {
+      const aTime = a.updatedAt;
+      const bTime = b.updatedAt;
+      return new Date(bTime).getTime() - new Date(aTime).getTime();
     });
+
+    // Apply pagination
+    const paginatedConversations = conversations.slice(offset, offset + limit);
 
     return res.status(200).json({
       success: true,
       data: {
-        conversations: existingConversations,
-        total,
-        hasMore: offset + limit < total,
+        conversations: paginatedConversations,
+        total: conversations.length,
+        hasMore: conversations.length > offset + limit,
       },
       timestamp: new Date().toISOString(),
     });

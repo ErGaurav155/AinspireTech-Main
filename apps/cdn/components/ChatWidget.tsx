@@ -38,6 +38,7 @@ interface ChatMessage {
   role: MsgRole;
   content: string;
   timestamp: Date;
+  tokensUsed?: number;
 }
 
 interface ConvMsg {
@@ -68,6 +69,13 @@ interface BotConfig {
   userId: string;
   chatbotType: string;
   filename?: string;
+}
+
+interface TokenBalance {
+  availableTokens: number;
+  freeTokensRemaining: number;
+  purchasedTokensRemaining: number;
+  totalTokensUsed: number;
 }
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -705,6 +713,11 @@ export default function ChatWidget({
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
+  // ── Token management ──────────────────────────────────────────────────────
+  const [tokenBalance, setTokenBalance] = useState<TokenBalance | null>(null);
+  const [sessionId, setSessionId] = useState<string>("");
+  const [visitorId, setVisitorId] = useState<string>("");
+
   // ── FAQ ────────────────────────────────────────────────────────────────────
   const [faqItems, setFaqItems] = useState<FAQItem[]>([]);
   const [faqSearch, setFaqSearch] = useState("");
@@ -740,13 +753,36 @@ export default function ChatWidget({
     };
   }, []);
 
-  // ── Init: fetch config + FAQ + appointment questions ───────────────────────
+  // ── Generate session ID and visitor ID ────────────────────────────────────
   useEffect(() => {
-    if (!userId || !chatbotType) return;
+    const generateIds = () => {
+      let session = localStorage.getItem(
+        `chat_session_${userId}_${chatbotType}`,
+      );
+      if (!session) {
+        session = uid();
+        localStorage.setItem(`chat_session_${userId}_${chatbotType}`, session);
+      }
+      setSessionId(session);
+
+      let visitor = localStorage.getItem("chat_visitor_id");
+      if (!visitor) {
+        visitor = uid();
+        localStorage.setItem("chat_visitor_id", visitor);
+      }
+      setVisitorId(visitor);
+    };
+
+    generateIds();
+  }, [userId, chatbotType]);
+
+  // ── Init: fetch config + FAQ + appointment questions + token balance ──────
+  useEffect(() => {
+    if (!userId || !chatbotType || !sessionId) return;
 
     const init = async () => {
       try {
-        const [cfgRes, faqRes, apptRes] = await Promise.allSettled([
+        const [cfgRes, faqRes, apptRes, tokenRes] = await Promise.allSettled([
           fetch(
             `${API_BASE}/api/embed/config-by-type?userId=${encodeURIComponent(
               userId,
@@ -777,6 +813,16 @@ export default function ChatWidget({
                 body: JSON.stringify({ userId, chatbotType }),
               })
             : Promise.resolve(null),
+          fetch(
+            `${API_BASE}/api/embed/token/balance?userId=${encodeURIComponent(userId)}`,
+            {
+              method: "GET",
+              headers: {
+                "Content-Type": "application/json",
+                "x-api-key": API_KEY,
+              },
+            },
+          ),
         ]);
 
         if (cfgRes.status === "fulfilled" && cfgRes.value.ok) {
@@ -804,6 +850,13 @@ export default function ChatWidget({
             }
           }
         }
+
+        if (tokenRes.status === "fulfilled" && tokenRes.value.ok) {
+          const d = await tokenRes.value.json();
+          if (d.success && d.data) {
+            setTokenBalance(d.data);
+          }
+        }
       } catch (err) {
         console.error("[RocketReplAI] init error:", err);
       } finally {
@@ -812,7 +865,7 @@ export default function ChatWidget({
     };
 
     init();
-  }, [userId, chatbotType]);
+  }, [userId, chatbotType, sessionId]);
 
   // ── Add welcome message once config loads ─────────────────────────────────
   useEffect(() => {
@@ -868,6 +921,52 @@ export default function ChatWidget({
     return msg;
   }
 
+  // ─── Save conversation ────────────────────────────────────────────────────
+
+  const saveConversation = useCallback(async () => {
+    if (!config || messages.length === 0 || conversationSaved) return;
+
+    try {
+      await fetch(`${API_BASE}/api/embed/chat-conversation`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+        },
+        body: JSON.stringify({
+          chatbotType: config.chatbotType,
+          userId: config.userId,
+          sessionId,
+          visitorId,
+          messages: messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp,
+            tokensUsed: m.tokensUsed,
+          })),
+          totalTokensUsed: messages.reduce(
+            (sum, m) => sum + (m.tokensUsed || 0),
+            0,
+          ),
+          hasAppointment: conversationSaved,
+          status: "active",
+        }),
+      });
+    } catch (error) {
+      console.error("[RocketReplAI] save conversation error:", error);
+    }
+  }, [config, messages, sessionId, visitorId, conversationSaved]);
+
+  // ─── Auto-save conversation when messages change ─────────────────────────
+  useEffect(() => {
+    if (messages.length > 1) {
+      // Save after first exchange
+      const timeoutId = setTimeout(saveConversation, 2000); // Debounce saves
+      return () => clearTimeout(timeoutId);
+    }
+  }, [messages, saveConversation]);
+
   // ─── Open / close ──────────────────────────────────────────────────────────
 
   const handleOpen = useCallback(() => {
@@ -918,6 +1017,14 @@ export default function ChatWidget({
     const text = input.trim();
     if (!text || isTyping || !config) return;
 
+    // Check token balance before sending
+    if (tokenBalance && tokenBalance.availableTokens <= 0) {
+      addBotMsg(
+        "I'm sorry, but you've run out of tokens. Please contact the website owner to purchase more tokens or tell them to add tokens to continue chatting.",
+      );
+      return;
+    }
+
     setInput("");
     addUserMsg(text);
 
@@ -946,17 +1053,19 @@ export default function ChatWidget({
           "x-api-key": API_KEY,
         },
         body: JSON.stringify({
+          userInput: text,
           userId: config.userId,
           agentId: config.chatbotType,
-          userInput: text,
           fileData: config.filename || "",
           conversationHistory: newHistory.slice(0, -1),
+          sessionId,
+          visitorId,
         }),
       });
 
       if (res.status === 402) {
         addBotMsg(
-          "I'm unable to process your request due to insufficient tokens. Please contact the website owner.",
+          "I'm unable to process your request due to insufficient tokens. Please contact the website owner to purchase more tokens.",
         );
         setIsTyping(false);
         return;
@@ -967,6 +1076,17 @@ export default function ChatWidget({
         data?.data?.response ||
         data?.response ||
         "Sorry, I couldn't process that. Please try again.";
+
+      // Update token balance
+      if (data?.data) {
+        setTokenBalance({
+          availableTokens:
+            data.data.remainingTokens || data.data.availableTokens || 0,
+          freeTokensRemaining: data.data.freeTokensRemaining || 0,
+          purchasedTokensRemaining: data.data.purchasedTokensRemaining || 0,
+          totalTokensUsed: data.data.totalTokensUsed || 0,
+        });
+      }
 
       setConvHistory((prev) => [
         ...prev,
@@ -990,6 +1110,9 @@ export default function ChatWidget({
     apptPhase,
     apptQuestions,
     convHistory,
+    sessionId,
+    visitorId,
+    tokenBalance,
   ]);
 
   // ─── Appointment: handle a text answer from the user ──────────────────────
@@ -1115,6 +1238,7 @@ export default function ChatWidget({
             })),
             formData,
             status: "pending",
+            sessionId,
           }),
         });
 
@@ -1819,6 +1943,50 @@ export default function ChatWidget({
             </button>
           )}
         </div>
+
+        {/* Token Display */}
+        {tokenBalance && (
+          <div
+            style={{
+              padding: "4px 16px",
+              textAlign: "center",
+              fontSize: 11,
+              color:
+                tokenBalance.availableTokens <= 100 ? "#dc2626" : "#6b7280",
+              borderTop: "1px solid #f3f4f6",
+            }}
+          >
+            {tokenBalance.availableTokens <= 100 ? (
+              <>
+                <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                  ⚠️ {tokenBalance.availableTokens} tokens left
+                </span>
+                {tokenBalance.availableTokens === 0 && (
+                  <div style={{ marginTop: 4 }}>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        alert(
+                          "Please contact the website owner to purchase more tokens.",
+                        );
+                      }}
+                      style={{
+                        color: pc,
+                        textDecoration: "underline",
+                        fontWeight: 600,
+                      }}
+                    >
+                      Contact owner to purchase tokens →
+                    </a>
+                  </div>
+                )}
+              </>
+            ) : (
+              `${tokenBalance.availableTokens} tokens available`
+            )}
+          </div>
+        )}
 
         <PoweredBy primaryColor={pc} />
       </div>

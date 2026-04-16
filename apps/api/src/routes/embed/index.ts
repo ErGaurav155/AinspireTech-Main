@@ -9,6 +9,10 @@ import { getTokenBalanceController } from "@/controllers/embed/token/balance.con
 import { postTokenUsageController } from "@/controllers/embed/token/usage.controller";
 import { createAppointmentController } from "@/controllers/misc/misc-actions.controller";
 import { getEmbedConfigByTypeController } from "@/controllers/embed/config.controller";
+import {
+  handleChatConversationRequest,
+  getChatConversationsRequest,
+} from "@/controllers/embed/chat-conversation.controller";
 import { getWebQuestionsController } from "@/controllers/embed/webappquestion.controller";
 
 const router = Router();
@@ -43,5 +47,11 @@ router.post("/appointments", createAppointmentController);
 
 // GET /api/embed/config-by-type - Get config by userId + chatbotType
 router.get("/config-by-type", getEmbedConfigByTypeController);
+
+// POST /api/embed/chat-conversation - Save chat conversation
+router.post("/chat-conversation", handleChatConversationRequest);
+
+// GET /api/embed/chat-conversations - Get chat conversations
+router.get("/chat-conversations", getChatConversationsRequest);
 
 export default router;
