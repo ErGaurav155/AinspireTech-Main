@@ -60,10 +60,11 @@ interface AnalyticsOverview {
 }
 
 interface TrendData {
-  name: string;
+  date: string;
+  timestamp: string;
   conversations: number;
-  responses: number;
-  engagement: number;
+  appointments: number;
+  conversionRate: number;
 }
 
 interface ResponseTimeData {
@@ -85,6 +86,7 @@ interface AnalyticsData {
   trends: TrendData[];
   responseTime: ResponseTimeData[];
   satisfaction: SatisfactionData[];
+  recentConversations: any[];
   timestamp: string;
 }
 
@@ -206,12 +208,8 @@ export default function AnalyticsPage() {
       setError(null);
 
       const response = await getAnalytics(apiRequest, chatbotType, period);
-      console.log("API response for analytics:", response);
-      if (response?.analytics) {
-        setAnalyticsData(response.analytics);
-      } else {
-        setAnalyticsData(response?.analytics || null);
-      }
+      const analyticsPayload = response?.analytics;
+      setAnalyticsData(analyticsPayload || null);
     } catch (error: any) {
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
       console.error("Error loading analytics:", error);
@@ -477,7 +475,7 @@ export default function AnalyticsPage() {
             <div className="flex flex-wrap items-center gap-1">
               {[
                 { key: "conversations", label: "Conversations", color: pc },
-                { key: "responses", label: "Responses", color: "#10b981" },
+                { key: "responses", label: "Appointments", color: "#10b981" },
                 { key: "engagement", label: "Engagement", color: "#f59e0b" },
               ].map((tab) => (
                 <button
@@ -534,7 +532,7 @@ export default function AnalyticsPage() {
                 stroke={isDark ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.05)"}
               />
               <XAxis
-                dataKey="name"
+                dataKey="date"
                 tick={{ fontSize: 11, fill: isDark ? "#9ca3af" : "#6b7280" }}
                 axisLine={false}
                 tickLine={false}
@@ -557,7 +555,7 @@ export default function AnalyticsPage() {
               {activeChartTab === "responses" && (
                 <Area
                   type="monotone"
-                  dataKey="responses"
+                  dataKey="appointments"
                   stroke="#10b981"
                   strokeWidth={2}
                   fill="url(#colorResponses)"
@@ -566,7 +564,7 @@ export default function AnalyticsPage() {
               {activeChartTab === "engagement" && (
                 <Area
                   type="monotone"
-                  dataKey="engagement"
+                  dataKey="conversionRate"
                   stroke="#f59e0b"
                   strokeWidth={2}
                   fill="url(#colorEngagement)"
@@ -623,22 +621,30 @@ export default function AnalyticsPage() {
               Satisfaction Distribution
             </h3>
             <ResponsiveContainer width="100%" height={250}>
-              <RechartsPieChart>
-                <Pie
-                  data={satisfaction}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={2}
-                  dataKey="value"
-                >
-                  {satisfaction.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip isDark={isDark} />} />
-              </RechartsPieChart>
+              {totalSatisfaction > 0 ? (
+                <RechartsPieChart>
+                  <Pie
+                    data={satisfaction}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    {satisfaction.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip content={<CustomTooltip isDark={isDark} />} />
+                </RechartsPieChart>
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <p className={`text-sm ${styles.text.secondary}`}>
+                    No satisfaction data available for this period.
+                  </p>
+                </div>
+              )}
             </ResponsiveContainer>
             <div className="flex flex-wrap justify-center gap-4 mt-2">
               {satisfaction.map((item) => (
@@ -649,7 +655,10 @@ export default function AnalyticsPage() {
                   />
                   <span className={`text-xs ${styles.text.secondary}`}>
                     {item.name} (
-                    {((item.value / totalSatisfaction) * 100).toFixed(1)}%)
+                    {totalSatisfaction > 0
+                      ? ((item.value / totalSatisfaction) * 100).toFixed(1)
+                      : "0.0"}
+                    %)
                   </span>
                 </div>
               ))}

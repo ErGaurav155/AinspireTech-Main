@@ -95,7 +95,7 @@ function generateMockDailyData() {
   for (let i = 29; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
-    const dateStr = date.toISOString().split("T")[0];
+    const dateStr = date.toISOString().split("T")[0]; // YYYY-MM-DD format
     data.push({
       _id: dateStr,
       totalTokens: Math.floor(Math.random() * 500) + 100,
@@ -108,8 +108,8 @@ function generateMockDailyData() {
 // Generate mock chatbot usage data
 function generateMockChatbotData() {
   return [
-    { _id: "Lead Generation", totalTokens: 12450, count: 45 },
-    { _id: "Education (MCQ)", totalTokens: 8320, count: 32 },
+    { _id: "Lead Generation", totalTokens: 12450, count: 45, totalCost: 0 },
+    { _id: "Education (MCQ)", totalTokens: 8320, count: 32, totalCost: 0 },
   ];
 }
 
@@ -153,7 +153,25 @@ export default function TokenDashboard() {
 
       // Extract data from response - handle nested structures
       const balanceData = balanceRes?.data || balanceRes || {};
-      const usageDataRes = usageRes?.data || usageRes || {};
+      const usagePayload = usageRes || {};
+      const usageByChatbotRaw =
+        usagePayload.usageByChatbot ||
+        usagePayload.data?.usageByChatbot ||
+        usagePayload.usage?.usageByChatbot ||
+        [];
+      const dailyUsageRaw =
+        usagePayload.dailyUsage ||
+        usagePayload.data?.dailyUsage ||
+        usagePayload.usage?.dailyUsage ||
+        [];
+      const totalUsageRaw =
+        usagePayload.totalUsage ||
+        usagePayload.data?.totalUsage ||
+        usagePayload.usage?.totalUsage;
+      const currentBalanceRaw =
+        usagePayload.currentBalance ||
+        usagePayload.data?.currentBalance ||
+        usagePayload.usage?.currentBalance;
 
       // Ensure balance data has all required fields
       const processedBalance: TokenStats = {
@@ -172,39 +190,65 @@ export default function TokenDashboard() {
 
       setTokenStats(processedBalance);
 
-      // Process usage data with fallbacks
+      const processedDailyUsage = dailyUsageRaw.map((item: any) => ({
+        _id: item._id,
+        totalTokens: item.totalTokens || 0,
+        count: item.count || 0,
+      }));
+
+      const processedUsageByChatbot = usageByChatbotRaw.map((item: any) => ({
+        _id: formatChatbotName(item._id),
+        totalTokens: item.totalTokens || 0,
+        count: item.count || 0,
+        totalCost: item.totalCost || 0,
+      }));
+
+      const computedTotalUsage = totalUsageRaw || {
+        totalTokens: processedDailyUsage.reduce(
+          (sum: any, row: any) => sum + (row.totalTokens || 0),
+          0,
+        ),
+        totalCost: 0,
+        count: processedDailyUsage.reduce(
+          (sum: any, row: any) => sum + (row.count || 0),
+          0,
+        ),
+      };
+
       const processedUsage: UsageData = {
-        period: usageDataRes.period || "month",
+        period: usagePayload.period || "month",
         startDate:
-          usageDataRes.startDate ||
+          usagePayload.startDate ||
           new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-        endDate: usageDataRes.endDate || new Date().toISOString(),
-        usageByChatbot: usageDataRes.usageByChatbot?.length
-          ? usageDataRes.usageByChatbot.map((item: any) => ({
-              _id: formatChatbotName(item._id),
-              totalTokens: item.totalTokens || 0,
-              count: item.count || 0,
-            }))
-          : generateMockChatbotData(),
-        dailyUsage: usageDataRes.dailyUsage?.length
-          ? usageDataRes.dailyUsage
-          : generateMockDailyData(),
+        endDate: usagePayload.endDate || new Date().toISOString(),
+        usageByChatbot: processedUsageByChatbot,
+        dailyUsage: processedDailyUsage,
         totalUsage: {
           totalTokens:
-            usageDataRes.totalUsage?.totalTokens ||
+            computedTotalUsage.totalTokens ||
             processedBalance.totalTokensUsed ||
             0,
-          totalCost: usageDataRes.totalUsage?.totalCost || 0,
-          count: usageDataRes.totalUsage?.count || 0,
+          totalCost: computedTotalUsage.totalCost || 0,
+          count: computedTotalUsage.count || 0,
         },
         currentBalance: {
-          total: processedBalance.availableTokens,
-          free: processedBalance.freeTokensRemaining,
-          purchased: processedBalance.purchasedTokensRemaining,
+          total: currentBalanceRaw?.total ?? processedBalance.availableTokens,
+          free: currentBalanceRaw?.free ?? processedBalance.freeTokensRemaining,
+          purchased:
+            currentBalanceRaw?.purchased ??
+            processedBalance.purchasedTokensRemaining,
         },
       };
 
       setUsageData(processedUsage);
+
+      // Debug logging
+      console.log("Token data processed:", {
+        balance: processedBalance,
+        usage: processedUsage,
+        dailyUsageLength: processedUsage.dailyUsage.length,
+        chatbotUsageLength: processedUsage.usageByChatbot.length,
+      });
     } catch (error: any) {
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
       console.error("Error fetching token data:", error);
@@ -317,7 +361,13 @@ export default function TokenDashboard() {
     return <Spinner label="Loading token dashboard…" />;
   }
 
-  const dailyUsageData = usageData?.dailyUsage || generateMockDailyData();
+  const dailyUsageData = usageData?.dailyUsage
+    ? [...usageData.dailyUsage].sort((a: any, b: any) =>
+        a._id.localeCompare(b._id),
+      )
+    : generateMockDailyData().sort((a: any, b: any) =>
+        a._id.localeCompare(b._id),
+      );
   const chatbotUsageData =
     usageData?.usageByChatbot || generateMockChatbotData();
 
@@ -494,60 +544,68 @@ export default function TokenDashboard() {
                     </h3>
                   </div>
                   <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={dailyUsageData}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={isDark ? "#2A2A30" : "#E5E7EB"}
-                        />
-                        <XAxis
-                          dataKey="_id"
-                          stroke={isDark ? "#9CA3AF" : "#6B7280"}
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(value) => {
-                            if (!value) return "";
-                            try {
-                              const date = new Date(value);
-                              return `${date.getDate()}/${date.getMonth() + 1}`;
-                            } catch {
-                              return value;
-                            }
-                          }}
-                        />
-                        <YAxis
-                          stroke={isDark ? "#9CA3AF" : "#6B7280"}
-                          tick={{ fontSize: 11 }}
-                        />
-                        <Tooltip
-                          contentStyle={{
-                            backgroundColor: isDark ? "#1A1A1E" : "white",
-                            border: isDark
-                              ? "1px solid rgba(255,255,255,0.08)"
-                              : "1px solid #E5E7EB",
-                            borderRadius: "8px",
-                            padding: "8px 12px",
-                          }}
-                          formatter={(value: any) => [
-                            `${value?.toLocaleString() || 0} tokens`,
-                            "Usage",
-                          ]}
-                          labelFormatter={(label) => {
-                            try {
-                              return new Date(label).toLocaleDateString();
-                            } catch {
-                              return label;
-                            }
-                          }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="totalTokens"
-                          stroke="#8B5CF6"
-                          strokeWidth={2}
-                          dot={{ r: 4, fill: "#8B5CF6" }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    {dailyUsageData.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={dailyUsageData}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke={isDark ? "#2A2A30" : "#E5E7EB"}
+                          />
+                          <XAxis
+                            dataKey="_id"
+                            stroke={isDark ? "#9CA3AF" : "#6B7280"}
+                            tick={{ fontSize: 11 }}
+                            tickFormatter={(value) => {
+                              if (!value) return "";
+                              try {
+                                const date = new Date(value);
+                                return `${date.getDate()}/${date.getMonth() + 1}`;
+                              } catch {
+                                return value;
+                              }
+                            }}
+                          />
+                          <YAxis
+                            stroke={isDark ? "#9CA3AF" : "#6B7280"}
+                            tick={{ fontSize: 11 }}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              backgroundColor: isDark ? "#1A1A1E" : "white",
+                              border: isDark
+                                ? "1px solid rgba(255,255,255,0.08)"
+                                : "1px solid #E5E7EB",
+                              borderRadius: "8px",
+                              padding: "8px 12px",
+                            }}
+                            formatter={(value: any) => [
+                              `${value?.toLocaleString() || 0} tokens`,
+                              "Usage",
+                            ]}
+                            labelFormatter={(label) => {
+                              try {
+                                return new Date(label).toLocaleDateString();
+                              } catch {
+                                return label;
+                              }
+                            }}
+                          />
+                          <Line
+                            type="monotone"
+                            dataKey="totalTokens"
+                            stroke="#8B5CF6"
+                            strokeWidth={2}
+                            dot={{ r: 4, fill: "#8B5CF6" }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center">
+                        <p className={`text-sm ${styles.text.muted}`}>
+                          No daily usage data available
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -562,56 +620,85 @@ export default function TokenDashboard() {
                     </h3>
                   </div>
                   <div className="h-64">
-                    {chatbotUsageData.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={chatbotUsageData}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={2}
-                            dataKey="totalTokens"
-                            label={({ name, value, payload }: any) => {
-                              const item = payload as {
-                                _id: string;
-                                totalTokens: number;
-                              };
-                              if (!item?.totalTokens) return "";
-                              return `${item._id || name}: ${item.totalTokens.toLocaleString()}`;
-                            }}
-                            labelLine={{
-                              stroke: isDark ? "#6B7280" : "#9CA3AF",
-                            }}
-                          >
-                            {chatbotUsageData.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={COLORS[index % COLORS.length]}
-                              />
+                    {chatbotUsageData.length > 0 &&
+                    chatbotUsageData.some((item) => item.totalTokens > 0) ? (
+                      <>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={chatbotUsageData.filter(
+                                (item) => item.totalTokens > 0,
+                              )}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={80}
+                              paddingAngle={2}
+                              dataKey="totalTokens"
+                              label={({ name, value }: any) => {
+                                if (!value || value === 0) return "";
+                                return `${name}: ${value.toLocaleString()}`;
+                              }}
+                              labelLine={{
+                                stroke: isDark ? "#6B7280" : "#9CA3AF",
+                              }}
+                            >
+                              {chatbotUsageData
+                                .filter((item) => item.totalTokens > 0)
+                                .map((entry, index) => (
+                                  <Cell
+                                    key={`cell-${index}`}
+                                    fill={COLORS[index % COLORS.length]}
+                                  />
+                                ))}
+                            </Pie>
+
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: isDark ? "#1A1A1E" : "white",
+                                border: isDark
+                                  ? "1px solid rgba(255,255,255,0.08)"
+                                  : "1px solid #E5E7EB",
+                                borderRadius: "8px",
+                                padding: "8px 12px",
+                              }}
+                              formatter={(value: any) => [
+                                `${value?.toLocaleString() || 0} tokens`,
+                                "Usage",
+                              ]}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+
+                        {/* Legend */}
+                        <div className="flex flex-wrap justify-center gap-4 mt-4">
+                          {chatbotUsageData
+                            .filter((item) => item.totalTokens > 0)
+                            .map((item, index) => (
+                              <div
+                                key={item._id}
+                                className="flex items-center gap-2"
+                              >
+                                <div
+                                  className="w-3 h-3 rounded-full"
+                                  style={{
+                                    background: COLORS[index % COLORS.length],
+                                  }}
+                                />
+                                <span
+                                  className={`text-xs ${styles.text.secondary}`}
+                                >
+                                  {item._id} (
+                                  {item.totalTokens.toLocaleString()})
+                                </span>
+                              </div>
                             ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{
-                              backgroundColor: isDark ? "#1A1A1E" : "white",
-                              border: isDark
-                                ? "1px solid rgba(255,255,255,0.08)"
-                                : "1px solid #E5E7EB",
-                              borderRadius: "8px",
-                              padding: "8px 12px",
-                            }}
-                            formatter={(value: any) => [
-                              `${value?.toLocaleString() || 0} tokens`,
-                              "Usage",
-                            ]}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
+                        </div>
+                      </>
                     ) : (
                       <div className="h-full flex items-center justify-center">
                         <p className={`text-sm ${styles.text.muted}`}>
-                          No usage data available
+                          No chatbot usage data available
                         </p>
                       </div>
                     )}

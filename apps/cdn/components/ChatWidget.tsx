@@ -1232,12 +1232,12 @@ export default function ChatWidget({
             customerEmail,
             messages: messages.map((m) => ({
               id: m.id,
-              type: m.role,
+              role: m.role,
               content: m.content,
               timestamp: m.timestamp,
             })),
             formData,
-            status: "pending",
+            status: "active",
             sessionId,
           }),
         });

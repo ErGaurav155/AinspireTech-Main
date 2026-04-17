@@ -171,6 +171,9 @@ export const getWebAnalyticsController = async (
       };
     }
 
+    const satisfactionDistribution =
+      calculateSatisfactionDistribution(conversations);
+
     const analyticsData = {
       chatbotType,
       period,
@@ -178,6 +181,7 @@ export const getWebAnalyticsController = async (
       overview,
       trends: trendData,
       responseTime: responseTimeDistribution,
+      satisfaction: satisfactionDistribution,
       recentConversations: recentConversations.map((conv: any) => ({
         id: conv._id,
         customerName: conv.customerName || "Anonymous",
@@ -319,4 +323,65 @@ function calculateResponseTimeDistribution(conversations: any[]) {
   });
 
   return distribution;
+}
+
+function calculateSatisfactionDistribution(conversations: any[]) {
+  const scoreValues = conversations
+    .map((conv: any) => conv.score)
+    .filter((score: any) => typeof score === "number" && !Number.isNaN(score));
+
+  if (scoreValues.length > 0) {
+    const bins = [
+      { name: "Poor", color: "#ef4444", range: [0, 3], count: 0 },
+      { name: "Average", color: "#f59e0b", range: [3, 6], count: 0 },
+      { name: "Good", color: "#3b82f6", range: [6, 8], count: 0 },
+      { name: "Excellent", color: "#10b981", range: [8, Infinity], count: 0 },
+    ];
+
+    scoreValues.forEach((score: number) => {
+      const bucket = bins.find(
+        (b) => score >= b.range[0] && score < b.range[1],
+      );
+      if (bucket) bucket.count++;
+    });
+
+    return bins.map((bin) => ({
+      name: bin.name,
+      value: bin.count,
+      color: bin.color,
+    }));
+  }
+
+  const bins = [
+    { name: "Excellent", color: "#10b981", range: [0, 30], count: 0 },
+    { name: "Good", color: "#3b82f6", range: [30, 60], count: 0 },
+    { name: "Average", color: "#f59e0b", range: [60, 120], count: 0 },
+    { name: "Poor", color: "#ef4444", range: [120, Infinity], count: 0 },
+  ];
+
+  conversations.forEach((conv: any) => {
+    const messages = conv.messages || [];
+    for (let i = 0; i < messages.length - 1; i++) {
+      const currentMsg = messages[i];
+      const nextMsg = messages[i + 1];
+
+      if (currentMsg.type === "user" && nextMsg.type === "bot") {
+        const responseTime =
+          (new Date(nextMsg.timestamp).getTime() -
+            new Date(currentMsg.timestamp).getTime()) /
+          1000;
+
+        const bucket = bins.find(
+          (b) => responseTime >= b.range[0] && responseTime < b.range[1],
+        );
+        if (bucket) bucket.count++;
+      }
+    }
+  });
+
+  return bins.map((bin) => ({
+    name: bin.name,
+    value: bin.count,
+    color: bin.color,
+  }));
 }

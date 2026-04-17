@@ -33,7 +33,7 @@ import { Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Status = "active" | "resolved" | "pending";
+type Status = "active" | "resolved";
 type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
 
 interface Message {
@@ -80,12 +80,11 @@ function normalizeFormData(formData: any): FormField[] {
 }
 
 function normalizeStatus(status: any): Status {
-  if (!status || typeof status !== "string") return "pending";
+  if (!status || typeof status !== "string") return "active";
   const lower = status.toLowerCase();
   if (lower === "completed" || lower === "resolved") return "resolved";
-  if (lower === "active" || lower === "pending" || lower === "abandoned")
-    return "pending";
-  return "pending";
+  if (lower === "active" || lower === "abandoned") return "active";
+  return "active";
 }
 
 function normalizeMessage(msg: any) {
@@ -235,11 +234,6 @@ function StatusBadge({ status }: { status: Status }) {
       label: "Active",
       cls: "bg-blue-100 text-blue-700 border border-blue-200",
       dot: "bg-blue-500",
-    },
-    pending: {
-      label: "Pending",
-      cls: "bg-amber-100 text-amber-700 border border-amber-200",
-      dot: "bg-amber-500",
     },
     resolved: {
       label: "Resolved",
@@ -742,7 +736,7 @@ export default function ConversationsPage() {
 
   const stats = {
     total,
-    pending: conversations.filter((c) => c.status === "pending").length,
+    active: conversations.filter((c) => c.status === "active").length,
     resolved: conversations.filter((c) => c.status === "resolved").length,
     appointments: conversations.filter(
       (c) => normalizeFormData(c.formData).length > 0,
@@ -880,11 +874,11 @@ export default function ConversationsPage() {
                 sub: "all time",
               },
               {
-                label: "Pending",
-                value: stats.pending,
+                label: "Active",
+                value: stats.active,
                 icon: Clock,
-                color: "#f59e0b",
-                sub: "awaiting reply",
+                color: "#3b82f6",
+                sub: "in progress",
               },
               {
                 label: "Resolved",
@@ -993,10 +987,10 @@ export default function ConversationsPage() {
                 Active
               </option>
               <option
-                value="pending"
+                value="active"
                 className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
               >
-                Pending
+                Active
               </option>
               <option
                 value="resolved"
