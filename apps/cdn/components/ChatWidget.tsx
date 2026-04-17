@@ -924,7 +924,8 @@ export default function ChatWidget({
   // ─── Save conversation ────────────────────────────────────────────────────
 
   const saveConversation = useCallback(async () => {
-    if (!config || messages.length === 0 || conversationSaved) return;
+    if (!config || messages.length === 0 || conversationSaved || apptStarted)
+      return;
 
     try {
       await fetch(`${API_BASE}/api/embed/chat-conversation`, {
@@ -956,16 +957,16 @@ export default function ChatWidget({
     } catch (error) {
       console.error("[RocketReplAI] save conversation error:", error);
     }
-  }, [config, messages, sessionId, visitorId, conversationSaved]);
+  }, [config, messages, sessionId, visitorId, conversationSaved, apptStarted]);
 
   // ─── Auto-save conversation when messages change ─────────────────────────
   useEffect(() => {
-    if (messages.length > 1) {
+    if (messages.length > 1 && !apptStarted) {
       // Save after first exchange
       const timeoutId = setTimeout(saveConversation, 2000); // Debounce saves
       return () => clearTimeout(timeoutId);
     }
-  }, [messages, saveConversation]);
+  }, [messages, saveConversation, apptStarted]);
 
   // ─── Open / close ──────────────────────────────────────────────────────────
 
