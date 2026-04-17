@@ -1220,15 +1220,17 @@ export default function ChatWidget({
           if (q.type === "email" && ans) customerEmail = ans;
         });
 
-        await fetch(`${API_BASE}/api/embed/conversation`, {
+        await fetch(`${API_BASE}/api/embed/chat-conversation`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-api-key": API_KEY,
           },
           body: JSON.stringify({
-            chatbotType,
-            userId,
+            chatbotType: config?.chatbotType || chatbotType,
+            userId: config?.userId || userId,
+            sessionId,
+            visitorId,
             customerName,
             customerEmail,
             messages: messages.map((m) => ({
@@ -1237,9 +1239,12 @@ export default function ChatWidget({
               content: m.content,
               timestamp: m.timestamp,
             })),
-            formData,
-            status: "active",
-            sessionId,
+            totalTokensUsed: messages.reduce(
+              (sum, m) => sum + (m.tokensUsed || 0),
+              0,
+            ),
+            hasAppointment: true,
+            status: "completed",
           }),
         });
 
