@@ -150,7 +150,6 @@ export default function TokenDashboard() {
         getTokenBalance(apiRequest),
         getTokenUsage(apiRequest, "month"),
       ]);
-
       // Extract data from response - handle nested structures
       const balanceData = balanceRes?.data || balanceRes || {};
       const usagePayload = usageRes || {};

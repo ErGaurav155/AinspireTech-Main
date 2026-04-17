@@ -1239,6 +1239,7 @@ export default function ChatWidget({
               content: m.content,
               timestamp: m.timestamp,
             })),
+            formData,
             totalTokensUsed: messages.reduce(
               (sum, m) => sum + (m.tokensUsed || 0),
               0,

@@ -18,6 +18,7 @@ export const handleChatConversationRequest = async (
       customerEmail,
       customerName,
       messages,
+      formData,
       totalTokensUsed,
       hasAppointment,
       status,
@@ -66,6 +67,7 @@ export const handleChatConversationRequest = async (
       if (customerEmail) conversation.customerEmail = customerEmail;
       if (customerName) conversation.customerName = customerName;
       if (visitorId) conversation.visitorId = visitorId;
+      if (formData) conversation.formData = formData;
 
       await conversation.save();
     } else {
@@ -81,6 +83,7 @@ export const handleChatConversationRequest = async (
           ...msg,
           timestamp: new Date(msg.timestamp),
         })),
+        formData: formData || [],
         totalTokensUsed: tokensUsed,
         totalMessages: messageCount,
         hasAppointment: hasAppointment || false,

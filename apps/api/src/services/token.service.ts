@@ -180,21 +180,23 @@ export async function getTokenUsageStats(
   await connectToDatabase();
 
   const now = new Date();
-  let startDate = new Date();
+  let startDate: Date;
 
   switch (period) {
     case "day":
-      startDate.setDate(now.getDate() - 1);
+      startDate = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       break;
     case "week":
-      startDate.setDate(now.getDate() - 7);
+      startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
     case "month":
-      startDate.setMonth(now.getMonth() - 1);
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       break;
     case "year":
-      startDate.setFullYear(now.getFullYear() - 1);
+      startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
       break;
+    default:
+      startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
   const [usageByChatbot, dailyUsage, totalUsage] = await Promise.all([
@@ -203,7 +205,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          timestamp: { $gte: startDate },
+          createdAt: { $gte: startDate },
         },
       },
       {
@@ -222,13 +224,13 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          timestamp: { $gte: startDate },
+          createdAt: { $gte: startDate },
         },
       },
       {
         $group: {
           _id: {
-            $dateToString: { format: "%Y-%m-%d", date: "$timestamp" },
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
           },
           totalTokens: { $sum: "$tokensUsed" },
           count: { $sum: 1 },
@@ -242,7 +244,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
-          timestamp: { $gte: startDate },
+          createdAt: { $gte: startDate },
         },
       },
       {
