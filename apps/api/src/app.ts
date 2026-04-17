@@ -108,17 +108,27 @@ app.use(express.urlencoded({ extended: true, limit: "50mb" }));
    RATE LIMITING
 ============================================================ */
 
+const RATE_LIMIT_WINDOW_MS = Number(
+  process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
+);
+const RATE_LIMIT_MAX = Number(
+  process.env.RATE_LIMIT_MAX || (isProduction() ? 1000 : 1000),
+);
+
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: isProduction() ? 100 : 1000,
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
+  skipFailedRequests: true,
   skip: (req) => {
     // Skip rate limiting for health checks, embed, and cron routes
-    return req.path === "/health" || 
-           req.path === "/" ||
-           req.path.startsWith("/api/embed/") ||
-           req.path.startsWith("/api/cron/");
+    return (
+      req.path === "/health" ||
+      req.path === "/" ||
+      req.path.startsWith("/api/embed/") ||
+      req.path.startsWith("/api/cron/")
+    );
   },
   // ✅ Fix: Add key generator that works with trust proxy
   keyGenerator: (req) => {
@@ -148,12 +158,13 @@ app.use(
     origin: function (origin, callback) {
       // Allow requests with no origin (server-to-server)
       if (!origin) return callback(null, true);
-      
+
       // ✅ Allow embed and cron routes from any origin
       // They have their own authentication via API keys
       const url = (origin as string) || "";
-      const isEmbedOrCron = url.includes("/api/embed/") || url.includes("/api/cron/");
-      
+      const isEmbedOrCron =
+        url.includes("/api/embed/") || url.includes("/api/cron/");
+
       // Always allow embed and cron routes through CORS
       // Their security is handled by API key validation
       if (isEmbedOrCron) {
@@ -196,12 +207,12 @@ app.use((req, res, next) => {
   if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
     return next();
   }
-  
+
   // Skip for health checks
   if (req.path === "/health" || req.path === "/health/detailed") {
     return next();
   }
-  
+
   // Apply Clerk for all other routes
   clerkMiddleware({
     secretKey: process.env.CLERK_SECRET_KEY,
