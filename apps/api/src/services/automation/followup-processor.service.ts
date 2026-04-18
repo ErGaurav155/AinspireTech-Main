@@ -119,6 +119,7 @@ export async function processFollowUpDMs(): Promise<{
                     },
                   },
                   false,
+                  log.userId,
                 );
               } else {
                 // Fallback to text-only if buttons have no URLs
@@ -128,6 +129,7 @@ export async function processFollowUpDMs(): Promise<{
                   log.commenterUserId,
                   { text: followUpMsg.message },
                   false,
+                  log.userId,
                 );
               }
             } else {

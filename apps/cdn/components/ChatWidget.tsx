@@ -66,6 +66,7 @@ interface BotConfig {
   welcomeMessage: string;
   primaryColor: string;
   logoUrl?: string | null;
+  showBranding?: boolean;
   userId: string;
   chatbotType: string;
   filename?: string;
@@ -546,21 +547,14 @@ function PoweredBy({ primaryColor }: { primaryColor: string }) {
         rel="noopener noreferrer"
         style={{
           fontSize: 11,
-          color: "#9ca3af",
+          color: primaryColor,
           textDecoration: "none",
           display: "inline-flex",
           alignItems: "center",
-          gap: 3,
+          fontWeight: 700,
         }}
       >
-        Chat{" "}
-        <span style={{ color: primaryColor, fontWeight: 800, fontSize: 13 }}>
-          ⚡
-        </span>{" "}
-        by{" "}
-        <span style={{ fontWeight: 700, color: primaryColor }}>
-          RocketReplAI
-        </span>
+        Chat by RocketReplai
       </a>
     </div>
   );
@@ -1995,7 +1989,7 @@ export default function ChatWidget({
           </div>
         )}
 
-        <PoweredBy primaryColor={pc} />
+        {config?.showBranding !== false && <PoweredBy primaryColor={pc} />}
       </div>
 
       {/* ════ BOTTOM TABS ════ */}

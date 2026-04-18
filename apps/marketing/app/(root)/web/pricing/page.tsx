@@ -382,6 +382,10 @@ const PricingContent = () => {
                 <Check className="h-5 w-5 text-green-500 mr-2" />
                 <span>Basic support</span>
               </li>
+              <li className="flex items-center">
+                <Check className="h-5 w-5 text-green-500 mr-2" />
+                <span>Added watermark</span>
+              </li>
             </ul>
           </div>
           <div className="text-center">
@@ -811,6 +815,12 @@ const PricingContent = () => {
                 },
                 {
                   feature: "Custom Integrations",
+                  free: "",
+                  tokens: "",
+                  subscription: "✓",
+                },
+                {
+                  feature: "Remove RocketReplai watermark",
                   free: "",
                   tokens: "",
                   subscription: "✓",

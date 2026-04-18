@@ -60,6 +60,7 @@ interface BotConfig {
   welcomeMessage: string;
   primaryColor: string;
   logoUrl?: string | null;
+  showBranding?: boolean;
 }
 
 interface Props {
@@ -92,6 +93,7 @@ interface BotConfig {
   welcomeMessage: string;
   primaryColor: string;
   logoUrl?: string | null;
+  showBranding?: boolean;
 }
 
 interface Props {
@@ -131,12 +133,14 @@ function PoweredBy({ primaryColor }: { primaryColor: string }) {
         href="https://rocketreplai.com"
         target="_blank"
         rel="noopener noreferrer"
-        style={{ color: "#94a3b8", fontSize: 11, textDecoration: "none" }}
+        style={{
+          color: primaryColor,
+          fontSize: 11,
+          textDecoration: "none",
+          fontWeight: 700,
+        }}
       >
-        Powered by{" "}
-        <span style={{ color: primaryColor, fontWeight: 800 }}>
-          RocketReplAI
-        </span>
+        Chat by RocketReplai
       </a>
     </div>
   );
@@ -1444,7 +1448,9 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
             {error}
           </div>
         ) : null}
-        <PoweredBy primaryColor={primaryColor} />
+        {config?.showBranding !== false && (
+          <PoweredBy primaryColor={primaryColor} />
+        )}
       </div>
     </div>
   );

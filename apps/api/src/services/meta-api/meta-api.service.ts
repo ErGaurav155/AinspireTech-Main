@@ -31,8 +31,49 @@ export async function sendInstagramDM(
   recipientId: string,
   message: any,
   isCommentReply: boolean = false,
+  clerkId?: string,
 ): Promise<boolean> {
   try {
+    const appendWatermark = (originalMessage: any) => {
+      const watermarkText = "Chat by RocketReplai\nhttps://rocketreplai.com";
+
+      if (originalMessage?.text) {
+        return {
+          ...originalMessage,
+          text: `${originalMessage.text}\n\n${watermarkText}`,
+        };
+      }
+
+      const templateText = originalMessage?.attachment?.payload?.text;
+      if (
+        originalMessage?.attachment?.type === "template" &&
+        typeof templateText === "string"
+      ) {
+        return {
+          ...originalMessage,
+          attachment: {
+            ...originalMessage.attachment,
+            payload: {
+              ...originalMessage.attachment.payload,
+              text: `${templateText}\n\n${watermarkText}`,
+            },
+          },
+        };
+      }
+
+      return originalMessage;
+    };
+
+    // Add watermark for free plan users on DM messages (not comment replies)
+    let messageWithWatermark = message;
+    if (!isCommentReply && clerkId) {
+      const { getUserTier } = await import("@/services/rate-limit.service.js");
+      const userTier = await getUserTier(clerkId);
+      if (userTier === "free") {
+        messageWithWatermark = appendWatermark(message);
+      }
+    }
+
     const recipient = isCommentReply
       ? { comment_id: recipientId }
       : { id: recipientId };
@@ -44,7 +85,7 @@ export async function sendInstagramDM(
           "Content-Type": "application/json",
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ recipient, message }),
+        body: JSON.stringify({ recipient, message: messageWithWatermark }),
       },
     );
     if (!response.ok) {

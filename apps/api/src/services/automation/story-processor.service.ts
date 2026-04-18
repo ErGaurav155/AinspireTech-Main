@@ -230,6 +230,7 @@ async function processStoryDMFlow(
         },
       },
       false, // stories are not comment replies
+      clerkId,
     );
 
     return {

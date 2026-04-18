@@ -109,6 +109,7 @@ async function handleEmailResponse(
             "Please enter a valid email address, e.g. info@gmail.com",
         },
         false,
+        clerkId,
       );
       return {
         success: retrySuccess,
@@ -187,6 +188,7 @@ async function handlePhoneResponse(
             "Please enter a valid phone number, e.g. +1234567890 or 9876543210",
         },
         false,
+        clerkId,
       );
       return {
         success: retrySuccess,
@@ -414,6 +416,7 @@ async function startNewDMConversation(
         },
       },
       false,
+      clerkId,
     );
 
     if (!dmSuccess) {

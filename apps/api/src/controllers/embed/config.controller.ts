@@ -7,6 +7,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
+import WebSubscription from "@/models/web/Websubcription.model";
 
 export const getEmbedConfigByTypeController = async (
   req: Request,
@@ -55,6 +56,12 @@ export const getEmbedConfigByTypeController = async (
     }
 
     const settings = (chatbot as any).settings || {};
+    const hasActiveSubscription = await WebSubscription.exists({
+      clerkId: userId,
+      chatbotType,
+      status: "active",
+      expiresAt: { $gt: new Date() },
+    });
 
     return res.status(200).json({
       success: true,
@@ -71,7 +78,7 @@ export const getEmbedConfigByTypeController = async (
         // Additional safe settings
         position: settings.position || "bottom-right",
         bubbleIcon: settings.bubbleIcon || null,
-        showBranding: settings.showBranding !== false,
+        showBranding: !hasActiveSubscription,
         customCSS: settings.customCSS || null,
       },
       timestamp: new Date().toISOString(),
