@@ -1,8 +1,8 @@
 // apps/api/services/token.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
-import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
+import WebSubscription from "@/models/web/Websubcription.model";
 
 // Get user's token balance
 export async function getUserTokenBalance(userId: string) {
@@ -14,29 +14,86 @@ export async function getUserTokenBalance(userId: string) {
     tokenBalance = await TokenBalance.create({
       userId,
       freeTokens: 10000,
-      purchasedTokens: 0,
+      subscriptionTokens: new Map(),
       usedFreeTokens: 0,
-      usedPurchasedTokens: 0,
+      usedSubscriptionTokens: new Map(),
       totalTokensUsed: 0,
       lastResetAt: new Date(),
       nextResetAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     });
   }
 
+  // Ensure Maps are properly initialized (MongoDB may return plain objects)
+  if (!(tokenBalance.subscriptionTokens instanceof Map)) {
+    tokenBalance.subscriptionTokens = new Map(
+      Object.entries(tokenBalance.subscriptionTokens || {}),
+    );
+  }
+  if (!(tokenBalance.usedSubscriptionTokens instanceof Map)) {
+    tokenBalance.usedSubscriptionTokens = new Map(
+      Object.entries(tokenBalance.usedSubscriptionTokens || {}),
+    );
+  }
+
   return tokenBalance;
 }
 
-// Helper function to get available tokens
-export function getAvailableTokens(tokenBalance: any) {
+// Initialize subscription tokens for a chatbot (1 million tokens per month)
+export async function initializeSubscriptionTokens(
+  userId: string,
+  chatbotId: string,
+) {
+  await connectToDatabase();
+
+  const tokenBalance = await getUserTokenBalance(userId);
+
+  // Ensure Maps are properly initialized
+  if (!(tokenBalance.subscriptionTokens instanceof Map)) {
+    tokenBalance.subscriptionTokens = new Map(
+      Object.entries(tokenBalance.subscriptionTokens || {}),
+    );
+  }
+  if (!(tokenBalance.usedSubscriptionTokens instanceof Map)) {
+    tokenBalance.usedSubscriptionTokens = new Map(
+      Object.entries(tokenBalance.usedSubscriptionTokens || {}),
+    );
+  }
+
+  // Set subscription tokens to 1 million for this chatbot
+  tokenBalance.subscriptionTokens.set(chatbotId, 1000000);
+
+  // Initialize used subscription tokens for this chatbot if not exists
+  if (!tokenBalance.usedSubscriptionTokens.has(chatbotId)) {
+    tokenBalance.usedSubscriptionTokens.set(chatbotId, 0);
+  }
+
+  await tokenBalance.save();
+  return tokenBalance;
+}
+
+// Helper function to get available tokens for a specific chatbot
+export function getAvailableTokensForChatbot(
+  tokenBalance: any,
+  chatbotId?: string,
+) {
   const freeAvailable = Math.max(
     0,
     tokenBalance.freeTokens - tokenBalance.usedFreeTokens,
   );
-  const purchasedAvailable = Math.max(
-    0,
-    tokenBalance.purchasedTokens - tokenBalance.usedPurchasedTokens,
-  );
-  return freeAvailable + purchasedAvailable;
+
+  let subscriptionAvailable = 0;
+  if (
+    chatbotId &&
+    tokenBalance.subscriptionTokens &&
+    tokenBalance.subscriptionTokens.get(chatbotId)
+  ) {
+    const totalSubscription = tokenBalance.subscriptionTokens.get(chatbotId);
+    const usedSubscription =
+      tokenBalance.usedSubscriptionTokens?.get(chatbotId) || 0;
+    subscriptionAvailable = Math.max(0, totalSubscription - usedSubscription);
+  }
+
+  return freeAvailable + subscriptionAvailable;
 }
 
 // Helper function to get free tokens remaining
@@ -44,16 +101,28 @@ export function getFreeTokensRemaining(tokenBalance: any) {
   return Math.max(0, tokenBalance.freeTokens - tokenBalance.usedFreeTokens);
 }
 
-// Helper function to get purchased tokens remaining
-export function getPurchasedTokensRemaining(tokenBalance: any) {
-  return Math.max(
-    0,
-    tokenBalance.purchasedTokens - tokenBalance.usedPurchasedTokens,
-  );
+// Helper function to get subscription tokens remaining for a chatbot
+export function getSubscriptionTokensRemaining(
+  tokenBalance: any,
+  chatbotId: string,
+) {
+  if (
+    !tokenBalance.subscriptionTokens ||
+    !tokenBalance.subscriptionTokens.get(chatbotId)
+  ) {
+    return 0;
+  }
+  const total = tokenBalance.subscriptionTokens.get(chatbotId);
+  const used = tokenBalance.usedSubscriptionTokens?.get(chatbotId) || 0;
+  return Math.max(0, total - used);
 }
 
 // Helper function to deduct tokens from balance
-async function deductTokensFromBalance(tokenBalance: any, tokens: number) {
+async function deductTokensFromBalance(
+  tokenBalance: any,
+  tokens: number,
+  chatbotId?: string,
+) {
   let remainingTokens = tokens;
 
   // First use free tokens
@@ -64,28 +133,45 @@ async function deductTokensFromBalance(tokenBalance: any, tokens: number) {
     remainingTokens -= freeToUse;
   }
 
-  // Then use purchased tokens if needed
-  if (remainingTokens > 0) {
-    const purchasedRemaining = getPurchasedTokensRemaining(tokenBalance);
-    if (purchasedRemaining >= remainingTokens) {
-      tokenBalance.usedPurchasedTokens += remainingTokens;
-    } else {
-      // This shouldn't happen if we check availability first
-      throw new Error("Insufficient tokens");
+  // Then use subscription tokens if chatbotId is provided
+  if (remainingTokens > 0 && chatbotId) {
+    const subscriptionRemaining = getSubscriptionTokensRemaining(
+      tokenBalance,
+      chatbotId,
+    );
+    if (subscriptionRemaining >= remainingTokens) {
+      // Ensure Map is properly initialized
+      if (!(tokenBalance.usedSubscriptionTokens instanceof Map)) {
+        tokenBalance.usedSubscriptionTokens = new Map(
+          Object.entries(tokenBalance.usedSubscriptionTokens || {}),
+        );
+      }
+      const currentUsed =
+        tokenBalance.usedSubscriptionTokens.get(chatbotId) || 0;
+      tokenBalance.usedSubscriptionTokens.set(
+        chatbotId,
+        currentUsed + remainingTokens,
+      );
+      remainingTokens = 0;
     }
+  }
+
+  if (remainingTokens > 0) {
+    throw new Error("Insufficient tokens");
   }
 
   tokenBalance.totalTokensUsed += tokens;
   await tokenBalance.save();
 }
 
-// Check if user has enough tokens
+// Check if user has enough tokens for a specific chatbot
 export async function hasSufficientTokens(
   userId: string,
   requiredTokens: number,
+  chatbotId?: string,
 ) {
   const tokenBalance = await getUserTokenBalance(userId);
-  const availableTokens = getAvailableTokens(tokenBalance);
+  const availableTokens = getAvailableTokensForChatbot(tokenBalance, chatbotId);
   return availableTokens >= requiredTokens;
 }
 
@@ -104,14 +190,14 @@ export async function usedTokens(
     throw new Error("Token balance not found");
   }
 
-  const availableTokens = getAvailableTokens(tokenBalance);
+  const availableTokens = getAvailableTokensForChatbot(tokenBalance, chatbotId);
 
   if (availableTokens < tokens) {
     throw new Error("Insufficient tokens");
   }
 
   // Deduct tokens from balance
-  await deductTokensFromBalance(tokenBalance, tokens);
+  await deductTokensFromBalance(tokenBalance, tokens, chatbotId);
 
   // Record token usage
   const tokenUsage = await TokenUsage.create({
@@ -125,50 +211,11 @@ export async function usedTokens(
   return {
     success: true,
     tokenUsage,
-    remainingTokens: getAvailableTokens(tokenBalance),
+    remainingTokens: getAvailableTokensForChatbot(tokenBalance, chatbotId),
     freeTokensRemaining: getFreeTokensRemaining(tokenBalance),
-    purchasedTokensRemaining: getPurchasedTokensRemaining(tokenBalance),
-  };
-}
-
-// Add purchased tokens
-export async function addPurchasedTokens(
-  userId: string,
-  tokens: number,
-  purchaseData: {
-    razorpayOrderId: string;
-    amount: number;
-    currency: string;
-    expiresAt?: Date;
-  },
-) {
-  await connectToDatabase();
-
-  const tokenBalance = await getUserTokenBalance(userId);
-
-  // Add tokens to purchased balance
-  tokenBalance.purchasedTokens += tokens;
-  await tokenBalance.save();
-
-  // Record purchase
-  const tokenPurchase = await TokenPurchase.create({
-    userId,
-    tokensPurchased: tokens,
-    amount: purchaseData.amount,
-    currency: purchaseData.currency,
-    razorpayOrderId: purchaseData.razorpayOrderId,
-    expiresAt: purchaseData.expiresAt,
-    isOneTime: true,
-    status: "completed",
-    purchasedAt: new Date(),
-  });
-
-  return {
-    success: true,
-    tokenPurchase,
-    newBalance: getAvailableTokens(tokenBalance),
-    freeTokensRemaining: getFreeTokensRemaining(tokenBalance),
-    purchasedTokensRemaining: getPurchasedTokensRemaining(tokenBalance),
+    subscriptionTokensRemaining: chatbotId
+      ? getSubscriptionTokensRemaining(tokenBalance, chatbotId)
+      : 0,
   };
 }
 
@@ -260,6 +307,21 @@ export async function getTokenUsageStats(
 
   const tokenBalance = await getUserTokenBalance(userId);
 
+  // Get subscription info
+  const subscriptions = await WebSubscription.find({
+    clerkId: userId,
+    status: "active",
+  }).select("chatbotType chatbotName");
+
+  const subscriptionTokens: Record<string, any> = {};
+  subscriptions.forEach((sub) => {
+    subscriptionTokens[sub.chatbotType] = {
+      name: sub.chatbotName,
+      tokens: 1000000,
+      used: tokenBalance.usedSubscriptionTokens.get(sub.chatbotType) || 0,
+    };
+  });
+
   return {
     period,
     startDate,
@@ -268,15 +330,19 @@ export async function getTokenUsageStats(
     dailyUsage,
     totalUsage: totalUsage[0] || { totalTokens: 0, totalCost: 0, count: 0 },
     currentBalance: {
-      total: getAvailableTokens(tokenBalance),
+      total:
+        getFreeTokensRemaining(tokenBalance) +
+        Object.values(subscriptionTokens).reduce(
+          (sum: number, sub: any) => sum + Math.max(0, sub.tokens - sub.used),
+          0,
+        ),
       free: getFreeTokensRemaining(tokenBalance),
-      purchased: getPurchasedTokensRemaining(tokenBalance),
+      subscription: subscriptionTokens,
     },
     limits: {
       freeTokens: tokenBalance.freeTokens,
-      purchasedTokens: tokenBalance.purchasedTokens,
       usedFreeTokens: tokenBalance.usedFreeTokens,
-      usedPurchasedTokens: tokenBalance.usedPurchasedTokens,
+      subscriptionTokens,
     },
   };
 }
@@ -306,15 +372,44 @@ export async function resetFreeTokens(userId: string) {
   };
 }
 
-// Get all token purchases for user
-export async function getUserTokenPurchases(userId: string) {
+// Reset subscription tokens monthly for all chatbots
+export async function resetSubscriptionTokens(userId: string) {
   await connectToDatabase();
 
-  const purchases = await TokenPurchase.find({ userId, status: "completed" })
-    .sort({ purchasedAt: -1 })
-    .lean();
+  const tokenBalance = await TokenBalance.findOne({ userId });
 
-  return purchases;
+  if (!tokenBalance) {
+    throw new Error("Token balance not found");
+  }
+
+  // Ensure Maps are properly initialized
+  if (!(tokenBalance.usedSubscriptionTokens instanceof Map)) {
+    tokenBalance.usedSubscriptionTokens = new Map(
+      Object.entries(tokenBalance.usedSubscriptionTokens || {}),
+    );
+  }
+
+  // Get active subscriptions
+  const subscriptions = await WebSubscription.find({
+    clerkId: userId,
+    status: "active",
+  }).select("chatbotType");
+
+  // Reset subscription tokens for active chatbots
+  subscriptions.forEach((sub) => {
+    const chatbotId = sub.chatbotType;
+    if (tokenBalance.usedSubscriptionTokens.has(chatbotId)) {
+      tokenBalance.usedSubscriptionTokens.set(chatbotId, 0);
+    }
+  });
+
+  await tokenBalance.save();
+
+  return {
+    success: true,
+    message: "Subscription tokens reset successfully",
+    resetChatbots: subscriptions.map((sub) => sub.chatbotType),
+  };
 }
 
 // Get token usage by chatbot
@@ -345,28 +440,80 @@ export async function getChatbotTokenUsage(userId: string, chatbotId: string) {
 // Check if user needs low token alert
 export async function checkLowTokenAlert(userId: string) {
   const tokenBalance = await getUserTokenBalance(userId);
-  const availableTokens = getAvailableTokens(tokenBalance);
+
+  // Get active subscriptions
+  const subscriptions = await WebSubscription.find({
+    clerkId: userId,
+    status: "active",
+  }).select("chatbotType");
+
+  let totalAvailable = getFreeTokensRemaining(tokenBalance);
+
+  // Add subscription tokens
+  subscriptions.forEach((sub) => {
+    const chatbotId = sub.chatbotType;
+    const totalTokens = 1000000;
+    const usedTokens = tokenBalance.usedSubscriptionTokens.get(chatbotId) || 0;
+    const remainingTokens = Math.max(0, totalTokens - usedTokens);
+    totalAvailable += remainingTokens;
+  });
 
   // Alert when less than 1000 tokens remaining
-  return availableTokens <= 1000;
+  return totalAvailable <= 1000;
 }
 
 // Get token balance summary
 export async function getTokenBalanceSummary(userId: string) {
   const tokenBalance = await getUserTokenBalance(userId);
 
+  // Get active subscriptions
+  const subscriptions = await WebSubscription.find({
+    clerkId: userId,
+    status: "active",
+  }).select("chatbotType chatbotName");
+
+  const subscriptionTokens: Record<string, any> = {};
+  subscriptions.forEach((sub) => {
+    const chatbotId = sub.chatbotType;
+    const totalTokens = 1000000;
+    const usedTokens = tokenBalance.usedSubscriptionTokens.get(chatbotId) || 0;
+    const remainingTokens = Math.max(0, totalTokens - usedTokens);
+
+    subscriptionTokens[chatbotId] = {
+      name: sub.chatbotName,
+      total: totalTokens,
+      used: usedTokens,
+      remaining: remainingTokens,
+      display:
+        remainingTokens >= 1000000
+          ? "Unlimited"
+          : remainingTokens.toLocaleString(),
+    };
+  });
+
+  const freeRemaining = getFreeTokensRemaining(tokenBalance);
+
   return {
     userId,
-    availableTokens: getAvailableTokens(tokenBalance),
-    freeTokensRemaining: getFreeTokensRemaining(tokenBalance),
-    purchasedTokensRemaining: getPurchasedTokensRemaining(tokenBalance),
+    availableTokens:
+      freeRemaining +
+      Object.values(subscriptionTokens).reduce(
+        (sum: number, sub: any) => sum + sub.remaining,
+        0,
+      ),
+    freeTokensRemaining: freeRemaining,
+    subscriptionTokens,
     freeTokens: tokenBalance.freeTokens,
-    purchasedTokens: tokenBalance.purchasedTokens,
     usedFreeTokens: tokenBalance.usedFreeTokens,
-    usedPurchasedTokens: tokenBalance.usedPurchasedTokens,
     totalTokensUsed: tokenBalance.totalTokensUsed,
     lastResetAt: tokenBalance.lastResetAt,
     nextResetAt: tokenBalance.nextResetAt,
-    isLow: getAvailableTokens(tokenBalance) <= 1000,
+    isLow:
+      freeRemaining +
+        Object.values(subscriptionTokens).reduce(
+          (sum: number, sub: any) => sum + sub.remaining,
+          0,
+        ) <=
+      1000,
   };
 }

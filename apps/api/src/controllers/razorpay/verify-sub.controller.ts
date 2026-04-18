@@ -1,15 +1,17 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
-import { addPurchasedTokens } from "@/services/token.service";
+import { initializeSubscriptionTokens } from "@/services/token.service";
 import { getAuth } from "@clerk/express";
+import { connectToDatabase } from "@/config/database.config";
+import WebSubscription from "@/models/web/Websubcription.model";
 
 export interface VerifyBody {
   subscription_id: string;
   razorpay_payment_id: string;
   razorpay_signature: string;
-  tokens?: number;
-  amount?: number;
-  currency?: string;
+  chatbotType?: string;
+  productId?: string;
+  subscriptionType?: string;
 }
 
 // POST /api/razorpay/subscription/verify - Verify Razorpay payment
@@ -31,9 +33,9 @@ export const verifyRazorpayPaymentController = async (
       subscription_id,
       razorpay_payment_id,
       razorpay_signature,
-      tokens,
-      amount,
-      currency,
+      chatbotType,
+      productId,
+      subscriptionType,
     }: VerifyBody = req.body;
 
     // Validate required parameters
@@ -41,7 +43,17 @@ export const verifyRazorpayPaymentController = async (
       return res.status(400).json({
         success: false,
         error:
-          "Missing required parameters: subscription_id, razorpay_payment_id, razorpay_signature, amount, tokens, and currency are required",
+          "Missing required parameters: subscription_id, razorpay_payment_id, razorpay_signature are required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // For subscriptions, we need chatbot type
+    if (!chatbotType && !subscriptionType) {
+      return res.status(400).json({
+        success: false,
+        error:
+          "chatbotType or subscriptionType is required for subscription verification",
         timestamp: new Date().toISOString(),
       });
     }
@@ -76,45 +88,62 @@ export const verifyRazorpayPaymentController = async (
       });
     }
 
-    // Add tokens to user's balance
+    // Initialize subscription tokens and create/update subscription record
     try {
-      if (tokens && amount && currency) {
-        await addPurchasedTokens(userId, tokens, {
-          razorpayOrderId: subscription_id,
-          amount,
-          currency,
-        });
-        console.log("Tokens added successfully for user:", userId);
+      await connectToDatabase();
 
-        return res.status(200).json({
-          success: true,
-          data: {
-            success: true,
-            message: "Payment verified successfully",
-            tokensAdded: tokens,
-            amount: amount,
-            currency: currency,
-            subscriptionId: subscription_id,
-            paymentId: razorpay_payment_id,
-          },
-          timestamp: new Date().toISOString(),
-        });
-      }
+      // Determine chatbot type
+      const targetChatbotType = (chatbotType || subscriptionType)!;
+
+      // Initialize subscription tokens (1 million tokens per chatbot)
+      await initializeSubscriptionTokens(userId, targetChatbotType);
+
+      // Create or update WebSubscription record
+      const subscriptionData = {
+        clerkId: userId,
+        chatbotType: targetChatbotType,
+        chatbotName:
+          targetChatbotType === "chatbot-lead-generation"
+            ? "Lead Generation"
+            : targetChatbotType === "chatbot-education"
+              ? "Education (MCQ)"
+              : targetChatbotType,
+        razorpaySubscriptionId: subscription_id,
+        status: "active",
+        startedAt: new Date(),
+        productId: productId,
+      };
+
+      await WebSubscription.findOneAndUpdate(
+        { clerkId: userId, chatbotType: targetChatbotType },
+        subscriptionData,
+        { upsert: true, new: true },
+      );
+
+      console.log(
+        "Subscription tokens initialized and record created for user:",
+        userId,
+        "chatbot:",
+        targetChatbotType,
+      );
+
       return res.status(200).json({
         success: true,
         data: {
           success: true,
-          message: "Payment verified successfully",
+          message: "Subscription activated successfully",
+          chatbotType: targetChatbotType,
+          subscriptionTokens: 1000000,
           subscriptionId: subscription_id,
           paymentId: razorpay_payment_id,
         },
         timestamp: new Date().toISOString(),
       });
     } catch (tokenError: any) {
-      console.error("Error adding tokens:", tokenError);
+      console.error("Error initializing subscription tokens:", tokenError);
       return res.status(500).json({
         success: false,
-        error: tokenError.message || "Failed to add tokens to account",
+        error: tokenError.message || "Failed to activate subscription",
         timestamp: new Date().toISOString(),
       });
     }

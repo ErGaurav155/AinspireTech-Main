@@ -8,8 +8,19 @@ interface ScrapedPage {
   url: string;
   title: string;
   description: string;
-  headings: { h1: string[]; h2: string[]; h3: string[] };
+  meta: Record<string, string>;
+  headings: {
+    h1: string[];
+    h2: string[];
+    h3: string[];
+    h4: string[];
+    h5: string[];
+    h6: string[];
+  };
   content: string;
+  fullText: string;
+  links: string[];
+  images: string[];
   level: number;
 }
 
@@ -27,7 +38,7 @@ class WebScraper {
   private browser: Browser;
   private visitedUrls: Set<string> = new Set();
   private scrapedPages: ScrapedPage[] = [];
-  private maxPages = 6;
+  private maxPages = 12;
   private maxLevel = 3;
 
   constructor(browser: Browser) {
@@ -49,19 +60,35 @@ class WebScraper {
 
       // Use evaluate with proper typing
       const scrapedData = await page.evaluate(() => {
-        // Helper functions inside evaluate
-        const getDescription = (): string => {
-          const el =
-            document.querySelector('meta[name="description"]') ||
-            document.querySelector('meta[property="og:description"]') ||
-            document.querySelector('meta[name="twitter:description"]');
-          return el ? (el.getAttribute("content") ?? "") : "";
+        const getMeta = (): Record<string, string> => {
+          const tags = Array.from(
+            document.querySelectorAll(
+              "meta[name], meta[property], link[rel='canonical']",
+            ),
+          );
+          return tags.reduce((meta: Record<string, string>, tag) => {
+            const name =
+              tag.getAttribute("name") ||
+              tag.getAttribute("property") ||
+              (tag.getAttribute("rel") === "canonical" ? "canonical" : null);
+            const content =
+              tag.getAttribute("content") || tag.getAttribute("href");
+            if (name && content) {
+              meta[name.toLowerCase()] = content.trim();
+            }
+            return meta;
+          }, {});
         };
 
         const getHeadings = (tag: string): string[] => {
           return Array.from(document.querySelectorAll(tag))
             .map((el) => (el.textContent ?? "").trim())
             .filter((text) => text.length > 0);
+        };
+
+        const getText = (root: Element | Document): string => {
+          const text = (root.textContent || "").replace(/\s+/g, " ").trim();
+          return text;
         };
 
         const getContent = (): string => {
@@ -74,21 +101,54 @@ class WebScraper {
             document.body;
 
           if (!el) return "";
+          const text = getText(el);
+          return text.length > 4000 ? text.substring(0, 4000) + "..." : text;
+        };
 
-          let text = (el.textContent || "").replace(/\s+/g, " ").trim();
-          return text.length > 800 ? text.substring(0, 800) + "..." : text;
+        const getFullText = (): string => {
+          const bodyText = getText(document.body);
+          return bodyText.length > 12000
+            ? bodyText.substring(0, 12000) + "..."
+            : bodyText;
+        };
+
+        const getLinks = (): string[] => {
+          return Array.from(document.querySelectorAll("a[href]"))
+            .map((a) => (a as HTMLAnchorElement).href.trim())
+            .filter(
+              (href) =>
+                href &&
+                !href.startsWith("javascript:") &&
+                !href.startsWith("mailto:") &&
+                !href.startsWith("#") &&
+                !href.includes("tel:") &&
+                !href.includes("sms:"),
+            );
+        };
+
+        const getImages = (): string[] => {
+          return Array.from(document.querySelectorAll("img[src]"))
+            .map((img) => (img as HTMLImageElement).src.trim())
+            .filter((src) => !!src);
         };
 
         return {
           url: window.location.href,
           title: document.title ?? "",
-          description: getDescription(),
+          description: getMeta()["description"] || "",
+          meta: getMeta(),
           headings: {
             h1: getHeadings("h1"),
             h2: getHeadings("h2"),
             h3: getHeadings("h3"),
+            h4: getHeadings("h4"),
+            h5: getHeadings("h5"),
+            h6: getHeadings("h6"),
           },
           content: getContent(),
+          fullText: getFullText(),
+          links: getLinks(),
+          images: getImages(),
         };
       });
 
@@ -124,7 +184,8 @@ class WebScraper {
   private normalizeUrl(url: string): string {
     try {
       const u = new URL(url);
-      return u.origin + u.pathname;
+      const pathname = u.pathname.replace(/\/\/$/, "") || "/";
+      return u.origin + pathname + u.search;
     } catch {
       return url;
     }
@@ -224,7 +285,8 @@ class WebScraper {
       if (totalSoFar() >= this.maxPages) break;
     }
 
-    const all = Object.values(levelUrls).flat().slice(0, this.maxPages);
+    const allUrls = Object.values(levelUrls).flat();
+    const all = allUrls.slice(0, this.maxPages);
     console.log(`🎯 Total URLs to scrape: ${all.length}`);
     return all;
   }

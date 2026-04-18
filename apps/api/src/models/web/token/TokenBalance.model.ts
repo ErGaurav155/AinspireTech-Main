@@ -3,9 +3,9 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 export interface ITokenBalance extends Document {
   userId: string;
   freeTokens: number;
-  purchasedTokens: number;
+  subscriptionTokens: Map<string, number>; // Tokens per subscribed chatbot
   usedFreeTokens: number;
-  usedPurchasedTokens: number;
+  usedSubscriptionTokens: Map<string, number>; // Usage per chatbot
   totalTokensUsed: number;
   lastResetAt: Date;
   nextResetAt: Date;
@@ -27,11 +27,10 @@ const TokenBalanceSchema = new Schema<ITokenBalance>(
       default: 10000,
       min: 0,
     },
-    purchasedTokens: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
+    subscriptionTokens: {
+      type: Map,
+      of: Number,
+      default: {},
     },
     usedFreeTokens: {
       type: Number,
@@ -39,11 +38,10 @@ const TokenBalanceSchema = new Schema<ITokenBalance>(
       default: 0,
       min: 0,
     },
-    usedPurchasedTokens: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
+    usedSubscriptionTokens: {
+      type: Map,
+      of: Number,
+      default: {},
     },
     totalTokensUsed: {
       type: Number,

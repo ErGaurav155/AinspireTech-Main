@@ -16,7 +16,6 @@ import User from "@/models/user.model";
 import { redisHelpers } from "@/config/redis.config";
 import webFaq from "@/models/web/webFaq.model";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
-import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
@@ -313,9 +312,7 @@ export async function deleteUserData(clerkId: string) {
     webFaq.deleteMany({ clerkId }),
     WebAppointmentQuestions.deleteMany({ clerkId }),
     TokenBalance.deleteMany({ userId: clerkId }),
-    TokenPurchase.deleteMany({ userId: clerkId }),
     TokenUsage.deleteMany({ userId: clerkId }),
-
     // Instagram-related data
     InstaReplyTemplate.deleteMany({ userId: clerkId }),
     InstaReplyLog.deleteMany({ userId: clerkId }),

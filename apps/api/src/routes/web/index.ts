@@ -7,6 +7,7 @@ import {
 import { getWebAnalyticsController } from "@/controllers/web/analytics.controller";
 import { getConversationsController } from "@/controllers/web/conversations/conversations.controller";
 import { getConversationsByTypeController } from "@/controllers/web/conversations/chatbotType.controller";
+import { updateConversationStatusController } from "@/controllers/web/conversations/update-status.controller";
 
 import {
   createChatbotController,
@@ -46,6 +47,11 @@ router.post("/appointment-question", saveAppointmentQuestionsController);
 router.get("/conversations", getConversationsController);
 // GET /api/web/conversations/:chatbotType - Get conversations by chatbot type
 router.get("/conversations/:chatbotType", getConversationsByTypeController);
+// PUT /api/web/conversations/:conversationId/status - Update conversation status
+router.put(
+  "/conversations/:conversationId/status",
+  updateConversationStatusController,
+);
 
 //chatbot
 // GET /api/web/chatbot - Get all user chatbots

@@ -28,7 +28,11 @@ import {
   X,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { getChatbots, getConversations } from "@/lib/services/web-actions.api";
+import {
+  getChatbots,
+  getConversations,
+  updateConversationStatus,
+} from "@/lib/services/web-actions.api";
 import { Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -57,6 +61,7 @@ interface Conversation {
   status: Status;
   createdAt: string;
   updatedAt: string;
+  type?: "chat" | "appointment";
 }
 
 // Helper to normalize formData (handle both array and object formats)
@@ -260,12 +265,14 @@ function ConversationDetail({
   styles,
   pc,
   onClose,
+  onStatusUpdate,
 }: {
   conv: Conversation;
   isDark: boolean;
   styles: any;
   pc: string;
   onClose: () => void;
+  onStatusUpdate: (conversationId: string, newStatus: Status) => void;
 }) {
   const normalizedFormData = normalizeFormData(conv.formData);
   const hasForm = normalizedFormData.length > 0;
@@ -320,7 +327,23 @@ function ConversationDetail({
       <div className="flex-1 overflow-y-auto p-5 space-y-5">
         {/* Info chips */}
         <div className="flex flex-wrap gap-2">
-          <StatusBadge status={conv.status} />
+          <div className="flex items-center gap-2">
+            <StatusBadge status={conv.status} />
+            <select
+              value={conv.status}
+              onChange={(e) =>
+                onStatusUpdate(conv._id, e.target.value as Status)
+              }
+              className={`text-xs px-2 py-1 rounded border ${
+                isDark
+                  ? "bg-white/[0.07] border-white/[0.2] text-white/70"
+                  : "bg-gray-50 border-gray-200 text-gray-600"
+              }`}
+            >
+              <option value="active">Active</option>
+              <option value="resolved">Resolved</option>
+            </select>
+          </div>
           {conv.customerEmail && (
             <span
               className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs ${
@@ -653,6 +676,7 @@ export default function ConversationsPage() {
       messages: Array.isArray(conv.messages)
         ? conv.messages.map(normalizeMessage)
         : [],
+      type: conv.type || "chat",
     }));
   }, []);
 
@@ -683,7 +707,7 @@ export default function ConversationsPage() {
         let convs: Conversation[] = data.conversations || [];
         const tot: number = data.total || 0;
         const more: boolean = data.hasMore || false;
-
+        console.log("Raw conversations data:", convs);
         // Normalize conversations
         convs = normalizeConversations(convs);
 
@@ -716,6 +740,35 @@ export default function ConversationsPage() {
     setIsRefreshing(true);
     setOffset(0);
     await load(true);
+  };
+
+  const handleStatusUpdate = async (
+    conversationId: string,
+    newStatus: Status,
+  ) => {
+    try {
+      await updateConversationStatus(
+        apiRequest,
+        conversationId,
+        newStatus === "resolved" ? "completed" : "active",
+      );
+
+      // Update local state
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv._id === conversationId ? { ...conv, status: newStatus } : conv,
+        ),
+      );
+
+      // Update selected conversation if it's the one being updated
+      if (selectedConv?._id === conversationId) {
+        setSelectedConv((prev) =>
+          prev ? { ...prev, status: newStatus } : null,
+        );
+      }
+    } catch (error) {
+      console.error("Error updating conversation status:", error);
+    }
   };
 
   // ── filter ────────────────────────────────────────────────────────────────
@@ -808,6 +861,7 @@ export default function ConversationsPage() {
             styles={styles}
             pc={pc}
             onClose={() => setSelectedConv(null)}
+            onStatusUpdate={handleStatusUpdate}
           />
         </>
       )}

@@ -109,7 +109,8 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
             tokens: tokensUsed,
             remainingTokens: tokenResult.remainingTokens,
             freeTokensRemaining: tokenResult.freeTokensRemaining,
-            purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
+            subscriptionTokensRemaining:
+              tokenResult.subscriptionTokensRemaining,
           },
           timestamp: new Date().toISOString(),
         });

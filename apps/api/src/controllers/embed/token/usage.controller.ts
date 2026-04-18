@@ -39,7 +39,7 @@ export const postTokenUsageController = async (req: Request, res: Response) => {
         data: {
           remainingTokens: tokenResult.remainingTokens,
           freeTokensRemaining: tokenResult.freeTokensRemaining,
-          purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
+          purchasedTokensRemaining: tokenResult.subscriptionTokensRemaining,
           tokensUsed: tokensUsed,
           usageId: tokenResult.tokenUsage._id,
         },

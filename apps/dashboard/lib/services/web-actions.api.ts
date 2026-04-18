@@ -187,6 +187,16 @@ export const getConversationsByType = (
     { method: "GET" },
   );
 
+export const updateConversationStatus = (
+  apiRequest: ApiRequestFn,
+  conversationId: string,
+  status: "active" | "completed" | "abandoned",
+) =>
+  apiRequest(`/web/conversations/${conversationId}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  });
+
 /* =========================
    APPOINTMENTS
 ========================= */

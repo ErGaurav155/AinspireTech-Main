@@ -38,15 +38,22 @@ export const getConversationsByTypeController = async (
 
     // Filter for appointment conversations if lead generation
     let appointmentConversations: any[] = [];
+    let regularChatConversations = chatConversations;
+
     if (chatbotType === "chatbot-lead-generation") {
       appointmentConversations = chatConversations.filter(
         (c: any) => c.hasAppointment || (c.formData && c.formData.length > 0),
+      );
+      // Exclude appointment conversations from regular chat list
+      regularChatConversations = chatConversations.filter(
+        (c: any) =>
+          !(c.hasAppointment || (c.formData && c.formData.length > 0)),
       );
     }
 
     // Combine and format conversations
     const conversations = [
-      ...chatConversations.map((conv) => ({
+      ...regularChatConversations.map((conv) => ({
         _id: conv._id,
         chatbotType: conv.chatbotType,
         clerkId: conv.clerkId,
@@ -64,7 +71,7 @@ export const getConversationsByTypeController = async (
         lastActivity: conv.lastActivity,
         type: "chat",
       })),
-      ...appointmentConversations!.map((conv) => ({
+      ...appointmentConversations.map((conv) => ({
         _id: conv._id,
         chatbotType: conv.chatbotType,
         clerkId: conv.clerkId,

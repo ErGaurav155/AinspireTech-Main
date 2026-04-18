@@ -1245,7 +1245,7 @@ export default function ChatWidget({
               0,
             ),
             hasAppointment: true,
-            status: "completed",
+            status: "active",
           }),
         });
 

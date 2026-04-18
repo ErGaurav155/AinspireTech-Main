@@ -10,15 +10,15 @@ import {
   TrendingUp,
   RefreshCw,
   AlertTriangle,
-  CreditCard,
-  History,
+  Crown,
   BarChart3,
   Coins,
   Clock,
   Shield,
-  Crown,
   Target,
   Bot,
+  Infinity,
+  CreditCard,
 } from "lucide-react";
 import {
   Button,
@@ -44,9 +44,8 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { TokenPurchase } from "@/components/web/TokenPurchase";
+
 import {
-  getPurchaseHistory,
   getTokenBalance,
   getTokenUsage,
   resetFreeTokens,
@@ -56,13 +55,20 @@ import { useApi } from "@/lib/useApi";
 interface TokenStats {
   availableTokens: number;
   freeTokensRemaining: number;
-  purchasedTokensRemaining: number;
+  subscriptionTokens: Record<
+    string,
+    {
+      name: string;
+      total: number;
+      used: number;
+      remaining: number;
+      display: string;
+    }
+  >;
   totalTokensUsed: number;
   nextResetAt: string;
   freeTokens?: number;
-  purchasedTokens?: number;
   usedFreeTokens?: number;
-  usedPurchasedTokens?: number;
 }
 
 interface UsageData {
@@ -75,7 +81,7 @@ interface UsageData {
   currentBalance: {
     total: number;
     free: number;
-    purchased: number;
+    subscription: Record<string, any>;
   };
 }
 
@@ -124,8 +130,8 @@ export default function TokenDashboard() {
   const [usageData, setUsageData] = useState<UsageData | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const { apiRequest } = useApi();
-  type ActiveTab = "overview" | "purchase" | "usage" | "history";
-  const [activeTab, setActiveTab] = useState("overview");
+  type ActiveTab = "overview" | "usage";
+  const [activeTab, setActiveTab] = useState<ActiveTab>("overview");
 
   useEffect(() => {
     return () => {
@@ -150,9 +156,11 @@ export default function TokenDashboard() {
         getTokenBalance(apiRequest),
         getTokenUsage(apiRequest, "month"),
       ]);
+
       // Extract data from response - handle nested structures
       const balanceData = balanceRes?.data || balanceRes || {};
       const usagePayload = usageRes || {};
+
       const usageByChatbotRaw =
         usagePayload.usageByChatbot ||
         usagePayload.data?.usageByChatbot ||
@@ -176,15 +184,13 @@ export default function TokenDashboard() {
       const processedBalance: TokenStats = {
         availableTokens: balanceData.availableTokens || 0,
         freeTokensRemaining: balanceData.freeTokensRemaining || 0,
-        purchasedTokensRemaining: balanceData.purchasedTokensRemaining || 0,
+        subscriptionTokens: balanceData.subscriptionTokens || {},
         totalTokensUsed: balanceData.totalTokensUsed || 0,
         nextResetAt:
           balanceData.nextResetAt ||
           new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         freeTokens: balanceData.freeTokens || 10000,
-        purchasedTokens: balanceData.purchasedTokens || 0,
         usedFreeTokens: balanceData.usedFreeTokens || 0,
-        usedPurchasedTokens: balanceData.usedPurchasedTokens || 0,
       };
 
       setTokenStats(processedBalance);
@@ -233,9 +239,9 @@ export default function TokenDashboard() {
         currentBalance: {
           total: currentBalanceRaw?.total ?? processedBalance.availableTokens,
           free: currentBalanceRaw?.free ?? processedBalance.freeTokensRemaining,
-          purchased:
-            currentBalanceRaw?.purchased ??
-            processedBalance.purchasedTokensRemaining,
+          subscription:
+            currentBalanceRaw?.subscription ??
+            processedBalance.subscriptionTokens,
         },
       };
 
@@ -254,17 +260,23 @@ export default function TokenDashboard() {
 
       // Set mock data on error
       setTokenStats({
-        availableTokens: 9402,
+        availableTokens: 19402,
         freeTokensRemaining: 9402,
-        purchasedTokensRemaining: 0,
+        subscriptionTokens: {
+          "lead-generation": {
+            name: "Lead Generation",
+            total: 1000000,
+            used: 56000,
+            remaining: 944000,
+            display: "Unlimited",
+          },
+        },
         totalTokensUsed: 598,
         nextResetAt: new Date(
           Date.now() + 30 * 24 * 60 * 60 * 1000,
         ).toISOString(),
         freeTokens: 10000,
-        purchasedTokens: 0,
         usedFreeTokens: 598,
-        usedPurchasedTokens: 0,
       });
 
       setUsageData({
@@ -276,7 +288,7 @@ export default function TokenDashboard() {
         usageByChatbot: generateMockChatbotData(),
         dailyUsage: generateMockDailyData(),
         totalUsage: { totalTokens: 598, totalCost: 0, count: 12 },
-        currentBalance: { total: 9402, free: 9402, purchased: 0 },
+        currentBalance: { total: 19402, free: 9402, subscription: {} },
       });
 
       toast({
@@ -351,9 +363,7 @@ export default function TokenDashboard() {
     { label: string; icon: React.ElementType }
   > = {
     overview: { label: "Overview", icon: BarChart3 },
-    purchase: { label: "Buy Tokens", icon: CreditCard },
     usage: { label: "Analytics", icon: Target },
-    history: { label: "History", icon: History },
   };
 
   if (loading) {
@@ -442,11 +452,12 @@ export default function TokenDashboard() {
                 <Shield className="h-3 w-3" />
                 Free: {tokenStats?.freeTokensRemaining?.toLocaleString() || 0}
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400">
-                <Crown className="h-3 w-3" />
-                Purchased:{" "}
-                {tokenStats?.purchasedTokensRemaining?.toLocaleString() || 0}
-              </span>
+              {Object.keys(tokenStats?.subscriptionTokens || {}).length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400">
+                  <Crown className="h-3 w-3" />
+                  Unlimited
+                </span>
+              )}
             </div>
           </div>
 
@@ -503,6 +514,45 @@ export default function TokenDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Subscription Tokens Section */}
+        {Object.keys(tokenStats?.subscriptionTokens || {}).length > 0 && (
+          <div className={`${styles.card} p-5`}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center">
+                <Crown className="h-4 w-4 text-purple-400" />
+              </div>
+              <h3 className={`font-semibold ${styles.text.primary}`}>
+                Subscription Tokens
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {Object.entries(tokenStats?.subscriptionTokens || {}).map(
+                ([chatbotId, sub]) => (
+                  <div
+                    key={chatbotId}
+                    className={`p-4 rounded-xl ${isDark ? "bg-white/[0.02]" : "bg-gray-50"}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span
+                        className={`text-sm font-medium ${styles.text.primary}`}
+                      >
+                        {sub.name}
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400">
+                        <Infinity className="h-3 w-3" />
+                        Unlimited
+                      </span>
+                    </div>
+                    <p className={`text-xs ${styles.text.muted}`}>
+                      Used: {sub.used?.toLocaleString() || 0} tokens this month
+                    </p>
+                  </div>
+                ),
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="space-y-6">
@@ -721,16 +771,16 @@ export default function TokenDashboard() {
                       <p className={`text-sm mb-3 ${styles.text.secondary}`}>
                         You have only{" "}
                         {tokenStats.availableTokens.toLocaleString()} tokens
-                        remaining. Consider purchasing more tokens to avoid
-                        interruption.
+                        remaining. Subscribe to a chatbot plan for unlimited
+                        tokens.
                       </p>
-                      <Button
-                        onClick={() => setActiveTab("purchase")}
-                        className="bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm"
+                      <Link
+                        href="/web/pricing"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-sm transition-colors"
                       >
-                        <CreditCard className="h-4 w-4 mr-2" />
-                        Buy Tokens Now
-                      </Button>
+                        <Crown className="h-4 w-4" />
+                        View Subscription Plans
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -775,16 +825,6 @@ export default function TokenDashboard() {
                   </Button>
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Purchase Tab */}
-          {activeTab === "purchase" && (
-            <div className="rounded-2xl">
-              <TokenPurchase
-                currentBalance={tokenStats?.availableTokens || 0}
-                onSuccess={fetchTokenData}
-              />
             </div>
           )}
 
@@ -912,13 +952,6 @@ export default function TokenDashboard() {
               </div>
             </div>
           )}
-
-          {/* History Tab */}
-          {activeTab === "history" && (
-            <div className={`${styles.card} overflow-hidden`}>
-              <PurchaseHistory userId={userId!} onSuccess={fetchTokenData} />
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -933,115 +966,4 @@ function formatChatbotName(chatbotId: string): string {
     unknown: "Unknown",
   };
   return nameMap[chatbotId] || chatbotId;
-}
-
-// Purchase History Component
-function PurchaseHistory({
-  userId,
-  onSuccess,
-}: {
-  userId: string;
-  onSuccess?: () => void;
-}) {
-  const [purchases, setPurchases] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { apiRequest } = useApi();
-  const { styles, isDark } = useThemeStyles();
-
-  const fetchPurchases = useCallback(async () => {
-    try {
-      const result = await getPurchaseHistory(apiRequest);
-      console.log("Purchase history result:", result);
-      const purchaseData = result?.data?.purchase || result?.purchase || [];
-      setPurchases(purchaseData);
-    } catch (error) {
-      console.error("Error fetching purchases:", error);
-      setPurchases([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiRequest]);
-
-  useEffect(() => {
-    fetchPurchases();
-  }, [userId, fetchPurchases]);
-
-  if (loading) {
-    return (
-      <div className="p-12 text-center">
-        <div className="w-8 h-8 border-2 border-t-transparent border-purple-500 rounded-full animate-spin mx-auto mb-3" />
-        <p className={`text-sm ${styles.text.muted}`}>
-          Loading purchase history...
-        </p>
-      </div>
-    );
-  }
-
-  if (purchases.length === 0) {
-    return (
-      <EmptyState
-        icon={<History className="h-8 w-8" />}
-        label="No purchase history"
-      />
-    );
-  }
-
-  return (
-    <div>
-      <div className={`p-5 border-b ${styles.divider}`}>
-        <h3 className={`font-semibold ${styles.text.primary}`}>
-          Purchase History
-        </h3>
-      </div>
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead
-            className={`text-xs font-semibold uppercase tracking-wide ${
-              isDark
-                ? "bg-white/[0.04] text-white/40"
-                : "bg-gray-50 text-gray-500"
-            }`}
-          >
-            <tr>
-              <th className="px-6 py-3 text-left">Date</th>
-              <th className="px-6 py-3 text-left">Tokens</th>
-              <th className="px-6 py-3 text-left">Amount</th>
-              <th className="px-6 py-3 text-left">Order ID</th>
-              <th className="px-6 py-3 text-left">Status</th>
-            </tr>
-          </thead>
-          <tbody className={`divide-y ${styles.divider}`}>
-            {purchases.map((purchase) => (
-              <tr
-                key={purchase._id || purchase.id}
-                className={
-                  isDark ? "hover:bg-white/[0.03]" : "hover:bg-gray-50/80"
-                }
-              >
-                <td className="px-6 py-4 text-sm">
-                  {purchase.createdAt
-                    ? new Date(purchase.createdAt).toLocaleDateString()
-                    : "N/A"}
-                </td>
-                <td className="px-6 py-4 text-sm font-medium text-purple-400">
-                  {(purchase.tokensPurchased || 0).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm font-medium text-green-400">
-                  ₹{(purchase.amount || 0).toLocaleString()}
-                </td>
-                <td className="px-6 py-4 text-sm">
-                  {purchase.razorpayOrderId?.slice(-8) || "N/A"}
-                </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400">
-                    Completed
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
 }

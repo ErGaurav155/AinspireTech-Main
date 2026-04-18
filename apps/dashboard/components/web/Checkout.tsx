@@ -586,9 +586,9 @@ export const Checkout = ({
         subscription_id: subscriptionId,
         razorpay_payment_id: razorpayResponse.razorpay_payment_id,
         razorpay_signature: razorpayResponse.razorpay_signature,
-        tokens,
-        amount,
-        currency: "INR",
+        chatbotType: productId,
+        subscriptionType: productId,
+        productId,
       };
 
       const verifyResponse = await verifyRazorpayPayment(

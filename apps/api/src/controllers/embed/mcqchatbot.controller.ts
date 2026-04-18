@@ -108,7 +108,7 @@ export const handleMcqChatbotRequest = async (req: Request, res: Response) => {
             tokensUsed,
             remainingTokens: tokenResult.remainingTokens,
             freeTokensRemaining: tokenResult.freeTokensRemaining,
-            purchasedTokensRemaining: tokenResult.purchasedTokensRemaining,
+            purchasedTokensRemaining: tokenResult.subscriptionTokensRemaining,
           },
           timestamp: new Date().toISOString(),
         });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import {
@@ -8,7 +8,6 @@ import {
   Check,
   Zap,
   CreditCard,
-  Infinity,
   Sparkles,
   Crown,
   Shield,
@@ -19,7 +18,6 @@ import {
   GraduationCap,
   Target,
   MessageCircle,
-  Coins,
   BadgeCheck,
   RefreshCw,
   AlertTriangle,
@@ -35,11 +33,7 @@ import {
   TabsContent,
   useThemeStyles,
 } from "@rocketreplai/ui";
-import {
-  calculateCustomTokenPrice,
-  productSubscriptionDetails,
-  tokenPlans,
-} from "@rocketreplai/shared";
+import { productSubscriptionDetails } from "@rocketreplai/shared";
 import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
@@ -66,7 +60,7 @@ interface Product {
 }
 
 type BillingMode = "monthly" | "yearly";
-type PlanType = "chatbot" | "tokens";
+type PlanType = "chatbot";
 
 // Icon mapping
 const iconMapping: Record<string, any> = {
@@ -88,8 +82,6 @@ const PricingContent = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
-  const [customTokens, setCustomTokens] = useState<number>(100000);
-  const [showCustom, setShowCustom] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
   // Fetch subscriptions and user chatbots
@@ -192,11 +184,6 @@ const PricingContent = () => {
       label2: "Subscriptions",
       icon: Bot,
     },
-    tokens: {
-      label: `Tokens`,
-      label2: `Packs`,
-      icon: Coins,
-    },
   };
   // Loading state
   if (!isLoaded || isLoading) {
@@ -257,8 +244,8 @@ const PricingContent = () => {
           </h1>
 
           <p className={`text-lg max-w-2xl mx-auto ${styles.text.secondary}`}>
-            Choose between monthly chatbot subscriptions or one-time token
-            purchases
+            Choose the best chatbot subscription for your business and get
+            1,000,000 tokens per chatbot per cycle.
           </p>
 
           {/* Tabs */}
@@ -586,244 +573,6 @@ const PricingContent = () => {
                 })}
               </div>
             </TabsContent>
-
-            {/* Token Plans Tab Content */}
-            <TabsContent value="tokens" className="mt-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {Object.values(tokenPlans).map((plan) => {
-                  const gradient =
-                    plan.id === "basic"
-                      ? "from-cyan-500 to-blue-500"
-                      : plan.id === "pro"
-                        ? "from-purple-500 to-pink-500"
-                        : "from-amber-500 to-orange-500";
-
-                  const isPro = plan.id === "pro";
-
-                  let cardClasses = `${styles.card} p-6 relative rounded-2xl border transition-all duration-300 flex flex-col justify-between overflow-visible`;
-                  if (isPro) {
-                    cardClasses += isDark
-                      ? " ring-2 ring-pink-500/30"
-                      : " ring-2 ring-pink-200";
-                  }
-
-                  return (
-                    <div key={plan.id} className={cardClasses}>
-                      {isPro && (
-                        <div className="absolute -top-3 left-0 right-0 flex justify-center">
-                          <Badge className="bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0 px-4 py-1">
-                            <Sparkles className="h-3 w-3 mr-1" />
-                            Most Popular
-                          </Badge>
-                        </div>
-                      )}
-
-                      <div>
-                        <div className="flex items-start justify-between">
-                          <div className="flex items-center gap-2">
-                            <div
-                              className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradient} flex items-center justify-center ${isDark ? "opacity-90" : ""}`}
-                            >
-                              <Coins className="h-5 w-5 text-white" />
-                            </div>
-                            <h3
-                              className={`text-lg font-bold ${styles.text.primary}`}
-                            >
-                              {plan.name}
-                            </h3>
-                          </div>
-                        </div>
-                        <p className={`text-sm ${styles.text.secondary} mt-1`}>
-                          {plan.tokens.toLocaleString()} tokens
-                        </p>
-                        <div className="mb-4">
-                          <p
-                            className={`text-3xl font-bold ${styles.text.primary}`}
-                          >
-                            ₹{plan.price.toLocaleString()}
-                          </p>
-                          <p className={`text-xs ${styles.text.muted}`}>
-                            ₹{plan.perTokenPrice.toFixed(4)} per token
-                          </p>
-                        </div>
-
-                        <ul className="space-y-2 mb-6">
-                          {plan.features.map((feature, idx) => (
-                            <li key={idx} className="flex items-start gap-2">
-                              <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                                <Check
-                                  className={`h-3 w-3 ${isDark ? "text-pink-400" : "text-pink-600"}`}
-                                />
-                              </div>
-                              <span className={styles.text.secondary}>
-                                {feature}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-
-                      <SignedOut>
-                        <Button
-                          onClick={() => router.push("/sign-in")}
-                          className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
-                        >
-                          Get Started
-                        </Button>
-                      </SignedOut>
-                      <SignedIn>
-                        <Checkout
-                          userId={userId!}
-                          productId={plan.id}
-                          billingCycle="one-time"
-                          amount={plan.price}
-                          planType="tokens"
-                          tokens={plan.tokens}
-                        />
-                      </SignedIn>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Custom Token Pack */}
-              <div className={`${styles.card} p-6 mt-6`}>
-                <div className="mb-4">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                      <Infinity className="h-5 w-5 text-white" />
-                    </div>
-                    <div>
-                      <h3
-                        className={`text-lg font-bold ${styles.text.primary}`}
-                      >
-                        Custom Token Pack
-                      </h3>
-                      <p className={`text-sm ${styles.text.secondary}`}>
-                        Choose your own token amount (Min: 10,000 tokens)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span
-                        className={`text-sm font-medium ${styles.text.primary}`}
-                      >
-                        Tokens: {customTokens.toLocaleString()}
-                      </span>
-                      <span
-                        className={`text-lg font-bold ${styles.text.primary}`}
-                      >
-                        ₹
-                        {calculateCustomTokenPrice(
-                          customTokens,
-                        ).toLocaleString()}
-                      </span>
-                    </div>
-
-                    <input
-                      type="range"
-                      min="10000"
-                      max="5000000"
-                      step="10000"
-                      value={customTokens}
-                      onChange={(e) =>
-                        setCustomTokens(parseInt(e.target.value))
-                      }
-                      className={`w-full h-2 ${isDark ? "bg-white/10" : "bg-gray-200"} rounded-lg appearance-none cursor-pointer accent-pink-500`}
-                    />
-
-                    <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mt-4">
-                      {[50000, 100000, 250000, 500000, 1000000].map(
-                        (amount) => (
-                          <button
-                            key={amount}
-                            onClick={() => setCustomTokens(amount)}
-                            className={`px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                              customTokens === amount
-                                ? isDark
-                                  ? "border border-pink-500 bg-pink-500/20 text-pink-400"
-                                  : "border border-pink-500 bg-pink-50 text-pink-600"
-                                : isDark
-                                  ? "border border-white/[0.08] text-white/40 hover:border-pink-500/50"
-                                  : "border border-gray-200 text-gray-600 hover:border-pink-300"
-                            }`}
-                          >
-                            {amount >= 1000000
-                              ? `${amount / 1000000}M`
-                              : amount >= 1000
-                                ? `${amount / 1000}K`
-                                : amount}
-                          </button>
-                        ),
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className={`${styles.innerCard} p-4 text-center`}>
-                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
-                        Price per token
-                      </p>
-                      <p className={`text-lg font-bold ${styles.text.primary}`}>
-                        ₹
-                        {(
-                          calculateCustomTokenPrice(customTokens) / customTokens
-                        ).toFixed(4)}
-                      </p>
-                    </div>
-                    <div className={`${styles.innerCard} p-4 text-center`}>
-                      <p className={`text-xs mb-1 ${styles.text.muted}`}>
-                        Total tokens
-                      </p>
-                      <p className={`text-lg font-bold ${styles.text.primary}`}>
-                        {customTokens.toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-
-                  <ul className="space-y-2">
-                    {[
-                      "Custom token amount",
-                      "No expiration",
-                      "Use across all chatbots",
-                      "Bulk discounts available",
-                    ].map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <div className="w-5 h-5 rounded-full bg-pink-500/20 flex items-center justify-center flex-shrink-0">
-                          <Check
-                            className={`h-3 w-3 ${isDark ? "text-pink-400" : "text-pink-600"}`}
-                          />
-                        </div>
-                        <span className={styles.text.secondary}>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <SignedOut>
-                    <Button
-                      onClick={() => router.push("/sign-in")}
-                      className="w-full bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white rounded-xl"
-                    >
-                      Sign in to Purchase
-                    </Button>
-                  </SignedOut>
-                  <SignedIn>
-                    <Checkout
-                      userId={userId!}
-                      productId="custom-tokens"
-                      billingCycle="one-time"
-                      amount={calculateCustomTokenPrice(customTokens)}
-                      planType="tokens"
-                      tokens={customTokens}
-                    />
-                  </SignedIn>
-                </div>
-              </div>
-            </TabsContent>
           </Tabs>
 
           {/* Comparison Table - Outside Tabs */}
@@ -853,11 +602,6 @@ const PricingContent = () => {
                         Free Tier
                       </th>
                       <th
-                        className={`text-center py-4 px-6 font-semibold ${isDark ? "text-purple-400" : "text-purple-600"}`}
-                      >
-                        Token Packs
-                      </th>
-                      <th
                         className={`text-center py-4 px-6 font-semibold ${isDark ? "text-pink-400" : "text-pink-600"}`}
                       >
                         Chatbot Subscriptions
@@ -875,43 +619,36 @@ const PricingContent = () => {
                       {
                         feature: "Tokens Included",
                         free: "10,000/month",
-                        tokens: "50K - 1M+",
                         subscription: "1M/month",
                       },
                       {
                         feature: "Expiration",
                         free: "30 days",
-                        tokens: "Never",
                         subscription: "Monthly/Yearly",
                       },
                       {
                         feature: "All Chatbots Access",
                         free: "✓",
-                        tokens: "✓",
                         subscription: "✓",
                       },
                       {
                         feature: "Website Scraping",
                         free: "Required",
-                        tokens: "Optional",
                         subscription: "Included",
                       },
                       {
                         feature: "Priority Support",
                         free: "",
-                        tokens: "✓",
                         subscription: "✓",
                       },
                       {
                         feature: "Advanced Analytics",
                         free: "",
-                        tokens: "✓",
                         subscription: "✓",
                       },
                       {
                         feature: "Custom Integrations",
                         free: "",
-                        tokens: "",
                         subscription: "✓",
                       },
                     ].map((row, index) => (
@@ -936,21 +673,6 @@ const PricingContent = () => {
                           ) : (
                             <span className={styles.text.secondary}>
                               {row.free}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-4 px-6 text-center">
-                          {row.tokens === "✓" ? (
-                            <Check
-                              className={`h-5 w-5 ${isDark ? "text-green-400" : "text-green-500"} mx-auto`}
-                            />
-                          ) : row.tokens === "" ? (
-                            <X
-                              className={`h-5 w-5 ${isDark ? "text-white/20" : "text-gray-300"} mx-auto`}
-                            />
-                          ) : (
-                            <span className={styles.text.secondary}>
-                              {row.tokens}
                             </span>
                           )}
                         </td>
