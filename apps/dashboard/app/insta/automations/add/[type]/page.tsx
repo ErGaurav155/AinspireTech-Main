@@ -30,6 +30,7 @@ import {
   getInstaTemplateById,
   updateTemplate,
   uploadMedia,
+  getSubscriptioninfo,
   type MediaItem,
   type TemplateType,
 } from "@/lib/services/insta-actions.api";
@@ -98,7 +99,6 @@ interface AutomationForm {
   followUpDMs: boolean;
   followUpMessages: FollowUpMessage[];
   // Settings
-  delayOption: "immediate" | "3min" | "5min" | "10min";
   isActive: boolean;
   priority: number;
 }
@@ -147,7 +147,6 @@ const DEFAULT_FORM: AutomationForm = {
   phoneNoValidAction: "send",
   followUpDMs: false,
   followUpMessages: [],
-  delayOption: "immediate",
   isActive: false,
   priority: 5,
 };
@@ -507,6 +506,8 @@ export default function CreateAutomationPage() {
   const [followUpLinkForms, setFollowUpLinkForms] = useState<
     Record<number, { url: string; title: string; open: boolean }>
   >({});
+  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { userId, isLoaded } = useAuth();
@@ -724,7 +725,6 @@ export default function CreateAutomationPage() {
           : "nosend",
         followUpDMs: (t as any).followUpDMs?.enabled || false,
         followUpMessages: (t as any).followUpDMs?.messages || [],
-        delayOption: t.delayOption || "immediate",
         isActive: t.isActive || false,
         priority: t.priority || 5,
       });
@@ -778,6 +778,32 @@ export default function CreateAutomationPage() {
       fetchTemplateForEdit();
     }
   }, [isEditMode, fetchTemplateForEdit]);
+
+  // Fetch subscription status
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (!userId) return;
+      setIsLoadingSubscription(true);
+      try {
+        const result = await getSubscriptioninfo(apiRequest);
+        const subscribed =
+          result.subscriptions && result.subscriptions.length > 0;
+        setIsSubscribed(subscribed);
+      } catch (error) {
+        console.error("Error fetching subscription:", error);
+      } finally {
+        setIsLoadingSubscription(false);
+      }
+    };
+    fetchSubscription();
+  }, [userId, apiRequest]);
+
+  // Disable pro features if not subscribed
+  useEffect(() => {
+    if (!isLoadingSubscription && !isSubscribed) {
+      setForm((f) => ({ ...f, askFollow: false }));
+    }
+  }, [isLoadingSubscription, isSubscribed]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -1042,20 +1068,11 @@ export default function CreateAutomationPage() {
               : form.anyKeyword
                 ? []
                 : form.keywords.filter(Boolean),
-          isFollow: form.askFollow,
+          isFollow: form.askFollow && isSubscribed,
           priority: form.priority,
           mediaId,
           mediaUrl: form.mediaUrl,
           mediaType: form.mediaType,
-          delaySeconds:
-            form.delayOption === "3min"
-              ? 180
-              : form.delayOption === "5min"
-                ? 300
-                : form.delayOption === "10min"
-                  ? 600
-                  : 0,
-          delayOption: form.delayOption,
           automationType,
           anyPostOrReel: form.anyPostOrReel,
           anyKeyword: form.anyKeyword,
@@ -1070,25 +1087,25 @@ export default function CreateAutomationPage() {
             tagType: form.tagType,
           },
           askFollow: {
-            enabled: form.askFollow,
+            enabled: form.askFollow && isSubscribed,
             message: form.askFollowMessage,
             visitProfileBtn: form.visitProfileBtn,
             followingBtn: form.followingBtn,
           },
           askEmail: {
-            enabled: form.askEmail,
+            enabled: form.askEmail && isSubscribed,
             openingMessage: form.emailOpeningMessage,
             retryMessage: form.emailRetryMessage,
             sendDmIfNoEmail: form.emailNoValidAction === "send",
           },
           askPhone: {
-            enabled: form.askPhone,
+            enabled: form.askPhone && isSubscribed,
             openingMessage: form.phoneOpeningMessage,
             retryMessage: form.phoneRetryMessage,
             sendDmIfNoPhone: form.phoneNoValidAction === "send",
           },
           followUpDMs: {
-            enabled: form.followUpDMs,
+            enabled: form.followUpDMs && isSubscribed,
             messages: form.followUpMessages,
           },
         };
@@ -1131,7 +1148,13 @@ export default function CreateAutomationPage() {
 
   // ─── Loading gates ─────────────────────────────────────────────────────────
 
-  if (!isLoaded || isAccLoading || isLoading || isLoadingTemplate) {
+  if (
+    !isLoaded ||
+    isAccLoading ||
+    isLoading ||
+    isLoadingTemplate ||
+    isLoadingSubscription
+  ) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className={S.loadingSpinner} />
@@ -1809,14 +1832,22 @@ export default function CreateAutomationPage() {
                     Ask To Follow Before Sending DM
                   </span>
                   <Info className={S.sectionInfoIcon} />
+                  <Crown className={S.crownIcon} />
                 </div>
-                <Toggle
-                  checked={form.askFollow}
-                  onChange={(v) => setForm((f) => ({ ...f, askFollow: v }))}
-                  isDark={isDark}
-                />
+                {isSubscribed ? (
+                  <Toggle
+                    checked={form.askFollow}
+                    onChange={(v) => setForm((f) => ({ ...f, askFollow: v }))}
+                    isDark={isDark}
+                  />
+                ) : (
+                  <div className={S.lockedBadge}>
+                    <Lock className="h-3 w-3" />
+                    Pro
+                  </div>
+                )}
               </div>
-              {form.askFollow && (
+              {isSubscribed && form.askFollow && (
                 <div className={S.sectionContent}>
                   <div
                     className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
@@ -1875,6 +1906,26 @@ export default function CreateAutomationPage() {
                   </div>
                 </div>
               )}
+              {!isSubscribed && (
+                <div className={S.sectionContent}>
+                  <div
+                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
+                  >
+                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-sm mb-3">
+                      Ask users to follow before sending DMs
+                    </p>
+                    <Link href="/insta/pricing">
+                      <Button
+                        size="sm"
+                        className="bg-pink-500 hover:bg-pink-600"
+                      >
+                        Upgrade to Pro
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ask Email — all types */}
@@ -1887,13 +1938,20 @@ export default function CreateAutomationPage() {
                   <Info className={S.sectionInfoIcon} />
                   <Crown className={S.crownIcon} />
                 </div>
-                <Toggle
-                  checked={form.askEmail}
-                  onChange={(v) => setForm((f) => ({ ...f, askEmail: v }))}
-                  isDark={isDark}
-                />
+                {isSubscribed ? (
+                  <Toggle
+                    checked={form.askEmail}
+                    onChange={(v) => setForm((f) => ({ ...f, askEmail: v }))}
+                    isDark={isDark}
+                  />
+                ) : (
+                  <div className={S.lockedBadge}>
+                    <Lock className="h-3 w-3" />
+                    Pro
+                  </div>
+                )}
               </div>
-              {form.askEmail && (
+              {isSubscribed && form.askEmail && (
                 <div className={S.sectionContent}>
                   <div>
                     <p className={`text-xs font-medium mb-2 ${S.label}`}>
@@ -1990,6 +2048,26 @@ export default function CreateAutomationPage() {
                   </div>
                 </div>
               )}
+              {!isSubscribed && (
+                <div className={S.sectionContent}>
+                  <div
+                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
+                  >
+                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-sm mb-3">
+                      Ask users for email before sending DMs
+                    </p>
+                    <Link href="/insta/pricing">
+                      <Button
+                        size="sm"
+                        className="bg-pink-500 hover:bg-pink-600"
+                      >
+                        Upgrade to Pro
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Ask Phone — all types */}
@@ -2002,13 +2080,20 @@ export default function CreateAutomationPage() {
                   <Info className={S.sectionInfoIcon} />
                   <Crown className={S.crownIcon} />
                 </div>
-                <Toggle
-                  checked={form.askPhone}
-                  onChange={(v) => setForm((f) => ({ ...f, askPhone: v }))}
-                  isDark={isDark}
-                />
+                {isSubscribed ? (
+                  <Toggle
+                    checked={form.askPhone}
+                    onChange={(v) => setForm((f) => ({ ...f, askPhone: v }))}
+                    isDark={isDark}
+                  />
+                ) : (
+                  <div className={S.lockedBadge}>
+                    <Lock className="h-3 w-3" />
+                    Pro
+                  </div>
+                )}
               </div>
-              {form.askPhone && (
+              {isSubscribed && form.askPhone && (
                 <div className={S.sectionContent}>
                   <div>
                     <p className={`text-xs font-medium mb-2 ${S.label}`}>
@@ -2105,6 +2190,26 @@ export default function CreateAutomationPage() {
                   </div>
                 </div>
               )}
+              {!isSubscribed && (
+                <div className={S.sectionContent}>
+                  <div
+                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
+                  >
+                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-sm mb-3">
+                      Ask users for phone before sending DMs
+                    </p>
+                    <Link href="/insta/pricing">
+                      <Button
+                        size="sm"
+                        className="bg-pink-500 hover:bg-pink-600"
+                      >
+                        Upgrade to Pro
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Follow-Up DMs — all types */}
@@ -2115,13 +2220,20 @@ export default function CreateAutomationPage() {
                   <Info className={S.sectionInfoIcon} />
                   <Crown className={S.crownIcon} />
                 </div>
-                <Toggle
-                  checked={form.followUpDMs}
-                  onChange={(v) => setForm((f) => ({ ...f, followUpDMs: v }))}
-                  isDark={isDark}
-                />
+                {isSubscribed ? (
+                  <Toggle
+                    checked={form.followUpDMs}
+                    onChange={(v) => setForm((f) => ({ ...f, followUpDMs: v }))}
+                    isDark={isDark}
+                  />
+                ) : (
+                  <div className={S.lockedBadge}>
+                    <Lock className="h-3 w-3" />
+                    Pro
+                  </div>
+                )}
               </div>
-              {form.followUpDMs && (
+              {isSubscribed && form.followUpDMs && (
                 <div className={S.sectionContent}>
                   {form.followUpMessages.map((msg, i) => (
                     <div key={i} className={S.followUpCard}>
@@ -2359,34 +2471,26 @@ export default function CreateAutomationPage() {
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Delay */}
-            <div className={S.card}>
-              <div className="flex items-center gap-2 mb-4">
-                <h3 className={S.sectionLabel}>Delay Before Sending DM</h3>
-                <Crown className={S.crownIcon} />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {(
-                  [
-                    { value: "immediate", label: "Immediate" },
-                    { value: "3min", label: "3 min" },
-                    { value: "5min", label: "5 min" },
-                    { value: "10min", label: "10 min" },
-                  ] as const
-                ).map(({ value, label }) => (
-                  <button
-                    key={value}
-                    onClick={() =>
-                      setForm((f) => ({ ...f, delayOption: value }))
-                    }
-                    className={S.delayButton(form.delayOption === value)}
+              {!isSubscribed && (
+                <div className={S.sectionContent}>
+                  <div
+                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
                   >
-                    {label}
-                  </button>
-                ))}
-              </div>
+                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                    <p className="text-sm mb-3">
+                      Send follow-up DMs only with Pro access
+                    </p>
+                    <Link href="/insta/pricing">
+                      <Button
+                        size="sm"
+                        className="bg-pink-500 hover:bg-pink-600"
+                      >
+                        Upgrade to Pro
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="h-8" />

@@ -89,6 +89,59 @@ export interface InstagramAPIError {
   };
 }
 
+function getReconnectRequirement(params: {
+  accessToken?: string;
+  tokenExpiresAt?: Date | string;
+  errorCode?: number;
+  errorMessage?: string;
+}) {
+  const { accessToken, tokenExpiresAt, errorCode, errorMessage } = params;
+
+  if (!accessToken) {
+    return {
+      needsReconnect: true,
+      disconnectedReason: "Instagram account disconnected. Please reconnect.",
+    };
+  }
+
+  if (tokenExpiresAt && new Date(tokenExpiresAt).getTime() <= Date.now()) {
+    return {
+      needsReconnect: true,
+      disconnectedReason:
+        "Instagram access token expired. Please reconnect your account.",
+    };
+  }
+
+  if (errorCode === 190) {
+    return {
+      needsReconnect: true,
+      disconnectedReason:
+        "Instagram access expired or was removed. Please reconnect your account.",
+    };
+  }
+
+  const normalizedError = (errorMessage || "").toLowerCase();
+  if (
+    normalizedError.includes("access token") ||
+    normalizedError.includes("invalid oauth") ||
+    normalizedError.includes("session has expired") ||
+    normalizedError.includes("expired") ||
+    normalizedError.includes("invalid token") ||
+    normalizedError.includes("not properly connected")
+  ) {
+    return {
+      needsReconnect: true,
+      disconnectedReason:
+        "Instagram access expired or was removed. Please reconnect your account.",
+    };
+  }
+
+  return {
+    needsReconnect: false,
+    disconnectedReason: "",
+  };
+}
+
 // GET /api/insta/accounts - Get detailed Instagram info for ALL accounts of a user
 export const getAllInstaAccountsInfoController = async (
   req: Request,
@@ -152,6 +205,12 @@ export const getAllInstaAccountsInfoController = async (
     const accountsPromises = accounts.map(async (account) => {
       try {
         if (!account.accessToken) {
+          const reconnectStatus = getReconnectRequirement({
+            accessToken: account.accessToken,
+            tokenExpiresAt: account.tokenExpiresAt,
+            errorMessage: "Account not properly connected",
+          });
+
           // Return account with DB data even if no token
           const templatesCount = await ReplyTemplate.countDocuments({
             accountId: account.instagramId,
@@ -185,6 +244,8 @@ export const getAllInstaAccountsInfoController = async (
               metaCallsThisHour: account.metaCallsThisHour,
               isMetaRateLimited: account.isMetaRateLimited,
               tokenExpiresAt: account.tokenExpiresAt,
+              needsReconnect: reconnectStatus.needsReconnect,
+              disconnectedReason: reconnectStatus.disconnectedReason,
               createdAt: account.createdAt,
               updatedAt: account.updatedAt,
               lastActivity: account.lastActivity,
@@ -212,6 +273,12 @@ export const getAllInstaAccountsInfoController = async (
 
         if (!response.ok) {
           const errorData = (await response.json()) as InstagramAPIError;
+          const reconnectStatus = getReconnectRequirement({
+            accessToken: account.accessToken,
+            tokenExpiresAt: account.tokenExpiresAt,
+            errorCode: errorData.error?.code,
+            errorMessage: errorData.error?.message,
+          });
           console.error(
             `Instagram API error for account ${account.instagramId}:`,
             errorData,
@@ -264,6 +331,8 @@ export const getAllInstaAccountsInfoController = async (
               metaCallsThisHour: account.metaCallsThisHour,
               isMetaRateLimited: account.isMetaRateLimited,
               tokenExpiresAt: account.tokenExpiresAt,
+              needsReconnect: reconnectStatus.needsReconnect,
+              disconnectedReason: reconnectStatus.disconnectedReason,
               createdAt: account.createdAt,
               updatedAt: account.updatedAt,
               lastActivity: account.lastActivity,
@@ -356,6 +425,8 @@ export const getAllInstaAccountsInfoController = async (
             metaCallsThisHour: account.metaCallsThisHour,
             isMetaRateLimited: false,
             tokenExpiresAt: account.tokenExpiresAt,
+            needsReconnect: false,
+            disconnectedReason: "",
             createdAt: account.createdAt,
             updatedAt: account.updatedAt,
             lastActivity: account.lastActivity,
@@ -376,6 +447,11 @@ export const getAllInstaAccountsInfoController = async (
           },
         };
       } catch (error: any) {
+        const reconnectStatus = getReconnectRequirement({
+          accessToken: account.accessToken,
+          tokenExpiresAt: account.tokenExpiresAt,
+          errorMessage: error.message,
+        });
         console.error(
           `Error processing account ${account.instagramId}:`,
           error,
@@ -415,6 +491,8 @@ export const getAllInstaAccountsInfoController = async (
             metaCallsThisHour: account.metaCallsThisHour,
             isMetaRateLimited: account.isMetaRateLimited,
             tokenExpiresAt: account.tokenExpiresAt,
+            needsReconnect: reconnectStatus.needsReconnect,
+            disconnectedReason: reconnectStatus.disconnectedReason,
             createdAt: account.createdAt,
             updatedAt: account.updatedAt,
             lastActivity: account.lastActivity,

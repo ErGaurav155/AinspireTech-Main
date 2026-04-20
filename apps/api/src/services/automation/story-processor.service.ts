@@ -231,6 +231,7 @@ async function processStoryDMFlow(
       },
       false, // stories are not comment replies
       clerkId,
+      true, // isWelcomeDM = true
     );
 
     return {

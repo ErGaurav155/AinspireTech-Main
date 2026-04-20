@@ -32,11 +32,11 @@ export async function sendInstagramDM(
   message: any,
   isCommentReply: boolean = false,
   clerkId?: string,
+  isWelcomeDM: boolean = false,
 ): Promise<boolean> {
   try {
     const appendWatermark = (originalMessage: any) => {
-      const watermarkText = "ꜱᴇɴᴛ ᴡɪᴛʜ ʀᴏᴄᴋᴇᴛʀᴇᴘʟᴀɪ";
-
+      const watermarkText = "ˢᵉⁿᵗ ʷⁱᵗʰ ᴿᵒᶜᵏᵉᵗᴿᵉᵖˡᵃⁱ";
       if (originalMessage?.text) {
         return {
           ...originalMessage,
@@ -64,9 +64,9 @@ export async function sendInstagramDM(
       return originalMessage;
     };
 
-    // Add watermark for free plan users on DM messages (not comment replies)
+    // Add watermark for free plan users ONLY on welcome DM messages (not comment replies)
     let messageWithWatermark = message;
-    if (!isCommentReply && clerkId) {
+    if (!isCommentReply && isWelcomeDM && clerkId) {
       const { getUserTier } = await import("@/services/rate-limit.service.js");
       const userTier = await getUserTier(clerkId);
       if (userTier === "free") {

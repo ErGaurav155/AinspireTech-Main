@@ -110,6 +110,7 @@ async function handleEmailResponse(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (validation retry)
       );
       return {
         success: retrySuccess,
@@ -189,6 +190,7 @@ async function handlePhoneResponse(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (validation retry)
       );
       return {
         success: retrySuccess,
@@ -417,6 +419,7 @@ async function startNewDMConversation(
       },
       false,
       clerkId,
+      true, // isWelcomeDM = true
     );
 
     if (!dmSuccess) {

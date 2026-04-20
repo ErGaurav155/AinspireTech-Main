@@ -351,6 +351,8 @@ async function processDMFlow(
         },
       },
       true, // isCommentReply = true
+      clerkId,
+      true, // isWelcomeDM = true
     );
 
     if (!welcomeSuccess) {

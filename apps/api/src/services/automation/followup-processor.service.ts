@@ -139,6 +139,8 @@ export async function processFollowUpDMs(): Promise<{
                 log.commenterUserId,
                 { text: followUpMsg.message },
                 false,
+                log.userId,
+                false, // isWelcomeDM = false (follow-up message)
               );
             }
 

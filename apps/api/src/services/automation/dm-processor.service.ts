@@ -233,6 +233,7 @@ async function sendAskEmailMessage(
     { text: emailMessage },
     false,
     clerkId,
+    false, // isWelcomeDM = false (follow-up message)
   );
 
   // FIXED: Update log stage correctly
@@ -287,6 +288,7 @@ async function sendAskPhoneMessage(
     { text: phoneMessage },
     false,
     clerkId,
+    false, // isWelcomeDM = false (follow-up message)
   );
 
   // FIXED: Update log stage correctly
@@ -355,6 +357,7 @@ export async function sendFinalLinkDM(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (final link message)
       );
     }
 
@@ -384,6 +387,7 @@ export async function sendFinalLinkDM(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (final link message)
       );
     } else if (finalText) {
       dmSuccess = await sendInstagramDM(
@@ -393,6 +397,7 @@ export async function sendFinalLinkDM(
         { text: finalText },
         false,
         clerkId,
+        false, // isWelcomeDM = false (final link message)
       );
     }
 
@@ -504,6 +509,7 @@ async function handleCheckFollowAction(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (reminder message)
       );
 
       account.accountDMSent = (account.accountDMSent || 0) + 1;
@@ -593,6 +599,7 @@ async function handleVerifyFollowAction(
         },
         false,
         clerkId,
+        false, // isWelcomeDM = false (reminder message)
       );
 
       account.accountDMSent = (account.accountDMSent || 0) + 1;
@@ -693,6 +700,7 @@ async function handleLegacyWelcomeAction(
       },
       false,
       clerkId,
+      true, // isWelcomeDM = true
     );
     account.accountDMSent = (account.accountDMSent || 0) + 1;
     account.lastActivity = new Date();

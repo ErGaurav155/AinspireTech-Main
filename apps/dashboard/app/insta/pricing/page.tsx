@@ -71,6 +71,8 @@ const instagramPricingPlans: PricingPlan[] = [
       "Unlimited Automations",
       "Unlimited DMs",
       "Ask Follow before DM",
+      "Ask Email before DM",
+      "Ask Phone before DM",
       "Basic keyword triggers",
       "Priority Support (WhatsApp & Email)",
       "Instagram API compliance",
@@ -85,7 +87,6 @@ const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
   "2000 DMs / Month",
-  "Ask Follow before DM",
   "Priority Support (WhatsApp and E-mail)",
 ];
 
@@ -99,6 +100,7 @@ const comparisonFeatures = [
   { feature: "Next Post Automation", free: "✗", pro: "✓" },
   { feature: "Follow-Up Flow", free: "✗", pro: "✓" },
   { feature: "Email Collection", free: "✗", pro: "✓" },
+  { feature: "Phone Collection", free: "✗", pro: "✓" },
   { feature: "Reply Delay", free: "✗", pro: "✓" },
   { feature: "Ask For Follow", free: "✓", pro: "✓" },
   { feature: "Post And Reel Automation", free: "✗", pro: "✓" },

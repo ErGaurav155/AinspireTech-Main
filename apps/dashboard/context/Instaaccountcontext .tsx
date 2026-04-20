@@ -35,6 +35,8 @@ export interface InstaAccount {
   templatesCount: number;
   lastActivity: string;
   tokenExpiresAt?: string;
+  needsReconnect: boolean;
+  disconnectedReason?: string;
   isMetaRateLimited: boolean;
   metaCallsThisHour: number;
   createdAt: string;
@@ -121,6 +123,8 @@ function mapAccount(item: any): InstaAccount {
     templatesCount: ai.templatesCount ?? 0,
     lastActivity: ai.lastActivity || new Date().toISOString(),
     tokenExpiresAt: ai.tokenExpiresAt,
+    needsReconnect: Boolean(ai.needsReconnect),
+    disconnectedReason: ai.disconnectedReason || item.error || "",
     isMetaRateLimited: rl.isMetaRateLimited ?? ai.isMetaRateLimited ?? false,
     metaCallsThisHour: ai.metaCallsThisHour ?? 0,
     createdAt: ai.createdAt || new Date().toISOString(),

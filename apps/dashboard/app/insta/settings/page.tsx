@@ -40,6 +40,8 @@ interface AccountDataType {
   mediaCount?: number;
   accountType?: string;
   tokenExpiresAt?: string;
+  needsReconnect?: boolean;
+  disconnectedReason?: string;
   autoReplyEnabled: boolean;
   autoDMEnabled: boolean;
   followCheckEnabled: boolean;
@@ -114,6 +116,8 @@ function mapAccountToDataType(account: any): AccountDataType | null {
           year: "numeric",
         })
       : "N/A",
+    needsReconnect: account.needsReconnect ?? false,
+    disconnectedReason: account.disconnectedReason || "",
     autoReplyEnabled:
       typeof account.autoReplyEnabled === "boolean"
         ? account.autoReplyEnabled
