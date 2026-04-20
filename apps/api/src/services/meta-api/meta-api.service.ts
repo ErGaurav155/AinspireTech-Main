@@ -35,7 +35,7 @@ export async function sendInstagramDM(
 ): Promise<boolean> {
   try {
     const appendWatermark = (originalMessage: any) => {
-      const watermarkText = "Chat by RocketReplai\nhttps://rocketreplai.com";
+      const watermarkText = "ꜱᴇɴᴛ ᴡɪᴛʜ ʀᴏᴄᴋᴇᴛʀᴇᴘʟᴀɪ";
 
       if (originalMessage?.text) {
         return {

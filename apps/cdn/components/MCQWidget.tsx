@@ -133,14 +133,12 @@ function PoweredBy({ primaryColor }: { primaryColor: string }) {
         href="https://rocketreplai.com"
         target="_blank"
         rel="noopener noreferrer"
-        style={{
-          color: primaryColor,
-          fontSize: 11,
-          textDecoration: "none",
-          fontWeight: 700,
-        }}
+        style={{ color: "#94a3b8", fontSize: 11, textDecoration: "none" }}
       >
-        Chat by RocketReplai
+        Powered by{" "}
+        <span style={{ color: primaryColor, fontWeight: 800 }}>
+          RocketReplAI
+        </span>
       </a>
     </div>
   );
@@ -463,7 +461,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
         );
       }
 
-      const conversationHistory = messages.map((msg) => ({
+      const conversationHistory = messages.slice(-3).map((msg) => ({
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp?.toISOString(),
@@ -769,30 +767,6 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
             gap: 4,
           }}
         >
-          {tokenBalance && (
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                background: "rgba(255,255,255,0.15)",
-                padding: "4px 8px",
-                borderRadius: 12,
-                fontSize: 11,
-                fontWeight: 600,
-              }}
-            >
-              <svg
-                width="12"
-                height="12"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-              </svg>
-              {tokenBalance.availableTokens.toLocaleString()}
-            </div>
-          )}
           {mode === "embed" ? (
             <button
               onClick={() => setIsOpen(false)}

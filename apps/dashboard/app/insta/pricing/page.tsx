@@ -70,7 +70,6 @@ const instagramPricingPlans: PricingPlan[] = [
       "3 Instagram Accounts",
       "Unlimited Automations",
       "Unlimited DMs",
-      "Remove RocketReplai watermark",
       "Ask Follow before DM",
       "Basic keyword triggers",
       "Priority Support (WhatsApp & Email)",
@@ -86,7 +85,6 @@ const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
   "2000 DMs / Month",
-  "Chat by RocketReplai watermark on DMs",
   "Ask Follow before DM",
   "Priority Support (WhatsApp and E-mail)",
 ];
@@ -106,7 +104,7 @@ const comparisonFeatures = [
   { feature: "Post And Reel Automation", free: "✗", pro: "✓" },
   { feature: "Story Automations", free: "✗", pro: "✓" },
   { feature: "Inbox Automations", free: "✗", pro: "✓" },
-  { feature: "Remove RocketReplai Watermark", free: "✗", pro: "✓" },
+  { feature: "Remove App Branding", free: "✗", pro: "✓" },
   { feature: "Excess DM Queue", free: "✗", pro: "✓" },
   { feature: "Welcome Openers", free: "✗", pro: "✓" },
 ];

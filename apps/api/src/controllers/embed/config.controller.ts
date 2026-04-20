@@ -58,7 +58,7 @@ export const getEmbedConfigByTypeController = async (
     const settings = (chatbot as any).settings || {};
     const hasActiveSubscription = await WebSubscription.exists({
       clerkId: userId,
-      chatbotType,
+      chatbotType: chatbotType as "chatbot-lead-generation" | "chatbot-education",
       status: "active",
       expiresAt: { $gt: new Date() },
     });

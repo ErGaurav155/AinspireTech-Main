@@ -547,14 +547,21 @@ function PoweredBy({ primaryColor }: { primaryColor: string }) {
         rel="noopener noreferrer"
         style={{
           fontSize: 11,
-          color: primaryColor,
+          color: "#9ca3af",
           textDecoration: "none",
           display: "inline-flex",
           alignItems: "center",
-          fontWeight: 700,
+          gap: 3,
         }}
       >
-        Chat by RocketReplai
+        Chat{" "}
+        <span style={{ color: primaryColor, fontWeight: 800, fontSize: 13 }}>
+          ⚡
+        </span>{" "}
+        by{" "}
+        <span style={{ fontWeight: 700, color: primaryColor }}>
+          RocketReplAI
+        </span>
       </a>
     </div>
   );
@@ -1944,50 +1951,6 @@ export default function ChatWidget({
             </button>
           )}
         </div>
-
-        {/* Token Display */}
-        {tokenBalance && (
-          <div
-            style={{
-              padding: "4px 16px",
-              textAlign: "center",
-              fontSize: 11,
-              color:
-                tokenBalance.availableTokens <= 100 ? "#dc2626" : "#6b7280",
-              borderTop: "1px solid #f3f4f6",
-            }}
-          >
-            {tokenBalance.availableTokens <= 100 ? (
-              <>
-                <span style={{ color: "#dc2626", fontWeight: 600 }}>
-                  ⚠️ {tokenBalance.availableTokens} tokens left
-                </span>
-                {tokenBalance.availableTokens === 0 && (
-                  <div style={{ marginTop: 4 }}>
-                    <a
-                      href="#"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        alert(
-                          "Please contact the website owner to purchase more tokens.",
-                        );
-                      }}
-                      style={{
-                        color: pc,
-                        textDecoration: "underline",
-                        fontWeight: 600,
-                      }}
-                    >
-                      Contact owner to purchase tokens →
-                    </a>
-                  </div>
-                )}
-              </>
-            ) : (
-              `${tokenBalance.availableTokens} tokens available`
-            )}
-          </div>
-        )}
 
         {config?.showBranding !== false && <PoweredBy primaryColor={pc} />}
       </div>

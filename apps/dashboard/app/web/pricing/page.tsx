@@ -337,16 +337,6 @@ const PricingContent = () => {
                           Basic support
                         </span>
                       </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <Check
-                            className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
-                          />
-                        </div>
-                        <span className={styles.text.secondary}>
-                          Chat by RocketReplai watermark
-                        </span>
-                      </li>
                     </ul>
                   </div>
                   <div className="text-center md:text-right">
@@ -658,11 +648,6 @@ const PricingContent = () => {
                       },
                       {
                         feature: "Custom Integrations",
-                        free: "",
-                        subscription: "✓",
-                      },
-                      {
-                        feature: "Remove RocketReplai watermark",
                         free: "",
                         subscription: "✓",
                       },
