@@ -23,6 +23,7 @@ import {
   Plus,
   Contact,
   Lock,
+  CurrencyIcon,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -45,6 +46,12 @@ const NAV_ITEMS = [
   { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: false },
   { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings, isNew: false },
+  {
+    label: "Pricing",
+    href: "/insta/pricing",
+    icon: CurrencyIcon,
+    isNew: false,
+  },
 ] as const;
 
 // ─── Props ────────────────────────────────────────────────────────────────────

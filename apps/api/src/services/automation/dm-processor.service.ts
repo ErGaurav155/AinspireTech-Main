@@ -341,14 +341,18 @@ export async function sendFinalLinkDM(
     const link = content?.link || "";
 
     // If content has a media attachment (Cloudinary URL), send it first
-    if (content?.mediaUrl) {
+    // Note: Instagram only supports image/video/audio attachments in DMs, not PDFs
+    if (
+      content?.mediaUrl &&
+      (content.mediaType === "image" || content.mediaType === "video")
+    ) {
       await sendInstagramDM(
         account.instagramId,
         account.accessToken,
         recipientId,
         {
           attachment: {
-            type: content.mediaType === "image" ? "image" : "file",
+            type: content.mediaType,
             payload: {
               url: content.mediaUrl,
               is_reusable: true,
@@ -358,6 +362,11 @@ export async function sendFinalLinkDM(
         false,
         clerkId,
         false, // isWelcomeDM = false (final link message)
+      );
+    } else if (content?.mediaUrl && content.mediaType === "document") {
+      // PDFs are not supported in Instagram DMs - log and skip
+      console.log(
+        `Skipping PDF attachment for user ${recipientId} - Instagram doesn't support PDF attachments in DMs`,
       );
     }
 

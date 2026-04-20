@@ -853,12 +853,24 @@ export default function CreateAutomationPage() {
 
       setIsUploadingMedia(true);
       try {
+        // Check if PDF is being uploaded for DM content - Instagram doesn't support PDFs in DMs
+        if (file.type === "application/pdf") {
+          toast({
+            title: "PDF files not supported in DMs",
+            description:
+              "Instagram doesn't support PDF attachments in direct messages. Please use images or videos only.",
+            variant: "destructive",
+            duration: 5000,
+          });
+          setIsUploadingMedia(false);
+          return;
+        }
+
         // ✅ Same pattern as createInstaTemplate(apiRequest, ...) etc.
         const result = await uploadMedia(apiRequest, file);
 
         let mediaType = "image";
         if (file.type.startsWith("video/")) mediaType = "video";
-        else if (file.type === "application/pdf") mediaType = "document";
 
         setForm((f) => ({
           ...f,
@@ -1628,17 +1640,18 @@ export default function CreateAutomationPage() {
                       <p
                         className={`text-sm ${isDark ? "text-white/60" : "text-gray-500"}`}
                       >
-                        Attach image, video or PDF (optional)
+                        Attach image or video (optional)
                       </p>
                       <p className={`text-xs ${S.muted} mt-1`}>
-                        Max 10 MB • Sent before the message
+                        Max 10 MB • PDFs not supported in DMs • Sent before the
+                        message
                       </p>
                     </>
                   )}
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,application/pdf"
+                    accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
                     className="hidden"
                     onChange={handleDMMediaUpload}
                   />
