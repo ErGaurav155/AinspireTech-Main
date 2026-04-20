@@ -68,9 +68,9 @@ export async function sendInstagramDM(
       return originalMessage;
     };
 
-    // Add watermark for free plan users ONLY on welcome DM messages (not comment replies)
+    // Add watermark for free plan users ONLY on welcome messages (DMs or comment replies)
     let messageWithWatermark = message;
-    if (!isCommentReply && isWelcomeDM && clerkId) {
+    if (isWelcomeDM && clerkId) {
       const { getUserTier } = await import("@/services/rate-limit.service.js");
       const userTier = await getUserTier(clerkId);
       if (userTier === "free") {
