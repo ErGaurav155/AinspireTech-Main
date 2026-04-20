@@ -36,8 +36,11 @@ export async function sendInstagramDM(
 ): Promise<boolean> {
   try {
     const appendWatermark = (originalMessage: any) => {
-      const watermarkText = "ꜱᴇɴᴛ ᴡɪᴛʜ ʀᴏᴄᴋᴇᴛʀᴇᴘʟᴀɪ";
-
+      const watermarkText = "ˢᵉⁿᵗ ʷⁱᵗʰ ᴿᵒᶜᵏᵉᵗᴿᵉᵖˡᵃⁱ";
+      console.log("Appending watermark to message for free user:", {
+        originalMessage,
+        watermarkText,
+      });
       if (originalMessage?.text) {
         return {
           ...originalMessage,
