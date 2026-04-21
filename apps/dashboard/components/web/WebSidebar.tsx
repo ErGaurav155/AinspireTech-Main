@@ -535,7 +535,7 @@ export default function WebSidebar({
                     isActive(`${currentChatbot.href}/analytics`),
                   )}
                 />
-                <span className="text-sm font-medium">analytics</span>
+                <span className="text-sm font-medium">Analytics</span>
               </div>
             </div>
             {isActive(`${currentChatbot.href}/analytics`) && (
