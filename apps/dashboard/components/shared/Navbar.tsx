@@ -119,7 +119,7 @@ export function Navbar({
                 className={`text-xs font-semibold ${isDark ? "text-pink-400 border-pink-500/30 hover:bg-white/[0.06]" : "text-pink-500 border-pink-200 hover:bg-pink-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
               >
                 <Link href="/insta/refer">
-                  <HandshakeIcon className="h-3.5 w-3.5 mr-1.5" />
+                  <HandshakeIcon className="h-3.5 w-3.5 lg:mr-1.5" />
                   <span className="hidden lg:inline">
                     Collab<span className="hidden xl:inline">oration</span>
                   </span>
@@ -134,7 +134,7 @@ export function Navbar({
                   className={`text-xs font-semibold ${isDark ? "text-pink-400 border-pink-500/30 hover:bg-white/[0.06]" : "text-pink-500 border-pink-200 hover:bg-pink-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors hidden lg:inline-flex`}
                 >
                   <Link href={instaAction.href}>
-                    <instaAction.icon className="h-3.5 w-3.5 mr-1.5" />
+                    <instaAction.icon className="h-3.5 w-3.5 lg:mr-1.5" />
                     <span className="hidden lg:inline">
                       {instaAction.label}
                     </span>
@@ -167,7 +167,7 @@ export function Navbar({
                 className={`text-xs font-semibold ${isDark ? "text-amber-400 border-amber-500/30 hover:bg-white/[0.06]" : "text-amber-500 border-amber-200 hover:bg-amber-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
               >
                 <Link href="/web/tokens">
-                  <Coins className="h-3.5 w-3.5 mr-1.5" />
+                  <Coins className="h-3.5 w-3.5 sm:mr-1.5" />
                   <span className="hidden sm:inline">Tokens</span>
                 </Link>
               </Button>
