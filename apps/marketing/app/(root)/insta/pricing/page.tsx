@@ -21,8 +21,8 @@ const instagramPricingPlans: PricingPlan[] = [
     id: "Insta-Automation-Pro",
     name: "Pro Unlimited",
     description: "For growing creators",
-    monthlyPrice: 500,
-    yearlyPrice: 5000,
+    monthlyPrice: 499,
+    yearlyPrice: 4788,
     account: 3,
     limit: 5000,
     features: [
@@ -43,53 +43,32 @@ const instagramPricingPlans: PricingPlan[] = [
 const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
-  "100 DMs / hour",
-  "Ask Follow before DM",
+  "Unlimited DMs",
   "Priority Support (WhatsApp and E-mail)",
+  "Spam detection",
 ];
 
 // Comparison Table Data
 const comparisonFeatures = [
-  { feature: "Pricing", free: "₹0 / Month", pro: "₹500 / Month" },
+  { feature: "Pricing", free: "₹0 / Month", pro: "₹399 / Month" },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
-  { feature: "DM Send Limit", free: "2000 / Month", pro: "Unlimited" },
+  { feature: "DM Send Limit", free: "Unlimited", pro: "Unlimited" },
   { feature: "Instagram Account", free: "1", pro: "3" },
   {
     feature: "Support",
     free: "Priority(WA & E-mail)",
     pro: "Priority(WA & E-mail)",
   },
-  { feature: "Next post automation", free: "✗", pro: "✓" },
   { feature: "Follow-Up Flow", free: "✗", pro: "✓" },
   { feature: "Email Collection", free: "✗", pro: "✓" },
-  { feature: "Replay Delay", free: "✗", pro: "✓" },
-  { feature: "Ask For Follow", free: "✓", pro: "✓" },
-  { feature: "Post And Reel Automation", free: "✗", pro: "✓" },
-  { feature: "Story Automations", free: "✗", pro: "✓" },
-  { feature: "Inbox Automations", free: "✗", pro: "✓" },
+  { feature: "Ask For Follow", free: "✗", pro: "✓" },
+  { feature: "Post And Reel Automation", free: "✓", pro: "✓" },
+  { feature: "Story Automations", free: "✓", pro: "✓" },
+  { feature: "Inbox Automations", free: "✓", pro: "✓" },
   { feature: "Remove App Branding", free: "✗", pro: "✓" },
   { feature: "Excess DM Queue", free: "✗", pro: "✓" },
-  { feature: "Welcome Openers", free: "✗", pro: "✓" },
+  { feature: "Welcome Openers", free: "✓", pro: "✓" },
 ];
-const FREE_PLAN = {
-  id: "Insta-Automation-Free",
-  name: "Free",
-  description: "Default plan for new users",
-  monthlyPrice: 0,
-  yearlyPrice: 0,
-  account: 1,
-  limit: 500,
-  features: [
-    "Comments Automation Unlimited",
-    "100 DMs Automation Daily",
-    "3 reply templates",
-    "Basic keyword triggers",
-    "Email support",
-    "Instagram API compliance",
-    "Spam detection",
-  ],
-  popular: false,
-};
 
 export default function Pricing() {
   const { theme, resolvedTheme } = useTheme();
@@ -115,42 +94,7 @@ export default function Pricing() {
   useEffect(() => {
     setMounted(true);
   }, []);
-  const renderFeatureRow = (
-    feature: string,
-    starter: string,
-    growth: string,
-    pro: string,
-  ) => {
-    const renderCell = (value: string, color: string) => {
-      if (value === "✓") {
-        return <Check className={`h-5 w-5 ${color} mx-auto`} />;
-      } else if (value === "✗") {
-        return <span className={themeStyles.textMuted}>—</span>;
-      }
-      return <span className={themeStyles.textSecondary}>{value}</span>;
-    };
 
-    return (
-      <tr
-        className={`hover:${
-          theme === "dark" ? "bg-[#1a1a1a]/50" : "bg-gray-100/50"
-        } font-montserrat text-base`}
-      >
-        <td className={`py-4 px-6 font-medium ${themeStyles.textSecondary}`}>
-          {feature}
-        </td>
-        <td className="py-4 px-6 text-center">
-          {renderCell(starter, "text-[#00F0FF]")}
-        </td>
-        <td className="py-4 px-6 text-center">
-          {renderCell(growth, "text-[#B026FF]")}
-        </td>
-        <td className="py-4 px-6 text-center">
-          {renderCell(pro, "text-[#FF2E9F]")}
-        </td>
-      </tr>
-    );
-  };
   if (!mounted) {
     return (
       <div className="min-h-screen bg-transparent flex items-center justify-center h-full w-full">
@@ -313,15 +257,15 @@ export default function Pricing() {
                         ₹{" "}
                         {billingCycle === "monthly"
                           ? plan.monthlyPrice.toFixed(0)
-                          : plan.yearlyPrice.toFixed(0)}
+                          : (plan.yearlyPrice / 12).toFixed(0)}
                       </span>
                       <span className={themeStyles.textMuted}>
-                        /{billingCycle === "monthly" ? "month" : "year"}
+                        /{billingCycle === "monthly" ? "month" : "month"}
                       </span>
                     </div>
 
                     <p className="text-center text-wrap text-green-400 my-2 font-medium font-montserrat text-base">
-                      Two Months Free On Yearly Plan.
+                      Three Months Free On Yearly Plan.
                     </p>
                     <ul className="space-y-3 mb-8">
                       {plan.features.map((feature, idx) => (

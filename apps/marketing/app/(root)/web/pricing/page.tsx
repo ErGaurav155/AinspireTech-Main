@@ -15,14 +15,9 @@ import {
   Zap,
   LucideIcon,
   CreditCard,
-  Infinity as InfiniteIcon,
 } from "lucide-react";
 
-import {
-  calculateCustomTokenPrice,
-  productSubscriptionDetails,
-  tokenPlans,
-} from "@rocketreplai/shared";
+import { productSubscriptionDetails } from "@rocketreplai/shared";
 import {
   Badge,
   BreadcrumbsDefault,
@@ -56,7 +51,7 @@ interface Product {
 }
 
 type BillingMode = "monthly" | "yearly";
-type PlanType = "chatbot" | "tokens";
+type PlanType = "chatbot";
 
 // Icon mapping with proper typing
 const iconMapping: Record<string, LucideIcon> = {
@@ -68,24 +63,6 @@ const iconMapping: Record<string, LucideIcon> = {
   ShoppingCartIcon,
   Building2Icon,
 };
-
-// Constants
-const ALL_FEATURES = [
-  "24/7 Availability",
-  "Live Chat Interface",
-  "Multi-language Support",
-  "Dashboard Availability",
-  "Automated Responses",
-  "CRM Integration",
-  "Advanced Analytics",
-  "Custom Workflows",
-  "Lead qualification",
-  "Email Notifications",
-  "Priority Support",
-  "User Data Collection",
-  "Personalized learning",
-  "Interactive quizzes",
-];
 
 const PricingContent = () => {
   const searchParams = useSearchParams();
@@ -99,8 +76,6 @@ const PricingContent = () => {
   // State
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
-  const [customTokens, setCustomTokens] = useState<number>(100000);
-  const [showCustom, setShowCustom] = useState(false);
 
   // Derived state
   const currentTheme = resolvedTheme || theme || "light";
@@ -195,13 +170,6 @@ const PricingContent = () => {
       : "border-gray-300 hover:border-[#FF2E9F]";
   };
 
-  const getCardStylesForToken = (Id: string) => {
-    const isDark = currentTheme === "dark";
-    return isDark
-      ? "border-[#FF2E9F]/20 hover:border-[#FF2E9F]"
-      : "border-gray-300 hover:border-[#FF2E9F]";
-  };
-
   const getGradientBg = (productId: string) => {
     const isDark = currentTheme === "dark";
     const opacity = isDark ? "10" : "5";
@@ -210,19 +178,6 @@ const PricingContent = () => {
       return `from-[#B026FF]/${opacity}`;
     }
     if (productId === "chatbot-education") {
-      return `from-[#00F0FF]/${opacity}`;
-    }
-    return `from-[#FF2E9F]/${opacity}`;
-  };
-
-  const getGradientBgForToken = (Id: string) => {
-    const isDark = currentTheme === "dark";
-    const opacity = isDark ? "10" : "5";
-
-    if (Id === "pro") {
-      return `from-[#B026FF]/${opacity}`;
-    }
-    if (Id === "basic") {
       return `from-[#00F0FF]/${opacity}`;
     }
     return `from-[#FF2E9F]/${opacity}`;
@@ -256,11 +211,11 @@ const PricingContent = () => {
         <p
           className={`text-xl ${themeStyles.textSecondary} font-montserrat mb-8 max-w-2xl mx-auto`}
         >
-          Choose between monthly chatbot subscriptions or one-time token
-          purchases
+          Start with 10,000 free tokens on account creation, then upgrade to
+          chatbot subscriptions for higher usage.
         </p>
 
-        {/* Tabs for Chatbot vs Token Plans */}
+        {/* Chatbot subscription settings */}
         <div className="mb-8">
           <Tabs
             defaultValue="chatbot"
@@ -269,7 +224,7 @@ const PricingContent = () => {
             className="w-full"
           >
             <TabsList
-              className={`grid grid-cols-2 w-full max-w-md mx-auto border-2 ${themeStyles.cardBorder} `}
+              className={`grid grid-cols-1 w-full max-w-md mx-auto border-2 ${themeStyles.cardBorder} `}
             >
               <TabsTrigger
                 className="
@@ -280,19 +235,7 @@ const PricingContent = () => {
   "
                 value="chatbot"
               >
-                Chatbot &nbsp;
-                <span className="hidden md:flex"> Subscriptions</span>
-              </TabsTrigger>
-              <TabsTrigger
-                className="
-    data-[state=active]:bg-blue-600
-    data-[state=active]:text-white
-    data-[state=active]:shadow
-    transition-all
-  "
-                value="tokens"
-              >
-                Token &nbsp;<span className="hidden md:flex">Packs</span>
+                Chatbot Subscriptions
               </TabsTrigger>
             </TabsList>
 
@@ -329,12 +272,6 @@ const PricingContent = () => {
                   Save 16%
                 </div>
               </div>
-            </TabsContent>
-
-            <TabsContent value="tokens" className="mt-6">
-              <p className={`${themeStyles.textSecondary} font-montserrat`}>
-                One-time purchase. Tokens never expire.
-              </p>
             </TabsContent>
           </Tabs>
         </div>
@@ -513,226 +450,6 @@ const PricingContent = () => {
     );
   };
 
-  // Token Pricing Cards
-  const renderTokenPricingCard = (plan: any) => (
-    <Card
-      key={plan.id}
-      className={`relative group h-full w-full flex flex-col items-center justify-between rounded-lg backdrop-blur-sm border transition-all duration-300  ${
-        themeStyles.cardBg
-      } ${themeStyles.cardBorder} ${getCardStylesForToken(plan.id)}`}
-    >
-      {/* Gradient Background */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity ${getGradientBgForToken(
-          plan.id,
-        )} to-transparent`}
-      />
-      <CardHeader className="">
-        <CardTitle
-          className={`flex items-center justify-between ${themeStyles.textPrimary}`}
-        >
-          {plan.name}
-          {plan.id === "pro" && (
-            <Badge className={`${themeStyles.badgeBg} ml-2 border`}>
-              Most Popular
-            </Badge>
-          )}
-        </CardTitle>
-        <CardDescription
-          className={`font-montserrat text-center ${themeStyles.textSecondary}`}
-        >
-          {plan.tokens.toLocaleString()} tokens
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col flex-grow w-full">
-        <div className="mb-4">
-          <p
-            className={`text-3xl font-bold  text-center ${themeStyles.textPrimary} text-[#a020eb]`}
-          >
-            ₹{plan.price.toLocaleString()}
-          </p>
-          <p
-            className={`text-sm ${themeStyles.textMuted} text-center font-montserrat`}
-          >
-            ₹{plan.perTokenPrice.toFixed(4)} per token
-          </p>
-        </div>
-
-        <ul
-          className={`w-full space-y-2 mb-4 flex-grow font-montserrat ${themeStyles.textSecondary}`}
-        >
-          {plan.features.map((feature: string, idx: number) => (
-            <li key={idx} className="flex items-center justify-start text-sm">
-              <span
-                className={`flex-shrink-0 w-5 h-5 mt-1 mr-2 rounded-full flex items-center justify-center bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white`}
-              >
-                <Check className="w-3 h-3" />
-              </span>
-              {feature}
-            </li>
-          ))}
-        </ul>
-
-        <div className="w-full relative">
-          <Button
-            onClick={handleStartAutomation}
-            className="w-full py-3 rounded-full font-bold bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white hover:opacity-90 transition-opacity"
-          >
-            <CreditCard className="h-4 w-4 mr-2" />
-            Start Automating
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  // Custom Token Card
-  const renderCustomTokenCard = () => (
-    <Card className={`${themeStyles.cardBg} ${themeStyles.cardBorder}`}>
-      <CardHeader>
-        <CardTitle
-          className={`flex items-center justify-between flex-wrap gap-2 ${themeStyles.textPrimary}`}
-        >
-          <div className="flex items-center">
-            <InfiniteIcon className="h-5 w-5 mr-2" />
-            Custom Token Pack
-          </div>
-          {showCustom && (
-            <Badge className={`${themeStyles.badgeBg} border`}>Selected</Badge>
-          )}
-        </CardTitle>
-        <CardDescription
-          className={`font-montserrat ${themeStyles.textSecondary}`}
-        >
-          Choose your own token amount (Min: 10,000 tokens)
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label
-                className={`text-sm font-medium ${themeStyles.textPrimary}`}
-              >
-                Tokens: {customTokens.toLocaleString()}
-              </label>
-              <span className={`text-sm font-bold ${themeStyles.textPrimary}`}>
-                ₹{calculateCustomTokenPrice(customTokens).toLocaleString()}
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <input
-                type="range"
-                min="10000"
-                max="5000000"
-                step="10000"
-                value={customTokens}
-                onChange={(e) => setCustomTokens(parseInt(e.target.value))}
-                className={`w-full h-2 ${
-                  currentTheme === "dark" ? "bg-gray-700" : "bg-gray-200"
-                } rounded-lg appearance-none cursor-pointer`}
-              />
-
-              <div className="grid grid-cols-3 lg:grid-cols-5 gap-2">
-                {[50000, 100000, 250000, 500000, 1000000].map((amount) => (
-                  <Button
-                    key={amount}
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCustomTokens(amount)}
-                    className={`${
-                      customTokens === amount
-                        ? "border-blue-500"
-                        : themeStyles.cardBorder
-                    }`}
-                  >
-                    {amount >= 1000000
-                      ? `${amount / 1000000}M`
-                      : amount >= 1000
-                        ? `${amount / 1000}K`
-                        : amount}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div
-              className={`text-center p-4 ${
-                currentTheme === "dark" ? "bg-gray-900" : "bg-gray-50"
-              } rounded-lg`}
-            >
-              <p className={`text-sm ${themeStyles.textMuted} font-montserrat`}>
-                Price per token
-              </p>
-              <p
-                className={`text-sm sm:text-base md:text-xl md:font-bold ${themeStyles.textPrimary}`}
-              >
-                ₹
-                {(
-                  calculateCustomTokenPrice(customTokens) / customTokens
-                ).toFixed(4)}
-              </p>
-            </div>
-            <div
-              className={`text-center p-4 ${
-                currentTheme === "dark" ? "bg-gray-900" : "bg-gray-50"
-              } rounded-lg`}
-            >
-              <p className={`text-sm ${themeStyles.textMuted} font-montserrat`}>
-                Total tokens
-              </p>
-              <p
-                className={`text-sm sm:text-base md:text-xl md:font-bold ${themeStyles.textPrimary}`}
-              >
-                {customTokens.toLocaleString()}
-              </p>
-            </div>
-          </div>
-
-          <ul
-            className={`space-y-2 font-montserrat ${themeStyles.textSecondary}`}
-          >
-            {[
-              "Custom token amount",
-              "No expiration",
-              "Use across all chatbots",
-              "Bulk discounts available",
-            ].map((feature, idx) => (
-              <li key={idx} className="flex items-center text-sm">
-                <Check className="h-4 w-4 text-green-500 mr-2" />
-                {feature}
-              </li>
-            ))}
-          </ul>
-
-          <div className="flex gap-4 flex-wrap">
-            <Button
-              variant={showCustom ? "default" : "outline"}
-              className={`flex-1 rounded-full ${
-                showCustom ? "" : themeStyles.cardBorder
-              }`}
-              onClick={() => setShowCustom(true)}
-            >
-              {showCustom ? "Custom Pack Selected" : "Select Custom Pack"}
-            </Button>
-
-            {showCustom && (
-              <Button
-                onClick={handleStartAutomation}
-                className="flex-1 py-3 rounded-full font-bold bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white hover:opacity-90 transition-opacity"
-              >
-                Start Automating
-              </Button>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-
   const renderComparisonTable = () => (
     <section className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto">
@@ -762,11 +479,6 @@ const PricingContent = () => {
                 <th
                   className={`text-center py-4 px-6 font-semibold ${themeStyles.textPrimary} border-b ${themeStyles.tableBorder}`}
                 >
-                  Token Packs
-                </th>
-                <th
-                  className={`text-center py-4 px-6 font-semibold ${themeStyles.textPrimary} border-b ${themeStyles.tableBorder}`}
-                >
                   Chatbot Subscriptions
                 </th>
               </tr>
@@ -776,43 +488,36 @@ const PricingContent = () => {
                 {
                   feature: "Tokens Included",
                   free: "10,000/month",
-                  tokens: "50K - 1M+",
                   subscription: "1M/month",
                 },
                 {
                   feature: "Expiration",
                   free: "30 days",
-                  tokens: "Never",
                   subscription: "Monthly/Yearly",
                 },
                 {
                   feature: "All Chatbots Access",
                   free: "✓",
-                  tokens: "✓",
                   subscription: "✓",
                 },
                 {
                   feature: "Website Scraping",
                   free: "Required",
-                  tokens: "Optional",
                   subscription: "Included",
                 },
                 {
                   feature: "Priority Support",
                   free: "",
-                  tokens: "✓",
                   subscription: "✓",
                 },
                 {
                   feature: "Advanced Analytics",
                   free: "",
-                  tokens: "✓",
                   subscription: "✓",
                 },
                 {
                   feature: "Custom Integrations",
                   free: "",
-                  tokens: "",
                   subscription: "✓",
                 },
               ].map((row, index) => (
@@ -824,11 +529,6 @@ const PricingContent = () => {
                   </td>
                   <td className="py-4 px-6 text-center">
                     <span className={themeStyles.textPrimary}>{row.free}</span>
-                  </td>
-                  <td className="py-4 px-6 text-center">
-                    <span className={themeStyles.textPrimary}>
-                      {row.tokens}
-                    </span>
                   </td>
                   <td className="py-4 px-6 text-center">
                     <span className={themeStyles.textPrimary}>
@@ -860,27 +560,12 @@ const PricingContent = () => {
           onValueChange={(value) => setActiveTab(value as PlanType)}
           className="w-full"
         >
-          <div className={`hidden`}>
-            <TabsList>
-              <TabsTrigger value="chatbot">Chatbots</TabsTrigger>
-              <TabsTrigger value="tokens">Tokens</TabsTrigger>
-            </TabsList>
-          </div>
-
           <TabsContent value="chatbot" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2  gap-8 max-w-6xl mx-auto">
               {Object.values(productSubscriptionDetails).map(
                 renderChatbotPricingCard,
               )}
             </div>
-          </TabsContent>
-
-          <TabsContent value="tokens" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-              {Object.values(tokenPlans).map(renderTokenPricingCard)}
-            </div>
-
-            <div className="max-w-4xl mx-auto">{renderCustomTokenCard()}</div>
           </TabsContent>
         </Tabs>
 

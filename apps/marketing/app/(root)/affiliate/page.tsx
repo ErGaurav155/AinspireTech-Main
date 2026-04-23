@@ -32,7 +32,7 @@ const stats = [
   {
     icon: DollarSign,
     label: "Commission Rate",
-    value: "30%",
+    value: "25%",
     description: "On every subscription",
     gradient: "from-green-400 to-emerald-500",
   },
@@ -64,7 +64,7 @@ const features = [
     icon: DollarSign,
     title: "High Commission",
     description:
-      "Earn 30% on every subscription. Multiple products mean multiple earnings!",
+      "Earn 25% on every subscription. Multiple products mean multiple earnings!",
     gradient: "from-green-400 to-emerald-500",
   },
   {
@@ -110,7 +110,7 @@ const howItWorks = [
   {
     step: "3",
     title: "Earn Commissions",
-    description: "Get 30% commission when users subscribe through your link.",
+    description: "Get 25% commission when users subscribe through your link.",
     icon: "💰",
     gradient: "from-green-400 to-emerald-500",
   },
@@ -127,16 +127,16 @@ const howItWorks = [
 const products = [
   {
     name: "Web Chatbots",
-    types: ["Customer Support", "Lead Generation", "Education"],
-    monthlyPrice: "$49-99",
-    commission: "30% for 10 months",
+    types: ["Lead Generation", "Education"],
+    monthlyPrice: "$10",
+    commission: "25% for 10 months",
     gradient: "from-blue-400 to-cyan-500",
   },
   {
     name: "Instagram Automation",
-    types: ["Starter", "Growth", "Professional"],
-    monthlyPrice: "$500-2000",
-    commission: "30% for 10 months",
+    types: ["Free", "Pro"],
+    monthlyPrice: "$5",
+    commission: "25% for 10 months",
     gradient: "from-purple-400 to-pink-500",
   },
 ];
@@ -281,8 +281,8 @@ export default function AffiliateLandingPage() {
 
   // Calculate earnings
   const calculateEarnings = (referralsCount: number) => {
-    const avgSubscription = 650;
-    const commissionRate = 0.3;
+    const avgSubscription = 10;
+    const commissionRate = 0.25;
     const monthly = referralsCount * avgSubscription * commissionRate;
     const yearly = monthly * 12;
     const threeYear = yearly * 3;
@@ -780,7 +780,7 @@ export default function AffiliateLandingPage() {
                   <p
                     className={`text-sm text-center ${themeStyles.descriptionText} font-montserrat`}
                   >
-                    Based on average subscription value of $650 and 30%
+                    Based on average subscription value of $10 and 25%
                     commission
                   </p>
                 </div>

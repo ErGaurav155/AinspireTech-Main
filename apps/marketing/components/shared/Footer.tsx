@@ -57,28 +57,16 @@ export function Footer() {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Logo and Navigation */}
-          <div className="flex flex-col items-center md:items-start">
-            <div className="mb-6">
-              <Link href="/" className="flex items-center">
-                <div className="relative w-10 h-10 mr-3">
-                  <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#B026FF] animate-pulse"></div>
-                  <div
-                    className={`absolute inset-1 rounded-full ${themeStyles.logoBg} flex items-center justify-center`}
-                  >
-                    <Image
-                      alt="Logo"
-                      src={Logo}
-                      width={24}
-                      height={24}
-                      className="object-contain"
-                    />
-                  </div>
-                </div>
-                <h1 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-                  Ainpire<span className="text-[#B026FF]">Tech</span>
-                </h1>
-              </Link>
-            </div>
+          <div className="flex flex-col  items-center md:items-start">
+            <Link href="/" className="flex items-center h-24 w-1/2 md:w-full">
+              <Image
+                alt="Logo"
+                src={Logo}
+                // width={100}
+                // height={100}
+                className="object-cover "
+              />
+            </Link>
             <ul className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 font-montserrat">
               {[
                 { href: "/contactUs", label: "Contact Us" },

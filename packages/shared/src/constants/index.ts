@@ -390,7 +390,7 @@ export type PricingPlan = {
 };
 export interface Feature {
   name: string;
-  comment2DM: string | boolean;
+  RocketReplai: string | boolean;
   autoDM: string | boolean;
   linkplease: string | boolean;
   rapiddm: string | boolean;
@@ -813,7 +813,7 @@ export const tailwindHexColors = [
 export const features: Feature[] = [
   {
     name: "Meta Verified",
-    comment2DM: true,
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -822,16 +822,16 @@ export const features: Feature[] = [
   },
   {
     name: "Plan / Month",
-    comment2DM: "₹99",
+    RocketReplai: "₹399",
     autoDM: "₹499",
-    linkplease: "₹399",
+    linkplease: "₹499",
     rapiddm: "₹499",
     zorcha: "₹1200",
     instantDM: "₹2000",
   },
   {
     name: "Automation",
-    comment2DM: "Truly unlimited",
+    RocketReplai: "Truly unlimited",
     autoDM: "unlimited",
     linkplease: "unlimited",
     rapiddm: "unlimited",
@@ -840,7 +840,7 @@ export const features: Feature[] = [
   },
   {
     name: "Reply to all",
-    comment2DM: true,
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -849,7 +849,7 @@ export const features: Feature[] = [
   },
   {
     name: "Comment for link",
-    comment2DM: true,
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -857,8 +857,8 @@ export const features: Feature[] = [
     instantDM: true,
   },
   {
-    name: "Follows only link",
-    comment2DM: true,
+    name: "Follows for link",
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -867,7 +867,7 @@ export const features: Feature[] = [
   },
   {
     name: "Welcome message",
-    comment2DM: true,
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -876,7 +876,7 @@ export const features: Feature[] = [
   },
   {
     name: "Comment Reply",
-    comment2DM: true,
+    RocketReplai: true,
     autoDM: true,
     linkplease: true,
     rapiddm: true,
@@ -885,7 +885,16 @@ export const features: Feature[] = [
   },
   {
     name: "Collect Email",
-    comment2DM: "Coming soon",
+    RocketReplai: true,
+    autoDM: false,
+    linkplease: false,
+    rapiddm: false,
+    zorcha: true,
+    instantDM: true,
+  },
+  {
+    name: "Collect Phone",
+    RocketReplai: true,
     autoDM: false,
     linkplease: false,
     rapiddm: false,
@@ -894,7 +903,7 @@ export const features: Feature[] = [
   },
   {
     name: "Rewind",
-    comment2DM: "Coming soon",
+    RocketReplai: true,
     autoDM: false,
     linkplease: false,
     rapiddm: false,
@@ -903,7 +912,7 @@ export const features: Feature[] = [
   },
   {
     name: "Support",
-    comment2DM: "Quick",
+    RocketReplai: "Quick",
     autoDM: "Regular",
     linkplease: "Regular",
     rapiddm: "Regular",

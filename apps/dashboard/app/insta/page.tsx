@@ -516,6 +516,7 @@ export default function Dashboard() {
       try {
         await deleteInstaAccount(apiRequest, accountId);
         showToast("Account deleted successfully", "success");
+        router.refresh();
         await refreshAccounts();
         await fetchDashboardData();
       } catch (err) {

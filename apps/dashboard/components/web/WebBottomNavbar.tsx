@@ -134,7 +134,10 @@ export default function WebBottomNavbar() {
       return [...LEAD_NAV_ITEMS, ...BASE_NAV_ITEMS];
     }
 
-    return [...EDUCATION_NAV_ITEMS, ...BASE_NAV_ITEMS];
+    return [
+      ...EDUCATION_NAV_ITEMS,
+      ...BASE_NAV_ITEMS.filter((item) => item.label !== "Analytics"),
+    ];
   }, [activeChatbot.type, isOnChatbotPage]);
 
   const isActive = useCallback((href: string) => pathname === href, [pathname]);

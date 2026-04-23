@@ -154,7 +154,7 @@ const ComparisonTable: React.FC = () => {
         >
           <Check
             className={`h-5 w-5 mx-auto ${
-              tool === "comment2DM"
+              tool === "RocketReplai"
                 ? "text-[#00F0FF]"
                 : tool === "autoDM"
                   ? "text-[#B026FF]"
@@ -289,7 +289,7 @@ const ComparisonTable: React.FC = () => {
                 <div className="w-2 h-2 rounded-full bg-blue-400"></div>
               </div>
               <span className={`text-lg font-medium ${themeStyles.titleText}`}>
-                299INR ($3.3) Per month
+                399 INR ($3.9) Per month
               </span>
             </motion.div>
           </motion.div>
@@ -439,7 +439,7 @@ const ComparisonTable: React.FC = () => {
                     </motion.span>
                   </td>
                   <td className="py-4 px-6 text-center bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] font-montserrat">
-                    {renderFeatureValue(feature.comment2DM, "comment2DM")}
+                    {renderFeatureValue(feature.RocketReplai, "RocketReplai")}
                   </td>
                   <td className="py-4 px-6 text-center font-montserrat">
                     {renderFeatureValue(feature.autoDM, "autoDM")}

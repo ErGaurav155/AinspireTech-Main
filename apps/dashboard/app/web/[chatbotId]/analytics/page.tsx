@@ -27,6 +27,7 @@ import {
   ThumbsDown,
   Minus,
   TrendingDown,
+  X,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getAnalytics } from "@/lib/services/web-actions.api";
@@ -151,13 +152,7 @@ export default function AnalyticsPage() {
   const { isLeadGeneration, chatbotType, displayInfo } = useMemo(() => {
     const isLead =
       chatbotId === "chatbot-lead-generation" || chatbotId?.includes("lead");
-    const isEdu =
-      chatbotId === "chatbot-education" || chatbotId?.includes("education");
-    const type = isLead
-      ? "chatbot-lead-generation"
-      : isEdu
-        ? "chatbot-education"
-        : null;
+    const type = isLead ? "chatbot-lead-generation" : null;
 
     let info = null;
     if (isLead) {
@@ -166,13 +161,6 @@ export default function AnalyticsPage() {
         icon: Target,
         gradient: "from-purple-500 to-pink-500",
         primaryColor: "#8b5cf6",
-      };
-    } else if (isEdu) {
-      info = {
-        name: "Education",
-        icon: GraduationCap,
-        gradient: "from-green-500 to-emerald-500",
-        primaryColor: "#10b981",
       };
     }
 
@@ -236,6 +224,31 @@ export default function AnalyticsPage() {
       duration: 2000,
     });
   };
+
+  if (!isLeadGeneration) {
+    return (
+      <div className="mx-auto max-w-5xl p-6">
+        <div className="rounded-3xl border border-red-200 bg-red-50/80 p-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-100 text-red-600">
+            <X className="h-7 w-7" />
+          </div>
+          <h1 className="mb-3 text-2xl font-semibold text-slate-900">
+            Analytics unavailable
+          </h1>
+          <p className="mx-auto max-w-xl text-sm text-slate-600">
+            Analytics are only available for Lead Generation chatbots. Please
+            return to your chatbot dashboard to manage or view other features.
+          </p>
+          <Link
+            href={`/web/${chatbotId}`}
+            className="mt-6 inline-flex items-center justify-center rounded-full bg-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-purple-700"
+          >
+            Back to chatbot
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   const handleExport = () => {
     if (!analyticsData) return;

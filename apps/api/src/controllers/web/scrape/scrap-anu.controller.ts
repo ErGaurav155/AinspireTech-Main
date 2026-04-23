@@ -40,6 +40,127 @@ class WebScraper {
   private scrapedPages: ScrapedPage[] = [];
   private maxPages = 12;
   private maxLevel = 3;
+  private readonly scrapePageScript = `
+    (() => {
+      const getMeta = () => {
+        const tags = Array.from(
+          document.querySelectorAll(
+            "meta[name], meta[property], link[rel='canonical']",
+          ),
+        );
+
+        return tags.reduce((meta, tag) => {
+          const name =
+            tag.getAttribute("name") ||
+            tag.getAttribute("property") ||
+            (tag.getAttribute("rel") === "canonical" ? "canonical" : null);
+          const content =
+            tag.getAttribute("content") || tag.getAttribute("href");
+
+          if (name && content) {
+            meta[name.toLowerCase()] = content.trim();
+          }
+
+          return meta;
+        }, {});
+      };
+
+      const getHeadings = (tag) => {
+        return Array.from(document.querySelectorAll(tag))
+          .map((el) => (el.textContent ?? "").trim())
+          .filter((text) => text.length > 0);
+      };
+
+      const getText = (root) => {
+        return (root.textContent || "").replace(/\\s+/g, " ").trim();
+      };
+
+      const getContent = () => {
+        const el =
+          document.querySelector("main") ||
+          document.querySelector("article") ||
+          document.querySelector(".content") ||
+          document.querySelector("#content") ||
+          document.querySelector('[role="main"]') ||
+          document.body;
+
+        if (!el) return "";
+
+        const text = getText(el);
+        return text.length > 4000 ? text.substring(0, 4000) + "..." : text;
+      };
+
+      const getFullText = () => {
+        const bodyText = getText(document.body);
+        return bodyText.length > 12000
+          ? bodyText.substring(0, 12000) + "..."
+          : bodyText;
+      };
+
+      const getLinks = () => {
+        return Array.from(document.querySelectorAll("a[href]"))
+          .map((a) => a.href.trim())
+          .filter(
+            (href) =>
+              href &&
+              !href.startsWith("javascript:") &&
+              !href.startsWith("mailto:") &&
+              !href.startsWith("#") &&
+              !href.includes("tel:") &&
+              !href.includes("sms:"),
+          );
+      };
+
+      const getImages = () => {
+        return Array.from(document.querySelectorAll("img[src]"))
+          .map((img) => img.src.trim())
+          .filter(Boolean);
+      };
+
+      const meta = getMeta();
+
+      return {
+        url: window.location.href,
+        title: document.title ?? "",
+        description: meta.description || "",
+        meta,
+        headings: {
+          h1: getHeadings("h1"),
+          h2: getHeadings("h2"),
+          h3: getHeadings("h3"),
+          h4: getHeadings("h4"),
+          h5: getHeadings("h5"),
+          h6: getHeadings("h6"),
+        },
+        content: getContent(),
+        fullText: getFullText(),
+        links: getLinks(),
+        images: getImages(),
+      };
+    })()
+  `;
+  private readonly discoveryScript = `
+    (() => {
+      const getLinks = () => {
+        return Array.from(document.querySelectorAll("a[href]"))
+          .map((a) => a.href)
+          .filter(
+            (href) =>
+              !!href &&
+              !href.startsWith("javascript:") &&
+              !href.startsWith("mailto:") &&
+              !href.startsWith("#") &&
+              !href.includes("tel:") &&
+              !href.includes("sms:"),
+          );
+      };
+
+      return {
+        url: window.location.href,
+        links: getLinks(),
+      };
+    })()
+  `;
 
   constructor(browser: Browser) {
     this.browser = browser;
@@ -58,99 +179,13 @@ class WebScraper {
       );
       await page.goto(url, { waitUntil: "load", timeout: 30000 });
 
-      // Use evaluate with proper typing
-      const scrapedData = await page.evaluate(() => {
-        const getMeta = (): Record<string, string> => {
-          const tags = Array.from(
-            document.querySelectorAll(
-              "meta[name], meta[property], link[rel='canonical']",
-            ),
-          );
-          return tags.reduce((meta: Record<string, string>, tag) => {
-            const name =
-              tag.getAttribute("name") ||
-              tag.getAttribute("property") ||
-              (tag.getAttribute("rel") === "canonical" ? "canonical" : null);
-            const content =
-              tag.getAttribute("content") || tag.getAttribute("href");
-            if (name && content) {
-              meta[name.toLowerCase()] = content.trim();
-            }
-            return meta;
-          }, {});
-        };
+      const scrapedData = (await page.evaluate(this.scrapePageScript)) as
+        | Omit<ScrapedPage, "level">
+        | undefined;
 
-        const getHeadings = (tag: string): string[] => {
-          return Array.from(document.querySelectorAll(tag))
-            .map((el) => (el.textContent ?? "").trim())
-            .filter((text) => text.length > 0);
-        };
-
-        const getText = (root: Element | Document): string => {
-          const text = (root.textContent || "").replace(/\s+/g, " ").trim();
-          return text;
-        };
-
-        const getContent = (): string => {
-          const el =
-            document.querySelector("main") ||
-            document.querySelector("article") ||
-            document.querySelector(".content") ||
-            document.querySelector("#content") ||
-            document.querySelector('[role="main"]') ||
-            document.body;
-
-          if (!el) return "";
-          const text = getText(el);
-          return text.length > 4000 ? text.substring(0, 4000) + "..." : text;
-        };
-
-        const getFullText = (): string => {
-          const bodyText = getText(document.body);
-          return bodyText.length > 12000
-            ? bodyText.substring(0, 12000) + "..."
-            : bodyText;
-        };
-
-        const getLinks = (): string[] => {
-          return Array.from(document.querySelectorAll("a[href]"))
-            .map((a) => (a as HTMLAnchorElement).href.trim())
-            .filter(
-              (href) =>
-                href &&
-                !href.startsWith("javascript:") &&
-                !href.startsWith("mailto:") &&
-                !href.startsWith("#") &&
-                !href.includes("tel:") &&
-                !href.includes("sms:"),
-            );
-        };
-
-        const getImages = (): string[] => {
-          return Array.from(document.querySelectorAll("img[src]"))
-            .map((img) => (img as HTMLImageElement).src.trim())
-            .filter((src) => !!src);
-        };
-
-        return {
-          url: window.location.href,
-          title: document.title ?? "",
-          description: getMeta()["description"] || "",
-          meta: getMeta(),
-          headings: {
-            h1: getHeadings("h1"),
-            h2: getHeadings("h2"),
-            h3: getHeadings("h3"),
-            h4: getHeadings("h4"),
-            h5: getHeadings("h5"),
-            h6: getHeadings("h6"),
-          },
-          content: getContent(),
-          fullText: getFullText(),
-          links: getLinks(),
-          images: getImages(),
-        };
-      });
+      if (!scrapedData) {
+        throw new Error("Failed to scrape page data");
+      }
 
       console.log(`✅ Scraped: ${url} (level ${level})`);
       return { ...scrapedData, level };
@@ -201,26 +236,9 @@ class WebScraper {
       );
       await page.goto(url, { waitUntil: "load", timeout: 20000 });
 
-      const result = await page.evaluate(() => {
-        const getLinks = (): string[] => {
-          return Array.from(document.querySelectorAll("a[href]"))
-            .map((a) => (a as HTMLAnchorElement).href)
-            .filter(
-              (href) =>
-                !!href &&
-                !href.startsWith("javascript:") &&
-                !href.startsWith("mailto:") &&
-                !href.startsWith("#") &&
-                !href.includes("tel:") &&
-                !href.includes("sms:"),
-            );
-        };
-
-        return {
-          url: window.location.href,
-          links: getLinks(),
-        };
-      });
+      const result = (await page.evaluate(
+        this.discoveryScript,
+      )) as DiscoveryResult;
 
       console.log(`🔍 Discovery: ${url} — ${result.links.length} links found`);
       return result;

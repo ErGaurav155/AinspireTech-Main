@@ -34,7 +34,7 @@ const comparisonData = [
   {
     name: "RocketReplai",
     bestFor: "Best for No-Code AI Chatbots Trained on Your Content",
-    pricing: "Starts at $29/month",
+    pricing: "Starts at $10/month",
     rating: 5,
     category: "ai",
     highlight: true,
@@ -57,7 +57,7 @@ const comparisonData = [
   {
     name: "ProProfs Chat",
     bestFor: "24/7 Delightful Customer Support with AI Chatbots",
-    pricing: " starts at $19.99/ope/month",
+    pricing: "Starts at $19.99/operator/month",
     rating: 4.5,
     category: "support",
     highlight: false,
@@ -79,7 +79,7 @@ const comparisonData = [
   {
     name: "HubSpot",
     bestFor: "Growing Sales and Engaging Customers with Live Chat",
-    pricing: "Starts at $800/month",
+    pricing: "Starts at $20/month",
     rating: 4.5,
     category: "sales",
     highlight: false,
@@ -101,7 +101,7 @@ const comparisonData = [
   {
     name: "Kommunicate",
     bestFor: "Omnichannel Integrations",
-    pricing: "Starts at $83.33/month",
+    pricing: "Starts at $40/month",
     rating: 4.6,
     category: "omnichannel",
     highlight: false,
@@ -167,7 +167,7 @@ const comparisonData = [
   {
     name: "Freshchat",
     bestFor: "Personalized Messaging With AI Support",
-    pricing: "Starts at $17.87/month",
+    pricing: "Starts at $19/month",
     rating: 4.4,
     category: "ai",
     highlight: false,
@@ -189,11 +189,11 @@ const comparisonData = [
   {
     name: "Chatfuel",
     bestFor: "Social Media Support on Facebook & Instagram",
-    pricing: "Starts at $10.13/month",
+    pricing: "Starts at $14.99/month",
     rating: 4.5,
     category: "social",
     highlight: false,
-    availability: false,
+    availability: true,
     liveChat: true,
     multiLanguage: false,
     dashboard: true,
@@ -233,7 +233,7 @@ const comparisonData = [
   {
     name: "Zendesk",
     bestFor: "AI Chatbot for Streamlining Customer Support",
-    pricing: "Starts at $55/user/month",
+    pricing: "Starts at $55/agent/month",
     rating: 4.3,
     category: "support",
     highlight: false,
