@@ -34,7 +34,6 @@ export default function WebLayout({ children }: { children: React.ReactNode }) {
             <div className="flex lg:hidden mt-2">
               <BreadcrumbsDefault />
             </div>
-            {/* Bottom padding on mobile so content isn't hidden behind the nav bar */}
             <div className="pb-16 md:pb-0">{children}</div>
             <Toaster />
           </main>

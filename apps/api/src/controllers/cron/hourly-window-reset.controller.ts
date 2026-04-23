@@ -8,9 +8,6 @@ export const hourlyWindowResetController = async (
   res: Response,
 ) => {
   try {
-    // Authentication is handled by middleware
-    // No need to check secret here anymore
-
     await connectToDatabase();
 
     console.log(
