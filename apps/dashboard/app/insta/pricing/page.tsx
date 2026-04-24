@@ -62,8 +62,8 @@ const instagramPricingPlans: PricingPlan[] = [
     id: "Insta-Automation-Pro",
     name: "Pro Unlimited",
     description: "For growing creators",
-    monthlyPrice: 500,
-    yearlyPrice: 5000,
+    monthlyPrice: 499,
+    yearlyPrice: 4788,
     account: 3,
     limit: 5000,
     features: [
@@ -86,29 +86,30 @@ const instagramPricingPlans: PricingPlan[] = [
 const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
-  "2000 DMs / Month",
-  "Priority Support (WhatsApp and E-mail)",
+  "Unlimited DMs",
+  "Basic keyword triggers",
+  "Priority Support (WhatsApp & Email)",
+  "Instagram API compliance",
+  "Spam detection",
 ];
 
 // Comparison Table Data
 const comparisonFeatures = [
-  { feature: "Pricing", free: "₹0 / Month", pro: "₹500 / Month" },
+  { feature: "Pricing", free: "₹0 / Month", pro: "₹399 / Month" },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
-  { feature: "DM Send Limit", free: "2000 / Month", pro: "Unlimited" },
+  { feature: "DM Send Limit", free: "Unlimited", pro: "Unlimited" },
   { feature: "Instagram Accounts", free: "1", pro: "3" },
   { feature: "Priority Support", free: "✓", pro: "✓" },
-  { feature: "Next Post Automation", free: "✗", pro: "✓" },
   { feature: "Follow-Up Flow", free: "✗", pro: "✓" },
   { feature: "Email Collection", free: "✗", pro: "✓" },
   { feature: "Phone Collection", free: "✗", pro: "✓" },
-  { feature: "Reply Delay", free: "✗", pro: "✓" },
-  { feature: "Ask For Follow", free: "✓", pro: "✓" },
-  { feature: "Post And Reel Automation", free: "✗", pro: "✓" },
-  { feature: "Story Automations", free: "✗", pro: "✓" },
-  { feature: "Inbox Automations", free: "✗", pro: "✓" },
+  { feature: "Ask For Follow", free: "✗", pro: "✓" },
+  { feature: "Post And Reel Automation", free: "✓", pro: "✓" },
+  { feature: "Story Automations", free: "✓", pro: "✓" },
+  { feature: "Inbox Automations", free: "✓", pro: "✓" },
   { feature: "Remove App Branding", free: "✗", pro: "✓" },
   { feature: "Excess DM Queue", free: "✗", pro: "✓" },
-  { feature: "Welcome Openers", free: "✗", pro: "✓" },
+  { feature: "Welcome Openers", free: "✓", pro: "✓" },
 ];
 
 // Main Pricing Component
@@ -767,7 +768,9 @@ function PricingWithSearchParams() {
           {instagramPricingPlans.map((plan) => {
             const isCurrentPlan = currentSubscription?.productId === plan.id;
             const price =
-              billingCycle === "monthly" ? plan.monthlyPrice : plan.yearlyPrice;
+              billingCycle === "monthly"
+                ? plan.monthlyPrice
+                : (plan.yearlyPrice / 12).toFixed(0);
 
             return (
               <div
@@ -809,13 +812,13 @@ function PricingWithSearchParams() {
                   <div className="mb-4">
                     <p className={pageStyles.priceHighlight}>₹{price}</p>
                     <p className={styles.text.secondary + " text-sm"}>
-                      per {billingCycle === "monthly" ? "month" : "year"}
+                      per month
                     </p>
                   </div>
 
                   <p className={pageStyles.tokenBadge}>
                     <Calendar className="h-4 w-4 inline mr-1" />
-                    Two months free on yearly plan
+                    Three months free on yearly plan
                   </p>
 
                   <ul className="space-y-3 mb-6">
