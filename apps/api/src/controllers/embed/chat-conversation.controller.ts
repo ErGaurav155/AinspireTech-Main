@@ -44,54 +44,42 @@ export const handleChatConversationRequest = async (
       });
     }
 
-    // Find existing conversation or create new one
-    let conversation = await WebChatConversation.findOne({
-      clerkId: userId,
-      sessionId,
-    });
-
     const messageCount = messages.length;
     const tokensUsed = totalTokensUsed || 0;
+    const normalizedMessages = messages.map((msg: any) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp),
+    }));
 
-    if (conversation) {
-      // Update existing conversation
-      conversation.messages = messages.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      }));
-      conversation.totalTokensUsed = tokensUsed;
-      conversation.totalMessages = messageCount;
-      conversation.hasAppointment = hasAppointment || false;
-      conversation.status = status || "active";
-      conversation.lastActivity = new Date();
-      if (customerEmail) conversation.customerEmail = customerEmail;
-      if (customerName) conversation.customerName = customerName;
-      if (visitorId) conversation.visitorId = visitorId;
-      if (formData) conversation.formData = formData;
-
-      await conversation.save();
-    } else {
-      // Create new conversation
-      conversation = await WebChatConversation.create({
-        chatbotType,
+    const conversation = await WebChatConversation.findOneAndUpdate(
+      {
         clerkId: userId,
         sessionId,
-        visitorId,
-        customerEmail,
-        customerName,
-        messages: messages.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp),
-        })),
-        formData: formData || [],
-        totalTokensUsed: tokensUsed,
-        totalMessages: messageCount,
-        hasAppointment: hasAppointment || false,
-        status: status || "active",
-        lastActivity: new Date(),
-        tags: [],
-      });
-    }
+      },
+      {
+        $set: {
+          chatbotType,
+          visitorId,
+          customerEmail,
+          customerName,
+          messages: normalizedMessages,
+          formData: formData || [],
+          totalTokensUsed: tokensUsed,
+          totalMessages: messageCount,
+          hasAppointment: hasAppointment || false,
+          status: status || "active",
+          lastActivity: new Date(),
+        },
+        $setOnInsert: {
+          tags: [],
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      },
+    );
 
     return res.status(200).json({
       success: true,

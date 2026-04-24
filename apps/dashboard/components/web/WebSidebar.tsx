@@ -442,7 +442,7 @@ export default function WebSidebar({
             )}
           </Link>
 
-          {/* Lead Generation specific items */}
+          {/* Chatbot-specific items */}
           {selectedChatbot === "chatbot-lead-generation" && (
             <>
               <Link
@@ -470,32 +470,32 @@ export default function WebSidebar({
                   <div className={`w-1 h-6 rounded-full bg-purple-500`} />
                 )}
               </Link>
-
-              <Link
-                href={`${currentChatbot.href}/conversations`}
-                onClick={() => {
-                  if (window.innerWidth < 768) onToggle();
-                }}
-                className={styles.navLink(
-                  isActive(`${currentChatbot.href}/conversations`),
-                )}
-              >
-                <div className="flex items-center justify-between gap-3 w-full">
-                  <div className="flex items-center justify-start gap-3">
-                    <MessageSquare
-                      className={styles.navIcon(
-                        isActive(`${currentChatbot.href}/conversations`),
-                      )}
-                    />
-                    <span className="text-sm font-medium">Conversations</span>
-                  </div>
-                </div>
-                {isActive(`${currentChatbot.href}/conversations`) && (
-                  <div className={`w-1 h-6 rounded-full bg-purple-500`} />
-                )}
-              </Link>
             </>
           )}
+
+          <Link
+            href={`${currentChatbot.href}/conversations`}
+            onClick={() => {
+              if (window.innerWidth < 768) onToggle();
+            }}
+            className={styles.navLink(
+              isActive(`${currentChatbot.href}/conversations`),
+            )}
+          >
+            <div className="flex items-center justify-between gap-3 w-full">
+              <div className="flex items-center justify-start gap-3">
+                <MessageSquare
+                  className={styles.navIcon(
+                    isActive(`${currentChatbot.href}/conversations`),
+                  )}
+                />
+                <span className="text-sm font-medium">Conversations</span>
+              </div>
+            </div>
+            {isActive(`${currentChatbot.href}/conversations`) && (
+              <div className={`w-1 h-6 rounded-full bg-purple-500`} />
+            )}
+          </Link>
 
           {/* Common items for both chatbots */}
           <Link

@@ -112,6 +112,12 @@ const EDUCATION_NAV_ITEMS = [
     icon: LayoutDashboard,
     isNew: false,
   },
+  {
+    label: "Chats",
+    getHref: (chatbotHref: string) => `${chatbotHref}/conversations`,
+    icon: MessageSquare,
+    isNew: false,
+  },
 ] as const;
 
 export default function WebBottomNavbar() {

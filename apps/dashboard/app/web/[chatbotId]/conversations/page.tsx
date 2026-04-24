@@ -1041,12 +1041,6 @@ export default function ConversationsPage() {
                 Active
               </option>
               <option
-                value="active"
-                className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
-              >
-                Active
-              </option>
-              <option
                 value="resolved"
                 className={isDark ? "bg-[#1A1A1E]" : "bg-white"}
               >

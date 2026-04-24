@@ -56,53 +56,43 @@ export const handleConversationRequest = async (
       });
     }
 
-    // Create conversation in the lead generation model
-    const newConversation = {
-      chatbotType: chatbotType,
-      clerkId: userId,
-      sessionId:
-        sessionId ||
-        `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-      customerName: customerName || "Anonymous",
-      customerEmail: customerEmail || null,
-      messages: messages.map((msg: any) => ({
-        ...msg,
-        timestamp: new Date(msg.timestamp),
-      })),
-      formData: formData || [],
-      status: status || "active",
-      tags: [],
-      totalTokensUsed: 0,
-      totalMessages: messages.length,
-      hasAppointment: formData && formData.length > 0,
-      lastActivity: new Date(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const resolvedSessionId =
+      sessionId || `conv_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 
-    const result = await WebChatConversation.create(newConversation);
+    const normalizedMessages = messages.map((msg: any) => ({
+      ...msg,
+      timestamp: new Date(msg.timestamp),
+    }));
 
-    // Also update the general chat conversation if sessionId is provided
-    if (sessionId) {
-      try {
-        const chatConversation = await WebChatConversation.findOne({
-          clerkId: userId,
-          sessionId,
-        });
-
-        if (chatConversation) {
-          chatConversation.hasAppointment = true;
-          chatConversation.customerEmail = customerEmail;
-          chatConversation.customerName = customerName;
-          chatConversation.formData = formData || [];
-          chatConversation.status = "completed";
-          await chatConversation.save();
-        }
-      } catch (chatConvError) {
-        console.error("Error updating chat conversation:", chatConvError);
-        // Don't fail the request
-      }
-    }
+    const result = await WebChatConversation.findOneAndUpdate(
+      {
+        clerkId: userId,
+        sessionId: resolvedSessionId,
+      },
+      {
+        $set: {
+          chatbotType,
+          customerName: customerName || "Anonymous",
+          customerEmail: customerEmail || null,
+          messages: normalizedMessages,
+          formData: formData || [],
+          status: status || (formData && formData.length > 0 ? "completed" : "active"),
+          totalTokensUsed: 0,
+          totalMessages: messages.length,
+          hasAppointment: !!(formData && formData.length > 0),
+          lastActivity: new Date(),
+        },
+        $setOnInsert: {
+          sessionId: resolvedSessionId,
+          tags: [],
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+        runValidators: true,
+      },
+    );
 
     // Send notifications for lead generation chatbot
     if (chatbotType === "chatbot-lead-generation") {

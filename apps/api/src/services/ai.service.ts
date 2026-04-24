@@ -61,6 +61,39 @@ async function downloadCloudinaryContent(
 function formatContextFromData(data: any): string {
   if (!data) return "No data available";
 
+  // Handle current structured scrape format
+  if (
+    typeof data === "object" &&
+    !Array.isArray(data) &&
+    Array.isArray(data.pages)
+  ) {
+    const pages = data.pages
+      .filter((page: any) => page && typeof page === "object")
+      .map((page: any) => {
+        const headings = [
+          ...(Array.isArray(page.headings?.h1) ? page.headings.h1 : []),
+          ...(Array.isArray(page.headings?.h2) ? page.headings.h2 : []),
+          ...(Array.isArray(page.headings?.h3) ? page.headings.h3 : []),
+        ]
+          .filter(Boolean)
+          .join(" | ");
+
+        return [
+          `Page: ${page.url || "Unknown URL"}`,
+          `Title: ${page.title || "N/A"}`,
+          `Description: ${page.description || "N/A"}`,
+          headings ? `Headings: ${headings}` : "",
+          `Content: ${page.content || page.fullText || "No content available"}`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+      });
+
+    if (pages.length > 0) {
+      return `=== WEBSITE CONTENT ===\n${pages.join("\n\n")}`;
+    }
+  }
+
   // Handle URL->description object format (from website scrape)
   if (typeof data === "object" && !Array.isArray(data)) {
     const sections: string[] = [];
@@ -86,7 +119,7 @@ function formatContextFromData(data: any): string {
       }
     }
 
-    return sections.join("\n\n");
+    return sections.length > 0 ? sections.join("\n\n") : "No data available";
   }
 
   // Handle array of pages format
@@ -211,7 +244,7 @@ Guidelines:
         })),
         { role: "user", content: userInput },
       ],
-      max_tokens: 500,
+      max_tokens: 800,
       temperature: 0.7,
     });
 
