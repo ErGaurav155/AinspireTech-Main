@@ -11,9 +11,6 @@ interface ScrapedPage {
     h1: string[];
     h2: string[];
     h3: string[];
-    h4?: string[];
-    h5?: string[];
-    h6?: string[];
   };
   content: string;
   fullText?: string;
@@ -44,7 +41,7 @@ function sanitizeForOpenAI(text: string): string {
 function formatScrapedData(pages: ScrapedPage[]): string {
   const formattedPages = pages.map((page) => {
     const textBody = sanitizeForOpenAI(page.fullText || page.content || "");
-    const content = textBody.length > 20000 ? textBody.slice(0, 20000) : textBody;
+    const content = textBody.length > 2000 ? textBody.slice(0, 2000) : textBody;
 
     return {
       url: page.url,
@@ -55,9 +52,6 @@ function formatScrapedData(pages: ScrapedPage[]): string {
         h1: page.headings.h1 || [],
         h2: page.headings.h2 || [],
         h3: page.headings.h3 || [],
-        h4: page.headings.h4 || [],
-        h5: page.headings.h5 || [],
-        h6: page.headings.h6 || [],
       },
       wordCount: page.wordCount || content.split(/\s+/).filter(Boolean).length,
       textLength: page.textLength || content.length,

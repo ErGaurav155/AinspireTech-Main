@@ -13,9 +13,6 @@ interface ScrapedPage {
     h1: string[];
     h2: string[];
     h3: string[];
-    h4: string[];
-    h5: string[];
-    h6: string[];
   };
   content: string;
   fullText: string;
@@ -39,8 +36,9 @@ interface DiscoveryResult {
 class WebScraper {
   private browser: Browser;
   private visitedUrls: Set<string> = new Set();
+  private visitedSimilarityKeys: Set<string> = new Set();
   private scrapedPages: ScrapedPage[] = [];
-  private maxPages = 20;
+  private maxPages = 10;
   private maxLevel = 3;
   private pageLoadTimeoutMs = 60000;
   private discoveryConcurrency = 2;
@@ -220,13 +218,13 @@ class WebScraper {
 
       const getContent = () => {
         const blocks = collectTextBlocks(getPrimaryRoot());
-        return trimText(blocks.join("\\n\\n"), 50000);
+        return trimText(blocks.join("\\n\\n"), 2000);
       };
 
       const getFullText = () => {
         const bodyRoot = getCleanBodyRoot();
         const blocks = collectTextBlocks(bodyRoot);
-        return trimText(blocks.join("\\n\\n"), 120000);
+        return trimText(blocks.join("\\n\\n"), 2000);
       };
 
       const getLinks = () => {
@@ -262,9 +260,6 @@ class WebScraper {
           h1: getHeadings("h1"),
           h2: getHeadings("h2"),
           h3: getHeadings("h3"),
-          h4: getHeadings("h4"),
-          h5: getHeadings("h5"),
-          h6: getHeadings("h6"),
         },
         content: getContent(),
         fullText: getFullText(),
@@ -489,8 +484,12 @@ class WebScraper {
     url: string,
     level: number,
   ): Promise<ScrapedPage | null> {
-    if (this.visitedUrls.has(url)) return null;
+    const similarityKey = this.getSimilarityKey(url);
+    if (this.visitedUrls.has(url) || this.visitedSimilarityKeys.has(similarityKey)) {
+      return null;
+    }
     this.visitedUrls.add(url);
+    this.visitedSimilarityKeys.add(similarityKey);
     let page: Awaited<ReturnType<Browser["newPage"]>> | null = null;
     try {
       page = await this.preparePage(url);
@@ -535,8 +534,32 @@ class WebScraper {
   private normalizeUrl(url: string): string {
     try {
       const u = new URL(url);
-      const pathname = u.pathname.replace(/\/\/$/, "") || "/";
-      return u.origin + pathname + u.search;
+      const pathname = u.pathname.replace(/\/+$/, "") || "/";
+      return u.origin + pathname;
+    } catch {
+      return url;
+    }
+  }
+
+  private getSimilarityKey(url: string): string {
+    try {
+      const u = new URL(url);
+      const cleanedPath = (u.pathname || "/")
+        .replace(/\/+$/, "")
+        .split("/")
+        .filter(Boolean)
+        .map((segment) => {
+          const lower = segment.toLowerCase();
+
+          if (/^\d+$/.test(lower)) return ":id";
+          if (/^[0-9a-f]{8,}$/i.test(lower)) return ":id";
+          if (lower.length > 40 && /[\d-]/.test(lower)) return ":id";
+
+          return lower;
+        })
+        .join("/");
+
+      return `${u.origin}/${cleanedPath || ""}`;
     } catch {
       return url;
     }
@@ -568,6 +591,9 @@ class WebScraper {
   private async discoverAllUrls(startUrl: string): Promise<DiscoveredUrl[]> {
     const baseDomain = this.extractDomain(startUrl);
     const normalizedStartUrl = this.normalizeUrl(startUrl);
+    const discoveredSimilarityKeys = new Set<string>([
+      this.getSimilarityKey(normalizedStartUrl),
+    ]);
     const levelUrls: Record<number, DiscoveredUrl[]> = {
       0: [{ url: normalizedStartUrl, level: 0 }],
       1: [],
@@ -581,12 +607,14 @@ class WebScraper {
       if (
         discovered.size >= this.maxPages ||
         discovered.has(sitemapUrl) ||
+        discoveredSimilarityKeys.has(this.getSimilarityKey(sitemapUrl)) ||
         !this.isSameDomain(sitemapUrl, baseDomain)
       ) {
         continue;
       }
 
       discovered.add(sitemapUrl);
+      discoveredSimilarityKeys.add(this.getSimilarityKey(sitemapUrl));
       levelUrls[1].push({ url: sitemapUrl, level: 1 });
     }
 
@@ -614,9 +642,11 @@ class WebScraper {
             if (
               this.isSameDomain(link, baseDomain) &&
               !discovered.has(norm) &&
+              !discoveredSimilarityKeys.has(this.getSimilarityKey(norm)) &&
               totalSoFar() < this.maxPages
             ) {
               discovered.add(norm);
+              discoveredSimilarityKeys.add(this.getSimilarityKey(norm));
               levelUrls[currentLevel + 1].push({
                 url: norm,
                 level: currentLevel + 1,

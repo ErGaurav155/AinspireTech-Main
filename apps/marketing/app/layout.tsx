@@ -40,6 +40,10 @@ export default async function RootLayout({
           <StarsBackground />
           <div className="relative z-10">{children}</div>
         </ThemeProvider>
+
+        <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
+          user_3CiVQt2mOzwbB3FRoBGvotwQJ1j,chatbot-lead-generation
+        </script>
       </body>
     </html>
   );
