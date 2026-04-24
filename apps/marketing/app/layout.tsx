@@ -42,7 +42,7 @@ export default async function RootLayout({
         </ThemeProvider>
 
         <script src="https://cdn.rocketreplai.com/mcq-bot.js" defer>
-          user_3CiVQt2mOzwbB3FRoBGvotwQJ1j,chatbot-education
+          user_3CoBBqMdhu7w6skDlPbB80Ky9Zj,chatbot-education
         </script>
       </body>
     </html>

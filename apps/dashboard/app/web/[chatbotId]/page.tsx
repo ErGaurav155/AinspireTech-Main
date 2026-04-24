@@ -80,6 +80,20 @@ interface ChatbotInfo {
 
 type StatsType = LeadStats | EducationStats | null;
 
+interface TokenBalanceInfo {
+  freeTokensRemaining?: number;
+  subscriptionTokens?: Record<
+    string,
+    {
+      name?: string;
+      total?: number;
+      used?: number;
+      remaining?: number;
+      display?: string;
+    }
+  >;
+}
+
 // Lead item type for recent leads table
 interface LeadItem {
   id: string;
@@ -143,7 +157,9 @@ export default function DynamicOverviewPage() {
   const [chatbot, setChatbot] = useState<ChatbotInfo | null>(null);
   const [stats, setStats] = useState<StatsType>(null);
   const [recentLeads, setRecentLeads] = useState<LeadItem[]>([]);
-  const [tokenBalance, setTokenBalance] = useState<any>(null);
+  const [tokenBalance, setTokenBalance] = useState<TokenBalanceInfo | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -294,7 +310,7 @@ export default function DynamicOverviewPage() {
       ]);
 
       if (tokenData) {
-        setTokenBalance(tokenData);
+        setTokenBalance(tokenData?.data || tokenData);
       }
 
       const overview = analyticsData?.analytics?.overview || {};
@@ -548,9 +564,10 @@ export default function DynamicOverviewPage() {
     },
   ];
 
-  const availableTokens =
-    (tokenBalance?.freeTokensRemaining || 0) +
-    (tokenBalance?.purchasedTokensRemaining || 0);
+  const freeTokensRemaining = tokenBalance?.freeTokensRemaining || 0;
+  const purchasedTokensRemaining =
+    tokenBalance?.subscriptionTokens?.[chatbotType || ""]?.remaining || 0;
+  const availableTokens = freeTokensRemaining + purchasedTokensRemaining;
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}
@@ -703,13 +720,31 @@ export default function DynamicOverviewPage() {
             <p
               className={`text-xs font-semibold ${styles.text.secondary} mb-0.5`}
             >
-              Token Balance
+              Token Available
             </p>
-            <p
-              className={`text-sm text-nowrap font-bold ${styles.text.primary}`}
-            >
-              {availableTokens.toLocaleString()} tokens available
+            <p className={`text-sm font-bold ${styles.text.primary}`}>
+              {availableTokens.toLocaleString()} tokens
             </p>
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                  isDark
+                    ? "bg-white/[0.08] text-white/80"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Free: {freeTokensRemaining.toLocaleString()}
+              </span>
+              <span
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
+                  isDark
+                    ? "bg-white/[0.08] text-white/80"
+                    : "bg-gray-100 text-gray-700"
+                }`}
+              >
+                Purchased: {purchasedTokensRemaining.toLocaleString()}
+              </span>
+            </div>
           </div>
           <Link
             href="/web/tokens"

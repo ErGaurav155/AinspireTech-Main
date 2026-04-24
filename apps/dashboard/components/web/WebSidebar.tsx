@@ -120,22 +120,29 @@ export default function WebSidebar({
         getTokenBalance(apiRequest),
       ]);
 
-      const hasActiveSub = subscriptionsData?.some(
-        (sub: any) => sub.status === "active",
+      const subscriptions =
+        subscriptionsData?.data ||
+        subscriptionsData?.subscriptions ||
+        subscriptionsData ||
+        [];
+
+      const hasActiveSubForSelectedBot = subscriptions.some(
+        (sub: any) =>
+          sub?.status === "active" && sub?.chatbotType === selectedChatbot,
       );
-      setIsSubscribed(hasActiveSub || false);
-      setTokenBalance(tokenData?.availableTokens || 0);
+      setIsSubscribed(hasActiveSubForSelectedBot);
+      setTokenBalance(
+        tokenData?.data?.availableTokens || tokenData?.availableTokens || 0,
+      );
     } catch {
       // silent fail
     }
-  }, [userId, apiRequest]);
+  }, [userId, apiRequest, selectedChatbot]);
 
   useEffect(() => {
-    if (!initialIsSubscribed) {
-      fetchStatus();
-    }
+    fetchStatus();
     setIsLoading(false);
-  }, [fetchStatus, initialIsSubscribed]);
+  }, [fetchStatus]);
 
   const isActive = useCallback(
     (href: string) => {
@@ -647,6 +654,11 @@ export default function WebSidebar({
                   X
                 </Button>
               </div>
+              <p className={styles.upgradeFeature + " mb-3"}>
+                {selectedChatbot === "chatbot-education"
+                  ? "MCQ Bot subscription is not active."
+                  : "Lead Bot subscription is not active."}
+              </p>
               <ul className="space-y-2 mb-4">
                 {[
                   "Unlimited Conversations",
