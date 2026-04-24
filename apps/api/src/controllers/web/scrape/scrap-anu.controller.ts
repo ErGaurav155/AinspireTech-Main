@@ -22,6 +22,8 @@ interface ScrapedPage {
   links: string[];
   images: string[];
   level: number;
+  wordCount: number;
+  textLength: number;
 }
 
 interface DiscoveredUrl {
@@ -38,10 +40,26 @@ class WebScraper {
   private browser: Browser;
   private visitedUrls: Set<string> = new Set();
   private scrapedPages: ScrapedPage[] = [];
-  private maxPages = 12;
+  private maxPages = 20;
   private maxLevel = 3;
+  private pageLoadTimeoutMs = 60000;
+  private discoveryConcurrency = 2;
+  private scrapeConcurrency = 1;
   private readonly scrapePageScript = `
     (() => {
+      const normalizeWhitespace = (text) =>
+        (text || "").replace(/\\s+/g, " ").trim();
+
+      const unique = (items) => {
+        const seen = new Set();
+        return items.filter((item) => {
+          const normalized = normalizeWhitespace(item);
+          if (!normalized || seen.has(normalized)) return false;
+          seen.add(normalized);
+          return true;
+        });
+      };
+
       const getMeta = () => {
         const tags = Array.from(
           document.querySelectorAll(
@@ -67,38 +85,153 @@ class WebScraper {
 
       const getHeadings = (tag) => {
         return Array.from(document.querySelectorAll(tag))
-          .map((el) => (el.textContent ?? "").trim())
+          .map((el) => normalizeWhitespace(el.textContent ?? ""))
           .filter((text) => text.length > 0);
       };
 
-      const getText = (root) => {
-        return (root.textContent || "").replace(/\\s+/g, " ").trim();
+      const isVisible = (el) => {
+        if (!(el instanceof Element)) return false;
+        if (el.closest("script, style, noscript, template")) return false;
+        if (el.closest("svg, canvas, video, audio, iframe")) return false;
+        if (el.closest("[hidden], [aria-hidden='true']")) return false;
+
+        const style = window.getComputedStyle(el);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          style.opacity === "0"
+        ) {
+          return false;
+        }
+
+        return true;
       };
 
-      const getContent = () => {
+      const getBlockParent = (node, root) => {
+        let current = node.parentElement;
+
+        while (current && current !== root) {
+          const tag = current.tagName.toLowerCase();
+          const display = window.getComputedStyle(current).display;
+          if (
+            [
+              "p",
+              "li",
+              "blockquote",
+              "pre",
+              "code",
+              "figcaption",
+              "td",
+              "th",
+              "dd",
+              "dt",
+              "section",
+              "article",
+              "main",
+              "div",
+              "h1",
+              "h2",
+              "h3",
+              "h4",
+              "h5",
+              "h6",
+            ].includes(tag) ||
+            ["block", "list-item", "table-cell", "flex", "grid"].includes(
+              display,
+            )
+          ) {
+            return current;
+          }
+
+          current = current.parentElement;
+        }
+
+        return root;
+      };
+
+      const collectTextBlocks = (root) => {
+        if (!root) return [];
+
+        const blockParts = new Map();
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) {
+            const value = normalizeWhitespace(node.textContent || "");
+            if (!value) return NodeFilter.FILTER_REJECT;
+
+            const parent = node.parentElement;
+            if (!parent || !isVisible(parent)) {
+              return NodeFilter.FILTER_REJECT;
+            }
+
+            return NodeFilter.FILTER_ACCEPT;
+          },
+        });
+
+        let currentNode = walker.nextNode();
+        while (currentNode) {
+          const parent = getBlockParent(currentNode, root);
+          const existing = blockParts.get(parent) || [];
+          existing.push(normalizeWhitespace(currentNode.textContent || ""));
+          blockParts.set(parent, existing);
+          currentNode = walker.nextNode();
+        }
+
+        return unique(
+          Array.from(blockParts.values())
+            .map((parts) => normalizeWhitespace(parts.join(" ")))
+            .filter((text) => text.length > 0),
+        );
+      };
+
+      const trimText = (text, maxLength) => {
+        if (text.length <= maxLength) return text;
+        return text.slice(0, maxLength) + "...";
+      };
+
+      const getPrimaryRoot = () => {
         const el =
           document.querySelector("main") ||
           document.querySelector("article") ||
           document.querySelector(".content") ||
+          document.querySelector(".page-content") ||
+          document.querySelector(".entry-content") ||
+          document.querySelector(".post-content") ||
           document.querySelector("#content") ||
           document.querySelector('[role="main"]') ||
           document.body;
 
-        if (!el) return "";
+        return el || document.body;
+      };
 
-        const text = getText(el);
-        return text.length > 4000 ? text.substring(0, 4000) + "..." : text;
+      const getCleanBodyRoot = () => {
+        const clonedBody = document.body.cloneNode(true);
+        clonedBody
+          .querySelectorAll(
+            "script, style, noscript, template, svg, canvas, video, audio, iframe",
+          )
+          .forEach((el) => el.remove());
+        clonedBody
+          .querySelectorAll(
+            "nav, footer, header, aside, form, button, input, select, textarea",
+          )
+          .forEach((el) => el.remove());
+        return clonedBody;
+      };
+
+      const getContent = () => {
+        const blocks = collectTextBlocks(getPrimaryRoot());
+        return trimText(blocks.join("\\n\\n"), 50000);
       };
 
       const getFullText = () => {
-        const bodyText = getText(document.body);
-        return bodyText.length > 12000
-          ? bodyText.substring(0, 12000) + "..."
-          : bodyText;
+        const bodyRoot = getCleanBodyRoot();
+        const blocks = collectTextBlocks(bodyRoot);
+        return trimText(blocks.join("\\n\\n"), 120000);
       };
 
       const getLinks = () => {
-        return Array.from(document.querySelectorAll("a[href]"))
+        return unique(
+          Array.from(document.querySelectorAll("a[href]"))
           .map((a) => a.href.trim())
           .filter(
             (href) =>
@@ -108,7 +241,8 @@ class WebScraper {
               !href.startsWith("#") &&
               !href.includes("tel:") &&
               !href.includes("sms:"),
-          );
+          ),
+        );
       };
 
       const getImages = () => {
@@ -136,6 +270,10 @@ class WebScraper {
         fullText: getFullText(),
         links: getLinks(),
         images: getImages(),
+        wordCount: getFullText()
+          .split(/\\s+/)
+          .filter(Boolean).length,
+        textLength: getFullText().length,
       };
     })()
   `;
@@ -166,18 +304,196 @@ class WebScraper {
     this.browser = browser;
   }
 
+  private async sleep(ms: number): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  private async preparePage(url: string) {
+    const page = await this.browser.newPage();
+
+    await page.setUserAgent(
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/123.0.0.0 Safari/537.36",
+    );
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.setJavaScriptEnabled(true);
+
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: this.pageLoadTimeoutMs,
+    });
+
+    await this.waitForPageToSettle(page);
+    return page;
+  }
+
+  private async waitForPageToSettle(page: Awaited<ReturnType<Browser["newPage"]>>) {
+    try {
+      await page.waitForNetworkIdle({
+        idleTime: 1500,
+        timeout: 15000,
+      });
+    } catch {}
+
+    await page.evaluate(async () => {
+      const sleep = (ms: number) =>
+        new Promise((resolve) => setTimeout(resolve, ms));
+
+      let previousHeight = 0;
+      let stablePasses = 0;
+
+      for (let i = 0; i < 24; i++) {
+        const height = Math.max(
+          document.body?.scrollHeight || 0,
+          document.documentElement?.scrollHeight || 0,
+        );
+
+        window.scrollTo({
+          top: Math.min(height, (i + 1) * window.innerHeight),
+          behavior: "auto",
+        });
+
+        await sleep(500);
+
+        if (height === previousHeight) {
+          stablePasses++;
+          if (stablePasses >= 3) break;
+        } else {
+          stablePasses = 0;
+          previousHeight = height;
+        }
+      }
+
+      window.scrollTo({ top: 0, behavior: "auto" });
+      await sleep(1200);
+    });
+
+    try {
+      await page.waitForNetworkIdle({
+        idleTime: 1000,
+        timeout: 10000,
+      });
+    } catch {}
+
+    let previousLength = 0;
+    let stableChecks = 0;
+
+    for (let i = 0; i < 6; i++) {
+      const currentLength = await page.evaluate(
+        () => document.body?.innerText?.length || 0,
+      );
+
+      if (currentLength > 0 && currentLength === previousLength) {
+        stableChecks++;
+        if (stableChecks >= 2) break;
+      } else {
+        stableChecks = 0;
+        previousLength = currentLength;
+      }
+
+      await this.sleep(1000);
+    }
+  }
+
+  private async runWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T) => Promise<R>,
+  ): Promise<PromiseSettledResult<R>[]> {
+    const results: PromiseSettledResult<R>[] = new Array(items.length);
+    let index = 0;
+
+    const runWorker = async () => {
+      while (index < items.length) {
+        const currentIndex = index++;
+        try {
+          const value = await worker(items[currentIndex]);
+          results[currentIndex] = { status: "fulfilled", value };
+        } catch (reason) {
+          results[currentIndex] = { status: "rejected", reason };
+        }
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, items.length) }, () =>
+        runWorker(),
+      ),
+    );
+
+    return results;
+  }
+
+  private async fetchText(url: string): Promise<string | null> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        redirect: "follow",
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) return null;
+      return await response.text();
+    } catch {
+      return null;
+    }
+  }
+
+  private async discoverSitemapUrls(startUrl: string): Promise<string[]> {
+    const origin = new URL(startUrl).origin;
+    const baseDomain = this.extractDomain(startUrl);
+    const sitemapCandidates = new Set<string>([`${origin}/sitemap.xml`]);
+
+    const robotsText = await this.fetchText(`${origin}/robots.txt`);
+    if (robotsText) {
+      for (const line of robotsText.split(/\r?\n/)) {
+        const match = line.match(/^sitemap:\s*(.+)$/i);
+        if (match?.[1]) {
+          sitemapCandidates.add(match[1].trim());
+        }
+      }
+    }
+
+    const discovered = new Set<string>();
+
+    for (const sitemapUrl of sitemapCandidates) {
+      const xml = await this.fetchText(sitemapUrl);
+      if (!xml) continue;
+
+      const matches = xml.matchAll(/<loc>(.*?)<\/loc>/gi);
+      for (const match of matches) {
+        const rawUrl = match[1]
+          ?.replace(/&amp;/g, "&")
+          ?.replace(/&lt;/g, "<")
+          ?.replace(/&gt;/g, ">");
+        if (!rawUrl) continue;
+
+        const normalized = this.normalizeUrl(rawUrl.trim());
+        if (this.isSameDomain(normalized, baseDomain)) {
+          discovered.add(normalized);
+        }
+
+        if (discovered.size >= this.maxPages * 2) {
+          break;
+        }
+      }
+    }
+
+    return Array.from(discovered);
+  }
+
   private async scrapePage(
     url: string,
     level: number,
   ): Promise<ScrapedPage | null> {
     if (this.visitedUrls.has(url)) return null;
     this.visitedUrls.add(url);
-    const page = await this.browser.newPage();
+    let page: Awaited<ReturnType<Browser["newPage"]>> | null = null;
     try {
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124 Safari/537.36",
-      );
-      await page.goto(url, { waitUntil: "load", timeout: 30000 });
+      page = await this.preparePage(url);
 
       const scrapedData = (await page.evaluate(this.scrapePageScript)) as
         | Omit<ScrapedPage, "level">
@@ -194,7 +510,7 @@ class WebScraper {
       return null;
     } finally {
       try {
-        await page.close();
+        await page?.close();
       } catch {}
     }
   }
@@ -229,12 +545,9 @@ class WebScraper {
   private async scrapePageForDiscovery(
     url: string,
   ): Promise<DiscoveryResult | null> {
-    const page = await this.browser.newPage();
+    let page: Awaited<ReturnType<Browser["newPage"]>> | null = null;
     try {
-      await page.setUserAgent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124 Safari/537.36",
-      );
-      await page.goto(url, { waitUntil: "load", timeout: 20000 });
+      page = await this.preparePage(url);
 
       const result = (await page.evaluate(
         this.discoveryScript,
@@ -247,20 +560,36 @@ class WebScraper {
       return null;
     } finally {
       try {
-        await page.close();
+        await page?.close();
       } catch {}
     }
   }
 
   private async discoverAllUrls(startUrl: string): Promise<DiscoveredUrl[]> {
     const baseDomain = this.extractDomain(startUrl);
+    const normalizedStartUrl = this.normalizeUrl(startUrl);
     const levelUrls: Record<number, DiscoveredUrl[]> = {
-      0: [{ url: this.normalizeUrl(startUrl), level: 0 }],
+      0: [{ url: normalizedStartUrl, level: 0 }],
       1: [],
       2: [],
       3: [],
     };
-    const discovered = new Set<string>([this.normalizeUrl(startUrl)]);
+    const discovered = new Set<string>([normalizedStartUrl]);
+
+    const sitemapUrls = await this.discoverSitemapUrls(startUrl);
+    for (const sitemapUrl of sitemapUrls) {
+      if (
+        discovered.size >= this.maxPages ||
+        discovered.has(sitemapUrl) ||
+        !this.isSameDomain(sitemapUrl, baseDomain)
+      ) {
+        continue;
+      }
+
+      discovered.add(sitemapUrl);
+      levelUrls[1].push({ url: sitemapUrl, level: 1 });
+    }
+
     let currentLevel = 0;
 
     while (currentLevel <= this.maxLevel) {
@@ -268,8 +597,10 @@ class WebScraper {
       if (!curr?.length) break;
       console.log(`🔍 Level ${currentLevel}: ${curr.length} pages`);
 
-      const results = await Promise.allSettled(
-        curr.map(({ url }) => this.scrapePageForDiscovery(url)),
+      const results = await this.runWithConcurrency(
+        curr,
+        this.discoveryConcurrency,
+        ({ url }) => this.scrapePageForDiscovery(url),
       );
 
       const totalSoFar = (): number => Object.values(levelUrls).flat().length;
@@ -314,8 +645,10 @@ class WebScraper {
     const urls = await this.discoverAllUrls(startUrl);
     this.visitedUrls.clear();
 
-    const results = await Promise.allSettled(
-      urls.map(({ url, level }) => this.scrapePage(url, level)),
+    const results = await this.runWithConcurrency(
+      urls,
+      this.scrapeConcurrency,
+      ({ url, level }) => this.scrapePage(url, level),
     );
 
     this.scrapedPages = results

@@ -468,9 +468,9 @@ export const productSubscriptionDetails: Record<
     name: "Lead generation chatbot",
     video: "/assets/congratulation.webm",
     icon: "BotIcon",
-    mprice: 99,
-    yprice: 1080,
-    original: 2388,
+    mprice: 10,
+    yprice: 108,
+    original: 238,
     credits: 550,
     tier: "Pro",
     description: {
@@ -499,9 +499,9 @@ export const productSubscriptionDetails: Record<
     name: "MCQ Educational Chatbot",
     video: "/assets/congratulation.webm",
     icon: "GraduationCapIcon",
-    mprice: 49,
-    yprice: 540,
-    original: 1188,
+    mprice: 10,
+    yprice: 108,
+    original: 238,
     credits: 750,
     tier: "Enterprise",
     description: {
@@ -526,73 +526,7 @@ export const productSubscriptionDetails: Record<
     ],
   },
 };
-export const tokenPlans = {
-  basic: {
-    id: "basic",
-    name: "Basic Token Pack",
-    tokens: 50000,
-    price: 299,
-    perTokenPrice: 0.00598,
-    features: [
-      "50,000 tokens",
-      "No expiration",
-      "Use across all chatbots",
-      "Priority support",
-    ],
-  },
-  pro: {
-    id: "pro",
-    name: "Pro Token Pack",
-    tokens: 200000,
-    price: 999,
-    perTokenPrice: 0.004995,
-    features: [
-      "200,000 tokens",
-      "No expiration",
-      "Use across all chatbots",
-      "Priority support",
-      "Advanced analytics",
-    ],
-  },
-  enterprise: {
-    id: "enterprise",
-    name: "Enterprise Token Pack",
-    tokens: 1000000,
-    price: 3999,
-    perTokenPrice: 0.003999,
-    features: [
-      "1,000,000 tokens",
-      "No expiration",
-      "Use across all chatbots",
-      "Dedicated support",
-      "Advanced analytics",
-      "Custom integrations",
-    ],
-  },
-};
 
-// Token price tiers for custom purchases
-export const tokenPriceTiers = [
-  { minTokens: 10000, maxTokens: 49999, pricePerToken: 0.006 },
-  { minTokens: 50000, maxTokens: 99999, pricePerToken: 0.005 },
-  { minTokens: 100000, maxTokens: 499999, pricePerToken: 0.004 },
-  { minTokens: 500000, maxTokens: 999999, pricePerToken: 0.0035 },
-  { minTokens: 1000000, maxTokens: 5000000, pricePerToken: 0.003 },
-];
-
-export function calculateCustomTokenPrice(tokens: number): number {
-  let pricePerToken = 0.006;
-
-  for (const tier of tokenPriceTiers) {
-    if (tokens >= tier.minTokens && tokens <= tier.maxTokens) {
-      pricePerToken = tier.pricePerToken;
-      break;
-    }
-  }
-
-  const price = tokens * pricePerToken;
-  return Math.ceil(price);
-}
 export const countryCodes = [
   { code: "+1", country: "🇺🇸 United States" },
   { code: "+1", country: "🇨🇦 Canada" },
@@ -697,11 +631,7 @@ export const countryCodes = [
   { code: "+378", country: "🇸🇲 San Marino" },
   { code: "+379", country: "🇻🇦 Vatican City" },
 ];
-function getFutureDate(days: number): Date {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return date;
-}
+
 export const defaultTemplates = [
   {
     name: "Product Inquiry",

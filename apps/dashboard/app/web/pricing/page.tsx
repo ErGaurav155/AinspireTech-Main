@@ -245,7 +245,7 @@ const PricingContent = () => {
 
           <p className={`text-lg max-w-2xl mx-auto ${styles.text.secondary}`}>
             Choose the best chatbot subscription for your business and get
-            1,000,000 tokens per chatbot per cycle.
+            Unlimited tokens per chatbot per cycle.
           </p>
 
           {/* Tabs */}
@@ -494,7 +494,7 @@ const PricingContent = () => {
                           className={`text-sm ${styles.badge.green} inline-flex items-center gap-1 px-3 py-2 mb-4`}
                         >
                           <Calendar className="h-4 w-4" />
-                          Includes 1,000,000 tokens per{" "}
+                          Includes Unlimited tokens per{" "}
                           {billingMode === "monthly" ? "month" : "year"}
                         </p>
 
@@ -619,7 +619,7 @@ const PricingContent = () => {
                       {
                         feature: "Tokens Included",
                         free: "10,000/month",
-                        subscription: "1M/month",
+                        subscription: "Unlimited/month",
                       },
                       {
                         feature: "Expiration",

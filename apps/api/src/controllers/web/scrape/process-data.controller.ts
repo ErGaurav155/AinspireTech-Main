@@ -11,9 +11,15 @@ interface ScrapedPage {
     h1: string[];
     h2: string[];
     h3: string[];
+    h4?: string[];
+    h5?: string[];
+    h6?: string[];
   };
   content: string;
+  fullText?: string;
   level: number;
+  wordCount?: number;
+  textLength?: number;
 }
 
 // Helper function to sanitize text for OpenAI
@@ -36,40 +42,38 @@ function sanitizeForOpenAI(text: string): string {
 
 // Helper function to format scraped data
 function formatScrapedData(pages: ScrapedPage[]): string {
-  const dataObject: { [key: string]: string } = {};
+  const formattedPages = pages.map((page) => {
+    const textBody = sanitizeForOpenAI(page.fullText || page.content || "");
+    const content = textBody.length > 20000 ? textBody.slice(0, 20000) : textBody;
 
-  pages.forEach((page) => {
-    let description = "";
-
-    if (page.title) {
-      description += `Title: ${page.title}. `;
-    }
-
-    if (page.description) {
-      description += `Description: ${page.description}. `;
-    }
-
-    if (page.headings.h1.length > 0) {
-      description += `Main Heading: ${page.headings.h1[0]}. `;
-    }
-
-    if (page.content) {
-      const contentPreview = page.content.substring(0, 100);
-      description += `Content: ${contentPreview}${
-        page.content.length > 100 ? "..." : ""
-      }`;
-    }
-
-    description = sanitizeForOpenAI(description);
-
-    if (description.length > 1000) {
-      description = description.substring(0, 997) + "...";
-    }
-
-    dataObject[page.url] = description.trim();
+    return {
+      url: page.url,
+      title: sanitizeForOpenAI(page.title || ""),
+      description: sanitizeForOpenAI(page.description || ""),
+      level: page.level,
+      headings: {
+        h1: page.headings.h1 || [],
+        h2: page.headings.h2 || [],
+        h3: page.headings.h3 || [],
+        h4: page.headings.h4 || [],
+        h5: page.headings.h5 || [],
+        h6: page.headings.h6 || [],
+      },
+      wordCount: page.wordCount || content.split(/\s+/).filter(Boolean).length,
+      textLength: page.textLength || content.length,
+      content,
+    };
   });
 
-  return JSON.stringify(dataObject, null, 2);
+  return JSON.stringify(
+    {
+      generatedAt: new Date().toISOString(),
+      pageCount: formattedPages.length,
+      pages: formattedPages,
+    },
+    null,
+    2,
+  );
 }
 
 // POST /api/scrape/anu/process-data - Process scraped data
