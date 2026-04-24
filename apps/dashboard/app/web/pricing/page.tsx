@@ -396,7 +396,7 @@ const PricingContent = () => {
                 <span
                   className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.green} ml-2`}
                 >
-                  Save 16%
+                  Save 50%
                 </span>
               </div>
 
@@ -473,25 +473,29 @@ const PricingContent = () => {
                         </div>
 
                         <div className="mb-4">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-center gap-2">
                             <span
                               className={`text-3xl font-bold ${styles.text.primary}`}
                             >
-                              ${displayPrice}
+                              {billingMode === "monthly"
+                                ? `$${displayPrice.toFixed(0)}`
+                                : `$${(displayPrice / 12).toFixed(0)}`}
                             </span>
                             <span
                               className={`text-sm line-through ${styles.text.muted}`}
                             >
-                              ${originalPrice.toFixed(0)}
+                              {billingMode === "monthly"
+                                ? `$${originalPrice.toFixed(0)}`
+                                : `$${(originalPrice / 12).toFixed(0)}`}
                             </span>
                           </div>
                           <p className={`text-sm ${styles.text.muted}`}>
-                            per {billingMode === "monthly" ? "month" : "year"}
+                            per month
                           </p>
                         </div>
 
                         <p
-                          className={`text-sm ${styles.badge.green} inline-flex items-center gap-1 px-3 py-2 mb-4`}
+                          className={`text-sm ${styles.badge.green} inline-flex items-center gap-1 px-3 py-2 mb-4 rounded-md`}
                         >
                           <Calendar className="h-4 w-4" />
                           Includes Unlimited tokens per{" "}
