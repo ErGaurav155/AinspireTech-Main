@@ -23,11 +23,8 @@ function ChooseProductContent() {
   useEffect(() => {
     const ref = searchParams.get("ref");
     if (ref) {
-      const existingRef = localStorage.getItem("referral_code");
-      if (!existingRef) {
-        localStorage.setItem("referral_code", ref);
-        document.cookie = `referral_code=${ref}; path=/; domain=.rocketreplai.com; max-age=604800`;
-      }
+      localStorage.setItem("referral_code", ref);
+      document.cookie = `referral_code=${ref}; path=/; domain=.rocketreplai.com; max-age=604800`;
     }
     setMounted(true);
   }, [searchParams]);
