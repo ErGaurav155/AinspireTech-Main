@@ -245,6 +245,14 @@ function PricingWithSearchParams() {
           const connected = await connectInstagramAccount(activeProductId);
           setIsInstaAccount(connected);
           setIsGettingAcc(false);
+
+          if (connected) {
+            const refreshedAccounts = await fetchUserAccounts();
+            setUserAccounts(refreshedAccounts);
+            router.replace("/insta/automations");
+            router.refresh();
+            return;
+          }
         } else {
           setIsInstaAccount(hasAccounts);
         }
