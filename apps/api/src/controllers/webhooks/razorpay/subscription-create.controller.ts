@@ -22,11 +22,12 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const billingCycle = notes.billingCycle;
   const notesAmount = Number(notes.amount);
   const entityAmount = Number(subscriptionData.amount);
-  const subscriptionPrice = Number.isFinite(notesAmount) && notesAmount > 0
-    ? notesAmount
-    : Number.isFinite(entityAmount) && entityAmount > 0
-      ? entityAmount / 100
-      : 0;
+  const subscriptionPrice =
+    Number.isFinite(notesAmount) && notesAmount > 0
+      ? notesAmount
+      : Number.isFinite(entityAmount) && entityAmount > 0
+        ? entityAmount / 100
+        : 0;
 
   console.log("subscriptionData:", subscriptionData);
   console.log("Billing cycle:", billingCycle);
@@ -150,7 +151,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       // Create referral record
       referralRecord = await AffiReferral.create({
         affiliateId: affiliate._id.toString(),
-        referredUserId: user._id.toString(),
+        referredUserId: clerkId.toString(),
         productType,
         subscriptionId: newSubscription._id.toString(),
         subscriptionModel,
@@ -183,7 +184,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         const commissionRecord = await AffiCommissionRecord.create({
           affiliateId: affiliate._id.toString(),
           referralId: referralRecord._id.toString(),
-          referredUserId: user._id.toString(),
+          referredUserId: clerkId.toString(),
           amount: Number(commissionAmount),
           period: periodKey,
           productType,

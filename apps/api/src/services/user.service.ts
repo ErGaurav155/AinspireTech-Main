@@ -19,6 +19,7 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
+import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 
 export const TIER_LIMITS = {
   free: 200,
@@ -322,6 +323,7 @@ export async function deleteUserData(clerkId: string) {
     RateUserRateLimit.deleteMany({ clerkId }),
     InstaLeadCollection.deleteMany({ userId: clerkId }),
     // Affiliate Data
+    AffiCommissionRecord.deleteMany({ referredUserId: clerkId }),
     Affiliate.deleteMany({ userId: clerkId }),
     AffiReferral.deleteMany({ referredUserId: clerkId }),
     AffiReferral.deleteMany({ affiliateUserId: clerkId }),
