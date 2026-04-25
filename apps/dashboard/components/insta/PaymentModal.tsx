@@ -81,7 +81,6 @@ export default function PaymentModal({
   const [paymentMethod, setPaymentMethod] = useState<"razorpay">("razorpay");
   const razorpayplanId = useRef<string | null>(null);
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
@@ -241,6 +240,7 @@ export default function PaymentModal({
             }
 
             onSuccess();
+            router.push("/insta/automations");
           } else {
             toast.error(
               "Payment verification failed: " + verifyResponse.message,
