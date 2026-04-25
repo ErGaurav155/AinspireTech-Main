@@ -76,6 +76,7 @@ const CommissionRecordSchema = new Schema(
 // Index for faster queries
 CommissionRecordSchema.index({ affiliateId: 1, status: 1 });
 CommissionRecordSchema.index({ period: 1, status: 1 });
+CommissionRecordSchema.index({ referralId: 1, period: 1 }, { unique: true });
 
 const AffiCommissionRecord = (models?.AffiCommissionRecord ||
   model<ICommissionRecord>(

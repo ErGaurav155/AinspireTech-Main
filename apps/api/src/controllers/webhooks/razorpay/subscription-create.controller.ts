@@ -150,7 +150,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       // Create referral record
       referralRecord = await AffiReferral.create({
         affiliateId: affiliate._id.toString(),
-        referredUserId: clerkId.toString(),
+        referredUserId: user._id.toString(),
         productType,
         subscriptionId: newSubscription._id.toString(),
         subscriptionModel,
@@ -383,17 +383,21 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
         const instaExists = await InstaSubscription.findOne({ subscriptionId });
         const webExists = await WebSubscription.findOne({ subscriptionId });
         const exists = instaExists || webExists;
+        let createdFromWebhook = false;
 
         if (!exists) {
           console.log("Creating new subscription from webhook");
           await handleWebhookSubscriptionCreate(payload);
+          createdFromWebhook = true;
         }
 
-        const nextBillingDate = subscription?.current_end
-          ? new Date(subscription.current_end * 1000)
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        if (!createdFromWebhook) {
+          const nextBillingDate = subscription?.current_end
+            ? new Date(subscription.current_end * 1000)
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-        await handleSubscriptionCharged(subscriptionId, nextBillingDate);
+          await handleSubscriptionCharged(subscriptionId, nextBillingDate);
+        }
         break;
       }
 
