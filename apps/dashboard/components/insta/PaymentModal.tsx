@@ -214,12 +214,19 @@ export default function PaymentModal({
             subscription_id: result.subscriptionId,
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_signature: response.razorpay_signature,
+            subscriptionType: "insta",
+            productId: plan.id,
           };
 
           const verifyResponse = await verifyRazorpayPayment(apiRequest, data);
 
           if (verifyResponse.success) {
             toast.success("Payment Successful! Subscription activated");
+
+            // Clear referral code as soon as payment verification succeeds.
+            if (referralCode) {
+              localStorage.removeItem("referral_code");
+            }
 
             await updateUserLimits(apiRequest, plan.limit, plan.account);
             await sendSubscriptionEmailToOwner(apiRequest, {
@@ -234,13 +241,7 @@ export default function PaymentModal({
               subscriptionId: result.subscriptionId,
             });
 
-            // Clear referral code after successful purchase
-            if (referralCode) {
-              localStorage.removeItem("referral_code");
-            }
-
             onSuccess();
-            router.push("/insta/automations");
           } else {
             toast.error(
               "Payment verification failed: " + verifyResponse.message,

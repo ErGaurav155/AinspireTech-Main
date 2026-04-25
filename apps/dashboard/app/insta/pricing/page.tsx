@@ -1060,6 +1060,8 @@ function PricingWithSearchParams() {
             setIsSubscribed(true);
             setIsUpgrading(false);
             setIsPaymentModalOpen(false);
+            router.replace("/insta/automations");
+            router.refresh();
           }}
         />
       )}
