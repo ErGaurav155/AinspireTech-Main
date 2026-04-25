@@ -20,10 +20,17 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const referralCode = notes.referralCode;
   const plan = subscriptionData.plan_id;
   const billingCycle = notes.billingCycle;
-  const subscriptionPrice = subscriptionData.amount / 100;
+  const notesAmount = Number(notes.amount);
+  const entityAmount = Number(subscriptionData.amount);
+  const subscriptionPrice = Number.isFinite(notesAmount) && notesAmount > 0
+    ? notesAmount
+    : Number.isFinite(entityAmount) && entityAmount > 0
+      ? entityAmount / 100
+      : 0;
 
   console.log("subscriptionData:", subscriptionData);
   console.log("Billing cycle:", billingCycle);
+  console.log("Resolved subscription price:", subscriptionPrice);
 
   // Find or create user
   let user = await User.findOne({ clerkId: clerkId });
@@ -52,6 +59,15 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   if (existingSubscription) {
     return { subscription: existingSubscription, referral: null };
+  }
+
+  if (subscriptionPrice <= 0) {
+    console.error("Invalid subscription price resolved from webhook", {
+      notesAmount: notes.amount,
+      entityAmount: subscriptionData.amount,
+      subscriptionId: subscriptionData.id,
+    });
+    return { subscription: null, referral: null };
   }
 
   const expiresAt = subscriptionData.current_end
