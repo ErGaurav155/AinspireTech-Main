@@ -1,6 +1,7 @@
 "use client";
 
 import { MapPin, Mail } from "lucide-react";
+import MetaImg from "@/public/assets/img/metaImg.png";
 import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
@@ -57,17 +58,33 @@ export function Footer() {
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
           {/* Logo and Navigation */}
-          <div className="flex flex-col  items-center md:items-start">
-            <Link href="/" className="flex items-center h-24 w-1/2 md:w-full">
-              <Image
-                alt="Logo"
-                src={Logo}
-                // width={100}
-                // height={100}
-                className="object-cover "
-              />
-            </Link>
-            <ul className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 font-montserrat">
+          <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-5">
+            <div className="flex md:flex-col ">
+              <Link
+                href="/"
+                className="flex-1  flex items-center justify-center "
+              >
+                <Image
+                  alt="Logo"
+                  src={Logo}
+                  width={120}
+                  height={200}
+                  className=" rounded-md"
+                  loading="lazy"
+                />
+              </Link>
+              <div className="flex-1  flex items-center justify-center ">
+                <Image
+                  src={MetaImg}
+                  alt="Meta Tech"
+                  width={120}
+                  height={200}
+                  className=" rounded-md"
+                  loading="lazy"
+                />
+              </div>
+            </div>
+            <ul className="flex flex-wrap flex-row md:flex-col  text-nowrap justify-center md:justify-start gap-4 md:gap-6 font-montserrat">
               {[
                 { href: "/contactUs", label: "Contact Us" },
                 { href: "/privacy-policy", label: "Privacy Policy" },
@@ -76,7 +93,7 @@ export function Footer() {
                 <li key={index}>
                   <Link
                     href={link.href}
-                    className={`font-normal transition-colors duration-300 ${themeStyles.linkText}`}
+                    className={`font-light transition-colors duration-300 ${themeStyles.linkText}`}
                   >
                     {link.label}
                   </Link>

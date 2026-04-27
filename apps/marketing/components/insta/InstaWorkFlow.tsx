@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import MetaImg from "@/public/assets/img/metaImg.png";
 import instadash from "@/public/assets/Feature/instadash.png";
 import instatemp from "@/public/assets/Feature/instatemp.png";
 import instalogin from "@/public/assets/Feature/lnstalogin.png";
@@ -146,6 +147,16 @@ function InstaHowItWorksSection() {
 
   return (
     <section className="mx-auto md:px-4 py-16 md:py-24 bg-transparent overflow-hidden">
+      <div className="flex items-center justify-center w-full mb-5">
+        <Image
+          src={MetaImg}
+          alt="Meta Tech"
+          width={220}
+          height={800}
+          className="object-cover rounded-md"
+          loading="lazy"
+        />
+      </div>
       {/* Section Badge */}
       <motion.div
         className="flex items-center justify-center mb-4"
