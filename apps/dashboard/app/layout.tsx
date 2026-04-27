@@ -5,6 +5,7 @@ import { ThemeProvider } from "@rocketreplai/ui";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ClerkThemeProvider } from "@rocketreplai/ui";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -45,7 +46,7 @@ export default async function RootLayout({
             <div className="relative z-10 min-h-screen">{children}</div>
           </ClerkThemeProvider>
         </ThemeProvider>
-
+        <SpeedInsights />
         <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
           user_3BEup7vMQ7rRDP8jsrg9pRoWMor,chatbot-lead-generation
         </script>

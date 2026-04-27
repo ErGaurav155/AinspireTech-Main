@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Orbitron, Montserrat } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@rocketreplai/ui";
 // @ts-ignore
@@ -40,6 +41,7 @@ export default async function RootLayout({
           <StarsBackground />
           <div className="relative z-10">{children}</div>
         </ThemeProvider>
+        <SpeedInsights />
 
         <script src="https://cdn.rocketreplai.com/mcq-bot.js" defer>
           user_3CoBBqMdhu7w6skDlPbB80Ky9Zj,chatbot-education
