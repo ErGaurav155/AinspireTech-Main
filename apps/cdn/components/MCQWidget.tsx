@@ -147,9 +147,11 @@ function PoweredBy({ primaryColor }: { primaryColor: string }) {
 function Bubble({
   primaryColor,
   onOpen,
+  compact = false,
 }: {
   primaryColor: string;
   onOpen: () => void;
+  compact?: boolean;
 }) {
   return (
     <div
@@ -157,9 +159,9 @@ function Bubble({
         position: "fixed",
         inset: 0,
         display: "flex",
-        alignItems: "flex-end",
-        justifyContent: "flex-end",
-        padding: "0 14px 14px 0",
+        alignItems: compact ? "center" : "flex-end",
+        justifyContent: compact ? "center" : "flex-end",
+        padding: compact ? 0 : "0 14px 14px 0",
         pointerEvents: "none",
       }}
     >
@@ -167,27 +169,29 @@ function Bubble({
         style={{
           display: "flex",
           flexDirection: "column",
-          alignItems: "flex-end",
+          alignItems: compact ? "center" : "flex-end",
           gap: 10,
         }}
       >
-        <button
-          onClick={onOpen}
-          style={{
-            pointerEvents: "all",
-            border: "none",
-            cursor: "pointer",
-            padding: "10px 14px",
-            borderRadius: "18px 18px 6px 18px",
-            background: "#fff",
-            color: "#0f172a",
-            fontSize: 13,
-            fontWeight: 600,
-            boxShadow: "0 10px 30px rgba(15,23,42,0.12)",
-          }}
-        >
-          Ask doubts or start a quiz
-        </button>
+        {!compact && (
+          <button
+            onClick={onOpen}
+            style={{
+              pointerEvents: "all",
+              border: "none",
+              cursor: "pointer",
+              padding: "10px 14px",
+              borderRadius: "18px 18px 6px 18px",
+              background: "#fff",
+              color: "#0f172a",
+              fontSize: 13,
+              fontWeight: 600,
+              boxShadow: "0 10px 30px rgba(15,23,42,0.12)",
+            }}
+          >
+            Ask doubts or start a quiz
+          </button>
+        )}
         <button
           onClick={onOpen}
           style={{
@@ -1433,7 +1437,11 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     return isOpen ? (
       <div style={{ position: "fixed", inset: 0 }}>{widget}</div>
     ) : (
-      <Bubble primaryColor={primaryColor} onOpen={() => setIsOpen(true)} />
+      <Bubble
+        primaryColor={primaryColor}
+        onOpen={() => setIsOpen(true)}
+        compact={mode === "embed"}
+      />
     );
   }
 

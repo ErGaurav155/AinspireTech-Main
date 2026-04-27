@@ -452,10 +452,12 @@ function ChatBubble({
   primaryColor,
   onOpen,
   showBubble,
+  compact = false,
 }: {
   primaryColor: string;
   onOpen: () => void;
   showBubble: boolean;
+  compact?: boolean;
 }) {
   return (
     <div
@@ -467,13 +469,13 @@ function ChatBubble({
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-end",
-        justifyContent: "flex-end",
-        padding: "0 12px 12px 0",
+        alignItems: compact ? "center" : "flex-end",
+        justifyContent: compact ? "center" : "flex-end",
+        padding: compact ? 0 : "0 12px 12px 0",
         pointerEvents: "none",
       }}
     >
-      {showBubble && (
+      {!compact && showBubble && (
         <div
           onClick={onOpen}
           style={{
