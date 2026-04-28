@@ -24,6 +24,8 @@ interface Message {
   tokensUsed?: number;
 }
 
+const QUIZ_READY_MESSAGE = "Your quiz is ready in the Quiz tab.";
+
 interface TokenBalance {
   availableTokens: number;
   freeTokensRemaining: number;
@@ -106,6 +108,32 @@ function uid() {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function createMessage(
+  role: MessageRole,
+  content: string,
+  tokensUsed?: number,
+): Message {
+  return {
+    id: uid(),
+    role,
+    content,
+    timestamp: new Date(),
+    tokensUsed,
+  };
+}
+
+function isQuizHistoryMessage(message: Pick<Message, "content">) {
+  const content = message.content.trim().toLowerCase();
+  return (
+    content.startsWith("create a quiz:") ||
+    content === QUIZ_READY_MESSAGE.toLowerCase()
+  );
+}
+
+function getChatOnlyMessages(messages: Message[]) {
+  return messages.filter((message) => !isQuizHistoryMessage(message));
+}
+
 function parseQuizResponse(text: string): QuizPayload | null {
   try {
     const cleaned = text.match(/```json\s*([\s\S]*?)\s*```/i)?.[1] || text;
@@ -124,6 +152,63 @@ function renderMultiline(text: string) {
       {index < lines.length - 1 ? <br /> : null}
     </React.Fragment>
   ));
+}
+
+function TypingIndicator({ primaryColor }: { primaryColor: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "flex-start",
+        alignItems: "flex-end",
+        gap: 6,
+        animation: "fadeIn 0.2s ease",
+      }}
+    >
+      <div
+        style={{
+          width: 28,
+          height: 28,
+          borderRadius: "50%",
+          background: `linear-gradient(135deg, ${primaryColor}, ${primaryColor}bb)`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
+        </svg>
+      </div>
+      <div
+        style={{
+          padding: "10px 14px",
+          background: "#fff",
+          borderRadius: "18px 18px 18px 4px",
+          boxShadow: "0 1px 4px rgba(0,0,0,0.06)",
+          border: "1px solid #e5e7eb",
+          display: "flex",
+          gap: 4,
+          alignItems: "center",
+        }}
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: "#9ca3af",
+              display: "inline-block",
+              animation: `typingDot 1.3s ${i * 0.2}s infinite`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function PoweredBy({ primaryColor }: { primaryColor: string }) {
@@ -329,14 +414,20 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
               currentConversation.messages &&
               currentConversation.messages.length > 0
             ) {
-              setMessages(
-                currentConversation.messages.map((msg: any) => ({
+              const loadedMessages = currentConversation.messages.map(
+                (msg: any) => ({
                   id: msg.id,
                   role: msg.role,
                   content: msg.content,
                   timestamp: new Date(msg.timestamp),
                   tokensUsed: msg.tokensUsed,
-                })),
+                }),
+              );
+              const chatMessages = getChatOnlyMessages(loadedMessages);
+              setMessages(
+                chatMessages.length > 0
+                  ? chatMessages
+                  : [{ id: uid(), role: "bot", content: welcomeMessage }],
               );
               return; // Don't add welcome message if we have existing conversation
             }
@@ -352,20 +443,6 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
 
     loadConversation();
   }, [userId, chatbotType, sessionId, welcomeMessage]);
-
-  const addMessage = useCallback(
-    (role: MessageRole, content: string, tokensUsed?: number) => {
-      const message: Message = {
-        id: uid(),
-        role,
-        content,
-        timestamp: new Date(),
-        tokensUsed,
-      };
-      setMessages((prev) => [...prev, message]);
-    },
-    [],
-  );
 
   useEffect(() => {
     setMessages([{ id: uid(), role: "bot", content: welcomeMessage }]);
@@ -465,11 +542,13 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
         );
       }
 
-      const conversationHistory = messages.slice(-3).map((msg) => ({
-        role: msg.role,
-        content: msg.content,
-        timestamp: msg.timestamp?.toISOString(),
-      }));
+      const conversationHistory = getChatOnlyMessages(messages)
+        .slice(-3)
+        .map((msg) => ({
+          role: msg.role,
+          content: msg.content,
+          timestamp: msg.timestamp?.toISOString(),
+        }));
 
       const response = await fetch(`${API_BASE}/api/embed/mcqchatbot`, {
         method: "POST",
@@ -521,6 +600,34 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     [chatbotType, userId, tokenBalance, messages, sessionId],
   );
 
+  const saveConversation = useCallback(
+    async (conversationMessages: Message[]) => {
+      const chatMessages = getChatOnlyMessages(conversationMessages);
+      if (!userId || !chatbotType || !sessionId || chatMessages.length === 0) {
+        return;
+      }
+
+      try {
+        await fetch(`${API_BASE}/api/embed/chat-conversation`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": API_KEY,
+          },
+          body: JSON.stringify({
+            userId,
+            chatbotType,
+            sessionId,
+            messages: chatMessages,
+          }),
+        });
+      } catch (error) {
+        console.error("Failed to save conversation:", error);
+      }
+    },
+    [userId, chatbotType, sessionId],
+  );
+
   const handleSendChat = useCallback(async () => {
     const message = chatInput.trim();
     if (!message || isTyping) return;
@@ -530,70 +637,49 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
       setError(
         "You have run out of tokens. Please purchase more tokens to continue chatting.",
       );
-      addMessage(
-        "bot",
-        "You have run out of tokens. Please purchase more tokens to continue chatting.",
-      );
+      setMessages((prev) => [
+        ...prev,
+        createMessage(
+          "bot",
+          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+        ),
+      ]);
       return;
     }
 
-    addMessage("user", message);
+    const userMessage = createMessage("user", message);
+    const nextMessagesWithUser = [...messages, userMessage];
+    setMessages(nextMessagesWithUser);
     setChatInput("");
     setError(null);
     setIsTyping(true);
 
     try {
       const result = await sendRequest(message, false);
-      addMessage("bot", result.response, result.tokensUsed);
+      const botMessage = createMessage("bot", result.response, result.tokensUsed);
+      const nextMessages = [...nextMessagesWithUser, botMessage];
+      setMessages(nextMessages);
 
       // Save conversation after successful exchange
-      await saveConversation();
+      await saveConversation(nextMessages);
     } catch (chatError) {
       const msg =
         chatError instanceof Error
           ? chatError.message
           : "Failed to send message.";
       setError(msg);
-      addMessage("bot", msg);
+      setMessages([...nextMessagesWithUser, createMessage("bot", msg)]);
     } finally {
       setIsTyping(false);
     }
-  }, [addMessage, chatInput, isTyping, sendRequest, tokenBalance]);
-
-  const saveConversation = useCallback(async () => {
-    if (!userId || !chatbotType || !sessionId || messages.length === 0) return;
-
-    try {
-      await fetch(`${API_BASE}/api/embed/chat-conversation`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": API_KEY,
-        },
-        body: JSON.stringify({
-          userId,
-          chatbotType,
-          sessionId,
-          messages,
-        }),
-      });
-    } catch (error) {
-      console.error("Failed to save conversation:", error);
-    }
-  }, [userId, chatbotType, sessionId, messages]);
+  }, [chatInput, isTyping, messages, saveConversation, sendRequest, tokenBalance]);
 
   const handleGenerateQuiz = useCallback(async () => {
     if (!quizTopic.trim() || isTyping) return;
 
     // Check if user has tokens before generating quiz
     if (!tokenBalance || tokenBalance.availableTokens <= 0) {
-      setError(
-        "You have run out of tokens. Please purchase more tokens to continue.",
-      );
-      addMessage(
-        "bot",
-        "You have run out of tokens. Please purchase more tokens to continue.",
-      );
+      setError("You have run out of tokens. Please purchase more tokens to continue.");
       return;
     }
 
@@ -601,7 +687,6 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
       quizExam.trim() ? ` aligned to ${quizExam.trim()}` : ""
     }${quizContext.trim() ? `. Focus area: ${quizContext.trim()}` : ""}.`;
 
-    addMessage("user", `Create a quiz: ${prompt}`);
     setError(null);
     setQuizData(null);
     setSelectedAnswers([]);
@@ -614,27 +699,17 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
       if (!parsed) throw new Error("The generated quiz format was invalid.");
       setQuizData(parsed);
       setSelectedAnswers(new Array(parsed.questions.length).fill(-1));
-      addMessage(
-        "bot",
-        "Your quiz is ready in the Quiz tab.",
-        result.tokensUsed,
-      );
       setActiveTab("quiz");
-
-      // Save conversation after successful quiz generation
-      await saveConversation();
     } catch (quizError) {
       const msg =
         quizError instanceof Error
           ? quizError.message
           : "Failed to generate quiz.";
       setError(msg);
-      addMessage("bot", msg);
     } finally {
       setIsTyping(false);
     }
   }, [
-    addMessage,
     isTyping,
     quizContext,
     quizExam,
@@ -642,7 +717,6 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     quizTopic,
     sendRequest,
     tokenBalance,
-    saveConversation,
   ]);
 
   const answeredCount = selectedAnswers.filter((value) => value !== -1).length;
@@ -837,32 +911,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
             </div>
           );
         })}
-        {isTyping ? (
-          <div
-            style={{
-              alignSelf: "flex-start",
-              display: "inline-flex",
-              gap: 6,
-              padding: "12px 14px",
-              background: "#fff",
-              borderRadius: "18px 18px 18px 6px",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            {[0, 1, 2].map((dot) => (
-              <span
-                key={dot}
-                style={{
-                  width: 7,
-                  height: 7,
-                  borderRadius: "50%",
-                  background: "#94a3b8",
-                  display: "inline-block",
-                }}
-              />
-            ))}
-          </div>
-        ) : null}
+        {isTyping ? <TypingIndicator primaryColor={primaryColor} /> : null}
         <div ref={messagesEndRef} />
       </div>
       <div
