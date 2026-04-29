@@ -1414,7 +1414,7 @@ export default function ChatWidget({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            background: "#fff",
+            background: "transparent",
             borderRadius: 16,
           }}
         >
@@ -1438,8 +1438,7 @@ export default function ChatWidget({
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background:
-            "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #fce7f3 100%)",
+          background: "transparent",
         }}
       >
         <div
