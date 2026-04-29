@@ -52,6 +52,16 @@
 
   if (window.self !== window.top) return;
 
+  var CLOSED_WIDTH = "276px";
+  var CLOSED_HEIGHT = "132px";
+  var CLOSED_WIDTH_MOBILE = "260px";
+  var CLOSED_HEIGHT_MOBILE = "124px";
+  var closedTransition =
+    "width 0.3s cubic-bezier(0.4,0,0.2,1)," +
+    "height 0.3s cubic-bezier(0.4,0,0.2,1)," +
+    "border-radius 0.3s cubic-bezier(0.4,0,0.2,1)," +
+    "box-shadow 0.3s ease";
+
   var embedUrl =
     CDN_ORIGIN +
     "/lead/embed/" +
@@ -74,27 +84,36 @@
   s.position = "fixed";
   s.bottom = "20px";
   s.right = "20px";
-  s.width = "72px";
-  s.height = "72px";
+  s.width = CLOSED_WIDTH;
+  s.height = CLOSED_HEIGHT;
   s.border = "none";
-  s.borderRadius = "50%";
+  s.borderRadius = "0";
   s.zIndex = "2147483647";
   s.overflow = "hidden";
   s.background = "transparent";
   s.colorScheme = "none";
-  s.transition =
-    "width 0.3s cubic-bezier(0.4,0,0.2,1)," +
-    "height 0.3s cubic-bezier(0.4,0,0.2,1)," +
-    "border-radius 0.3s cubic-bezier(0.4,0,0.2,1)," +
-    "box-shadow 0.3s ease";
-  s.boxShadow = "0 8px 30px rgba(15,23,42,0.16)";
+  s.transition = closedTransition;
+  s.boxShadow = "none";
 
   function applyViewportSize() {
     if (window.innerWidth < 640) {
       s.right = "12px";
       s.bottom = "12px";
+      if (!isOpen) {
+        s.width = CLOSED_WIDTH_MOBILE;
+        s.height = CLOSED_HEIGHT_MOBILE;
+      }
+    } else {
+      s.right = "20px";
+      s.bottom = "20px";
+      if (!isOpen) {
+        s.width = CLOSED_WIDTH;
+        s.height = CLOSED_HEIGHT;
+      }
     }
   }
+
+  var isOpen = false;
 
   function inject() {
     if (!document.body) {
@@ -109,6 +128,8 @@
   inject();
 
   function openFrame() {
+    isOpen = true;
+    s.transition = closedTransition;
     if (window.innerWidth < 640) {
       s.width = "calc(100vw - 24px)";
       s.height = "min(720px, calc(100vh - 24px))";
@@ -125,11 +146,16 @@
   }
 
   function closeFrame() {
-    s.width = "72px";
-    s.height = "72px";
-    s.borderRadius = "50%";
-    s.boxShadow = "0 8px 30px rgba(15,23,42,0.16)";
+    isOpen = false;
+    s.transition = "none";
+    s.width = window.innerWidth < 640 ? CLOSED_WIDTH_MOBILE : CLOSED_WIDTH;
+    s.height = window.innerWidth < 640 ? CLOSED_HEIGHT_MOBILE : CLOSED_HEIGHT;
+    s.borderRadius = "0";
+    s.boxShadow = "none";
     applyViewportSize();
+    requestAnimationFrame(function () {
+      s.transition = closedTransition;
+    });
   }
 
   window.addEventListener("resize", function () {

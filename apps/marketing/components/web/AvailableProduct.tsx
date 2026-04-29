@@ -58,7 +58,7 @@ const AvailableProduct = ({ showAvailableOnly }: AvailableProductProps) => {
   }
 
   return (
-    <div className="w-full p-4 sm:p-8 relative bg-transparent  z-10">
+    <div className="w-full pb-10 md:p-8 relative bg-transparent  z-10">
       <div className="flex items-center justify-center text-blue-700 mb-4">
         <span
           className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBg} rounded-full px-4 py-1`}
@@ -75,7 +75,7 @@ const AvailableProduct = ({ showAvailableOnly }: AvailableProductProps) => {
         {products.map((product) => (
           <div
             key={product.productId}
-            className={`flex flex-col items-center justify-center gap-6 rounded-xl p-6 shadow-xl
+            className={`flex flex-col items-center justify-center gap-6 rounded-xl p-3 md:p-6 shadow-xl
               ${
                 themeStyles.cardBg
               } backdrop-blur-sm border border-[#00F0FF]/30 hover:border-[#B026FF] transition-all

@@ -238,7 +238,7 @@ export const productDetails: Record<
   "chatbot-lead-generation": {
     productId: "chatbot-lead-generation", // Product ID
     name: "Lead Generation Chatbot",
-    video: "https://www.youtube.com/embed/dJUjHGDE6uo?si=ey9kgx36ms1-f6Zs",
+    video: "https://www.youtube.com/embed/AU1gB0T4NzM?si=QfEqG8CcM7WngWhV",
     icon: "/icons/lead-generation.png",
     available: true,
 
@@ -252,7 +252,7 @@ export const productDetails: Record<
   "chatbot-education": {
     productId: "chatbot-education", // Product ID
     name: "Education Chatbot",
-    video: "https://www.youtube.com/embed/PtyhpXAN-Uk?si=TL-BftETIaeU6SbV",
+    video: "https://www.youtube.com/embed/SjDrVDlNqvI?si=y5_lkErLtfXJNh2l",
     icon: "/icons/education.png",
     available: true,
 

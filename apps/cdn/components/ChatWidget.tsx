@@ -741,6 +741,11 @@ export default function ChatWidget({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const chatQuestionCountRef = useRef(0);
+  const apptRedirectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const [pendingApptRedirectCount, setPendingApptRedirectCount] = useState(0);
 
   // ── Check mobile on mount and resize ──────────────────────────────────────
   useEffect(() => {
@@ -993,6 +998,12 @@ export default function ChatWidget({
   // ─── Restart ───────────────────────────────────────────────────────────────
 
   const restartChat = useCallback(() => {
+    if (apptRedirectTimeoutRef.current) {
+      clearTimeout(apptRedirectTimeoutRef.current);
+      apptRedirectTimeoutRef.current = null;
+    }
+    chatQuestionCountRef.current = 0;
+    setPendingApptRedirectCount(0);
     setMessages([]);
     setConvHistory([]);
     setInput("");
@@ -1020,6 +1031,7 @@ export default function ChatWidget({
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || isTyping || !config) return;
+    let redirectAfterReplyCount = 0;
 
     // Check token balance before sending
     if (tokenBalance && tokenBalance.availableTokens <= 0) {
@@ -1031,6 +1043,17 @@ export default function ChatWidget({
 
     setInput("");
     addUserMsg(text);
+
+    if (tab === "chat") {
+      const nextQuestionCount = chatQuestionCountRef.current + 1;
+      chatQuestionCountRef.current = nextQuestionCount;
+      if (
+        nextQuestionCount === 3 ||
+        (nextQuestionCount > 3 && (nextQuestionCount - 3) % 5 === 0)
+      ) {
+        redirectAfterReplyCount = nextQuestionCount;
+      }
+    }
 
     if (
       tab === "appointment" &&
@@ -1103,6 +1126,9 @@ export default function ChatWidget({
       );
     } finally {
       setIsTyping(false);
+      if (redirectAfterReplyCount > 0 && !conversationSaved) {
+        setPendingApptRedirectCount(redirectAfterReplyCount);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -1117,6 +1143,7 @@ export default function ChatWidget({
     sessionId,
     visitorId,
     tokenBalance,
+    conversationSaved,
   ]);
 
   // ─── Appointment: handle a text answer from the user ──────────────────────
@@ -1313,6 +1340,27 @@ export default function ChatWidget({
     },
     [apptStarted, startApptFlow],
   );
+
+  useEffect(() => {
+    if (!pendingApptRedirectCount || conversationSaved) return;
+
+    if (apptRedirectTimeoutRef.current) {
+      clearTimeout(apptRedirectTimeoutRef.current);
+    }
+
+    apptRedirectTimeoutRef.current = setTimeout(() => {
+      setTab("appointment");
+      startApptFlow();
+      apptRedirectTimeoutRef.current = null;
+    }, 10000);
+
+    return () => {
+      if (apptRedirectTimeoutRef.current) {
+        clearTimeout(apptRedirectTimeoutRef.current);
+        apptRedirectTimeoutRef.current = null;
+      }
+    };
+  }, [pendingApptRedirectCount, conversationSaved, startApptFlow]);
 
   // ─── Keyboard handler ──────────────────────────────────────────────────────
 
