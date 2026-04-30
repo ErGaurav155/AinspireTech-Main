@@ -747,7 +747,7 @@ export default function DynamicOverviewPage() {
             </div>
           </div>
           <Link
-            href="/web/tokens"
+            href="/web/pricing"
             className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
             style={{ background: pc, color: "#fff" }}
           >

@@ -1,6 +1,13 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Check,
   Zap,
@@ -16,10 +23,8 @@ import {
 } from "lucide-react";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 
-import PaymentModal from "@/components/insta/PaymentModal";
 import { AccountSelectionDialog } from "@/components/insta/AccountSelectionDialog";
 import { PricingPlan } from "@rocketreplai/shared";
 import {
@@ -39,10 +44,22 @@ import {
   getInstaAccount,
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
-import { getUserById } from "@/lib/services/user-actions.api";
+import {
+  getUserById,
+  updateUserLimits,
+} from "@/lib/services/user-actions.api";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  createRazorpaySubscription,
+  getRazerpayPlanInfo,
+  verifyRazorpayPayment,
+} from "@/lib/services/subscription-actions.api";
+import {
+  sendSubscriptionEmailToOwner,
+  sendSubscriptionEmailToUser,
+} from "@/lib/services/misc-actions.api";
 
 // Types
 interface Subscription {
@@ -55,6 +72,15 @@ interface Subscription {
 // Constants
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
+const PENDING_INSTA_CHECKOUT_KEY = "pending_insta_checkout";
+const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
+const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
 
 // Single Pro Plan Configuration
 const instagramPricingPlans: PricingPlan[] = [
@@ -125,8 +151,6 @@ function PricingWithSearchParams() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
     "monthly",
   );
-  const [selectedPlan, setSelectedPlan] = useState<PricingPlan | null>(null);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isInstaAccount, setIsInstaAccount] = useState(false);
@@ -137,9 +161,9 @@ function PricingWithSearchParams() {
   const [currentSubscription, setCurrentSubscription] =
     useState<Subscription | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
-  const [isGettingAcc, setIsGettingAcc] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const hasStartedAutoCheckout = useRef(false);
 
   // Dialog states
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -209,6 +233,236 @@ function PricingWithSearchParams() {
     [showToast, apiRequest],
   );
 
+  const savePendingCheckout = useCallback(
+    (plan: PricingPlan, cycle: "monthly" | "yearly") => {
+      sessionStorage.setItem(
+        PENDING_INSTA_CHECKOUT_KEY,
+        JSON.stringify({ planId: plan.id, billingCycle: cycle }),
+      );
+    },
+    [],
+  );
+
+  const getPendingCheckout = useCallback(() => {
+    try {
+      const pendingCheckout = sessionStorage.getItem(
+        PENDING_INSTA_CHECKOUT_KEY,
+      );
+
+      if (!pendingCheckout) return null;
+
+      const parsed = JSON.parse(pendingCheckout) as {
+        planId?: string;
+        billingCycle?: "monthly" | "yearly";
+      };
+
+      const plan = instagramPricingPlans.find(
+        (pricingPlan) => pricingPlan.id === parsed.planId,
+      );
+
+      if (!plan || !parsed.billingCycle) return null;
+
+      return { plan, billingCycle: parsed.billingCycle };
+    } catch (error) {
+      console.error("Error reading pending Instagram checkout:", error);
+      return null;
+    }
+  }, []);
+
+  const clearPendingCheckout = useCallback(() => {
+    sessionStorage.removeItem(PENDING_INSTA_CHECKOUT_KEY);
+  }, []);
+
+  const loadRazorpayScript = useCallback(() => {
+    if (window.Razorpay) return Promise.resolve();
+
+    return new Promise<void>((resolve, reject) => {
+      const existingScript = document.getElementById(RAZORPAY_SCRIPT_ID);
+
+      if (existingScript) {
+        const startedAt = Date.now();
+        const interval = window.setInterval(() => {
+          if (window.Razorpay) {
+            window.clearInterval(interval);
+            resolve();
+          } else if (Date.now() - startedAt > 15000) {
+            window.clearInterval(interval);
+            reject(new Error("Razorpay checkout script did not load"));
+          }
+        }, 100);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = RAZORPAY_SCRIPT_ID;
+      script.src = RAZORPAY_SCRIPT_SRC;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () =>
+        reject(new Error("Failed to load Razorpay checkout script"));
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const redirectToInstagramConnect = useCallback(
+    (plan: PricingPlan, cycle: "monthly" | "yearly") => {
+      const instaId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
+
+      if (!instaId) {
+        showToast("Failed!", "Missing Instagram configuration", true);
+        return;
+      }
+
+      savePendingCheckout(plan, cycle);
+
+      const redirectUri = "https://app.rocketreplai.com/insta/pricing";
+      const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
+        redirectUri,
+      )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
+
+      window.location.href = authUrl;
+    },
+    [savePendingCheckout, showToast],
+  );
+
+  const openRazorpayCheckout = useCallback(
+    async (
+      plan: PricingPlan,
+      cycle: "monthly" | "yearly",
+      checkoutEmail = email,
+      hasConnectedAccount = isInstaAccount,
+    ) => {
+      setIsUpgrading(true);
+
+      try {
+        if (!hasConnectedAccount) {
+          redirectToInstagramConnect(plan, cycle);
+          return;
+        }
+
+        await loadRazorpayScript();
+
+        const price =
+          cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+        const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
+        const razorpayPlanId =
+          cycle === "monthly"
+            ? planInfo.razorpaymonthlyplanId
+            : planInfo.razorpayyearlyplanId;
+
+        if (!razorpayPlanId) {
+          throw new Error("Plan not found");
+        }
+
+        const referralCode = localStorage.getItem("referral_code");
+        const result = await createRazorpaySubscription(apiRequest, {
+          amount: price,
+          razorpayplanId: razorpayPlanId,
+          buyerId: userId!,
+          referralCode: referralCode || null,
+          metadata: {
+            productId: plan.id,
+            subscriptionType: "insta",
+            billingCycle: cycle,
+          },
+        });
+
+        const razorpay = new window.Razorpay({
+          key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          amount: price * 100,
+          currency: "INR",
+          name: "AinpireTech",
+          description: `${plan.name} Plan - ${cycle}`,
+          subscription_id: result.subscriptionId,
+          notes: {
+            productId: plan.id,
+            razorpayplanId: razorpayPlanId,
+            buyerId: userId,
+            amount: price,
+            referralCode: referralCode || "",
+          },
+          handler: async (response: any) => {
+            const verifyResponse = await verifyRazorpayPayment(apiRequest, {
+              subscription_id: result.subscriptionId,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              subscriptionType: "insta",
+              productId: plan.id,
+            });
+
+            if (!verifyResponse.success) {
+              showToast(
+                "Failed!",
+                `Payment verification failed: ${verifyResponse.message}`,
+                true,
+              );
+              return;
+            }
+
+            if (referralCode) {
+              localStorage.removeItem("referral_code");
+            }
+
+            await updateUserLimits(apiRequest, plan.limit, plan.account);
+            await sendSubscriptionEmailToOwner(apiRequest, {
+              email: checkoutEmail,
+              userId: userId!,
+              subscriptionId: result.subscriptionId,
+            });
+            await sendSubscriptionEmailToUser(apiRequest, {
+              email: checkoutEmail,
+              userId: userId!,
+              agentId: plan.id,
+              subscriptionId: result.subscriptionId,
+            });
+
+            showToast(
+              "Payment Successful!",
+              "Subscription activated successfully",
+            );
+            setIsSubscribed(true);
+            router.replace("/insta/automations");
+            router.refresh();
+          },
+          theme: {
+            color: "#EC4899",
+          },
+        });
+
+        razorpay.on("payment.failed", (response: any) => {
+          showToast(
+            "Failed!",
+            `Payment failed: ${response.error.description}`,
+            true,
+          );
+        });
+
+        clearPendingCheckout();
+        razorpay.open();
+      } catch (error: any) {
+        console.error("Checkout error:", error);
+        showToast(
+          "Failed!",
+          error.message || "Failed to initialize payment",
+          true,
+        );
+      } finally {
+        setIsUpgrading(false);
+      }
+    },
+    [
+      apiRequest,
+      clearPendingCheckout,
+      email,
+      isInstaAccount,
+      loadRazorpayScript,
+      redirectToInstagramConnect,
+      router,
+      showToast,
+      userId,
+    ],
+  );
+
   // Fetch user data and subscription info
   useEffect(() => {
     const fetchUserData = async () => {
@@ -239,23 +493,25 @@ function PricingWithSearchParams() {
           !hasAccounts ||
           (buyer.accountLimit && accounts.length < buyer.accountLimit);
 
+        let hasConnectedAccount = hasAccounts;
+
         // Handle account connection if needed
         if (needsAccountConnection && activeProductId) {
-          setIsGettingAcc(true);
           const connected = await connectInstagramAccount(activeProductId);
+          hasConnectedAccount = connected;
           setIsInstaAccount(connected);
-          setIsGettingAcc(false);
         } else {
           setIsInstaAccount(hasAccounts);
         }
 
         // Fetch subscription info
         const subscription = await getSubscriptioninfo(apiRequest);
+        let activeSub: any = null;
         if (
           subscription.subscriptions &&
           subscription.subscriptions.length > 0
         ) {
-          const activeSub = subscription.subscriptions.find(
+          activeSub = subscription.subscriptions.find(
             (sub: any) => sub.status === "active",
           );
           if (activeSub) {
@@ -274,6 +530,26 @@ function PricingWithSearchParams() {
           setIsSubscribed(false);
           setCurrentSubscription(null);
         }
+
+        if (
+          hasConnectedAccount &&
+          !activeSub &&
+          activeProductId &&
+          !hasStartedAutoCheckout.current
+        ) {
+          const pendingCheckout = getPendingCheckout();
+
+          if (pendingCheckout) {
+            hasStartedAutoCheckout.current = true;
+            setBillingCycle(pendingCheckout.billingCycle);
+            await openRazorpayCheckout(
+              pendingCheckout.plan,
+              pendingCheckout.billingCycle,
+              buyer.email,
+              true,
+            );
+          }
+        }
       } catch (error) {
         console.error("Error fetching user info:", error);
         showToast("Failed!", "Failed to load subscription data", true);
@@ -289,6 +565,8 @@ function PricingWithSearchParams() {
     activeProductId,
     isLoaded,
     connectInstagramAccount,
+    getPendingCheckout,
+    openRazorpayCheckout,
     showToast,
     apiRequest,
     fetchUserAccounts,
@@ -352,9 +630,7 @@ function PricingWithSearchParams() {
       setPendingBillingCycle(cycle);
       setShowConfirmDialog(true);
     } else {
-      // No current subscription, proceed directly
-      setSelectedPlan(plan);
-      setIsPaymentModalOpen(true);
+      await openRazorpayCheckout(plan, cycle);
     }
   };
 
@@ -386,12 +662,18 @@ function PricingWithSearchParams() {
       if (userAccounts.length > pendingPlan.account) {
         setShowAccountDialog(true);
       } else {
-        setSelectedPlan(pendingPlan);
-        setIsPaymentModalOpen(true);
+        await openRazorpayCheckout(
+          pendingPlan,
+          pendingBillingCycle,
+          email,
+          isInstaAccount,
+        );
       }
     } catch (error) {
       console.error("Error changing subscription:", error);
       showToast("Failed!", "Failed to change subscription", true);
+      setIsProcessingChange(false);
+    } finally {
       setIsProcessingChange(false);
     }
   };
@@ -420,9 +702,14 @@ function PricingWithSearchParams() {
       );
       setUserAccounts(updatedAccounts);
 
-      // Proceed to payment
-      setSelectedPlan(pendingPlan);
-      setIsPaymentModalOpen(true);
+      if (pendingPlan) {
+        await openRazorpayCheckout(
+          pendingPlan,
+          pendingBillingCycle,
+          email,
+          isInstaAccount,
+        );
+      }
     } catch (error) {
       console.error("Error deleting accounts:", error);
       showToast("Failed!", "Failed to delete accounts", true);
@@ -1042,28 +1329,6 @@ function PricingWithSearchParams() {
             </div>
           </div>
         </div>
-      )}
-
-      {/* Payment Modal */}
-      {userId && (
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          plan={selectedPlan}
-          billingCycle={billingCycle}
-          email={email}
-          userId={userId}
-          isSubscribed={isSubscribed}
-          isInstaAccount={isInstaAccount}
-          isgettingAcc={isGettingAcc}
-          onSuccess={() => {
-            setIsSubscribed(true);
-            setIsUpgrading(false);
-            setIsPaymentModalOpen(false);
-            router.replace("/insta/automations");
-            router.refresh();
-          }}
-        />
       )}
 
       {/* Confirm Subscription Change Dialog */}

@@ -11,13 +11,20 @@ export const cancelInstaSubscriptionController = async (
   res: Response,
 ) => {
   try {
-    const { subscriptionId, reason, mode, subcriptionType } = req.body;
+    const {
+      subscriptionId,
+      reason,
+      mode,
+      subscriptionType,
+      subcriptionType,
+    } = req.body;
+    const resolvedSubscriptionType = subscriptionType || subcriptionType;
     const { userId: clerkId } = getAuth(req);
 
-    if (!subscriptionId || !mode || !subcriptionType) {
+    if (!subscriptionId || !mode || !resolvedSubscriptionType) {
       return res.status(400).json({
         success: false,
-        error: "Missing required fields: subscriptionId and mode",
+        error: "Missing required fields: subscriptionId, mode and subscriptionType",
         timestamp: new Date().toISOString(),
       });
     }
@@ -34,7 +41,7 @@ export const cancelInstaSubscriptionController = async (
 
     const subscription = await getSubscriptionById(
       subscriptionId,
-      subcriptionType,
+      resolvedSubscriptionType,
     );
     if (!subscription || subscription.clerkId !== clerkId) {
       return res.status(403).json({

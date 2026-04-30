@@ -72,6 +72,12 @@ const BOTTOM_NAV_ITEMS = [
     icon: Share2,
     isNew: true,
   },
+  {
+    label: "Pricing",
+    href: "/web/pricing",
+    icon: CreditCard,
+    isNew: false,
+  },
 ];
 
 interface WebSidebarProps {
@@ -300,7 +306,7 @@ export default function WebSidebar({
                   </div>
                 </div>
                 <Button
-                  onClick={() => router.push("/web/tokens")}
+                  onClick={() => router.push("/web/pricing")}
                   size="sm"
                   className={styles.tokenButton}
                 >

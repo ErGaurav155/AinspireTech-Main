@@ -47,8 +47,9 @@ export default async function RootLayout({
           </ClerkThemeProvider>
         </ThemeProvider>
         <SpeedInsights />
+
         <script src="https://cdn.rocketreplai.com/website-bot.js" defer>
-          user_3BEup7vMQ7rRDP8jsrg9pRoWMor,chatbot-lead-generation
+          user_3D4cx1EprMkGRgvM9n6KiuOrON2,chatbot-lead-generation
         </script>
       </body>
     </html>

@@ -48,9 +48,8 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
       });
     }
 
-    // Get the body
-    const payload = req.body;
-    const body = JSON.stringify(payload);
+    // Clerk/Svix signs the exact raw request body, not a re-stringified object.
+    const body = (req as any).rawBody || JSON.stringify(req.body);
 
     // Create a new Svix instance with your secret.
     const wh = new Webhook(WEBHOOK_SECRET);

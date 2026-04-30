@@ -31,12 +31,15 @@ import {
   Switch,
   Tabs,
   TabsContent,
+  toast,
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { productSubscriptionDetails } from "@rocketreplai/shared";
 import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
 
 // Types
 interface Subscription {
@@ -44,6 +47,7 @@ interface Subscription {
   clerkId: string;
   status: string;
   billingCycle: string;
+  subscriptionId?: string;
 }
 
 interface Product {
@@ -84,6 +88,9 @@ const PricingContent = () => {
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [subscriptionToCancel, setSubscriptionToCancel] =
+    useState<Subscription | null>(null);
   // Fetch subscriptions and user chatbots
   useEffect(() => {
     const fetchUserData = async () => {
@@ -114,6 +121,7 @@ const PricingContent = () => {
             clerkId: sub.clerkId || "",
             status: sub.status || "inactive",
             billingCycle: sub.billingCycle || "monthly",
+            subscriptionId: sub.subscriptionId,
           }));
 
         setSubscriptions(formattedSubscriptions);
@@ -155,6 +163,54 @@ const PricingContent = () => {
     return subscriptions.some(
       (sub) => sub.chatbotType === productId && sub.status === "active",
     );
+  };
+
+  const getProductSubscription = (productId: string) => {
+    return subscriptions.find(
+      (sub) => sub.chatbotType === productId && sub.status === "active",
+    );
+  };
+
+  const handleCancelSubscription = async () => {
+    if (!subscriptionToCancel?.subscriptionId) {
+      toast({
+        title: "Failed!",
+        description: "No active subscription selected for cancellation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsCancelling(true);
+    try {
+      await cancelRazorPaySubscription(apiRequest, {
+        subscriptionId: subscriptionToCancel.subscriptionId,
+        subscriptionType: "web",
+        reason: "User requested cancellation",
+        mode: "Immediate",
+      });
+
+      setSubscriptions((current) =>
+        current.filter(
+          (sub) => sub.subscriptionId !== subscriptionToCancel.subscriptionId,
+        ),
+      );
+      setSubscriptionToCancel(null);
+      toast({
+        title: "Success!",
+        description: "Subscription cancelled successfully",
+      });
+    } catch (cancelError: any) {
+      console.error("Error cancelling subscription:", cancelError);
+      toast({
+        title: "Failed!",
+        description:
+          cancelError.message || "Failed to cancel subscription. Try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const hasChatbotCreated = (productId: string) => {
@@ -406,6 +462,9 @@ const PricingContent = () => {
                   const { displayPrice, originalPrice, isYearly } =
                     getProductPrice(product);
                   const isSubscribed = isProductSubscribed(product.productId);
+                  const activeSubscription = getProductSubscription(
+                    product.productId,
+                  );
                   const hasCreated = hasChatbotCreated(product.productId);
                   const isMostPopular =
                     product.productId === "chatbot-lead-generation";
@@ -552,13 +611,37 @@ const PricingContent = () => {
                         </SignedOut>
                         <SignedIn>
                           {isSubscribed ? (
-                            <Button
-                              disabled
-                              className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
-                            >
-                              <BadgeCheck className="h-4 w-4 mr-2" />
-                              Current Plan
-                            </Button>
+                            <div className="space-y-2">
+                              <Button
+                                disabled
+                                className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
+                              >
+                                <BadgeCheck className="h-4 w-4 mr-2" />
+                                Current Plan
+                              </Button>
+                              <Button
+                                variant="outline"
+                                disabled={isCancelling}
+                                onClick={() =>
+                                  activeSubscription &&
+                                  setSubscriptionToCancel(activeSubscription)
+                                }
+                                className={
+                                  isDark
+                                    ? "w-full border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl"
+                                    : "w-full border-red-200 text-red-600 hover:bg-red-50 rounded-xl"
+                                }
+                              >
+                                {isCancelling ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    Cancelling...
+                                  </>
+                                ) : (
+                                  "Cancel Subscription"
+                                )}
+                              </Button>
+                            </div>
                           ) : (
                             <Checkout
                               userId={userId!}
@@ -741,6 +824,18 @@ const PricingContent = () => {
           </section>
         </section>
       </div>
+      <ConfirmDialog
+        open={!!subscriptionToCancel}
+        onOpenChange={(open) => {
+          if (!open) setSubscriptionToCancel(null);
+        }}
+        onConfirm={handleCancelSubscription}
+        title="Confirm Cancellation"
+        description="Are you sure you want to cancel this chatbot subscription? Access for this plan will be removed."
+        confirmText="Yes, Cancel Subscription"
+        isDestructive={true}
+        isLoading={isCancelling}
+      />
     </div>
   );
 };
