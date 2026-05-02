@@ -19,7 +19,13 @@ export const createRazorpaySubscriptionController = async (
         timestamp: new Date().toISOString(),
       });
     }
-    const { subscriptionType, productId, billingCycle } = metadata;
+    const {
+      subscriptionType,
+      productId,
+      billingCycle,
+      previousSubscriptionId,
+      previousSubscriptionType,
+    } = metadata;
     if (!subscriptionType || !productId || !billingCycle) {
       return res.status(400).json({
         success: false,
@@ -51,6 +57,8 @@ export const createRazorpaySubscriptionController = async (
           amount: amount.toString(),
           referralCode: referralCode || "",
           billingCycle,
+          previousSubscriptionId: previousSubscriptionId || "",
+          previousSubscriptionType: previousSubscriptionType || "",
         },
       });
     } catch (razorpayError: any) {

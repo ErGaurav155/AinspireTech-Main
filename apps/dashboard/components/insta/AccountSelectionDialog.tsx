@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTheme } from "next-themes";
 import { PricingPlan } from "@rocketreplai/shared";
 
@@ -26,6 +26,7 @@ interface AccountSelectionDialogProps {
   accounts: any[];
   newPlan: PricingPlan | null;
   isLoading?: boolean;
+  mode?: "delete" | "keep";
 }
 
 export function AccountSelectionDialog({
@@ -35,6 +36,7 @@ export function AccountSelectionDialog({
   accounts,
   newPlan,
   isLoading = false,
+  mode = "delete",
 }: AccountSelectionDialogProps) {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const { resolvedTheme } = useTheme();
@@ -76,6 +78,15 @@ export function AccountSelectionDialog({
 
   const accountLimit = getAccountLimit(newPlan);
   const accountsToDelete = Math.max(0, accounts.length - accountLimit);
+  const requiredSelections = mode === "keep" ? accountLimit : accountsToDelete;
+  const getAccountId = (account: any) =>
+    account.instagramId || account._id || account.username;
+
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedAccounts([]);
+    }
+  }, [isOpen]);
 
   const handleAccountSelection = (accountId: string, checked: boolean) => {
     if (checked) {
@@ -86,7 +97,17 @@ export function AccountSelectionDialog({
   };
 
   const handleConfirm = () => {
-    if (selectedAccounts.length >= accountsToDelete) {
+    if (selectedAccounts.length >= requiredSelections) {
+      if (mode === "keep") {
+        const selectedToKeep = new Set(selectedAccounts);
+        onConfirm(
+          accounts
+            .filter((account) => !selectedToKeep.has(getAccountId(account)))
+            .map((account) => getAccountId(account)),
+        );
+        return;
+      }
+
       onConfirm(selectedAccounts);
     }
   };
@@ -101,34 +122,35 @@ export function AccountSelectionDialog({
               Account Limit Exceeded
             </DialogTitle>
             <DialogDescription className={pageStyles.successText}>
-              The {newPlan?.name} plan allows only {accountLimit} Instagram
-              account(s). Please select {accountsToDelete} account(s) to delete.
+              {mode === "keep"
+                ? `The ${newPlan?.name} plan allows only ${accountLimit} Instagram account(s). Please select the account you want to keep. Other accounts and their data will be deleted.`
+                : `The ${newPlan?.name} plan allows only ${accountLimit} Instagram account(s). Please select ${accountsToDelete} account(s) to delete.`}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 max-h-60 overflow-y-auto">
             <div className="space-y-3">
               {accounts.map((account) => (
                 <div
-                  key={account.username}
+                  key={getAccountId(account)}
                   className="flex items-center space-x-2"
                 >
                   <Checkbox
-                    id={account.username}
-                    checked={selectedAccounts.includes(account.username)}
+                    id={getAccountId(account)}
+                    checked={selectedAccounts.includes(getAccountId(account))}
                     onCheckedChange={(checked) =>
                       handleAccountSelection(
-                        account.username,
+                        getAccountId(account),
                         checked as boolean,
                       )
                     }
                     disabled={
-                      selectedAccounts.length >= accountsToDelete &&
-                      !selectedAccounts.includes(account.username)
+                      selectedAccounts.length >= requiredSelections &&
+                      !selectedAccounts.includes(getAccountId(account))
                     }
                     className={pageStyles.checkbox}
                   />
                   <Label
-                    htmlFor={account.username}
+                    htmlFor={getAccountId(account)}
                     className={pageStyles.label}
                   >
                     {account.username}
@@ -136,10 +158,10 @@ export function AccountSelectionDialog({
                 </div>
               ))}
             </div>
-            {selectedAccounts.length < accountsToDelete && (
+            {selectedAccounts.length < requiredSelections && (
               <p className={pageStyles.errorText}>
-                Please select {accountsToDelete - selectedAccounts.length} more
-                account(s)
+                Please select {requiredSelections - selectedAccounts.length}{" "}
+                more account(s)
               </p>
             )}
           </div>
@@ -154,12 +176,18 @@ export function AccountSelectionDialog({
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={isLoading || selectedAccounts.length < accountsToDelete}
+              disabled={
+                isLoading || selectedAccounts.length < requiredSelections
+              }
               className={pageStyles.buttonConfirm}
             >
-              {isLoading
-                ? "Processing..."
-                : `Delete Selected Accounts (${selectedAccounts.length}/${accountsToDelete})`}
+              {isLoading ? (
+                "Processing..."
+              ) : mode === "keep" ? (
+                `Keep Selected Account (${selectedAccounts.length}/${requiredSelections})`
+              ) : (
+                `Delete Selected Accounts (${selectedAccounts.length}/${accountsToDelete})`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -8,6 +8,69 @@ import User from "@/models/user.model";
 import Affiliate from "@/models/affiliate/Affiliate";
 import AffiReferral from "@/models/affiliate/Referral";
 import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
+import { cancelRazorPaySubscription } from "@/services/subscription.service";
+import { initializeSubscriptionTokens } from "@/services/token.service";
+
+async function finalizeSubscriptionReplacementFromNotes(notes: any) {
+  const previousSubscriptionId = notes.previousSubscriptionId;
+  const previousSubscriptionType = notes.previousSubscriptionType;
+  const clerkId = notes.buyerId;
+
+  if (!previousSubscriptionId || !previousSubscriptionType || !clerkId) return;
+
+  const previousSubscription =
+    previousSubscriptionType === "insta"
+      ? await InstaSubscription.findOne({
+          subscriptionId: previousSubscriptionId,
+          clerkId,
+          status: "active",
+        })
+      : await WebSubscription.findOne({
+          subscriptionId: previousSubscriptionId,
+          clerkId,
+          status: "active",
+        });
+
+  if (!previousSubscription) return;
+
+  try {
+    await cancelRazorPaySubscription(
+      previousSubscriptionId,
+      "Changed billing cycle after successful payment",
+      "Immediate",
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/invalid|cancel|status/i.test(message)) {
+      console.error("Failed to cancel previous Razorpay subscription:", error);
+      throw error;
+    }
+    console.warn("Previous Razorpay subscription appears already inactive:", {
+      previousSubscriptionId,
+      message,
+    });
+  }
+
+  const cancellationUpdate = {
+    $set: {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+
+  if (previousSubscriptionType === "insta") {
+    await InstaSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+  } else {
+    await WebSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+  }
+}
 
 async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionData = payload.subscription?.entity;
@@ -97,7 +160,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       chatbotName: notes.chatbotName || "AI Assistance",
       chatbotMessage: "Hi, How May I help you?",
     });
+    await initializeSubscriptionTokens(clerkId, chatbotType);
   }
+
+  await finalizeSubscriptionReplacementFromNotes(notes);
 
   let referralRecord = null;
 

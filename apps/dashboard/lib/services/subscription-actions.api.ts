@@ -23,6 +23,8 @@ export const createRazorpaySubscription = (
       productId: string;
       subscriptionType: "web" | "insta";
       billingCycle: "monthly" | "yearly" | "one-time";
+      previousSubscriptionId?: string;
+      previousSubscriptionType?: "web" | "insta";
     };
   },
 ): Promise<any> => {

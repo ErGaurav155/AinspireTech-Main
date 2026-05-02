@@ -468,6 +468,8 @@ const PricingContent = () => {
                   const activeSubscription = getProductSubscription(
                     product.productId,
                   );
+                  const isSameBillingCycle =
+                    activeSubscription?.billingCycle === billingMode;
                   const hasCreated = hasChatbotCreated(product.productId);
                   const isMostPopular =
                     product.productId === "chatbot-lead-generation";
@@ -613,7 +615,7 @@ const PricingContent = () => {
                           </Button>
                         </SignedOut>
                         <SignedIn>
-                          {isSubscribed ? (
+                          {isSubscribed && isSameBillingCycle ? (
                             <div className="space-y-2">
                               <Button
                                 disabled
@@ -645,6 +647,20 @@ const PricingContent = () => {
                                 )}
                               </Button>
                             </div>
+                          ) : isSubscribed && activeSubscription ? (
+                            <Checkout
+                              userId={userId!}
+                              productId={product.productId}
+                              billingCycle={billingMode}
+                              amount={displayPrice}
+                              planType="chatbot"
+                              chatbotCreated={true}
+                              tokens={1000000}
+                              previousSubscriptionId={
+                                activeSubscription.subscriptionId
+                              }
+                              previousSubscriptionType="web"
+                            />
                           ) : (
                             <Checkout
                               userId={userId!}

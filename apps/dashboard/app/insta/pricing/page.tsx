@@ -324,6 +324,7 @@ function PricingWithSearchParams() {
       cycle: "monthly" | "yearly",
       checkoutEmail = email,
       hasConnectedAccount = isInstaAccount,
+      previousSubscriptionId?: string,
     ) => {
       setIsUpgrading(true);
 
@@ -356,6 +357,10 @@ function PricingWithSearchParams() {
             productId: plan.id,
             subscriptionType: "insta",
             billingCycle: cycle,
+            previousSubscriptionId,
+            previousSubscriptionType: previousSubscriptionId
+              ? "insta"
+              : undefined,
           },
         });
 
@@ -378,8 +383,14 @@ function PricingWithSearchParams() {
               subscription_id: result.subscriptionId,
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
+              subscriptionKind: "insta",
               subscriptionType: "insta",
               productId: plan.id,
+              billingCycle: cycle,
+              previousSubscriptionId,
+              previousSubscriptionType: previousSubscriptionId
+                ? "insta"
+                : undefined,
             });
 
             if (!verifyResponse.success) {
@@ -596,22 +607,6 @@ function PricingWithSearchParams() {
     setShowConfirmDialog(false);
 
     try {
-      // First, cancel current subscription
-      if (currentSubscription?.subscriptionId) {
-        const cancelResult = await cancelRazorPaySubscription(apiRequest, {
-          subscriptionId: currentSubscription.subscriptionId,
-          subscriptionType: "insta",
-          reason: "Changing to new plan",
-          mode: "Immediate",
-        });
-
-        if (!cancelResult.success) {
-          showToast("Failed!", "Failed to cancel current subscription", true);
-          setIsProcessingChange(false);
-          return;
-        }
-      }
-
       // Check account limit for new plan
       if (userAccounts.length > pendingPlan.account) {
         setShowAccountDialog(true);
@@ -621,6 +616,7 @@ function PricingWithSearchParams() {
           pendingBillingCycle,
           email,
           isInstaAccount,
+          currentSubscription?.subscriptionId,
         );
       }
     } catch (error) {
@@ -652,7 +648,10 @@ function PricingWithSearchParams() {
 
       // Update user accounts list
       const updatedAccounts = userAccounts.filter(
-        (account) => !selectedAccountIds.includes(account._id),
+        (account) =>
+          !selectedAccountIds.includes(
+            account.instagramId || account._id || account.username,
+          ),
       );
       setUserAccounts(updatedAccounts);
 
@@ -662,6 +661,7 @@ function PricingWithSearchParams() {
           pendingBillingCycle,
           email,
           isInstaAccount,
+          currentSubscription?.subscriptionId,
         );
       }
     } catch (error) {
@@ -734,7 +734,10 @@ function PricingWithSearchParams() {
 
       // Update user accounts list
       const updatedAccounts = userAccounts.filter(
-        (account) => !selectedAccountIds.includes(account._id),
+        (account) =>
+          !selectedAccountIds.includes(
+            account.instagramId || account._id || account.username,
+          ),
       );
       setUserAccounts(updatedAccounts);
 
@@ -1392,6 +1395,7 @@ function PricingWithSearchParams() {
           popular: false,
         }}
         isLoading={isCancelling}
+        mode="keep"
       />
     </div>
   );

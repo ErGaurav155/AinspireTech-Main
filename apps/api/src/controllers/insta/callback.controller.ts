@@ -55,6 +55,30 @@ interface AccountUsageEntry {
   accountProfile?: string;
 }
 
+const readInstagramAPIError = async (
+  context: string,
+  response: Awaited<ReturnType<typeof fetch>>,
+) => {
+  let body = "";
+
+  try {
+    body = await response.text();
+  } catch (error) {
+    body = `Unable to read response body: ${
+      error instanceof Error ? error.message : String(error)
+    }`;
+  }
+
+  console.error("Instagram API failed:", {
+    context,
+    status: response.status,
+    statusText: response.statusText,
+    body,
+  });
+
+  return body;
+};
+
 // Helper function to get Instagram user info with additional fields
 const getInstagramUser = async (
   accessToken: string,
@@ -66,7 +90,13 @@ const getInstagramUser = async (
   try {
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Instagram API error: ${response.statusText}`);
+      const errorBody = await readInstagramAPIError(
+        "fetch Instagram user",
+        response,
+      );
+      throw new Error(
+        `Instagram API error: ${response.statusText} - ${errorBody}`,
+      );
     }
     return (await response.json()) as InstagramUserResponse;
   } catch (error) {
@@ -85,7 +115,13 @@ const getInstagramUserMediaCount = async (
 
     const response = await fetch(url);
     if (!response.ok) {
-      throw new Error(`Instagram API error: ${response.statusText}`);
+      const errorBody = await readInstagramAPIError(
+        "fetch Instagram media count",
+        response,
+      );
+      throw new Error(
+        `Instagram API error: ${response.statusText} - ${errorBody}`,
+      );
     }
 
     const data = (await response.json()) as InstagramUserMediaResponse;
@@ -227,7 +263,13 @@ export const handleInstaCallbackController = async (
     );
 
     if (!tokenRes.ok) {
-      throw new Error(`Instagram API error: ${tokenRes.statusText}`);
+      const errorBody = await readInstagramAPIError(
+        "exchange code for short-lived token",
+        tokenRes,
+      );
+      throw new Error(
+        `Instagram API error: ${tokenRes.statusText} - ${errorBody}`,
+      );
     }
 
     const tokenData = (await tokenRes.json()) as InstagramTokenResponse &
@@ -249,7 +291,13 @@ export const handleInstaCallbackController = async (
 
     const longLivedRes = await fetch(longLivedUrl.toString());
     if (!longLivedRes.ok) {
-      throw new Error(`Instagram API error: ${longLivedRes.statusText}`);
+      const errorBody = await readInstagramAPIError(
+        "exchange short-lived token for long-lived token",
+        longLivedRes,
+      );
+      throw new Error(
+        `Instagram API error: ${longLivedRes.statusText} - ${errorBody}`,
+      );
     }
 
     const longLivedData =

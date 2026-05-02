@@ -62,10 +62,9 @@ export async function initializeSubscriptionTokens(
   // Set subscription tokens to 1 million for this chatbot
   tokenBalance.subscriptionTokens.set(chatbotId, 1000000);
 
-  // Initialize used subscription tokens for this chatbot if not exists
-  if (!tokenBalance.usedSubscriptionTokens.has(chatbotId)) {
-    tokenBalance.usedSubscriptionTokens.set(chatbotId, 0);
-  }
+  // A new paid subscription or billing-cycle switch should restore the
+  // chatbot's included token allowance.
+  tokenBalance.usedSubscriptionTokens.set(chatbotId, 0);
 
   await tokenBalance.save();
   return tokenBalance;

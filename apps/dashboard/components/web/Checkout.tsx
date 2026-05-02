@@ -51,6 +51,8 @@ interface CheckoutProps {
   planType: "chatbot" | "tokens";
   tokens?: number;
   chatbotCreated?: boolean;
+  previousSubscriptionId?: string;
+  previousSubscriptionType?: "web" | "insta";
 }
 
 type CheckoutStep =
@@ -91,6 +93,8 @@ export const Checkout = ({
   planType = "chatbot",
   tokens,
   chatbotCreated = false,
+  previousSubscriptionId,
+  previousSubscriptionType,
 }: CheckoutProps) => {
   const router = useRouter();
   const { styles, isDark } = useThemeStyles();
@@ -528,6 +532,8 @@ export const Checkout = ({
           productId: productId,
           subscriptionType: "web",
           billingCycle: billingCycle,
+          previousSubscriptionId,
+          previousSubscriptionType,
         },
       });
 
@@ -587,8 +593,12 @@ export const Checkout = ({
         razorpay_payment_id: razorpayResponse.razorpay_payment_id,
         razorpay_signature: razorpayResponse.razorpay_signature,
         chatbotType: productId,
+        subscriptionKind: "web",
         subscriptionType: productId,
         productId,
+        billingCycle,
+        previousSubscriptionId,
+        previousSubscriptionType,
       };
 
       const verifyResponse = await verifyRazorpayPayment(

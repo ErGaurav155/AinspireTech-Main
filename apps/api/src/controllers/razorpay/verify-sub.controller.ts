@@ -4,6 +4,8 @@ import { initializeSubscriptionTokens } from "@/services/token.service";
 import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
+import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import { cancelRazorPaySubscription } from "@/services/subscription.service";
 
 export interface VerifyBody {
   subscription_id: string;
@@ -12,7 +14,83 @@ export interface VerifyBody {
   chatbotType?: string;
   productId?: string;
   subscriptionType?: string;
+  subscriptionKind?: "web" | "insta";
+  billingCycle?: "monthly" | "yearly";
+  previousSubscriptionId?: string;
+  previousSubscriptionType?: "web" | "insta";
 }
+
+const cancelPreviousSubscriptionAfterPayment = async ({
+  clerkId,
+  previousSubscriptionId,
+  previousSubscriptionType,
+}: {
+  clerkId: string;
+  previousSubscriptionId?: string;
+  previousSubscriptionType?: "web" | "insta";
+}) => {
+  if (!previousSubscriptionId || !previousSubscriptionType) return;
+
+  const previousSubscription =
+    previousSubscriptionType === "insta"
+      ? await InstaSubscription.findOne({
+          subscriptionId: previousSubscriptionId,
+          clerkId,
+          status: "active",
+        })
+      : await WebSubscription.findOne({
+          subscriptionId: previousSubscriptionId,
+          clerkId,
+          status: "active",
+        });
+
+  if (!previousSubscription) {
+    console.warn("Previous subscription not found or already inactive", {
+      previousSubscriptionId,
+      previousSubscriptionType,
+      clerkId,
+    });
+    return;
+  }
+
+  try {
+    await cancelRazorPaySubscription(
+      previousSubscriptionId,
+      "Changed billing cycle after successful payment",
+      "Immediate",
+    );
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/invalid|cancel|status/i.test(message)) {
+      console.error("Failed to cancel previous Razorpay subscription:", error);
+      throw error;
+    }
+    console.warn("Previous Razorpay subscription appears already inactive:", {
+      previousSubscriptionId,
+      message,
+    });
+  }
+
+  const cancellationUpdate = {
+    $set: {
+      status: "cancelled",
+      cancelledAt: new Date(),
+      updatedAt: new Date(),
+    },
+  };
+
+  if (previousSubscriptionType === "insta") {
+    await InstaSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+  } else {
+    await WebSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+  }
+};
 
 // POST /api/razorpay/subscription/verify - Verify Razorpay payment
 export const verifyRazorpayPaymentController = async (
@@ -36,6 +114,10 @@ export const verifyRazorpayPaymentController = async (
       chatbotType,
       productId,
       subscriptionType,
+      subscriptionKind,
+      billingCycle,
+      previousSubscriptionId,
+      previousSubscriptionType,
     }: VerifyBody = req.body;
 
     // Validate required parameters
@@ -94,31 +176,45 @@ export const verifyRazorpayPaymentController = async (
 
       // Determine chatbot type
       const targetChatbotType = (chatbotType || subscriptionType)!;
+      const currentSubscriptionKind =
+        subscriptionKind || (subscriptionType === "insta" ? "insta" : "web");
 
       // Initialize subscription tokens (1 million tokens per chatbot)
-      await initializeSubscriptionTokens(userId, targetChatbotType);
+      if (currentSubscriptionKind === "web") {
+        await initializeSubscriptionTokens(userId, targetChatbotType);
+      }
 
-      // Create or update WebSubscription record
-      const subscriptionData = {
+      await cancelPreviousSubscriptionAfterPayment({
         clerkId: userId,
-        chatbotType: targetChatbotType,
-        chatbotName:
-          targetChatbotType === "chatbot-lead-generation"
-            ? "Lead Generation"
-            : targetChatbotType === "chatbot-education"
-              ? "Education (MCQ)"
-              : targetChatbotType,
-        razorpaySubscriptionId: subscription_id,
-        status: "active",
-        startedAt: new Date(),
-        productId: productId,
-      };
+        previousSubscriptionId,
+        previousSubscriptionType,
+      });
 
-      await WebSubscription.findOneAndUpdate(
-        { clerkId: userId, chatbotType: targetChatbotType },
-        subscriptionData,
-        { upsert: true, new: true },
-      );
+      if (currentSubscriptionKind === "web") {
+        const subscriptionData = {
+          clerkId: userId,
+          chatbotType: targetChatbotType,
+          chatbotName:
+            targetChatbotType === "chatbot-lead-generation"
+              ? "Lead Generation"
+              : targetChatbotType === "chatbot-education"
+                ? "Education (MCQ)"
+                : targetChatbotType,
+          subscriptionId: subscription_id,
+          plan: productId || targetChatbotType,
+          billingCycle: billingCycle || "monthly",
+          status: "active",
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          productId: productId,
+          updatedAt: new Date(),
+        };
+
+        await WebSubscription.findOneAndUpdate(
+          { subscriptionId: subscription_id },
+          { $set: subscriptionData },
+          { upsert: true, new: true, setDefaultsOnInsert: true },
+        );
+      }
 
       console.log(
         "Subscription tokens initialized and record created for user:",
