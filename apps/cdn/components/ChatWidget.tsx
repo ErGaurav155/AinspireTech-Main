@@ -905,6 +905,28 @@ export default function ChatWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode]);
 
+  useEffect(() => {
+    if (mode !== "embed" || isLoadingConfig) return;
+
+    const timeoutId = setTimeout(() => {
+      setShowBubble(false);
+    }, 15000);
+
+    return () => clearTimeout(timeoutId);
+  }, [mode, isLoadingConfig]);
+
+  useEffect(() => {
+    if (mode !== "embed" || isLoadingConfig || isOpen) return;
+
+    window.parent.postMessage(
+      {
+        source: "rocketreplai",
+        type: showBubble ? "closed-prompt" : "closed-compact",
+      },
+      "*",
+    );
+  }, [mode, isLoadingConfig, isOpen, showBubble]);
+
   // ─── Message helpers ───────────────────────────────────────────────────────
 
   function addBotMsg(content: string): ChatMessage {
@@ -989,7 +1011,7 @@ export default function ChatWidget({
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
-    setShowBubble(true);
+    setShowBubble(false);
     if (mode === "embed") {
       window.parent.postMessage({ source: "rocketreplai", type: "close" }, "*");
     }
@@ -1406,30 +1428,7 @@ export default function ChatWidget({
 
   if (isLoadingConfig) {
     if (mode === "embed") {
-      return (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "transparent",
-            borderRadius: 16,
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              border: `3px solid ${pc}`,
-              borderTopColor: "transparent",
-              borderRadius: "50%",
-              animation: "spin 0.8s linear infinite",
-            }}
-          />
-        </div>
-      );
+      return null;
     }
     return (
       <div
@@ -1463,6 +1462,7 @@ export default function ChatWidget({
         primaryColor={pc}
         onOpen={handleOpen}
         showBubble={showBubble}
+        compact={!showBubble}
       />
     );
   }

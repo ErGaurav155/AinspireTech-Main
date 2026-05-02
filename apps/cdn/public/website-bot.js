@@ -52,8 +52,10 @@
 
   if (window.self !== window.top) return;
 
-  var CLOSED_WIDTH = "276px";
-  var CLOSED_HEIGHT = "132px";
+  var PROMPT_WIDTH = "276px";
+  var PROMPT_HEIGHT = "132px";
+  var COMPACT_WIDTH = "60px";
+  var COMPACT_HEIGHT = "60px";
   var CLOSED_WIDTH_MOBILE = "260px";
   var CLOSED_HEIGHT_MOBILE = "124px";
   var closedTransition =
@@ -84,8 +86,8 @@
   s.position = "fixed";
   s.bottom = "20px";
   s.right = "20px";
-  s.width = CLOSED_WIDTH;
-  s.height = CLOSED_HEIGHT;
+  s.width = "0";
+  s.height = "0";
   s.border = "none";
   s.borderRadius = "0";
   s.zIndex = "2147483647";
@@ -94,26 +96,41 @@
   s.colorScheme = "none";
   s.transition = closedTransition;
   s.boxShadow = "none";
+  s.opacity = "0";
+  s.pointerEvents = "none";
 
   function applyViewportSize() {
     if (window.innerWidth < 640) {
       s.right = "12px";
       s.bottom = "12px";
-      if (!isOpen) {
-        s.width = CLOSED_WIDTH_MOBILE;
-        s.height = CLOSED_HEIGHT_MOBILE;
-      }
+      if (!isOpen) applyClosedFrameSize();
     } else {
       s.right = "20px";
       s.bottom = "20px";
-      if (!isOpen) {
-        s.width = CLOSED_WIDTH;
-        s.height = CLOSED_HEIGHT;
-      }
+      if (!isOpen) applyClosedFrameSize();
     }
   }
 
   var isOpen = false;
+  var closedMode = "hidden";
+
+  function showFrame() {
+    s.opacity = "1";
+    s.pointerEvents = "auto";
+  }
+
+  function applyClosedFrameSize() {
+    if (closedMode === "prompt") {
+      s.width = window.innerWidth < 640 ? CLOSED_WIDTH_MOBILE : PROMPT_WIDTH;
+      s.height = window.innerWidth < 640 ? CLOSED_HEIGHT_MOBILE : PROMPT_HEIGHT;
+    } else if (closedMode === "compact") {
+      s.width = COMPACT_WIDTH;
+      s.height = COMPACT_HEIGHT;
+    } else {
+      s.width = "0";
+      s.height = "0";
+    }
+  }
 
   function inject() {
     if (!document.body) {
@@ -129,6 +146,7 @@
 
   function openFrame() {
     isOpen = true;
+    showFrame();
     s.transition = closedTransition;
     if (window.innerWidth < 640) {
       s.width = "calc(100vw - 24px)";
@@ -148,8 +166,9 @@
   function closeFrame() {
     isOpen = false;
     s.transition = "none";
-    s.width = window.innerWidth < 640 ? CLOSED_WIDTH_MOBILE : CLOSED_WIDTH;
-    s.height = window.innerWidth < 640 ? CLOSED_HEIGHT_MOBILE : CLOSED_HEIGHT;
+    closedMode = "compact";
+    showFrame();
+    applyClosedFrameSize();
     s.borderRadius = "0";
     s.boxShadow = "none";
     applyViewportSize();
@@ -174,6 +193,18 @@
         break;
       case "close":
         closeFrame();
+        break;
+      case "closed-prompt":
+        isOpen = false;
+        closedMode = "prompt";
+        showFrame();
+        applyClosedFrameSize();
+        break;
+      case "closed-compact":
+        isOpen = false;
+        closedMode = "compact";
+        showFrame();
+        applyClosedFrameSize();
         break;
       case "ready":
         if (iframe.contentWindow) {
