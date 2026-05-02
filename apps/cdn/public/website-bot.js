@@ -112,7 +112,7 @@
   }
 
   function getClosedBottom() {
-    return window.innerWidth < 640 ? 12 : 20;
+    return window.innerWidth < 640 ? 25 : 20;
   }
 
   function applyViewportSize() {
