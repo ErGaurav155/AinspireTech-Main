@@ -5,18 +5,8 @@ import { uploadTextToCloudinary } from "@/services/transaction.service";
 
 interface ScrapedPage {
   url: string;
-  title: string;
-  description: string;
-  headings: {
-    h1: string[];
-    h2: string[];
-    h3: string[];
-  };
   content: string;
   fullText?: string;
-  level: number;
-  wordCount?: number;
-  textLength?: number;
 }
 
 // Helper function to sanitize text for OpenAI
@@ -41,20 +31,11 @@ function sanitizeForOpenAI(text: string): string {
 function formatScrapedData(pages: ScrapedPage[]): string {
   const formattedPages = pages.map((page) => {
     const textBody = sanitizeForOpenAI(page.fullText || page.content || "");
-    const content = textBody.length > 2000 ? textBody.slice(0, 2000) : textBody;
+    const limit = isHomePageUrl(page.url) ? 2000 : 1000;
+    const content = textBody.length > limit ? textBody.slice(0, limit) : textBody;
 
     return {
       url: page.url,
-      title: sanitizeForOpenAI(page.title || ""),
-      description: sanitizeForOpenAI(page.description || ""),
-      level: page.level,
-      headings: {
-        h1: page.headings.h1 || [],
-        h2: page.headings.h2 || [],
-        h3: page.headings.h3 || [],
-      },
-      wordCount: page.wordCount || content.split(/\s+/).filter(Boolean).length,
-      textLength: page.textLength || content.length,
       content,
     };
   });
@@ -68,6 +49,19 @@ function formatScrapedData(pages: ScrapedPage[]): string {
     null,
     2,
   );
+}
+
+function isHomePageUrl(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname
+      .replace(/\/index\.(html?|php|aspx?)$/i, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+
+    return !pathname || pathname === "/home";
+  } catch {
+    return false;
+  }
 }
 
 // POST /api/scrape/anu/process-data - Process scraped data

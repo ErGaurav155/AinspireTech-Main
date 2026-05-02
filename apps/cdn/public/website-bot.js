@@ -58,7 +58,6 @@
   var COMPACT_HEIGHT = "84px";
   var CLOSED_WIDTH_MOBILE = "260px";
   var CLOSED_HEIGHT_MOBILE = "124px";
-  var CLOSED_BOTTOM_OFFSET = 72;
   var closedTransition =
     "width 0.3s cubic-bezier(0.4,0,0.2,1)," +
     "height 0.3s cubic-bezier(0.4,0,0.2,1)," +
@@ -108,14 +107,22 @@
   s.opacity = "0";
   s.pointerEvents = "none";
 
+  function getClosedRight() {
+    return window.innerWidth < 640 ? 0 : 5;
+  }
+
+  function getClosedBottom() {
+    return window.innerWidth < 640 ? 60 : 10;
+  }
+
   function applyViewportSize() {
     if (window.innerWidth < 640) {
-      s.right = "12px";
-      s.bottom = isOpen ? "12px" : 12 + CLOSED_BOTTOM_OFFSET + "px";
+      s.right = isOpen ? "12px" : getClosedRight() + "px";
+      s.bottom = isOpen ? "12px" : getClosedBottom() + "px";
       if (!isOpen) applyClosedFrameSize();
     } else {
-      s.right = "20px";
-      s.bottom = isOpen ? "20px" : 20 + CLOSED_BOTTOM_OFFSET + "px";
+      s.right = isOpen ? "20px" : getClosedRight() + "px";
+      s.bottom = isOpen ? "20px" : getClosedBottom() + "px";
       if (!isOpen) applyClosedFrameSize();
     }
   }
@@ -174,9 +181,8 @@
 
     ensureHotspots();
 
-    var isSmall = window.innerWidth < 640;
-    var frameRight = isSmall ? 12 : 20;
-    var frameBottom = (isSmall ? 12 : 20) + CLOSED_BOTTOM_OFFSET;
+    var frameRight = getClosedRight();
+    var frameBottom = getClosedBottom();
 
     bubbleHotspot.style.display = "block";
     bubbleHotspot.style.width = "60px";

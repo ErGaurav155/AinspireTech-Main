@@ -6,21 +6,7 @@ import puppeteer, { Browser } from "puppeteer";
 
 interface ScrapedPage {
   url: string;
-  title: string;
-  description: string;
-  meta: Record<string, string>;
-  headings: {
-    h1: string[];
-    h2: string[];
-    h3: string[];
-  };
   content: string;
-  fullText: string;
-  links: string[];
-  images: string[];
-  level: number;
-  wordCount: number;
-  textLength: number;
 }
 
 interface DiscoveredUrl {
@@ -56,35 +42,6 @@ class WebScraper {
           seen.add(normalized);
           return true;
         });
-      };
-
-      const getMeta = () => {
-        const tags = Array.from(
-          document.querySelectorAll(
-            "meta[name], meta[property], link[rel='canonical']",
-          ),
-        );
-
-        return tags.reduce((meta, tag) => {
-          const name =
-            tag.getAttribute("name") ||
-            tag.getAttribute("property") ||
-            (tag.getAttribute("rel") === "canonical" ? "canonical" : null);
-          const content =
-            tag.getAttribute("content") || tag.getAttribute("href");
-
-          if (name && content) {
-            meta[name.toLowerCase()] = content.trim();
-          }
-
-          return meta;
-        }, {});
-      };
-
-      const getHeadings = (tag) => {
-        return Array.from(document.querySelectorAll(tag))
-          .map((el) => normalizeWhitespace(el.textContent ?? ""))
-          .filter((text) => text.length > 0);
       };
 
       const isVisible = (el) => {
@@ -186,21 +143,6 @@ class WebScraper {
         return text.slice(0, maxLength) + "...";
       };
 
-      const getPrimaryRoot = () => {
-        const el =
-          document.querySelector("main") ||
-          document.querySelector("article") ||
-          document.querySelector(".content") ||
-          document.querySelector(".page-content") ||
-          document.querySelector(".entry-content") ||
-          document.querySelector(".post-content") ||
-          document.querySelector("#content") ||
-          document.querySelector('[role="main"]') ||
-          document.body;
-
-        return el || document.body;
-      };
-
       const getCleanBodyRoot = () => {
         const clonedBody = document.body.cloneNode(true);
         clonedBody
@@ -216,59 +158,24 @@ class WebScraper {
         return clonedBody;
       };
 
-      const getContent = () => {
-        const blocks = collectTextBlocks(getPrimaryRoot());
-        return trimText(blocks.join("\\n\\n"), 2000);
+      const isHomePage = () => {
+        const normalizedPath = window.location.pathname
+          .replace(/\\/index\\.(html?|php|aspx?)$/i, "")
+          .replace(/\\/+$/, "")
+          .toLowerCase();
+
+        return normalizedPath === "" || normalizedPath === "/home";
       };
 
-      const getFullText = () => {
+      const getContent = () => {
         const bodyRoot = getCleanBodyRoot();
         const blocks = collectTextBlocks(bodyRoot);
-        return trimText(blocks.join("\\n\\n"), 2000);
+        return trimText(blocks.join("\\n\\n"), isHomePage() ? 2000 : 1000);
       };
-
-      const getLinks = () => {
-        return unique(
-          Array.from(document.querySelectorAll("a[href]"))
-          .map((a) => a.href.trim())
-          .filter(
-            (href) =>
-              href &&
-              !href.startsWith("javascript:") &&
-              !href.startsWith("mailto:") &&
-              !href.startsWith("#") &&
-              !href.includes("tel:") &&
-              !href.includes("sms:"),
-          ),
-        );
-      };
-
-      const getImages = () => {
-        return Array.from(document.querySelectorAll("img[src]"))
-          .map((img) => img.src.trim())
-          .filter(Boolean);
-      };
-
-      const meta = getMeta();
 
       return {
         url: window.location.href,
-        title: document.title ?? "",
-        description: meta.description || "",
-        meta,
-        headings: {
-          h1: getHeadings("h1"),
-          h2: getHeadings("h2"),
-          h3: getHeadings("h3"),
-        },
         content: getContent(),
-        fullText: getFullText(),
-        links: getLinks(),
-        images: getImages(),
-        wordCount: getFullText()
-          .split(/\\s+/)
-          .filter(Boolean).length,
-        textLength: getFullText().length,
       };
     })()
   `;
@@ -495,7 +402,7 @@ class WebScraper {
       page = await this.preparePage(url);
 
       const scrapedData = (await page.evaluate(this.scrapePageScript)) as
-        | Omit<ScrapedPage, "level">
+        | ScrapedPage
         | undefined;
 
       if (!scrapedData) {
@@ -503,7 +410,7 @@ class WebScraper {
       }
 
       console.log(`✅ Scraped: ${url} (level ${level})`);
-      return { ...scrapedData, level };
+      return scrapedData;
     } catch (error) {
       console.error(`❌ Failed to scrape ${url}:`, error);
       return null;
@@ -534,18 +441,27 @@ class WebScraper {
   private normalizeUrl(url: string): string {
     try {
       const u = new URL(url);
-      const pathname = u.pathname.replace(/\/+$/, "") || "/";
+      const pathname = this.normalizePathname(u.pathname);
       return u.origin + pathname;
     } catch {
       return url;
     }
   }
 
+  private normalizePathname(pathname: string): string {
+    const cleanPath = (pathname || "/")
+      .replace(/\/index\.(html?|php|aspx?)$/i, "")
+      .replace(/\/+$/, "")
+      .toLowerCase();
+
+    if (!cleanPath || cleanPath === "/home") return "/";
+    return cleanPath;
+  }
+
   private getSimilarityKey(url: string): string {
     try {
       const u = new URL(url);
-      const cleanedPath = (u.pathname || "/")
-        .replace(/\/+$/, "")
+      const cleanedPath = this.normalizePathname(u.pathname)
         .split("/")
         .filter(Boolean)
         .map((segment) => {
@@ -559,7 +475,7 @@ class WebScraper {
         })
         .join("/");
 
-      return `${u.origin}/${cleanedPath || ""}`;
+      return `${this.extractDomain(url)}/${cleanedPath || ""}`;
     } catch {
       return url;
     }

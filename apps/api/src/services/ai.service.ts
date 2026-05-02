@@ -70,19 +70,8 @@ function formatContextFromData(data: any): string {
     const pages = data.pages
       .filter((page: any) => page && typeof page === "object")
       .map((page: any) => {
-        const headings = [
-          ...(Array.isArray(page.headings?.h1) ? page.headings.h1 : []),
-          ...(Array.isArray(page.headings?.h2) ? page.headings.h2 : []),
-          ...(Array.isArray(page.headings?.h3) ? page.headings.h3 : []),
-        ]
-          .filter(Boolean)
-          .join(" | ");
-
         return [
           `Page: ${page.url || "Unknown URL"}`,
-          `Title: ${page.title || "N/A"}`,
-          `Description: ${page.description || "N/A"}`,
-          headings ? `Headings: ${headings}` : "",
           `Content: ${page.content || page.fullText || "No content available"}`,
         ]
           .filter(Boolean)
@@ -127,9 +116,7 @@ function formatContextFromData(data: any): string {
     return data
       .map(
         (page: any) =>
-          `URL: ${page.url}\nTitle: ${page.title || "N/A"}\nDescription: ${
-            page.description || "N/A"
-          }\nContent: ${(page.content || "").substring(0, 200)}...`,
+          `URL: ${page.url}\nContent: ${(page.content || page.fullText || "").substring(0, 1000)}`,
       )
       .join("\n\n");
   }

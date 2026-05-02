@@ -56,7 +56,6 @@
 
   if (window.self !== window.top) return;
 
-  var CLOSED_BOTTOM_OFFSET = 72;
   var isOpen = false;
 
   var embedUrl =
@@ -79,8 +78,8 @@
 
   var s = iframe.style;
   s.position = "fixed";
-  s.bottom = 20 + CLOSED_BOTTOM_OFFSET + "px";
-  s.right = "20px";
+  s.bottom = "10px";
+  s.right = "5px";
   s.width = "72px";
   s.height = "72px";
   s.border = "none";
@@ -96,13 +95,21 @@
     "box-shadow 0.3s ease";
   s.boxShadow = "0 8px 30px rgba(15,23,42,0.16)";
 
+  function getClosedRight() {
+    return window.innerWidth < 640 ? 0 : 5;
+  }
+
+  function getClosedBottom() {
+    return window.innerWidth < 640 ? 60 : 10;
+  }
+
   function applyViewportSize() {
     if (window.innerWidth < 640) {
-      s.right = "12px";
-      s.bottom = isOpen ? "12px" : 12 + CLOSED_BOTTOM_OFFSET + "px";
+      s.right = isOpen ? "12px" : getClosedRight() + "px";
+      s.bottom = isOpen ? "12px" : getClosedBottom() + "px";
     } else {
-      s.right = "20px";
-      s.bottom = isOpen ? "20px" : 20 + CLOSED_BOTTOM_OFFSET + "px";
+      s.right = isOpen ? "20px" : getClosedRight() + "px";
+      s.bottom = isOpen ? "20px" : getClosedBottom() + "px";
     }
   }
 
