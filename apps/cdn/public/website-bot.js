@@ -82,6 +82,14 @@
     "allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-popups-to-escape-sandbox",
   );
 
+  var bubbleHotspot = document.createElement("button");
+  bubbleHotspot.type = "button";
+  bubbleHotspot.setAttribute("aria-label", "Open chat");
+
+  var promptHotspot = document.createElement("button");
+  promptHotspot.type = "button";
+  promptHotspot.setAttribute("aria-label", "Open chat");
+
   var s = iframe.style;
   s.position = "fixed";
   s.bottom = "20px";
@@ -114,9 +122,83 @@
   var isOpen = false;
   var closedMode = "hidden";
 
+  function styleHotspot(el) {
+    var hs = el.style;
+    hs.position = "fixed";
+    hs.zIndex = "2147483647";
+    hs.display = "none";
+    hs.padding = "0";
+    hs.margin = "0";
+    hs.border = "none";
+    hs.background = "transparent";
+    hs.cursor = "pointer";
+  }
+
+  styleHotspot(bubbleHotspot);
+  styleHotspot(promptHotspot);
+
+  function postOpenToIframe() {
+    if (iframe.contentWindow) {
+      iframe.contentWindow.postMessage(
+        { source: "rocketreplai-parent", type: "open" },
+        CDN_ORIGIN,
+      );
+    }
+  }
+
+  function requestOpen() {
+    openFrame();
+    postOpenToIframe();
+  }
+
+  bubbleHotspot.addEventListener("click", requestOpen);
+  promptHotspot.addEventListener("click", requestOpen);
+
+  function ensureHotspots() {
+    if (!document.body) return;
+    if (!bubbleHotspot.parentNode) document.body.appendChild(bubbleHotspot);
+    if (!promptHotspot.parentNode) document.body.appendChild(promptHotspot);
+  }
+
+  function hideHotspots() {
+    bubbleHotspot.style.display = "none";
+    promptHotspot.style.display = "none";
+  }
+
+  function updateHotspots() {
+    if (closedMode === "hidden" || isOpen) {
+      hideHotspots();
+      return;
+    }
+
+    ensureHotspots();
+
+    var isSmall = window.innerWidth < 640;
+    var frameRight = isSmall ? 12 : 20;
+    var frameBottom = isSmall ? 12 : 20;
+
+    bubbleHotspot.style.display = "block";
+    bubbleHotspot.style.width = "60px";
+    bubbleHotspot.style.height = "60px";
+
+    if (closedMode === "prompt") {
+      bubbleHotspot.style.right = frameRight + 12 + "px";
+      bubbleHotspot.style.bottom = frameBottom + 12 + "px";
+
+      promptHotspot.style.display = "block";
+      promptHotspot.style.width = "176px";
+      promptHotspot.style.height = "40px";
+      promptHotspot.style.right = frameRight + 12 + "px";
+      promptHotspot.style.bottom = frameBottom + 82 + "px";
+    } else {
+      bubbleHotspot.style.right = frameRight + "px";
+      bubbleHotspot.style.bottom = frameBottom + "px";
+      promptHotspot.style.display = "none";
+    }
+  }
+
   function showFrame() {
     s.opacity = "1";
-    s.pointerEvents = "auto";
   }
 
   function applyClosedFrameSize() {
@@ -147,6 +229,8 @@
   function openFrame() {
     isOpen = true;
     showFrame();
+    hideHotspots();
+    s.pointerEvents = "auto";
     s.transition = closedTransition;
     if (window.innerWidth < 640) {
       s.width = "calc(100vw - 24px)";
@@ -168,7 +252,9 @@
     s.transition = "none";
     closedMode = "compact";
     showFrame();
+    s.pointerEvents = "none";
     applyClosedFrameSize();
+    updateHotspots();
     s.borderRadius = "0";
     s.boxShadow = "none";
     applyViewportSize();
@@ -179,6 +265,7 @@
 
   window.addEventListener("resize", function () {
     applyViewportSize();
+    updateHotspots();
   });
 
   window.addEventListener("message", function (event) {
@@ -198,13 +285,17 @@
         isOpen = false;
         closedMode = "prompt";
         showFrame();
+        s.pointerEvents = "none";
         applyClosedFrameSize();
+        updateHotspots();
         break;
       case "closed-compact":
         isOpen = false;
         closedMode = "compact";
         showFrame();
+        s.pointerEvents = "none";
         applyClosedFrameSize();
+        updateHotspots();
         break;
       case "ready":
         if (iframe.contentWindow) {
@@ -227,12 +318,7 @@
 
   window.RocketReplAI = {
     open: function () {
-      if (iframe.contentWindow) {
-        iframe.contentWindow.postMessage(
-          { source: "rocketreplai-parent", type: "open" },
-          CDN_ORIGIN,
-        );
-      }
+      requestOpen();
     },
     close: function () {
       if (iframe.contentWindow) {
