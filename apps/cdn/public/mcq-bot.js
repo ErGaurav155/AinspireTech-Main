@@ -56,6 +56,9 @@
 
   if (window.self !== window.top) return;
 
+  var CLOSED_BOTTOM_OFFSET = 72;
+  var isOpen = false;
+
   var embedUrl =
     CDN_ORIGIN +
     "/mcq/embed/" +
@@ -76,7 +79,7 @@
 
   var s = iframe.style;
   s.position = "fixed";
-  s.bottom = "20px";
+  s.bottom = 20 + CLOSED_BOTTOM_OFFSET + "px";
   s.right = "20px";
   s.width = "72px";
   s.height = "72px";
@@ -96,7 +99,10 @@
   function applyViewportSize() {
     if (window.innerWidth < 640) {
       s.right = "12px";
-      s.bottom = "12px";
+      s.bottom = isOpen ? "12px" : 12 + CLOSED_BOTTOM_OFFSET + "px";
+    } else {
+      s.right = "20px";
+      s.bottom = isOpen ? "20px" : 20 + CLOSED_BOTTOM_OFFSET + "px";
     }
   }
 
@@ -113,6 +119,7 @@
   inject();
 
   function openFrame() {
+    isOpen = true;
     if (window.innerWidth < 640) {
       s.width = "calc(100vw - 24px)";
       s.height = "min(720px, calc(100vh - 24px))";
@@ -129,6 +136,7 @@
   }
 
   function closeFrame() {
+    isOpen = false;
     s.width = "72px";
     s.height = "72px";
     s.borderRadius = "50%";

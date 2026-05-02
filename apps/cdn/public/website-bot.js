@@ -54,10 +54,11 @@
 
   var PROMPT_WIDTH = "276px";
   var PROMPT_HEIGHT = "132px";
-  var COMPACT_WIDTH = "60px";
-  var COMPACT_HEIGHT = "60px";
+  var COMPACT_WIDTH = "84px";
+  var COMPACT_HEIGHT = "84px";
   var CLOSED_WIDTH_MOBILE = "260px";
   var CLOSED_HEIGHT_MOBILE = "124px";
+  var CLOSED_BOTTOM_OFFSET = 72;
   var closedTransition =
     "width 0.3s cubic-bezier(0.4,0,0.2,1)," +
     "height 0.3s cubic-bezier(0.4,0,0.2,1)," +
@@ -110,11 +111,11 @@
   function applyViewportSize() {
     if (window.innerWidth < 640) {
       s.right = "12px";
-      s.bottom = "12px";
+      s.bottom = isOpen ? "12px" : 12 + CLOSED_BOTTOM_OFFSET + "px";
       if (!isOpen) applyClosedFrameSize();
     } else {
       s.right = "20px";
-      s.bottom = "20px";
+      s.bottom = isOpen ? "20px" : 20 + CLOSED_BOTTOM_OFFSET + "px";
       if (!isOpen) applyClosedFrameSize();
     }
   }
@@ -175,24 +176,22 @@
 
     var isSmall = window.innerWidth < 640;
     var frameRight = isSmall ? 12 : 20;
-    var frameBottom = isSmall ? 12 : 20;
+    var frameBottom = (isSmall ? 12 : 20) + CLOSED_BOTTOM_OFFSET;
 
     bubbleHotspot.style.display = "block";
     bubbleHotspot.style.width = "60px";
     bubbleHotspot.style.height = "60px";
 
-    if (closedMode === "prompt") {
-      bubbleHotspot.style.right = frameRight + 12 + "px";
-      bubbleHotspot.style.bottom = frameBottom + 12 + "px";
+    bubbleHotspot.style.right = frameRight + 12 + "px";
+    bubbleHotspot.style.bottom = frameBottom + 12 + "px";
 
+    if (closedMode === "prompt") {
       promptHotspot.style.display = "block";
       promptHotspot.style.width = "176px";
       promptHotspot.style.height = "40px";
       promptHotspot.style.right = frameRight + 12 + "px";
       promptHotspot.style.bottom = frameBottom + 82 + "px";
     } else {
-      bubbleHotspot.style.right = frameRight + "px";
-      bubbleHotspot.style.bottom = frameBottom + "px";
       promptHotspot.style.display = "none";
     }
   }
