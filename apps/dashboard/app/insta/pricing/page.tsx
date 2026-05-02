@@ -44,10 +44,7 @@ import {
   getInstaAccount,
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
-import {
-  getUserById,
-  updateUserLimits,
-} from "@/lib/services/user-actions.api";
+import { getUserById, updateUserLimits } from "@/lib/services/user-actions.api";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -154,10 +151,6 @@ function PricingWithSearchParams() {
   const [email, setEmail] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isInstaAccount, setIsInstaAccount] = useState(false);
-  const [cancellationReason, setCancellationReason] = useState("");
-  const [cancellationMode, setCancellationMode] = useState<
-    "Immediate" | "End-of-term"
-  >("End-of-term");
   const [currentSubscription, setCurrentSubscription] =
     useState<Subscription | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -342,8 +335,7 @@ function PricingWithSearchParams() {
 
         await loadRazorpayScript();
 
-        const price =
-          cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+        const price = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
         const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
         const razorpayPlanId =
           cycle === "monthly"
@@ -571,44 +563,6 @@ function PricingWithSearchParams() {
     apiRequest,
     fetchUserAccounts,
   ]);
-
-  // Handle cancel subscription
-  const handleCancelSubscription = async () => {
-    if (!currentSubscription?.subscriptionId) {
-      showToast("Failed!", "No subscription selected for cancellation", true);
-      return;
-    }
-
-    setIsCancelling(true);
-    try {
-      const cancelResult = await cancelRazorPaySubscription(apiRequest, {
-        subscriptionId: currentSubscription.subscriptionId,
-        subscriptionType: "insta",
-        reason: cancellationReason || CANCELLATION_REASON_PLACEHOLDER,
-        mode: cancellationMode,
-      });
-
-      if (!cancelResult.success) {
-        showToast(
-          "Failed!",
-          cancelResult.message || "Failed to cancel subscription",
-          true,
-        );
-        return;
-      }
-
-      showToast("Success!", "Subscription cancelled successfully", false);
-      setCurrentSubscription(null);
-      setIsSubscribed(false);
-      setShowCancelDialog(false);
-      setCancellationReason("");
-    } catch (error) {
-      console.error("Error cancelling subscription:", error);
-      showToast("Failed!", "Failed to cancel subscription", true);
-    } finally {
-      setIsCancelling(false);
-    }
-  };
 
   // Handle subscription change
   const handleSubscribe = async (
@@ -937,6 +891,13 @@ function PricingWithSearchParams() {
     [isDark],
   );
 
+  const currentInstagramPlan =
+    instagramPricingPlans.find(
+      (p) => p.id === currentSubscription?.productId,
+    ) || null;
+  const alternateBillingCycle =
+    currentSubscription?.billingCycle === "yearly" ? "monthly" : "yearly";
+
   // Loading state
   if (isLoading || !isLoaded)
     return <Spinner label="Loading pricing information..." />;
@@ -1140,11 +1101,11 @@ function PricingWithSearchParams() {
                         </Button>
                         <Button
                           variant="outline"
-                          onClick={() => setShowCancelConfirmDialog(true)}
+                          onClick={() => setShowCancelDialog(true)}
                           disabled={isCancelling}
                           className={pageStyles.buttonOutline}
                         >
-                          Cancel Subscription
+                          Change Subscription
                         </Button>
                       </div>
                     ) : (
@@ -1268,7 +1229,7 @@ function PricingWithSearchParams() {
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className={pageStyles.cancelDialog}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className={pageStyles.cancelTitle}>Cancel Subscription</h2>
+              <h2 className={pageStyles.cancelTitle}>Change Subscription</h2>
               <button
                 onClick={() => setShowCancelDialog(false)}
                 className={pageStyles.cancelClose}
@@ -1278,52 +1239,97 @@ function PricingWithSearchParams() {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label
-                  className={`block text-sm font-medium ${pageStyles.cancelLabel} mb-2`}
+              <div className={pageStyles.cancelInfo}>
+                <div className="flex items-start gap-3">
+                  <BadgeCheck
+                    className={`mt-0.5 h-5 w-5 ${isDark ? "text-pink-400" : "text-pink-500"}`}
+                  />
+                  <div>
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
+                      Keep current plan
+                    </h3>
+                    <p className={pageStyles.cancelInfoText}>
+                      Continue with Pro Unlimited and keep all connected
+                      Instagram automation benefits.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setShowCancelDialog(false)}
+                  className={pageStyles.cancelButtonTerm + " mt-3 w-full"}
                 >
-                  Please tell us why you are leaving
-                </label>
-                <textarea
-                  value={cancellationReason}
-                  onChange={(e) => setCancellationReason(e.target.value)}
-                  className={pageStyles.cancelTextarea}
-                  placeholder="Cancellation reason..."
-                  rows={3}
-                />
+                  Keep My Plan
+                </Button>
               </div>
 
               <div className={pageStyles.cancelInfo}>
-                <p className={pageStyles.cancelInfoText}>
-                  <strong>Immediate:</strong> Service ends immediately
-                </p>
-                <p className={pageStyles.cancelInfoText}>
-                  <strong>End-of-term:</strong> Service continues until billing
-                  period ends
-                </p>
+                <div className="flex items-start gap-3">
+                  <CreditCard
+                    className={`mt-0.5 h-5 w-5 ${isDark ? "text-pink-400" : "text-pink-500"}`}
+                  />
+                  <div>
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
+                      Change billing cycle
+                    </h3>
+                    <p className={pageStyles.cancelInfoText}>
+                      Switch to {alternateBillingCycle} billing without losing
+                      your automation setup.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  disabled={!currentInstagramPlan || isProcessingChange}
+                  onClick={() => {
+                    setShowCancelDialog(false);
+                    if (currentInstagramPlan) {
+                      void handleSubscribe(
+                        currentInstagramPlan,
+                        alternateBillingCycle,
+                      );
+                    }
+                  }}
+                  className="mt-3 w-full rounded-xl"
+                >
+                  Switch to {alternateBillingCycle}
+                </Button>
               </div>
 
-              <div className="flex gap-3">
+              <div
+                className={`rounded-xl border p-4 ${
+                  isDark
+                    ? "border-red-500/20 bg-red-500/10"
+                    : "border-red-100 bg-red-50"
+                }`}
+              >
+                <h3
+                  className={`font-semibold ${
+                    isDark ? "text-red-300" : "text-red-700"
+                  }`}
+                >
+                  Shift to Free Plan
+                </h3>
+                <p
+                  className={`mt-1 text-sm ${
+                    isDark ? "text-red-200/80" : "text-red-700/80"
+                  }`}
+                >
+                  This downgrades the subscription. If more than one Instagram
+                  account is connected, you will choose which account to keep.
+                </p>
                 <Button
-                  variant="destructive"
                   onClick={() => {
-                    setCancellationMode("Immediate");
-                    handleCancelSubscription();
+                    setShowCancelDialog(false);
+                    setShowCancelConfirmDialog(true);
                   }}
                   disabled={isCancelling}
-                  className={pageStyles.cancelButtonNow}
+                  className={
+                    isDark
+                      ? "mt-3 w-full rounded-xl border border-red-500/30 bg-transparent text-red-300 hover:bg-red-500/10"
+                      : "mt-3 w-full rounded-xl border border-red-200 bg-white text-red-700 hover:bg-red-100"
+                  }
                 >
-                  {isCancelling ? "Cancelling..." : "Cancel Now"}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setCancellationMode("End-of-term");
-                    handleCancelSubscription();
-                  }}
-                  disabled={isCancelling}
-                  className={pageStyles.cancelButtonTerm}
-                >
-                  {isCancelling ? "Cancelling..." : "End of Term"}
+                  Shift to Free Plan
                 </Button>
               </div>
             </div>

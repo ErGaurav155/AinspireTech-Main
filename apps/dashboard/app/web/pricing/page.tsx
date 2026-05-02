@@ -89,6 +89,8 @@ const PricingContent = () => {
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [subscriptionToManage, setSubscriptionToManage] =
+    useState<Subscription | null>(null);
   const [subscriptionToCancel, setSubscriptionToCancel] =
     useState<Subscription | null>(null);
   // Fetch subscriptions and user chatbots
@@ -196,6 +198,7 @@ const PricingContent = () => {
         ),
       );
       setSubscriptionToCancel(null);
+      setSubscriptionToManage(null);
       toast({
         title: "Success!",
         description: "Subscription cancelled successfully",
@@ -624,7 +627,7 @@ const PricingContent = () => {
                                 disabled={isCancelling}
                                 onClick={() =>
                                   activeSubscription &&
-                                  setSubscriptionToCancel(activeSubscription)
+                                  setSubscriptionToManage(activeSubscription)
                                 }
                                 className={
                                   isDark
@@ -638,7 +641,7 @@ const PricingContent = () => {
                                     Cancelling...
                                   </>
                                 ) : (
-                                  "Cancel Subscription"
+                                  "Change Subscription"
                                 )}
                               </Button>
                             </div>
@@ -824,6 +827,134 @@ const PricingContent = () => {
           </section>
         </section>
       </div>
+      {subscriptionToManage && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div
+            className={`w-full max-w-lg rounded-2xl p-6 shadow-xl ${
+              isDark
+                ? "border border-white/[0.08] bg-[#1A1A1E]"
+                : "border border-gray-100 bg-white"
+            }`}
+          >
+            <div className="mb-5 flex items-start justify-between gap-4">
+              <div>
+                <h2
+                  className={`text-xl font-bold ${
+                    isDark ? "text-white" : "text-gray-900"
+                  }`}
+                >
+                  Change Subscription
+                </h2>
+                <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                  Choose what you want to do with this chatbot plan.
+                </p>
+              </div>
+              <button
+                onClick={() => setSubscriptionToManage(null)}
+                className={
+                  isDark
+                    ? "rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06]"
+                    : "rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-gray-100"
+                }
+                aria-label="Close subscription options"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className={`${styles.innerCard} p-4`}>
+                <div className="flex items-start gap-3">
+                  <RefreshCw
+                    className={`mt-0.5 h-5 w-5 ${
+                      isDark ? "text-pink-400" : "text-pink-500"
+                    }`}
+                  />
+                  <div>
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
+                      Keep current plan
+                    </h3>
+                    <p className={`text-sm ${styles.text.secondary}`}>
+                      Stay on unlimited chatbot access and keep all plan
+                      benefits.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  onClick={() => setSubscriptionToManage(null)}
+                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600"
+                >
+                  Keep My Plan
+                </Button>
+              </div>
+
+              <div className={`${styles.innerCard} p-4`}>
+                <div className="flex items-start gap-3">
+                  <CreditCard
+                    className={`mt-0.5 h-5 w-5 ${
+                      isDark ? "text-pink-400" : "text-pink-500"
+                    }`}
+                  />
+                  <div>
+                    <h3 className={`font-semibold ${styles.text.primary}`}>
+                      Update billing preference
+                    </h3>
+                    <p className={`text-sm ${styles.text.secondary}`}>
+                      Compare monthly and yearly billing before making a change.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => setSubscriptionToManage(null)}
+                  className="mt-3 w-full rounded-xl"
+                >
+                  Review Plans
+                </Button>
+              </div>
+
+              <div
+                className={`rounded-xl border p-4 ${
+                  isDark
+                    ? "border-red-500/20 bg-red-500/10"
+                    : "border-red-100 bg-red-50"
+                }`}
+              >
+                <h3
+                  className={`font-semibold ${
+                    isDark ? "text-red-300" : "text-red-700"
+                  }`}
+                >
+                  Move to no subscription
+                </h3>
+                <p
+                  className={`mt-1 text-sm ${
+                    isDark ? "text-red-200/80" : "text-red-700/80"
+                  }`}
+                >
+                  This downgrades the active chatbot plan and removes its
+                  features and unlimited token access.
+                </p>
+                <Button
+                  variant="outline"
+                  disabled={isCancelling}
+                  onClick={() => {
+                    setSubscriptionToCancel(subscriptionToManage);
+                    setSubscriptionToManage(null);
+                  }}
+                  className={
+                    isDark
+                      ? "mt-3 w-full rounded-xl border-red-500/30 text-red-300 hover:bg-red-500/10"
+                      : "mt-3 w-full rounded-xl border-red-200 text-red-700 hover:bg-red-100"
+                  }
+                >
+                  Downgrade Subscription
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <ConfirmDialog
         open={!!subscriptionToCancel}
         onOpenChange={(open) => {
