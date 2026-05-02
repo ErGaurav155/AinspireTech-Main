@@ -78,8 +78,8 @@
 
   var s = iframe.style;
   s.position = "fixed";
-  s.bottom = "10px";
-  s.right = "5px";
+  s.bottom = "20px";
+  s.right = "20px";
   s.width = "72px";
   s.height = "72px";
   s.border = "none";
@@ -96,11 +96,11 @@
   s.boxShadow = "0 8px 30px rgba(15,23,42,0.16)";
 
   function getClosedRight() {
-    return window.innerWidth < 640 ? 0 : 5;
+    return window.innerWidth < 640 ? 5 : 10;
   }
 
   function getClosedBottom() {
-    return window.innerWidth < 640 ? 60 : 10;
+    return window.innerWidth < 640 ? 12 : 20;
   }
 
   function applyViewportSize() {
