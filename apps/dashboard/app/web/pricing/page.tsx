@@ -93,6 +93,12 @@ const PricingContent = () => {
     useState<Subscription | null>(null);
   const [subscriptionToCancel, setSubscriptionToCancel] =
     useState<Subscription | null>(null);
+  const [subscriptionChangeTarget, setSubscriptionChangeTarget] = useState<{
+    product: Product;
+    billingCycle: BillingMode;
+    amount: number;
+    chatbotCreated: boolean;
+  } | null>(null);
   // Fetch subscriptions and user chatbots
   useEffect(() => {
     const fetchUserData = async () => {
@@ -171,6 +177,19 @@ const PricingContent = () => {
     return subscriptions.find(
       (sub) => sub.chatbotType === productId && sub.status === "active",
     );
+  };
+
+  const getSwitchTarget = (product: Product, subscription: Subscription) => {
+    const targetBillingCycle: BillingMode =
+      subscription.billingCycle === "yearly" ? "monthly" : "yearly";
+
+    return {
+      product,
+      billingCycle: targetBillingCycle,
+      amount:
+        targetBillingCycle === "monthly" ? product.mprice : product.yprice,
+      chatbotCreated: true,
+    };
   };
 
   const handleCancelSubscription = async () => {
@@ -481,7 +500,7 @@ const PricingContent = () => {
 
                   // Build card classes
                   let cardClasses = `${styles.card} p-6 relative group rounded-2xl border transition-all duration-300 overflow-visible`;
-                  if (isSubscribed) {
+                  if (isSubscribed && isSameBillingCycle) {
                     cardClasses += isDark
                       ? " ring-2 ring-green-500/30"
                       : " ring-2 ring-green-200";
@@ -498,16 +517,16 @@ const PricingContent = () => {
 
                   return (
                     <div key={product.productId} className={cardClasses}>
-                      {(isMostPopular || isSubscribed) && (
+                      {(isMostPopular || (isSubscribed && isSameBillingCycle)) && (
                         <div className="absolute -top-3 left-0 right-0 flex justify-center">
                           <Badge
                             className={`${
-                              isSubscribed
+                              isSubscribed && isSameBillingCycle
                                 ? "bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 px-4 py-1"
                                 : "bg-gradient-to-r from-pink-500 to-rose-500 text-white border-0 px-4 py-1"
                             }`}
                           >
-                            {isSubscribed ? (
+                            {isSubscribed && isSameBillingCycle ? (
                               <>
                                 <BadgeCheck className="h-3 w-3 mr-1" />
                                 Current Plan
@@ -622,15 +641,19 @@ const PricingContent = () => {
                                 className="w-full bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl opacity-70 cursor-not-allowed"
                               >
                                 <BadgeCheck className="h-4 w-4 mr-2" />
-                                Current Plan
+                                Current Subscription
                               </Button>
                               <Button
                                 variant="outline"
                                 disabled={isCancelling}
-                                onClick={() =>
-                                  activeSubscription &&
-                                  setSubscriptionToManage(activeSubscription)
-                                }
+                                onClick={() => {
+                                  if (activeSubscription) {
+                                    setSubscriptionChangeTarget(
+                                      getSwitchTarget(product, activeSubscription),
+                                    );
+                                    setSubscriptionToManage(activeSubscription);
+                                  }
+                                }}
                                 className={
                                   isDark
                                     ? "w-full border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-xl"
@@ -648,19 +671,21 @@ const PricingContent = () => {
                               </Button>
                             </div>
                           ) : isSubscribed && activeSubscription ? (
-                            <Checkout
-                              userId={userId!}
-                              productId={product.productId}
-                              billingCycle={billingMode}
-                              amount={displayPrice}
-                              planType="chatbot"
-                              chatbotCreated={true}
-                              tokens={1000000}
-                              previousSubscriptionId={
-                                activeSubscription.subscriptionId
-                              }
-                              previousSubscriptionType="web"
-                            />
+                            <Button
+                              onClick={() => {
+                                setSubscriptionChangeTarget({
+                                  product,
+                                  billingCycle: billingMode,
+                                  amount: displayPrice,
+                                  chatbotCreated: true,
+                                });
+                                setSubscriptionToManage(activeSubscription);
+                              }}
+                              className="w-full py-3 rounded-xl font-medium hover:opacity-90 transition-opacity bg-gradient-to-r from-pink-500 to-rose-500 text-white"
+                            >
+                              <Crown className="h-4 w-4 mr-2" />
+                              Upgrade Subscription
+                            </Button>
                           ) : (
                             <Checkout
                               userId={userId!}
@@ -866,7 +891,10 @@ const PricingContent = () => {
                 </p>
               </div>
               <button
-                onClick={() => setSubscriptionToManage(null)}
+                onClick={() => {
+                  setSubscriptionToManage(null);
+                  setSubscriptionChangeTarget(null);
+                }}
                 className={
                   isDark
                     ? "rounded-lg p-1.5 text-white/40 transition-colors hover:bg-white/[0.06]"
@@ -897,7 +925,10 @@ const PricingContent = () => {
                   </div>
                 </div>
                 <Button
-                  onClick={() => setSubscriptionToManage(null)}
+                  onClick={() => {
+                    setSubscriptionToManage(null);
+                    setSubscriptionChangeTarget(null);
+                  }}
                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600"
                 >
                   Keep My Plan
@@ -913,20 +944,41 @@ const PricingContent = () => {
                   />
                   <div>
                     <h3 className={`font-semibold ${styles.text.primary}`}>
-                      Update billing preference
+                      Switch plan
                     </h3>
                     <p className={`text-sm ${styles.text.secondary}`}>
-                      Compare monthly and yearly billing before making a change.
+                      {subscriptionChangeTarget
+                        ? `Move this subscription to ${subscriptionChangeTarget.billingCycle} billing.`
+                        : "Compare monthly and yearly billing before making a change."}
                     </p>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  onClick={() => setSubscriptionToManage(null)}
-                  className="mt-3 w-full rounded-xl"
-                >
-                  Review Plans
-                </Button>
+                <div className="mt-3">
+                  {subscriptionChangeTarget ? (
+                    <Checkout
+                      userId={userId!}
+                      productId={subscriptionChangeTarget.product.productId}
+                      billingCycle={subscriptionChangeTarget.billingCycle}
+                      amount={subscriptionChangeTarget.amount}
+                      planType="chatbot"
+                      chatbotCreated={subscriptionChangeTarget.chatbotCreated}
+                      tokens={1000000}
+                      previousSubscriptionId={
+                        subscriptionToManage.subscriptionId
+                      }
+                      previousSubscriptionType="web"
+                      buttonText="Switch Plan"
+                    />
+                  ) : (
+                    <Button
+                      variant="outline"
+                      onClick={() => setSubscriptionToManage(null)}
+                      className="w-full rounded-xl"
+                    >
+                      Review Plans
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div
@@ -941,7 +993,7 @@ const PricingContent = () => {
                     isDark ? "text-red-300" : "text-red-700"
                   }`}
                 >
-                  Move to no subscription
+                  Downgrade to Free
                 </h3>
                 <p
                   className={`mt-1 text-sm ${
@@ -957,6 +1009,7 @@ const PricingContent = () => {
                   onClick={() => {
                     setSubscriptionToCancel(subscriptionToManage);
                     setSubscriptionToManage(null);
+                    setSubscriptionChangeTarget(null);
                   }}
                   className={
                     isDark
@@ -964,7 +1017,7 @@ const PricingContent = () => {
                       : "mt-3 w-full rounded-xl border-red-200 text-red-700 hover:bg-red-100"
                   }
                 >
-                  Downgrade Subscription
+                  Downgrade to Free
                 </Button>
               </div>
             </div>

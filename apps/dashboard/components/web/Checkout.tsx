@@ -53,6 +53,7 @@ interface CheckoutProps {
   chatbotCreated?: boolean;
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
+  buttonText?: string;
 }
 
 type CheckoutStep =
@@ -95,6 +96,7 @@ export const Checkout = ({
   chatbotCreated = false,
   previousSubscriptionId,
   previousSubscriptionType,
+  buttonText,
 }: CheckoutProps) => {
   const router = useRouter();
   const { styles, isDark } = useThemeStyles();
@@ -155,6 +157,10 @@ export const Checkout = ({
   };
 
   const getButtonText = () => {
+    if (buttonText) {
+      return buttonText;
+    }
+
     if (planType === "tokens") {
       return tokens ? `Buy ${tokens.toLocaleString()} Tokens` : "Buy Tokens";
     }

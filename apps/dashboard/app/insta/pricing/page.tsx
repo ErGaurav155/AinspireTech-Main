@@ -1017,7 +1017,13 @@ function PricingWithSearchParams() {
 
           {/* Pro Plan Card */}
           {instagramPricingPlans.map((plan) => {
-            const isCurrentPlan = currentSubscription?.productId === plan.id;
+            const isSubscribedPlan = currentSubscription?.productId === plan.id;
+            const isCurrentPlan =
+              isSubscribedPlan &&
+              currentSubscription?.billingCycle === billingCycle;
+            const isDifferentBillingCycle =
+              isSubscribedPlan &&
+              currentSubscription?.billingCycle !== billingCycle;
             const price =
               billingCycle === "monthly"
                 ? plan.monthlyPrice
@@ -1100,7 +1106,7 @@ function PricingWithSearchParams() {
                       <div className="space-y-2">
                         <Button disabled className={pageStyles.buttonCurrent}>
                           <BadgeCheck className="h-4 w-4 mr-2" />
-                          Current Plan
+                          Current Subscription
                         </Button>
                         <Button
                           variant="outline"
@@ -1111,6 +1117,23 @@ function PricingWithSearchParams() {
                           Change Subscription
                         </Button>
                       </div>
+                    ) : isDifferentBillingCycle ? (
+                      <Button
+                        onClick={() => setShowCancelDialog(true)}
+                        disabled={isUpgrading || isProcessingChange}
+                        className={pageStyles.buttonPrimary(
+                          isUpgrading || isProcessingChange,
+                        )}
+                      >
+                        {isUpgrading || isProcessingChange ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          "Upgrade Subscription"
+                        )}
+                      </Button>
                     ) : (
                       <Button
                         onClick={() => handleSubscribe(plan, billingCycle)}
@@ -1281,8 +1304,9 @@ function PricingWithSearchParams() {
                   </div>
                 </div>
                 <Button
-                  variant="outline"
-                  disabled={!currentInstagramPlan || isProcessingChange}
+                  disabled={
+                    !currentInstagramPlan || isProcessingChange
+                  }
                   onClick={() => {
                     setShowCancelDialog(false);
                     if (currentInstagramPlan) {
@@ -1292,9 +1316,16 @@ function PricingWithSearchParams() {
                       );
                     }
                   }}
-                  className="mt-3 w-full rounded-xl"
+                  className={`${pageStyles.buttonPrimary(isProcessingChange)} mt-3`}
                 >
-                  Switch to {alternateBillingCycle}
+                  {isProcessingChange ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    "Switch Plan"
+                  )}
                 </Button>
               </div>
 
@@ -1310,7 +1341,7 @@ function PricingWithSearchParams() {
                     isDark ? "text-red-300" : "text-red-700"
                   }`}
                 >
-                  Shift to Free Plan
+                  Downgrade to Free
                 </h3>
                 <p
                   className={`mt-1 text-sm ${
@@ -1332,7 +1363,7 @@ function PricingWithSearchParams() {
                       : "mt-3 w-full rounded-xl border border-red-200 bg-white text-red-700 hover:bg-red-100"
                   }
                 >
-                  Shift to Free Plan
+                  Downgrade to Free
                 </Button>
               </div>
             </div>
