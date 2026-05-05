@@ -168,8 +168,8 @@ function StickyFeaturesSection() {
           viewport={{ once: false }}
           initial="hidden"
         >
-          Set up in minutes and start automating your Instagram comments/Web
-          Customer Support
+          Set up in minutes and start automating your Instagram Automation/Web
+          Chatbots.
         </motion.p>
       </motion.div>
 

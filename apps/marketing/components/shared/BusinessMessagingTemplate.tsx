@@ -116,7 +116,7 @@ export function BusinessMessagingTemplate() {
             initial="hidden"
           >
             We are currently providing instagram,messenger automations and
-            website chatbots.
+            website chatbots .
             <span className="">For other platforms will come soon.</span>
           </motion.p>
         </motion.div>

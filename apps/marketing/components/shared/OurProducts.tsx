@@ -77,31 +77,6 @@ export function AIVoiceAgentShowcase() {
   }, [currentTheme]);
 
   const webChatTypes = {
-    support: {
-      title: "AI Support Agent",
-      description: "Streamline support with human-like conversations",
-      icon: <Phone className="h-5 w-5" />,
-      features: [
-        "24/7 voice-based customer support",
-        "Natural language processing",
-        "Multi-language voice recognition",
-        "Seamless handoff to human agents",
-      ],
-      image: FeaBot3,
-      color: "from-cyan-500 to-blue-500",
-    },
-    education: {
-      title: "AI Education Agent",
-      description: "Automate education learning process",
-      icon: <BookOpen className="h-5 w-5" />,
-      features: [
-        "Learn what you want",
-        "Clarify your doubts",
-        "Solve MCQ tests instantly",
-      ],
-      image: FeaBot1,
-      color: "from-emerald-500 to-green-500",
-    },
     leadgen: {
       title: "AI Lead Qualification Agent",
       description: "Qualify leads through intelligent human-like conversations",
@@ -114,6 +89,18 @@ export function AIVoiceAgentShowcase() {
       ],
       image: FeaBot2,
       color: "from-violet-500 to-purple-500",
+    },
+    education: {
+      title: "AI Education Agent",
+      description: "Automate education learning process",
+      icon: <BookOpen className="h-5 w-5" />,
+      features: [
+        "Learn what you want",
+        "Clarify your doubts",
+        "Solve MCQ tests instantly",
+      ],
+      image: FeaBot1,
+      color: "from-emerald-500 to-green-500",
     },
   };
 

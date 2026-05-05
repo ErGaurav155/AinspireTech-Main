@@ -526,12 +526,12 @@ export function ClientShowcase() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 text-center">
             {[
               {
-                number: "50K+",
+                number: "500+",
                 label: "Active Users",
                 gradient: "from-[#00F0FF] to-[#B026FF]",
               },
               {
-                number: "2M+",
+                number: "200k+",
                 label: "DMs Sent Daily",
                 gradient: "from-[#FF2E9F] to-[#B026FF]",
               },

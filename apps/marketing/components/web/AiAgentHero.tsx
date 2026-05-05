@@ -715,7 +715,7 @@ export function AIAgentHero() {
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-blue-400" />
-                <span>1,000+ Users</span>
+                <span>500+ Users</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Star className="h-4 w-4 text-yellow-400" />

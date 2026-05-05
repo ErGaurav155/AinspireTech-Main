@@ -198,7 +198,7 @@ const DiscountBanner = () => {
               className={`flex animate-scroll-left whitespace-nowrap py-1 md:py-3 relative z-10 text-sm font-montserrat`}
             >
               <span className="font-light text-sm">
-                🚀 Get <span className="text-[#00F0FF]">One Month Free</span>{" "}
+                🚀 Get <span className="text-[#00F0FF]">Three Month Free</span>{" "}
                 For Yearly Subscription
               </span>
               <span className="mx-3 text-[#B026FF]">•</span>

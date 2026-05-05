@@ -267,7 +267,7 @@ function InstagramSection() {
             >
               <BadgeCheck className="h-5 w-5 text-[#00F0FF]" />
               <span className={`text-sm ${themeStyles.trustBadgeText}`}>
-                Meta Business Partner
+                Meta Tech Provider
               </span>
             </motion.div>
             <motion.div
@@ -344,7 +344,7 @@ function InstagramSection() {
             viewport={{ once: false }}
             initial="hidden"
           >
-            No credit card required • 7-day free trial • Cancel anytime
+            No credit card required • free trial • Cancel anytime
           </motion.p>
         </motion.div>
 
@@ -668,7 +668,7 @@ function WebChatbotSection() {
             viewport={{ once: false }}
             initial="hidden"
           >
-            No coding required • 14-day free trial • Setup in minutes
+            No coding required • free trial • Setup in minutes
           </motion.p>
         </motion.div>
 

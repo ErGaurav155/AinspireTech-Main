@@ -127,15 +127,15 @@ const Faq = () => {
     },
     {
       question: "What payment methods do you accept?",
-      answer: "We accept Razorpay Payment Gateways for our customers.",
+      answer: "We accept All Payment methods from our customers.",
     },
     {
       question: "Is there a setup fee?",
       answer:
-        "No, there are no setup fees or hidden costs. You only pay the monthly or yearly subscription.",
+        "No, there are no setup fees or hidden costs. You will get free subscription once you create account.",
     },
     {
-      question: "Can I cancel anytime?",
+      question: "Can I cancel subscription anytime?",
       answer:
         "Yes, you can cancel your subscription at any time. No questions asked.",
     },

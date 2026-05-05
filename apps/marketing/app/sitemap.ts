@@ -45,13 +45,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: "https://rocketreplai.com/web/feature",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-
-    {
       url: "https://rocketreplai.com/web/product",
       lastModified: new Date(),
       changeFrequency: "weekly",

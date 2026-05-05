@@ -85,7 +85,7 @@ export function TestimonialSection() {
           <p
             className={`text-lg ${themeStyles.sectionText} max-w-2xl mx-auto font-montserrat`}
           >
-            We are satisfying our customers every day since Last 10+ Years.
+            We are satisfying our customers every day since couple of Years.
           </p>
         </div>
 

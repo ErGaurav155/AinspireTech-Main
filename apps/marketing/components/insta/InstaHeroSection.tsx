@@ -259,7 +259,7 @@ export function InstagramAutomationHero() {
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-blue-400" />
-                <span>1,000+ Creators</span>
+                <span>500+ Creators</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Star className="h-4 w-4 text-yellow-400" />
