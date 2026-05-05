@@ -26,7 +26,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen max-w-7xl m-auto mt-5  ">
-      {/* Hero Section */}
       <AIAgentHero />
       <SetupProcess />
       <div className="container mx-auto px-4 py-20">
