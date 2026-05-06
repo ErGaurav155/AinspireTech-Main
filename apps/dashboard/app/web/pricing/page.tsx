@@ -517,7 +517,8 @@ const PricingContent = () => {
 
                   return (
                     <div key={product.productId} className={cardClasses}>
-                      {(isMostPopular || (isSubscribed && isSameBillingCycle)) && (
+                      {(isMostPopular ||
+                        (isSubscribed && isSameBillingCycle)) && (
                         <div className="absolute -top-3 left-0 right-0 flex justify-center">
                           <Badge
                             className={`${
@@ -561,15 +562,15 @@ const PricingContent = () => {
                               className={`text-3xl font-bold ${styles.text.primary}`}
                             >
                               {billingMode === "monthly"
-                                ? `$${displayPrice.toFixed(0)}`
-                                : `$${(displayPrice / 12).toFixed(0)}`}
+                                ? `₹${displayPrice.toFixed(0)}`
+                                : `₹${(displayPrice / 12).toFixed(0)}`}
                             </span>
                             <span
                               className={`text-sm line-through ${styles.text.muted}`}
                             >
                               {billingMode === "monthly"
-                                ? `$${originalPrice.toFixed(0)}`
-                                : `$${(originalPrice / 12).toFixed(0)}`}
+                                ? `₹${originalPrice.toFixed(0)}`
+                                : `₹${(originalPrice / 12).toFixed(0)}`}
                             </span>
                           </div>
                           <p className={`text-sm ${styles.text.muted}`}>
@@ -649,7 +650,10 @@ const PricingContent = () => {
                                 onClick={() => {
                                   if (activeSubscription) {
                                     setSubscriptionChangeTarget(
-                                      getSwitchTarget(product, activeSubscription),
+                                      getSwitchTarget(
+                                        product,
+                                        activeSubscription,
+                                      ),
                                     );
                                     setSubscriptionToManage(activeSubscription);
                                   }

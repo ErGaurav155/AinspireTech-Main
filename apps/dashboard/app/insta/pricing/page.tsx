@@ -1304,9 +1304,7 @@ function PricingWithSearchParams() {
                   </div>
                 </div>
                 <Button
-                  disabled={
-                    !currentInstagramPlan || isProcessingChange
-                  }
+                  disabled={!currentInstagramPlan || isProcessingChange}
                   onClick={() => {
                     setShowCancelDialog(false);
                     if (currentInstagramPlan) {

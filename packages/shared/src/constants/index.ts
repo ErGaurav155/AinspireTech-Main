@@ -263,119 +263,6 @@ export const productDetails: Record<
         "Provide instant answers, resources, and support for students and educators.",
     },
   },
-
-  // AI Agents
-  // "ai-agent-customer-support": {
-  //   productId: "ai-agent-customer-support", // Product ID
-  //   name: "Customer Support AI Agent",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/customer-support.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-purple-500",
-  //     heading: "24/7 customer service for incoming calls.",
-  //     subheading:
-  //       "Automate support and reduce response times to improve customer satisfaction.",
-  //   },
-  // },
-  // "ai-agent-e-commerce": {
-  //   productId: "ai-agent-e-commerce", // Product ID
-  //   name: "E-Commerce AI Agent",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/e-commerce.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-pink-500",
-  //     heading: "Revolutionize online shopping with AI-powered agents.",
-  //     subheading:
-  //       "Guide customers through their journey and optimize conversions effortlessly.",
-  //   },
-  // },
-  // "ai-agent-lead-generation": {
-  //   productId: "ai-agent-lead-generation", // Product ID
-  //   name: "Lead Generation AI Agent",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/lead-generation.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-orange-500",
-  //     heading: "Supercharge your sales pipeline with AI-driven agents.",
-  //     subheading: "Capture, qualify, and engage leads more efficiently.",
-  //   },
-  // },
-  // "ai-agent-education": {
-  //   productId: "ai-agent-education", // Product ID
-  //   name: "Education AI Agent",
-  //   video: "/assets/congratulation.webm",
-  //   available: false,
-
-  //   icon: "/icons/education.png",
-  //   description: {
-  //     bgcolor: "bg-teal-500",
-  //     heading: "Empower educators and learners with AI.",
-  //     subheading: "Offer tailored educational content and on-demand support.",
-  //   },
-  // },
-
-  // // Website Templates
-  // "template-pathology": {
-  //   productId: "template-pathology", // Product ID
-  //   name: "Pathology Website Template",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/pathology.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-indigo-700",
-  //     heading: "Modern solutions for medical professionals.",
-  //     subheading:
-  //       "Streamline appointment booking and provide valuable resources for patients.",
-  //   },
-  // },
-  // "template-e-commerce": {
-  //   productId: "template-e-commerce", // Product ID
-  //   name: "E-Commerce Website Template",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/e-commerce.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-gray-500",
-  //     heading: "Create stunning online stores effortlessly.",
-  //     subheading:
-  //       "Offer a seamless shopping experience with responsive and customizable templates.",
-  //   },
-  // },
-  // "template-business": {
-  //   productId: "template-business", // Product ID
-  //   name: "Business Website Template",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/business.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-cyan-500",
-  //     heading: "Elevate your business with a professional online presence.",
-  //     subheading: "Showcase your services and attract more clients with ease.",
-  //   },
-  // },
-  // "template-saas": {
-  //   productId: "template-saas", // Product ID
-  //   name: "SaaS Website Template",
-  //   video: "/assets/congratulation.webm",
-  //   icon: "/icons/saas.png",
-  //   available: false,
-
-  //   description: {
-  //     bgcolor: "bg-lime-500",
-  //     heading: "Launch your SaaS product with style.",
-  //     subheading:
-  //       "Highlight features and drive subscriptions with purpose-built templates.",
-  //   },
-  // },
 };
 export type PricingPlan = {
   id: string;
@@ -468,9 +355,9 @@ export const productSubscriptionDetails: Record<
     name: "Lead generation chatbot",
     video: "/assets/congratulation.webm",
     icon: "BotIcon",
-    mprice: 10,
-    yprice: 108,
-    original: 238,
+    mprice: 999,
+    yprice: 10788,
+    original: 23988,
     credits: 550,
     tier: "Pro",
     description: {
@@ -499,9 +386,9 @@ export const productSubscriptionDetails: Record<
     name: "MCQ Educational Chatbot",
     video: "/assets/congratulation.webm",
     icon: "GraduationCapIcon",
-    mprice: 10,
-    yprice: 108,
-    original: 238,
+    mprice: 999,
+    yprice: 10788,
+    original: 23988,
     credits: 750,
     tier: "Enterprise",
     description: {
