@@ -12,7 +12,9 @@ export const connectInstaAccount = (
   apiRequest: ApiRequestFn,
   code: string,
 ): Promise<any> => {
-  return apiRequest(`/insta/callback?code=${code}`, { method: "GET" });
+  return apiRequest(`/insta/callback?code=${encodeURIComponent(code)}`, {
+    method: "GET",
+  });
 };
 
 export const getInstaAccountById = (

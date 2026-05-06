@@ -132,8 +132,14 @@ export default function AddAccountPage() {
     }
   }, [contextAccounts, isAccLoading]);
 
+  const hasReconnectableAccount = useMemo(() => {
+    return contextAccounts.some(
+      (account: any) => !account.isActive || account.needsReconnect,
+    );
+  }, [contextAccounts]);
+
   const handleConnectClick = () => {
-    if (totalAccounts >= accountLimit) {
+    if (totalAccounts >= accountLimit && !hasReconnectableAccount) {
       setShowLimitDialog(true);
     } else {
       setIsConnecting(true);
@@ -202,7 +208,9 @@ export default function AddAccountPage() {
                 ) : (
                   <>
                     <Instagram className="h-4 w-4 mr-2" />
-                    Connect Instagram Account
+                    {hasReconnectableAccount
+                      ? "Reconnect Instagram Account"
+                      : "Connect Instagram Account"}
                   </>
                 )}
               </Button>

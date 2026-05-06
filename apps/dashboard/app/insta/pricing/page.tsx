@@ -70,6 +70,7 @@ interface Subscription {
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 const PENDING_INSTA_CHECKOUT_KEY = "pending_insta_checkout";
+const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -157,6 +158,7 @@ function PricingWithSearchParams() {
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const hasStartedAutoCheckout = useRef(false);
+  const processedInstagramCodeRef = useRef<string | null>(null);
 
   // Dialog states
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -265,6 +267,20 @@ function PricingWithSearchParams() {
   const clearPendingCheckout = useCallback(() => {
     sessionStorage.removeItem(PENDING_INSTA_CHECKOUT_KEY);
   }, []);
+
+  const clearInstagramCodeFromUrl = useCallback(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has("code")) return;
+
+    params.delete("code");
+    const nextUrl = params.toString()
+      ? `${window.location.pathname}?${params.toString()}`
+      : window.location.pathname;
+
+    router.replace(nextUrl, { scroll: false });
+  }, [router]);
 
   const loadRazorpayScript = useCallback(() => {
     if (window.Razorpay) return Promise.resolve();
@@ -478,6 +494,24 @@ function PricingWithSearchParams() {
       }
 
       try {
+        let shouldProcessInstagramCode = false;
+
+        if (activeProductId) {
+          const processedCodeKey = `${PROCESSED_INSTA_OAUTH_CODE_PREFIX}${activeProductId}`;
+          const hasAlreadyStartedProcessing =
+            processedInstagramCodeRef.current === activeProductId ||
+            sessionStorage.getItem(processedCodeKey);
+
+          if (hasAlreadyStartedProcessing) {
+            clearInstagramCodeFromUrl();
+          } else {
+            processedInstagramCodeRef.current = activeProductId;
+            sessionStorage.setItem(processedCodeKey, Date.now().toString());
+            clearInstagramCodeFromUrl();
+            shouldProcessInstagramCode = true;
+          }
+        }
+
         const buyer = await getUserById(apiRequest, userId);
         if (!buyer) {
           router.push("/sign-in");
@@ -492,14 +526,22 @@ function PricingWithSearchParams() {
 
         // Check if user has accounts
         const hasAccounts = accounts.length > 0;
+        const hasReconnectableAccount = accounts.some(
+          (account: any) => !account.isActive || account.needsReconnect,
+        );
         const needsAccountConnection =
           !hasAccounts ||
-          (buyer.accountLimit && accounts.length < buyer.accountLimit);
+          (buyer.accountLimit && accounts.length < buyer.accountLimit) ||
+          hasReconnectableAccount;
 
         let hasConnectedAccount = hasAccounts;
 
         // Handle account connection if needed
-        if (needsAccountConnection && activeProductId) {
+        if (
+          needsAccountConnection &&
+          activeProductId &&
+          shouldProcessInstagramCode
+        ) {
           const connected = await connectInstagramAccount(activeProductId);
           hasConnectedAccount = connected;
           setIsInstaAccount(connected);
@@ -569,6 +611,7 @@ function PricingWithSearchParams() {
     isLoaded,
     connectInstagramAccount,
     getPendingCheckout,
+    clearInstagramCodeFromUrl,
     openRazorpayCheckout,
     showToast,
     apiRequest,

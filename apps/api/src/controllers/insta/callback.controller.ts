@@ -355,17 +355,6 @@ export const handleInstaCallbackController = async (
       }
     }
 
-    // Check if user has reached account limit
-    if (existingAccounts.length >= accountLimit) {
-      return res.status(400).json({
-        success: false,
-        error: `You have reached the limit of ${accountLimit} Instagram account${
-          accountLimit > 1 ? "s" : ""
-        }. Please upgrade your plan to add more accounts.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     // Check if account already exists for this user
     const existingAccountWithUser = await InstagramAccount.findOne({
       userId: clerkId,
@@ -378,6 +367,7 @@ export const handleInstaCallbackController = async (
       existingAccountWithUser.lastActivity = new Date();
       existingAccountWithUser.tokenExpiresAt = expiresAt;
       existingAccountWithUser.isActive = true;
+      existingAccountWithUser.userInstaId = user.id;
 
       // Update profile info
       existingAccountWithUser.username = user.username;
@@ -404,6 +394,17 @@ export const handleInstaCallbackController = async (
           account: existingAccountWithUser,
           message: "Account updated successfully",
         },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    // Check if user has reached account limit only after reconnect attempts.
+    if (existingAccounts.length >= accountLimit) {
+      return res.status(400).json({
+        success: false,
+        error: `You have reached the limit of ${accountLimit} Instagram account${
+          accountLimit > 1 ? "s" : ""
+        }. Please upgrade your plan to add more accounts.`,
         timestamp: new Date().toISOString(),
       });
     }
