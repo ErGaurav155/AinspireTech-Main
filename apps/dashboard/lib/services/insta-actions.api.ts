@@ -1,5 +1,6 @@
 // lib/services/insta-actions.api.ts
 
+import { getInstagramAuthUrl } from "@/lib/instagram-auth";
 import { ApiRequestFn } from "../useApi";
 
 // ==================== ACCOUNT FUNCTIONS ====================
@@ -234,7 +235,13 @@ export const refreshInstagramToken = (
 };
 
 export function reconnectInstagramAccount() {
-  window.location.href = "/api/instagram/connect";
+  const authUrl = getInstagramAuthUrl();
+
+  if (!authUrl) {
+    throw new Error("Missing Instagram configuration");
+  }
+
+  window.location.href = authUrl;
 }
 
 // ==================== LEADS FUNCTIONS ====================

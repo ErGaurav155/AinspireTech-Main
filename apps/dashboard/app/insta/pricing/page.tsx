@@ -45,6 +45,7 @@ import {
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
 import { getUserById, updateUserLimits } from "@/lib/services/user-actions.api";
+import { getInstagramAuthUrl } from "@/lib/instagram-auth";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -315,19 +316,14 @@ function PricingWithSearchParams() {
 
   const redirectToInstagramConnect = useCallback(
     (plan: PricingPlan, cycle: "monthly" | "yearly") => {
-      const instaId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
+      const authUrl = getInstagramAuthUrl();
 
-      if (!instaId) {
+      if (!authUrl) {
         showToast("Failed!", "Missing Instagram configuration", true);
         return;
       }
 
       savePendingCheckout(plan, cycle);
-
-      const redirectUri = "https://app.rocketreplai.com/insta/pricing";
-      const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
 
       window.location.href = authUrl;
     },

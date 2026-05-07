@@ -5,6 +5,7 @@ import { Button } from "@rocketreplai/ui";
 import { useMemo } from "react";
 
 import { useThemeStyles } from "@rocketreplai/ui";
+import { getInstagramAuthUrl } from "@/lib/instagram-auth";
 
 interface LoginPageProps {
   onClose?: () => void;
@@ -36,9 +37,9 @@ export default function LoginPage({ onClose }: LoginPageProps) {
     };
   }, [isDark]);
 
-  const instaId = process.env.NEXT_PUBLIC_INSTAGRAM_APP_ID;
+  const authUrl = getInstagramAuthUrl();
 
-  if (!instaId) {
+  if (!authUrl) {
     console.error("Instagram App ID is not defined");
     return (
       <div className={pageStyles.error}>
@@ -51,10 +52,6 @@ export default function LoginPage({ onClose }: LoginPageProps) {
       </div>
     );
   }
-
-  const authUrl = `https://www.instagram.com/oauth/authorize?enable_fb_login=0&force_reauth=true&client_id=${instaId}&redirect_uri=${encodeURIComponent(
-    "https://app.rocketreplai.com/insta/pricing",
-  )}&response_type=code&scope=instagram_business_basic,instagram_business_manage_messages,instagram_business_manage_comments,instagram_business_manage_insights`;
 
   return (
     <div className={pageStyles.container}>
