@@ -16,6 +16,7 @@ import {
   MessageSquare,
   Crown,
   Bot,
+  Instagram,
   Check,
   LayoutDashboard,
   BarChart3,
@@ -103,6 +104,7 @@ export default function WebSidebar({
 
   const [isLoading, setIsLoading] = useState(true);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
+  const [isProductOpen, setIsProductOpen] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(
     initialIsSubscribed ?? false,
   );
@@ -212,6 +214,12 @@ export default function WebSidebar({
       selectorChevron: isDark
         ? "h-4 w-4 text-white/40 flex-shrink-0"
         : "h-4 w-4 text-gray-400 flex-shrink-0",
+      planBadge: (subscribed: boolean) =>
+        subscribed
+          ? "flex items-center gap-1 text-xs font-bold text-orange-400 flex-shrink-0 mr-1"
+          : isDark
+            ? "flex items-center gap-1 text-xs font-bold text-white/50 bg-white/[0.06] px-2 py-1 rounded-full flex-shrink-0 mr-1"
+            : "flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0 mr-1",
       dropdown: isDark
         ? "mt-2 glass-card border border-white/[0.08] rounded-xl shadow-lg overflow-hidden absolute left-4 right-4 bg-gray-900/70 backdrop-blur-3xl"
         : "mt-2 bg-white border border-gray-100 rounded-xl shadow-lg overflow-hidden absolute left-4 right-4",
@@ -266,6 +274,32 @@ export default function WebSidebar({
       upgradeButton: isDark
         ? "w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full text-xs font-bold h-9 shadow-md shadow-purple-500/20 transition-all hover:shadow-purple-500/40"
         : "w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full text-xs font-bold h-9 shadow-md shadow-purple-200/50 transition-all hover:shadow-purple-300/60",
+      bottomDock: "p-4 pt-0",
+      productSwitcher: isDark
+        ? "relative rounded-xl border border-white/[0.08] bg-white/[0.04] shadow-lg backdrop-blur-3xl"
+        : "relative rounded-xl border border-gray-100 bg-gray-50 shadow-lg",
+      productButton: isDark
+        ? "w-full flex items-center justify-between rounded-xl px-3 py-3 text-white/80 hover:bg-white/[0.06] transition-colors"
+        : "w-full flex items-center justify-between rounded-xl px-3 py-3 text-gray-800 hover:bg-white transition-colors",
+      productMenu: isDark
+        ? "absolute left-0 right-0 bottom-[calc(100%+8px)] rounded-xl border border-white/[0.08] bg-gray-900/95 shadow-xl backdrop-blur-3xl overflow-hidden "
+        : "absolute left-0 right-0 bottom-[calc(100%+8px)] rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden",
+      productOption: (active: boolean) =>
+        `flex items-center gap-3 px-3 py-2.5 transition-colors ${
+          active
+            ? isDark
+              ? "bg-purple-500/12 text-purple-400 hover:bg-white/[0.06] hover:text-white/75"
+              : "bg-white text-purple-600 shadow-sm hover:bg-white hover:text-gray-800"
+            : isDark
+              ? "text-white/60 hover:bg-white/[0.06] hover:text-white/75"
+              : "text-gray-500 hover:bg-white hover:text-gray-800"
+        }`,
+      productIcon: (active: boolean) =>
+        `h-4 w-4 ${active ? "text-purple-500" : ""}`,
+      productLabel: "text-sm font-semibold",
+      productMeta: isDark
+        ? "text-[11px] text-white/35"
+        : "text-[11px] text-gray-400",
       newBadge: isDark
         ? "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
         : "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full",
@@ -342,6 +376,10 @@ export default function WebSidebar({
                 </p>
               </div>
             </div>
+            <span className={styles.planBadge(isSubscribed)}>
+              {isSubscribed && <Crown className="w-4 h-4 animate-pulse" />}
+              {isSubscribed ? "Pro" : "Free"}
+            </span>
             <ChevronDown
               className={`${styles.selectorChevron} transition-transform duration-200 ${
                 isChatbotOpen ? "rotate-180" : ""
@@ -433,7 +471,7 @@ export default function WebSidebar({
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto no-scrollbar">
+        <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto ">
           {/* Overview - Always shown */}
           <Link
             href={`${currentChatbot.href}`}
@@ -697,6 +735,57 @@ export default function WebSidebar({
             </div>
           </div>
         )}
+
+        <div className={styles.bottomDock}>
+          <div className={styles.productSwitcher}>
+            {isProductOpen && (
+              <div className={styles.productMenu}>
+                <Link
+                  href="/insta"
+                  className={styles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Instagram className={styles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={styles.productLabel}>Insta Dashboard</p>
+                    <p className={styles.productMeta}>Instagram Automation</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/web"
+                  className={styles.productOption(true)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Bot className={styles.productIcon(true)} />
+                  <div className="min-w-0">
+                    <p className={styles.productLabel}>Web Dashboard</p>
+                    <p className={styles.productMeta}>Website Chatbot</p>
+                  </div>
+                  <Check className="ml-auto h-4 w-4 text-purple-500" />
+                </Link>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={styles.productButton}
+              onClick={() => setIsProductOpen((v) => !v)}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Bot className={styles.productIcon(true)} />
+                <div className="min-w-0">
+                  <p className={styles.productLabel}>Web Dashboard</p>
+                  <p className={styles.productMeta}>Website Chatbot</p>
+                </div>
+              </div>
+              <ChevronDown
+                className={`${styles.selectorChevron} transition-transform duration-200 ${
+                  isProductOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
+        </div>
       </div>
     );
     return Content;
@@ -704,6 +793,7 @@ export default function WebSidebar({
     selectedChatbot,
     isChatbotOpen,
     isSubscribed,
+    isProductOpen,
     tokenBalance,
     router,
     isActive,

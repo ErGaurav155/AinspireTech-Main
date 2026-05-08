@@ -10,6 +10,11 @@ export interface ConvMessage {
   content: string;
 }
 
+const APPROX_CHARS_PER_TOKEN = 4;
+const MAIN_CONTEXT_TOKEN_LIMIT = 3000;
+const FAQ_CONTEXT_TOKEN_LIMIT = 1000;
+const FULL_CONTEXT_TOKEN_LIMIT = 4000;
+
 // ─── DeepSeek client (singleton) ─────────────────────────────────────────────
 
 let openaiInstance: OpenAI | Error | null = null;
@@ -125,6 +130,13 @@ function formatContextFromData(data: any): string {
   return String(data).substring(0, 4000);
 }
 
+function limitTextToTokenBudget(text: string, tokenLimit: number): string {
+  const maxChars = tokenLimit * APPROX_CHARS_PER_TOKEN;
+  if (!text || text.length <= maxChars) return text;
+
+  return text.slice(0, maxChars).trimEnd();
+}
+
 async function getFAQContext(
   clerkId: string,
   chatbotType: string,
@@ -142,7 +154,10 @@ async function getFAQContext(
       )
       .join("\n\n");
 
-    return `\n=== FAQ KNOWLEDGE BASE ===\n${faqContext}\n`;
+    return limitTextToTokenBudget(
+      `\n=== FAQ KNOWLEDGE BASE ===\n${faqContext}\n`,
+      FAQ_CONTEXT_TOKEN_LIMIT,
+    );
   } catch (error) {
     console.error("Failed to fetch FAQ:", error);
     return "";
@@ -179,7 +194,10 @@ export const generateGptResponse = async ({
       try {
         const cloudinaryContent = await downloadCloudinaryContent(userfileName);
         const parsedData = JSON.parse(cloudinaryContent);
-        context = formatContextFromData(parsedData);
+        context = limitTextToTokenBudget(
+          formatContextFromData(parsedData),
+          MAIN_CONTEXT_TOKEN_LIMIT,
+        );
       } catch (error) {
         console.error("Failed to load Cloudinary data:", error);
         context = "Website data is temporarily unavailable.";
@@ -192,7 +210,10 @@ export const generateGptResponse = async ({
       faqContext = await getFAQContext(clerkId, chatbotType);
     }
 
-    const fullContext = context + faqContext;
+    const fullContext = limitTextToTokenBudget(
+      context + faqContext,
+      FULL_CONTEXT_TOKEN_LIMIT,
+    );
 
     // Sanitise history
     const sanitisedHistory: ConvMessage[] = Array.isArray(conversationHistory)

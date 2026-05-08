@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Crown,
   Instagram,
+  Bot,
   Check,
   LayoutDashboard,
   BarChart3,
@@ -79,6 +80,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   } = useInstaAccount();
 
   const [isAccountOpen, setIsAccountOpen] = useState(false);
+  const [isProductOpen, setIsProductOpen] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [accountLimit, setAccountLimit] = useState(1);
   const [pricingClose, setPricingClose] = useState(false);
@@ -128,7 +130,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         : `absolute top-4 right-4 p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors md:hidden`,
       closeIcon: `h-4 w-4 ${styles.text.muted}`,
       logoContainer: `p-3 border-b ${styles.divider}`,
-      selectorButton: `w-full flex items-center justify-between p-3 rounded-xl transition-colors group ${styles.innerCard} ${styles.rowHover}`,
+      selectorButton: isDark
+        ? "w-full flex items-center justify-between p-3 rounded-xl glass-pill hover:bg-white/[0.09] transition-colors group"
+        : "w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group",
       selectorAvatar: `w-9 h-9 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0 overflow-hidden`,
       selectorName: `text-sm font-semibold truncate max-w-[130px] ${styles.text.primary}`,
       selectorHandle: `text-xs truncate max-w-[130px] ${styles.text.muted}`,
@@ -143,6 +147,12 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       dropdownUpgrade: `px-4 py-3 border-t ${styles.divider} ${styles.icon.pink}`,
       dropdownUpgradeTitle: `text-xs ${styles.text.primary} font-medium mb-1`,
       dropdownUpgradeDesc: `text-xs ${styles.text.secondary} mb-2`,
+      planBadge: (subscribed: boolean) =>
+        subscribed
+          ? "flex items-center gap-1 text-xs font-bold text-orange-400 flex-shrink-0 mr-1"
+          : isDark
+            ? "flex items-center gap-1 text-xs font-bold text-white/50 bg-white/[0.06] px-2 py-1 rounded-full flex-shrink-0 mr-1"
+            : "flex items-center gap-1 text-xs font-bold text-gray-500 bg-gray-100 px-2 py-1 rounded-full flex-shrink-0 mr-1",
       addIcon: `w-7 h-7 rounded-full ${styles.icon.pink} flex items-center justify-center flex-shrink-0`,
       addIconColor: isDark ? "text-pink-400" : "text-pink-500",
       manageIcon: `w-7 h-7 rounded-full ${styles.icon.purple} flex items-center justify-center flex-shrink-0`,
@@ -181,6 +191,32 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       upgradeFeatureIconColor: isDark ? "text-pink-400" : "text-pink-500",
       upgradeClose: `h-5 px-2 ${isDark ? "bg-red-500/80 hover:bg-red-500" : "bg-red-500 hover:bg-red-600"} text-white rounded-lg text-xs ml-auto`,
       upgradeButton: `w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-full text-xs font-bold h-9 shadow-md transition-all`,
+      bottomDock: `p-4 pt-0`,
+      productSwitcher: isDark
+        ? "relative rounded-xl border border-white/[0.08] bg-white/[0.04] shadow-lg backdrop-blur-3xl"
+        : "relative rounded-xl border border-gray-100 bg-gray-50 shadow-lg",
+      productButton: isDark
+        ? "w-full flex items-center justify-between rounded-xl px-3 py-3 text-white/80 hover:bg-white/[0.06] transition-colors"
+        : "w-full flex items-center justify-between rounded-xl px-3 py-3 text-gray-800 hover:bg-white transition-colors",
+      productMenu: isDark
+        ? "absolute left-0 right-0 bottom-[calc(100%+8px)] rounded-xl border border-white/[0.08] bg-gray-900/95 shadow-xl backdrop-blur-3xl overflow-hidden"
+        : "absolute left-0 right-0 bottom-[calc(100%+8px)] rounded-xl border border-gray-100 bg-white shadow-xl overflow-hidden",
+      productOption: (active: boolean) =>
+        `flex items-center gap-3 px-3 py-2.5 transition-colors ${
+          active
+            ? isDark
+              ? "bg-pink-500/12 text-pink-300 hover:bg-white/[0.06] hover:text-white/75"
+              : "bg-white text-pink-600 shadow-sm hover:bg-white hover:text-gray-800"
+            : isDark
+              ? "text-white/60 hover:bg-white/[0.06] hover:text-white/75"
+              : "text-gray-500 hover:bg-white hover:text-gray-800"
+        }`,
+      productIcon: (active: boolean) =>
+        `h-4 w-4 ${active ? "text-pink-500" : ""}`,
+      productLabel: "text-sm font-semibold",
+      productMeta: isDark
+        ? "text-[11px] text-white/35"
+        : "text-[11px] text-gray-400",
       newBadge: `bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm`,
       loadingContainer: `fixed left-0 top-0 bottom-0 w-72 ${styles.divider} flex items-center justify-center`,
       // ✅ selected item highlight in dropdown
@@ -240,12 +276,10 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
               </div>
             </div>
 
-            {isSubscribed && (
-              <span className="flex items-center gap-1 text-sm font-semibold text-orange-400 flex-shrink-0 mr-1">
-                <Crown className="w-4 h-4 animate-pulse" />
-                Pro
-              </span>
-            )}
+            <span className={localStyles.planBadge(isSubscribed)}>
+              {isSubscribed && <Crown className="w-4 h-4 animate-pulse" />}
+              {isSubscribed ? "Pro" : "Free"}
+            </span>
 
             <ChevronDown
               className={`${localStyles.selectorChevron} ${isAccountOpen ? "rotate-180" : ""}`}
@@ -311,8 +345,8 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 );
               })}
 
-              {/* Add account — only if below limit */}
-              {accounts.length < accountLimit && (
+              {/* Add account, or upgrade when the free account limit is reached */}
+              {accounts.length < accountLimit ? (
                 <Link
                   href="/insta/accounts/add"
                   className={localStyles.dropdownItemLast}
@@ -328,9 +362,25 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                   </div>
                   Connect new account
                 </Link>
-              )}
+              ) : !isSubscribed ? (
+                <button
+                  type="button"
+                  className={localStyles.dropdownItemLast}
+                  onClick={() => {
+                    router.push("/insta/pricing");
+                    setIsAccountOpen(false);
+                    if (window.innerWidth < 768) onToggle();
+                  }}
+                >
+                  <div className={localStyles.addIcon}>
+                    <Crown
+                      className={`h-3.5 w-3.5 ${localStyles.addIconColor}`}
+                    />
+                  </div>
+                  Upgrade to Pro
+                </button>
+              ) : null}
 
-              {/* Upgrade prompt if at limit and not subscribed */}
               {accounts.length >= accountLimit && !isSubscribed && (
                 <div className={localStyles.dropdownUpgrade}>
                   <p className={localStyles.dropdownUpgradeTitle}>
@@ -458,6 +508,61 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             </div>
           </div>
         )}
+
+        <div className={localStyles.bottomDock}>
+          <div className={localStyles.productSwitcher}>
+            {isProductOpen && (
+              <div className={localStyles.productMenu}>
+                <Link
+                  href="/insta"
+                  className={localStyles.productOption(true)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Instagram className={localStyles.productIcon(true)} />
+                  <div className="min-w-0">
+                    <p className={localStyles.productLabel}>Insta Dashboard</p>
+                    <p className={localStyles.productMeta}>
+                      Instagram Automation
+                    </p>
+                  </div>
+                  <Check className="ml-auto h-4 w-4 text-pink-500" />
+                </Link>
+                <Link
+                  href="/web"
+                  className={localStyles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Bot className={localStyles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={localStyles.productLabel}>Web Dashboard</p>
+                    <p className={localStyles.productMeta}>Website Chatbot</p>
+                  </div>
+                </Link>
+              </div>
+            )}
+
+            <button
+              type="button"
+              className={localStyles.productButton}
+              onClick={() => setIsProductOpen((v) => !v)}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <Instagram className={localStyles.productIcon(true)} />
+                <div className="min-w-0">
+                  <p className={localStyles.productLabel}>Insta Dashboard</p>
+                  <p className={localStyles.productMeta}>
+                    Instagram Automation
+                  </p>
+                </div>
+              </div>
+              <ChevronDown
+                className={`${localStyles.selectorChevron} ${
+                  isProductOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+          </div>
+        </div>
       </div>
     );
     return Content;
@@ -468,6 +573,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
     isActive,
     isDark,
     isSubscribed,
+    isProductOpen,
     localStyles,
     onToggle,
     pricingClose,
