@@ -546,7 +546,7 @@ export const Checkout = ({
       const paymentOptions = {
         key: process.env.NEXT_PUBLIINRC_RAZORPAY_KEY_ID!,
         amount: amount * 100,
-        currency: "USD",
+        currency: "INR",
         name: "RocketReplai",
         description: `${productId} - ${billingCycle}`,
         subscription_id: result.subscriptionId,
