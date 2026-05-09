@@ -11,6 +11,7 @@ import {
   Clock,
   ArrowUpDown,
   Instagram,
+  Crown,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { useAuth } from "@clerk/nextjs";
@@ -21,6 +22,7 @@ import {
   getInstaTemplates,
   TemplateType,
   updateTemplate,
+  getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -34,6 +36,9 @@ interface ContentItem {
 }
 
 type SortOption = "newest" | "oldest" | "a-z" | "z-a";
+
+const FREE_DM_LIMIT = 1000;
+const FREE_FOLLOW_CHECK_LIMIT = 50;
 
 // API Response Types
 interface TemplatesResponse {
@@ -87,6 +92,7 @@ export default function AutomationsPage() {
     useInstaAccount();
   const [deletingTemplateName, setDeletingTemplateName] = useState<string>("");
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
+  const [isSubscribed, setIsSubscribed] = useState(false);
   const loadMoreCountRef = useRef(0);
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
@@ -217,8 +223,27 @@ export default function AutomationsPage() {
       refreshButton: isDark
         ? "text-xs text-pink-400 hover:text-pink-300 transition-colors"
         : "text-xs text-pink-500 hover:text-pink-600 transition-colors",
+      quotaWarning: isDark
+        ? "mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200"
+        : "mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600",
+      disabledAddButton: isDark
+        ? "flex items-center gap-2 px-5 py-2.5 bg-white/[0.06] text-white/35 rounded-xl text-sm font-medium cursor-not-allowed"
+        : "flex items-center gap-2 px-5 py-2.5 bg-gray-100 text-gray-400 rounded-xl text-sm font-medium cursor-not-allowed",
     };
   }, [isDark]);
+
+  const dmSent = selectedAccount?.accountDMSent || 0;
+  const followChecks = selectedAccount?.accountFollowCheck || 0;
+  const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
+  const followCheckLimitReached =
+    !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
+
+  useEffect(() => {
+    if (!userId) return;
+    getSubscriptioninfo(apiRequest)
+      .then((result) => setIsSubscribed(!!result.subscriptions?.length))
+      .catch(() => setIsSubscribed(false));
+  }, [apiRequest, userId]);
 
   // Fetch templates - only when selectedAccount is available
   const fetchTemplates = useCallback(
@@ -375,6 +400,17 @@ export default function AutomationsPage() {
 
       const newActive = !template.isActive;
 
+      if (newActive && dmLimitReached) {
+        toast({
+          title: "DM send is full",
+          description:
+            "This automation cannot run because global automation is stopped. Upgrade to Pro to use it.",
+          duration: 4000,
+          variant: "destructive",
+        });
+        return;
+      }
+
       setTemplates((prev) =>
         prev.map((t) =>
           t._id === templateId ? { ...t, isActive: newActive } : t,
@@ -403,7 +439,7 @@ export default function AutomationsPage() {
         });
       }
     },
-    [templates, apiRequest],
+    [templates, apiRequest, dmLimitReached],
   );
 
   const handleDelete = useCallback(
@@ -545,6 +581,31 @@ export default function AutomationsPage() {
     >
       {isDark && <Orbs />}
       <div className="max-w-6xl mx-auto p-4 md:p-6 lg:p-8 relative z-10">
+        {dmLimitReached && (
+          <div className={pageStyles.quotaWarning}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <span>
+                DM send is full ({FREE_DM_LIMIT.toLocaleString()}/
+                {FREE_DM_LIMIT.toLocaleString()}). Global automation is stopped,
+                and new automations are disabled until you upgrade.
+              </span>
+              <Link
+                href="/insta/pricing"
+                className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 px-4 py-2 text-xs font-bold text-white"
+              >
+                <Crown className="h-3.5 w-3.5" />
+                Upgrade to use
+              </Link>
+            </div>
+          </div>
+        )}
+        {!dmLimitReached && followCheckLimitReached && (
+          <div className={pageStyles.quotaWarning}>
+            Follow-check is full ({FREE_FOLLOW_CHECK_LIMIT}/
+            {FREE_FOLLOW_CHECK_LIMIT}). Follow gates will be skipped and each
+            automation will continue to the next step.
+          </div>
+        )}
         {/* Search + Sort + Add */}
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className={`relative flex-1 ${styles.input} rounded-xl`}>
@@ -599,10 +660,20 @@ export default function AutomationsPage() {
             )}
           </div>
 
-          <Link href="/insta/automations/add" className={pageStyles.addButton}>
-            <Plus className="h-4 w-4" />
-            Add Automation
-          </Link>
+          {dmLimitReached ? (
+            <button className={pageStyles.disabledAddButton} disabled>
+              <Plus className="h-4 w-4" />
+              Add Automation
+            </button>
+          ) : (
+            <Link
+              href="/insta/automations/add"
+              className={pageStyles.addButton}
+            >
+              <Plus className="h-4 w-4" />
+              Add Automation
+            </Link>
+          )}
           <button
             onClick={() => refreshAccounts()}
             className={pageStyles.addButton}
@@ -635,7 +706,7 @@ export default function AutomationsPage() {
                   ? "Try different search terms"
                   : "Create your first automation to start growing on autopilot"}
               </p>
-              {!searchTerm && (
+              {!searchTerm && !dmLimitReached && (
                 <Link
                   href="/insta/automations/add"
                   className={pageStyles.emptyButton}
@@ -709,6 +780,7 @@ export default function AutomationsPage() {
 
                   <button
                     onClick={() => handleToggle(template._id)}
+                    disabled={!template.isActive && dmLimitReached}
                     className={pageStyles.toggleSwitch(template.isActive)}
                     style={{ width: 40, height: 22 }}
                   >

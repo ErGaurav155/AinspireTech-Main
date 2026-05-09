@@ -2,14 +2,23 @@
 "use client";
 
 import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
 import {
   MessageCircle,
   BookOpen,
   MessageSquare,
   Radio,
-  Sparkles,
+  Crown,
 } from "lucide-react";
-import { Orbs, useThemeStyles } from "@rocketreplai/ui";
+import { Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import { useAuth } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+import { useApi } from "@/lib/useApi";
+import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
+
+const FREE_DM_LIMIT = 1000;
+const FREE_FOLLOW_CHECK_LIMIT = 50;
 
 const automationTypes = [
   {
@@ -68,6 +77,14 @@ function buildPageStyles(
             ? "hover:border-pink-500/50 hover:shadow-lg hover:shadow-pink-500/10 cursor-pointer"
             : "hover:border-gray-200 hover:shadow-md hover:shadow-black/5 cursor-pointer"
       }`,
+    disabledCard: isDark
+      ? `${styles.card} rounded-2xl p-6 md:p-8 opacity-60 cursor-not-allowed border-red-500/30`
+      : `${styles.card} rounded-2xl p-6 md:p-8 opacity-70 cursor-not-allowed border-red-200`,
+    warning: isDark
+      ? "mb-4 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200"
+      : "mb-4 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600",
+    warningButton:
+      "mt-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full text-xs font-bold h-8 px-4",
 
     // Coming Soon badge - completely unique to this page
     comingSoonBadge: isDark
@@ -115,6 +132,27 @@ function buildPageStyles(
 export default function AddAutomationPage() {
   const { styles, isDark } = useThemeStyles();
   const pageStyles = buildPageStyles(isDark, styles);
+  const { userId } = useAuth();
+  const router = useRouter();
+  const { apiRequest } = useApi();
+  const { selectedAccount } = useInstaAccount();
+  const [isSubscribed, setIsSubscribed] = useState(false);
+
+  const dmSent = selectedAccount?.accountDMSent || 0;
+  const followChecks = selectedAccount?.accountFollowCheck || 0;
+  const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
+  const followCheckLimitReached =
+    !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
+
+  const fetchSubscription = useCallback(async () => {
+    if (!userId) return;
+    const result = await getSubscriptioninfo(apiRequest);
+    setIsSubscribed(!!result.subscriptions?.length);
+  }, [apiRequest, userId]);
+
+  useEffect(() => {
+    fetchSubscription().catch(() => setIsSubscribed(false));
+  }, [fetchSubscription]);
 
   return (
     <div
@@ -124,11 +162,42 @@ export default function AddAutomationPage() {
     >
       {isDark && <Orbs />}
       <div className="p-4 md:p-6 lg:p-8 max-w-5xl mx-auto relative z-10">
+        {dmLimitReached && (
+          <div className={pageStyles.warning}>
+            DM send is full ({FREE_DM_LIMIT.toLocaleString()}/
+            {FREE_DM_LIMIT.toLocaleString()}). New automations can be created
+            only as disabled and will not work because global automation is
+            stopped. Upgrade to Pro to use automations again.
+            <div>
+              <Button
+                onClick={() => router.push("/insta/pricing")}
+                className={pageStyles.warningButton}
+              >
+                <Crown className="h-3.5 w-3.5 mr-1.5" />
+                Upgrade to use
+              </Button>
+            </div>
+          </div>
+        )}
+        {!dmLimitReached && followCheckLimitReached && (
+          <div className={pageStyles.warning}>
+            Follow-check is full ({FREE_FOLLOW_CHECK_LIMIT}/
+            {FREE_FOLLOW_CHECK_LIMIT}). Follow gates will be skipped and the
+            automation will proceed to the next step.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {automationTypes.map((type) => {
             const Icon = type.icon;
+            const disabled = type.comingSoon || dmLimitReached;
             const card = (
-              <div className={pageStyles.card(type.comingSoon)}>
+              <div
+                className={
+                  dmLimitReached && !type.comingSoon
+                    ? pageStyles.disabledCard
+                    : pageStyles.card(type.comingSoon)
+                }
+              >
                 {/* Coming Soon badge */}
                 {type.comingSoon && (
                   <div className={pageStyles.comingSoonBadge}>Coming Soon</div>
@@ -152,12 +221,14 @@ export default function AddAutomationPage() {
                   {type.title}
                 </h3>
                 <p className={pageStyles.description(type.comingSoon)}>
-                  {type.description}
+                  {dmLimitReached && !type.comingSoon
+                    ? "DM send is full. Upgrade to Pro to use this automation."
+                    : type.description}
                 </p>
               </div>
             );
 
-            if (type.comingSoon) {
+            if (disabled) {
               return <div key={type.id}>{card}</div>;
             }
 

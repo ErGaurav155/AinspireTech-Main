@@ -55,6 +55,9 @@ const NAV_ITEMS = [
   },
 ] as const;
 
+const FREE_DM_LIMIT = 1000;
+const FREE_FOLLOW_CHECK_LIMIT = 50;
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface InstaSidebarProps {
@@ -85,6 +88,11 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const [accountLimit, setAccountLimit] = useState(1);
   const [pricingClose, setPricingClose] = useState(false);
   const [subsLoading, setSubsLoading] = useState(true);
+  const dmSent = selectedAccount?.accountDMSent || 0;
+  const followChecks = selectedAccount?.accountFollowCheck || 0;
+  const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
+  const followCheckLimitReached =
+    !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
 
   // ── Fetch subscription info only (accounts come from context) ─────────────
 
@@ -223,6 +231,20 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
       dropdownSelected: isDark
         ? "bg-pink-500/10 border-l-2 border-pink-500"
         : "bg-pink-50 border-l-2 border-pink-500",
+      quotaPanel: isDark
+        ? "mx-4 mb-2 rounded-xl border border-white/[0.08] bg-white/[0.04] p-3"
+        : "mx-4 mb-2 rounded-xl border border-gray-100 bg-gray-50 p-3",
+      quotaRow: "flex items-center justify-between gap-2 text-xs",
+      quotaLabel: isDark ? "text-white/45" : "text-gray-500",
+      quotaValue: (danger: boolean) =>
+        danger
+          ? "font-semibold text-red-400"
+          : isDark
+            ? "font-semibold text-white/75"
+            : "font-semibold text-gray-700",
+      quotaWarning: isDark
+        ? "mt-2 rounded-lg bg-red-500/10 px-2 py-1.5 text-[11px] leading-relaxed text-red-300"
+        : "mt-2 rounded-lg bg-red-50 px-2 py-1.5 text-[11px] leading-relaxed text-red-600",
     }),
     [isDark, styles],
   );
@@ -424,6 +446,38 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
           )}
         </div>
 
+        {selectedAccount && (
+          <div className={localStyles.quotaPanel}>
+            <div className={localStyles.quotaRow}>
+              <span className={localStyles.quotaLabel}>DM sent</span>
+              <span className={localStyles.quotaValue(dmLimitReached)}>
+                {dmSent.toLocaleString()} /{" "}
+                {isSubscribed ? "Unlimited" : FREE_DM_LIMIT.toLocaleString()}
+              </span>
+            </div>
+            <div className={`${localStyles.quotaRow} mt-1.5`}>
+              <span className={localStyles.quotaLabel}>Follow checks</span>
+              <span
+                className={localStyles.quotaValue(followCheckLimitReached)}
+              >
+                {followChecks.toLocaleString()} /{" "}
+                {isSubscribed ? "Unlimited" : FREE_FOLLOW_CHECK_LIMIT}
+              </span>
+            </div>
+            {dmLimitReached && (
+              <p className={localStyles.quotaWarning}>
+                DM send is full. Automations are stopped. Upgrade to Pro to use
+                them again.
+              </p>
+            )}
+            {!dmLimitReached && followCheckLimitReached && (
+              <p className={localStyles.quotaWarning}>
+                Follow-check is full. Automations skip that step and continue.
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
@@ -580,6 +634,10 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
     router,
     selectAccount,
     selectedAccount,
+    dmSent,
+    dmLimitReached,
+    followChecks,
+    followCheckLimitReached,
     styles,
   ]);
 

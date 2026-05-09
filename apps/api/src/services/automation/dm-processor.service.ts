@@ -7,6 +7,15 @@ import {
   sendInstagramDM,
   checkFollowStatus,
 } from "@/services/meta-api/meta-api.service";
+import {
+  canSendInstaDM,
+  dmLimitMessage,
+  followCheckLimitMessage,
+  getInstaQuotaStatus,
+  recordInstaDMSent,
+  recordInstaFollowCheck,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 /**
  * Handle postback automation - FIRE AND FORGET
@@ -30,8 +39,11 @@ export async function handlePostbackAutomation(
     await connectToDatabase();
 
     const account = await InstagramAccount.findOne({ instagramId: accountId });
-    if (!account || !account.isActive) {
-      return { success: false, message: "Account not found or inactive" };
+    if (!account || !account.isActive || !account.autoDMEnabled) {
+      return {
+        success: false,
+        message: "Account not found, inactive, or DM automation stopped",
+      };
     }
 
     // Parse payload: ACTION_SUBACTION_mediaId
@@ -222,6 +234,11 @@ async function sendAskEmailMessage(
   recipientId: string,
   startTime: number,
 ): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  if (!(await canSendInstaDM(clerkId, account))) {
+    await stopInstaAutomationForDMLimit(account);
+    return { success: false, message: dmLimitMessage() };
+  }
+
   const emailMessage =
     template.askEmail?.openingMessage ||
     "Please share your email address to continue. 📧";
@@ -259,9 +276,7 @@ async function sendAskEmailMessage(
     );
   }
 
-  account.accountDMSent = (account.accountDMSent || 0) + 1;
-  account.lastActivity = new Date();
-  await account.save();
+  if (dmSuccess) await recordInstaDMSent(account);
 
   return {
     success: dmSuccess,
@@ -277,6 +292,11 @@ async function sendAskPhoneMessage(
   recipientId: string,
   startTime: number,
 ): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  if (!(await canSendInstaDM(clerkId, account))) {
+    await stopInstaAutomationForDMLimit(account);
+    return { success: false, message: dmLimitMessage() };
+  }
+
   const phoneMessage =
     template.askPhone?.openingMessage ||
     "Please share your phone number to continue. 📱";
@@ -314,9 +334,7 @@ async function sendAskPhoneMessage(
     );
   }
 
-  account.accountDMSent = (account.accountDMSent || 0) + 1;
-  account.lastActivity = new Date();
-  await account.save();
+  if (dmSuccess) await recordInstaDMSent(account);
 
   return {
     success: dmSuccess,
@@ -334,6 +352,11 @@ export async function sendFinalLinkDM(
   startTime: number,
 ): Promise<{ success: boolean; message: string; nextStage?: string }> {
   try {
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return { success: false, message: dmLimitMessage() };
+    }
+
     const randomIndex = Math.floor(Math.random() * template.content.length);
     const content = template.content[randomIndex];
     const buttonTitle = content?.buttonTitle || "Get Access";
@@ -426,9 +449,7 @@ export async function sendFinalLinkDM(
       { sort: { createdAt: -1 } },
     );
 
-    account.accountDMSent = (account.accountDMSent || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
+    if (dmSuccess) await recordInstaDMSent(account);
 
     return {
       success: dmSuccess,
@@ -454,6 +475,32 @@ async function handleCheckFollowAction(
   try {
     console.log(`Checking follow status for user ${recipientId}`);
 
+    const quota = await getInstaQuotaStatus(clerkId, account);
+    if (quota.followCheckLimitReached) {
+      console.log(followCheckLimitMessage(), {
+        accountId: account.instagramId,
+        recipientId,
+      });
+      await InstaReplyLog.findOneAndUpdate(
+        {
+          userId: clerkId,
+          accountId: account.instagramId,
+          commenterUserId: recipientId,
+          dmFlowStage: { $nin: ["final_link", "completed"] },
+        },
+        { followChecked: false, userFollows: undefined },
+        { sort: { createdAt: -1 } },
+      );
+      return sendNextStepInChain(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        "follow",
+        startTime,
+      );
+    }
+
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -461,9 +508,7 @@ async function handleCheckFollowAction(
     );
     const userFollows = followStatus.is_user_follow_business === true;
 
-    account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
+    await recordInstaFollowCheck(account);
 
     if (userFollows) {
       // User follows — move to next step in chain
@@ -488,6 +533,11 @@ async function handleCheckFollowAction(
       );
     } else {
       // Not following — send reminder
+      if (!(await canSendInstaDM(clerkId, account))) {
+        await stopInstaAutomationForDMLimit(account);
+        return { success: false, message: dmLimitMessage() };
+      }
+
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -521,8 +571,7 @@ async function handleCheckFollowAction(
         false, // isWelcomeDM = false (reminder message)
       );
 
-      account.accountDMSent = (account.accountDMSent || 0) + 1;
-      await account.save();
+      if (dmSuccess) await recordInstaDMSent(account);
 
       return {
         success: dmSuccess,
@@ -547,6 +596,32 @@ async function handleVerifyFollowAction(
   startTime: number,
 ): Promise<{ success: boolean; message: string; nextStage?: string }> {
   try {
+    const quota = await getInstaQuotaStatus(clerkId, account);
+    if (quota.followCheckLimitReached) {
+      console.log(followCheckLimitMessage(), {
+        accountId: account.instagramId,
+        recipientId,
+      });
+      await InstaReplyLog.findOneAndUpdate(
+        {
+          userId: clerkId,
+          accountId: account.instagramId,
+          commenterUserId: recipientId,
+          dmFlowStage: { $nin: ["final_link", "completed"] },
+        },
+        { followChecked: false, userFollows: undefined },
+        { sort: { createdAt: -1 } },
+      );
+      return sendNextStepInChain(
+        account,
+        clerkId,
+        template,
+        recipientId,
+        "follow",
+        startTime,
+      );
+    }
+
     const followStatus = await checkFollowStatus(
       account.instagramId,
       account.accessToken,
@@ -554,9 +629,7 @@ async function handleVerifyFollowAction(
     );
     const userFollows = followStatus.is_user_follow_business === true;
 
-    account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
+    await recordInstaFollowCheck(account);
 
     if (userFollows) {
       await InstaReplyLog.findOneAndUpdate(
@@ -580,6 +653,11 @@ async function handleVerifyFollowAction(
       );
     } else {
       // Still not following
+      if (!(await canSendInstaDM(clerkId, account))) {
+        await stopInstaAutomationForDMLimit(account);
+        return { success: false, message: dmLimitMessage() };
+      }
+
       const dmSuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -611,8 +689,7 @@ async function handleVerifyFollowAction(
         false, // isWelcomeDM = false (reminder message)
       );
 
-      account.accountDMSent = (account.accountDMSent || 0) + 1;
-      await account.save();
+      if (dmSuccess) await recordInstaDMSent(account);
 
       return {
         success: dmSuccess,
@@ -681,6 +758,11 @@ async function handleLegacyWelcomeAction(
   const hasAskPhone = template.askPhone?.enabled;
 
   if (hasAskFollow) {
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return { success: false, message: dmLimitMessage() };
+    }
+
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -711,9 +793,7 @@ async function handleLegacyWelcomeAction(
       clerkId,
       true, // isWelcomeDM = true
     );
-    account.accountDMSent = (account.accountDMSent || 0) + 1;
-    account.lastActivity = new Date();
-    await account.save();
+    if (dmSuccess) await recordInstaDMSent(account);
     return {
       success: dmSuccess,
       message: dmSuccess ? "Follow gate sent" : "Failed",

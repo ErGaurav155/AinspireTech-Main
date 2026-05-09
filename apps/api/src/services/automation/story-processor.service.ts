@@ -4,6 +4,10 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
+import {
+  canSendInstaDM,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 interface InstagramStory {
   id: string;
@@ -41,10 +45,16 @@ export async function processStoryAutomation(
     }
 
     const account = await InstagramAccount.findOne({ instagramId: accountId });
-    if (!account || !account.isActive || !account.storyAutomationsEnabled) {
+    if (
+      !account ||
+      !account.isActive ||
+      !account.autoDMEnabled ||
+      !account.storyAutomationsEnabled
+    ) {
       return {
         success: false,
-        message: "Account not found or story automations disabled",
+        message:
+          "Account not found, DM automation stopped, or story automations disabled",
       };
     }
 
@@ -183,6 +193,17 @@ async function processStoryDMFlow(
   stage: string;
 }> {
   try {
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return {
+        success: false,
+        dmSent: false,
+        followChecked: false,
+        linkSent: false,
+        stage: "dm_limit_reached",
+      };
+    }
+
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;

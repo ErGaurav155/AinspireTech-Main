@@ -4,6 +4,12 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
+import {
+  canSendInstaDM,
+  dmLimitMessage,
+  recordInstaDMSent,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 /**
  * Process all pending follow-up DMs.
@@ -85,6 +91,12 @@ export async function processFollowUpDMs(): Promise<{
             continue;
           }
 
+          if (!(await canSendInstaDM(log.userId, account))) {
+            await stopInstaAutomationForDMLimit(account);
+            results.errors.push(`Log ${log._id}: ${dmLimitMessage()}`);
+            continue;
+          }
+
           // Send the follow-up DM
           let dmSuccess = false;
 
@@ -157,6 +169,7 @@ export async function processFollowUpDMs(): Promise<{
             });
 
             if (dmSuccess) {
+              await recordInstaDMSent(account);
               results.sent++;
               console.log(
                 `✅ Follow-up ${newFollowUpCount}/${followUpMessages.length} sent to ${log.commenterUsername || log.commenterUserId}`,

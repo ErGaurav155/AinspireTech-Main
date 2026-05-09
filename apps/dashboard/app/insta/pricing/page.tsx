@@ -111,7 +111,8 @@ const instagramPricingPlans: PricingPlan[] = [
 const freePlanFeatures = [
   "1 Instagram Account",
   "Unlimited Automations",
-  "Unlimited DMs",
+  "1,000 DM sends / month",
+  "50 follow checks / month",
   "Basic keyword triggers",
   "Priority Support (WhatsApp & Email)",
   "Instagram API compliance",
@@ -122,7 +123,8 @@ const freePlanFeatures = [
 const comparisonFeatures = [
   { feature: "Pricing", free: "₹0 / Month", pro: "₹399 / Month" },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
-  { feature: "DM Send Limit", free: "Unlimited", pro: "Unlimited" },
+  { feature: "DM Send Limit", free: "1,000 / month", pro: "Unlimited" },
+  { feature: "Follow Check Limit", free: "50 / month", pro: "Unlimited" },
   { feature: "Instagram Accounts", free: "1", pro: "3" },
   { feature: "Priority Support", free: "✓", pro: "✓" },
   { feature: "Follow-Up Flow", free: "✗", pro: "✓" },

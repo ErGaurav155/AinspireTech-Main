@@ -38,6 +38,9 @@ import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import Link from "next/link";
 
+const FREE_DM_LIMIT = 1000;
+const FREE_FOLLOW_CHECK_LIMIT = 50;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface FollowUpLink {
@@ -622,6 +625,9 @@ export default function CreateAutomationPage() {
       lockedBadge: isDark
         ? "text-xs px-2 py-1 rounded-full bg-gray-500/10 border border-gray-500/20 text-gray-400 flex items-center gap-1"
         : "text-xs px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-500 flex items-center gap-1",
+      quotaWarning: isDark
+        ? "rounded-2xl border border-red-500/20 bg-red-500/10 p-4 text-sm leading-relaxed text-red-200"
+        : "rounded-2xl border border-red-100 bg-red-50 p-4 text-sm leading-relaxed text-red-600",
       loadingSpinner: isDark
         ? "w-5 h-5 border-2 border-t-transparent border-pink-400 rounded-full animate-spin"
         : "w-5 h-5 border-2 border-t-transparent border-pink-500 rounded-full animate-spin",
@@ -798,12 +804,11 @@ export default function CreateAutomationPage() {
     fetchSubscription();
   }, [userId, apiRequest]);
 
-  // Disable pro features if not subscribed
-  useEffect(() => {
-    if (!isLoadingSubscription && !isSubscribed) {
-      setForm((f) => ({ ...f, askFollow: false }));
-    }
-  }, [isLoadingSubscription, isSubscribed]);
+  const dmSent = selectedAccount?.accountDMSent || 0;
+  const followChecks = selectedAccount?.accountFollowCheck || 0;
+  const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
+  const followCheckLimitReached =
+    !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -1034,6 +1039,16 @@ export default function CreateAutomationPage() {
         return;
       }
 
+      if (goLive && dmLimitReached) {
+        toast({
+          title: "DM send is full",
+          description:
+            "This automation will be saved disabled because global automation is stopped. Upgrade to Pro to use it.",
+          variant: "destructive",
+          duration: 5000,
+        });
+      }
+
       const setter = goLive ? setIsGoingLive : setIsSaving;
       setter(true);
 
@@ -1080,7 +1095,7 @@ export default function CreateAutomationPage() {
               : form.anyKeyword
                 ? []
                 : form.keywords.filter(Boolean),
-          isFollow: form.askFollow && isSubscribed,
+          isFollow: form.askFollow,
           priority: form.priority,
           mediaId,
           mediaUrl: form.mediaUrl,
@@ -1088,7 +1103,7 @@ export default function CreateAutomationPage() {
           automationType,
           anyPostOrReel: form.anyPostOrReel,
           anyKeyword: form.anyKeyword,
-          isActive: goLive ? true : form.isActive,
+          isActive: dmLimitReached ? false : goLive ? true : form.isActive,
           welcomeMessage: {
             text: form.welcomeText,
             buttonTitle: form.welcomeButtonTitle,
@@ -1099,7 +1114,7 @@ export default function CreateAutomationPage() {
             tagType: form.tagType,
           },
           askFollow: {
-            enabled: form.askFollow && isSubscribed,
+            enabled: form.askFollow,
             message: form.askFollowMessage,
             visitProfileBtn: form.visitProfileBtn,
             followingBtn: form.followingBtn,
@@ -1123,18 +1138,25 @@ export default function CreateAutomationPage() {
         };
 
         if (isEditMode && editId) {
-          await updateTemplate(apiRequest, editId, payload as any);
-          toast({ title: "Automation updated!", duration: 3000 });
+          const result: any = await updateTemplate(apiRequest, editId, payload as any);
+          toast({
+            title: result?.data?.warning || "Automation updated!",
+            variant: result?.data?.warning ? "destructive" : undefined,
+            duration: result?.data?.warning ? 5000 : 3000,
+          });
         } else {
-          await createInstaTemplate(
+          const result: any = await createInstaTemplate(
             apiRequest,
             form.accountId,
             form.accountUsername,
             payload,
           );
           toast({
-            title: goLive ? "Automation is now live! 🚀" : "Automation saved!",
-            duration: 3000,
+            title:
+              result?.data?.warning ||
+              (goLive ? "Automation is now live! 🚀" : "Automation saved!"),
+            variant: result?.data?.warning ? "destructive" : undefined,
+            duration: result?.data?.warning ? 5000 : 3000,
           });
         }
 
@@ -1150,7 +1172,15 @@ export default function CreateAutomationPage() {
         setter(false);
       }
     },
-    [form, automationType, isEditMode, editId, apiRequest, router],
+    [
+      form,
+      automationType,
+      isEditMode,
+      editId,
+      apiRequest,
+      router,
+      dmLimitReached,
+    ],
   );
 
   const visibleMedia = useMemo(
@@ -1255,8 +1285,8 @@ export default function CreateAutomationPage() {
             </button>
             <button
               onClick={() => handleSave(true)}
-              disabled={isSaving || isGoingLive}
-              className={S.goLiveButton(isSaving || isGoingLive)}
+              disabled={isSaving || isGoingLive || dmLimitReached}
+              className={S.goLiveButton(isSaving || isGoingLive || dmLimitReached)}
             >
               <Activity className="h-4 w-4" />
               {isGoingLive
@@ -1268,6 +1298,21 @@ export default function CreateAutomationPage() {
           </div>
 
           <div className={S.formContainer}>
+            {dmLimitReached && (
+              <div className={S.quotaWarning}>
+                DM send is full ({FREE_DM_LIMIT.toLocaleString()}/
+                {FREE_DM_LIMIT.toLocaleString()}). This automation will not work
+                because global automation is stopped. Upgrade to Pro to use it.
+              </div>
+            )}
+            {!dmLimitReached && followCheckLimitReached && (
+              <div className={S.quotaWarning}>
+                Follow-check is full ({FREE_FOLLOW_CHECK_LIMIT}/
+                {FREE_FOLLOW_CHECK_LIMIT}). Follow gates will be skipped and the
+                automation will proceed to the next step.
+              </div>
+            )}
+
             {/* Name */}
             <input
               type="text"
@@ -1845,22 +1890,14 @@ export default function CreateAutomationPage() {
                     Ask To Follow Before Sending DM
                   </span>
                   <Info className={S.sectionInfoIcon} />
-                  <Crown className={S.crownIcon} />
                 </div>
-                {isSubscribed ? (
-                  <Toggle
-                    checked={form.askFollow}
-                    onChange={(v) => setForm((f) => ({ ...f, askFollow: v }))}
-                    isDark={isDark}
-                  />
-                ) : (
-                  <div className={S.lockedBadge}>
-                    <Lock className="h-3 w-3" />
-                    Pro
-                  </div>
-                )}
+                <Toggle
+                  checked={form.askFollow}
+                  onChange={(v) => setForm((f) => ({ ...f, askFollow: v }))}
+                  isDark={isDark}
+                />
               </div>
-              {isSubscribed && form.askFollow && (
+              {form.askFollow && (
                 <div className={S.sectionContent}>
                   <div
                     className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}

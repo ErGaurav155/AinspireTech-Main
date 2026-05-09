@@ -7,6 +7,10 @@ import {
   sendInstagramCommentReply,
   sendInstagramDM,
 } from "@/services/meta-api/meta-api.service";
+import {
+  canSendInstaDM,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 interface InstagramComment {
   id: string;
@@ -45,8 +49,11 @@ export async function processCommentAutomation(
     }
 
     const account = await InstagramAccount.findOne({ instagramId: accountId });
-    if (!account || !account.isActive) {
-      return { success: false, message: "Account not found or inactive" };
+    if (!account || !account.isActive || !account.autoDMEnabled) {
+      return {
+        success: false,
+        message: "Account not found, inactive, or DM automation stopped",
+      };
     }
 
     // Skip if comment is from owner
@@ -293,6 +300,17 @@ async function processDMFlow(
       hasAskEmail: template.askEmail?.enabled,
       hasAskPhone: template.askPhone?.enabled,
     });
+
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return {
+        success: false,
+        dmSent: false,
+        followChecked: false,
+        linkSent: false,
+        stage: "dm_limit_reached",
+      };
+    }
 
     const welcomeText = template.welcomeMessage.text.replace(
       /\{\{username\}\}/g,

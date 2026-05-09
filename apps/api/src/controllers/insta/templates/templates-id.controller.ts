@@ -2,6 +2,12 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import { getAuth } from "@clerk/express";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
+import InstagramAccount from "@/models/insta/InstagramAccount.model";
+import {
+  FREE_INSTA_DM_LIMIT,
+  getInstaQuotaStatus,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 // GET /api/insta/templates/:templateId - Get single template by ID
 export const getInstaTemplateByIdController = async (
@@ -94,8 +100,9 @@ export const updateInstaTemplateController = async (
       updateFields.name = updateData.name.trim();
     if (updateData.description !== undefined)
       updateFields.description = updateData.description?.trim();
-    if (updateData.isActive !== undefined)
+    if (updateData.isActive !== undefined) {
       updateFields.isActive = updateData.isActive;
+    }
     if (updateData.priority !== undefined)
       updateFields.priority = updateData.priority;
     if (updateData.replyProbability !== undefined)
@@ -268,6 +275,22 @@ export const updateInstaTemplateController = async (
       };
     }
 
+    let quotaWarning: string | undefined;
+    if (updateFields.isActive === true) {
+      const account = await InstagramAccount.findOne({
+        instagramId: existingTemplate.accountId,
+        userId,
+      });
+      if (account) {
+        const quota = await getInstaQuotaStatus(userId, account);
+        if (quota.dmLimitReached) {
+          await stopInstaAutomationForDMLimit(account);
+          updateFields.isActive = false;
+          quotaWarning = `Free DM send limit is full (${FREE_INSTA_DM_LIMIT}/${FREE_INSTA_DM_LIMIT}). This automation was kept disabled. Upgrade to Pro to use automations again.`;
+        }
+      }
+    }
+
     // Update the template
     const updatedTemplate = await InstaReplyTemplate.findByIdAndUpdate(
       templateId,
@@ -280,7 +303,8 @@ export const updateInstaTemplateController = async (
       data: {
         success: true,
         template: updatedTemplate,
-        message: "Template updated successfully",
+        message: quotaWarning || "Template updated successfully",
+        warning: quotaWarning,
       },
       timestamp: new Date().toISOString(),
     });

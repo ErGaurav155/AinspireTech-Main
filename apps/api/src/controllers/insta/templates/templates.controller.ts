@@ -3,7 +3,11 @@ import { connectToDatabase } from "@/config/database.config";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getAuth } from "@clerk/express";
-import { getUserTier } from "@/services/rate-limit.service";
+import {
+  FREE_INSTA_DM_LIMIT,
+  getInstaQuotaStatus,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 // GET /api/insta/templates - Get Instagram templates
 export const getInstaTemplatesController = async (
@@ -191,8 +195,12 @@ export const createInstaTemplateController = async (
       }
     }
 
-    // Get user tier for settingsByTier
-    const userTier = await getUserTier(userId);
+    const quota = await getInstaQuotaStatus(userId, account);
+    const forceInactiveForDMLimit = quota.dmLimitReached;
+
+    if (forceInactiveForDMLimit) {
+      await stopInstaAutomationForDMLimit(account);
+    }
 
     // Default settings by tier
     const settingsByTier = {
@@ -237,7 +245,11 @@ export const createInstaTemplateController = async (
       delayOption: delayOption || "immediate",
 
       // Status
-      isActive: isActive !== undefined ? isActive : true,
+      isActive: forceInactiveForDMLimit
+        ? false
+        : isActive !== undefined
+          ? isActive
+          : true,
       priority: priority || 5,
 
       // Statistics
@@ -313,7 +325,12 @@ export const createInstaTemplateController = async (
       success: true,
       data: {
         template,
-        message: "Template created successfully",
+        message: forceInactiveForDMLimit
+          ? `Template created disabled. Free DM send limit is full (${FREE_INSTA_DM_LIMIT}/${FREE_INSTA_DM_LIMIT}); this automation will not work until you upgrade.`
+          : "Template created successfully",
+        warning: forceInactiveForDMLimit
+          ? "DM send is full. Global automation stopped. Upgrade to Pro to use automations again."
+          : undefined,
       },
       timestamp: new Date().toISOString(),
     });

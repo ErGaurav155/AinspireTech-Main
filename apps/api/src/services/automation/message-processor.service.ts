@@ -9,6 +9,12 @@ import {
   sendFinalLinkDM,
   sendNextStepInChain,
 } from "@/services/automation/dm-processor.service";
+import {
+  canSendInstaDM,
+  dmLimitMessage,
+  recordInstaDMSent,
+  stopInstaAutomationForDMLimit,
+} from "@/services/insta-quota.service";
 
 /**
  * Handle incoming text message (email or phone response from user).
@@ -98,6 +104,11 @@ async function handleEmailResponse(
   try {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
+      if (!(await canSendInstaDM(clerkId, account))) {
+        await stopInstaAutomationForDMLimit(account);
+        return { success: false, message: dmLimitMessage() };
+      }
+
       // Invalid — send retry
       const retrySuccess = await sendInstagramDM(
         account.instagramId,
@@ -112,6 +123,7 @@ async function handleEmailResponse(
         clerkId,
         false, // isWelcomeDM = false (validation retry)
       );
+      if (retrySuccess) await recordInstaDMSent(account);
       return {
         success: retrySuccess,
         message: retrySuccess ? "Retry message sent" : "Failed to send retry",
@@ -179,6 +191,11 @@ async function handlePhoneResponse(
   try {
     const phoneRegex = /^[+]?[\d\s()-]{8,20}$/;
     if (!phoneRegex.test(phone)) {
+      if (!(await canSendInstaDM(clerkId, account))) {
+        await stopInstaAutomationForDMLimit(account);
+        return { success: false, message: dmLimitMessage() };
+      }
+
       const retrySuccess = await sendInstagramDM(
         account.instagramId,
         account.accessToken,
@@ -192,6 +209,7 @@ async function handlePhoneResponse(
         clerkId,
         false, // isWelcomeDM = false (validation retry)
       );
+      if (retrySuccess) await recordInstaDMSent(account);
       return {
         success: retrySuccess,
         message: retrySuccess ? "Retry message sent" : "Failed to send retry",
@@ -397,6 +415,15 @@ async function startNewDMConversation(
       "there", // DMs don't have username context
     );
 
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return {
+        success: false,
+        message: dmLimitMessage(),
+        processed: false,
+      };
+    }
+
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,
@@ -429,6 +456,8 @@ async function startNewDMConversation(
         processed: false,
       };
     }
+
+    await recordInstaDMSent(account);
 
     const uniqueId = `dm_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
