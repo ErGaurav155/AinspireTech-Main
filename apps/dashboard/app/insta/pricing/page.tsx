@@ -380,7 +380,7 @@ function PricingWithSearchParams() {
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
           amount: price * 100,
           currency: "INR",
-          name: "AinpireTech",
+          name: "RocketReplai",
           description: `${plan.name} Plan - ${cycle}`,
           subscription_id: result.subscriptionId,
           notes: {

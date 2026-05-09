@@ -547,7 +547,7 @@ export const Checkout = ({
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: amount * 100,
         currency: "INR",
-        name: "AI Chatbot Subscription",
+        name: "RocketReplai",
         description: `${productId} - ${billingCycle}`,
         subscription_id: result.subscriptionId,
         prefill: {
