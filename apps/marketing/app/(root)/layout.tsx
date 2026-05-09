@@ -7,6 +7,7 @@ export const metadata: Metadata = {
   title: "Best Ai Services studio",
   description: "Web dev,ai agent,chatbots in best quality",
   keywords: [
+    "rocketreplai",
     "Ai chatbots for local business,Local business ai solutions,Insta Automation,Auto DMs and Comment Replies",
   ],
 };
