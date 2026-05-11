@@ -21,6 +21,7 @@ import {
 
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 // TypingAnimation Component
 const TypingAnimation = ({
@@ -225,9 +226,13 @@ export function InstagramAutomationHero() {
               <motion.button
                 whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() =>
-                  router.push("https://app.rocketreplai.com/sign-in")
-                }
+                onClick={() => {
+                  trackMetaEvent("Lead", {
+                    content_name: "Instagram hero start free trial",
+                    content_category: "marketing_cta",
+                  });
+                  router.push("https://app.rocketreplai.com/sign-in");
+                }}
                 className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
               >
                 <Rocket className="h-5 w-5 mr-2" />
@@ -237,7 +242,13 @@ export function InstagramAutomationHero() {
 
               <motion.button
                 whileHover={{ scale: 1.05 }}
-                onClick={() => router.push("/insta/pricing")}
+                onClick={() => {
+                  trackMetaEvent("ViewContent", {
+                    content_name: "Instagram marketing pricing CTA",
+                    content_category: "marketing_cta",
+                  });
+                  router.push("/insta/pricing");
+                }}
                 whileTap={{ scale: 0.95 }}
                 className={`border-2 font-semibold py-2 px-4 md:py-3 md:px-6 rounded-2xl transition-all duration-300 flex items-center justify-center ${themeStyles.outlineButtonBorder}`}
               >

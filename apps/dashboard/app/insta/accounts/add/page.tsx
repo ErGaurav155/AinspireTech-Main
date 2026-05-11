@@ -32,6 +32,7 @@ import LoginPage from "@/components/insta/InstagramAutomationWizard";
 
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 export default function AddAccountPage() {
   const { userId, isLoaded } = useAuth();
@@ -142,6 +143,12 @@ export default function AddAccountPage() {
     if (totalAccounts >= accountLimit && !hasReconnectableAccount) {
       setShowLimitDialog(true);
     } else {
+      trackMetaEvent("Lead", {
+        content_name: hasReconnectableAccount
+          ? "Reconnect Instagram account"
+          : "Connect Instagram account",
+        content_category: "instagram_oauth",
+      });
       setIsConnecting(true);
     }
   };

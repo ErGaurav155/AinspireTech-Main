@@ -58,6 +58,7 @@ import {
   sendSubscriptionEmailToOwner,
   sendSubscriptionEmailToUser,
 } from "@/lib/services/misc-actions.api";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 // Types
 interface Subscription {
@@ -326,6 +327,12 @@ function PricingWithSearchParams() {
       }
 
       savePendingCheckout(plan, cycle);
+      trackMetaEvent("Lead", {
+        content_name: "Instagram account connect",
+        content_category: "instagram_oauth",
+        content_ids: [plan.id],
+        billing_cycle: cycle,
+      });
 
       window.location.href = authUrl;
     },
@@ -351,6 +358,16 @@ function PricingWithSearchParams() {
         await loadRazorpayScript();
 
         const price = cycle === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+        trackMetaEvent("InitiateCheckout", {
+          content_name: plan.name,
+          content_category: "instagram_subscription",
+          content_ids: [plan.id],
+          content_type: "product",
+          currency: "INR",
+          value: price,
+          billing_cycle: cycle,
+        });
+
         const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
         const razorpayPlanId =
           cycle === "monthly"
@@ -419,6 +436,16 @@ function PricingWithSearchParams() {
             if (referralCode) {
               localStorage.removeItem("referral_code");
             }
+
+            trackMetaEvent("Purchase", {
+              content_name: plan.name,
+              content_category: "instagram_subscription",
+              content_ids: [plan.id],
+              content_type: "product",
+              currency: "INR",
+              value: price,
+              billing_cycle: cycle,
+            });
 
             await updateUserLimits(apiRequest, plan.limit, plan.account);
             await sendSubscriptionEmailToOwner(apiRequest, {
@@ -639,6 +666,15 @@ function PricingWithSearchParams() {
       await openRazorpayCheckout(plan, cycle);
     }
   };
+
+  useEffect(() => {
+    trackMetaEvent("ViewContent", {
+      content_name: "Instagram pricing",
+      content_category: "pricing",
+      content_ids: instagramPricingPlans.map((plan) => plan.id),
+      content_type: "product_group",
+    });
+  }, []);
 
   // Handle confirmed subscription change
   const handleConfirmedChange = async () => {

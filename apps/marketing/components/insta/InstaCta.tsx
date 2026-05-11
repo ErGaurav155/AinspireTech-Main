@@ -8,6 +8,7 @@ import { useTheme } from "next-themes";
 import { useMemo } from "react";
 import { Card, CardContent } from "@rocketreplai/ui";
 import { Button } from "@rocketreplai/ui";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 
 function InstaCTASection() {
   const { theme, resolvedTheme } = useTheme();
@@ -189,7 +190,15 @@ function InstaCTASection() {
                   className="btn-gradient-cyan text-lg px-8 hover:opacity-90 transition-opacity"
                   asChild
                 >
-                  <Link href="https://app.rocketreplai.com/sign-in">
+                  <Link
+                    href="https://app.rocketreplai.com/sign-in"
+                    onClick={() =>
+                      trackMetaEvent("Lead", {
+                        content_name: "Instagram CTA start free trial",
+                        content_category: "marketing_cta",
+                      })
+                    }
+                  >
                     Start Free Trial <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
@@ -204,7 +213,17 @@ function InstaCTASection() {
                   variant="outline"
                   className={`text-lg px-8 ${themeStyles.outlineButtonBorder} bg-transparent text-[#B026FF] ${themeStyles.outlineButtonHover}`}
                 >
-                  <Link href="/insta/pricing">View Pricing </Link>
+                  <Link
+                    href="/insta/pricing"
+                    onClick={() =>
+                      trackMetaEvent("ViewContent", {
+                        content_name: "Instagram CTA pricing",
+                        content_category: "marketing_cta",
+                      })
+                    }
+                  >
+                    View Pricing{" "}
+                  </Link>
                 </Button>
               </motion.div>
             </motion.div>

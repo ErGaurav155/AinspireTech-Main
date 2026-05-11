@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Orbitron, Montserrat } from "next/font/google";
 import { ThemeProvider } from "@rocketreplai/ui";
 // @ts-ignore
@@ -6,6 +7,7 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ClerkThemeProvider } from "@rocketreplai/ui";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import MetaPixel from "@/components/shared/MetaPixel";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -47,6 +49,9 @@ export default async function RootLayout({
           </ClerkThemeProvider>
         </ThemeProvider>
         <SpeedInsights />
+        <Suspense fallback={null}>
+          <MetaPixel />
+        </Suspense>
       </body>
     </html>
   );
