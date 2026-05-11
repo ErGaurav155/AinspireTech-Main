@@ -465,7 +465,7 @@ function PricingWithSearchParams() {
               "Subscription activated successfully",
             );
             setIsSubscribed(true);
-            router.replace("/insta/automations");
+            router.replace("/insta/automations?success=true");
             router.refresh();
           },
           theme: {
