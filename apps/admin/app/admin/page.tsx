@@ -35,6 +35,7 @@ import {
   BarChart,
 } from "lucide-react";
 import RateLimitDashboard from "@/components/admin/RateLimitDashboard";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getAppointments,
   getInstaSubscriptions,
@@ -334,8 +335,9 @@ export default function AdminDashboard() {
     );
   });
 
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire155@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   // ─── Guard screens ───────────────────────────────────────────────────────
 

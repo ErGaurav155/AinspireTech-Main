@@ -7,6 +7,7 @@ import {
   ThemeToggle,
   useThemeStyles,
 } from "@rocketreplai/ui";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 interface AdminNavbarProps {
   onSidebarToggle?: () => void;
   isSidebarOpen?: boolean;
@@ -19,8 +20,7 @@ export function AdminNavbar({
   const { user } = useUser();
   const { styles, isDark } = useThemeStyles();
 
-  const isOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isOwner = isAdminOwnerEmail(user?.primaryEmailAddress?.emailAddress);
 
   return (
     <>

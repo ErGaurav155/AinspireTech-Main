@@ -143,10 +143,10 @@ const ContactForm = () => {
                 <p className={`${themeStyles.ownerDetailText} flex`}>
                   <span className="text-[#00F0FF] min-w-[100px]">Email:</span>
                   <a
-                    href="mailto:gauravgkhaire@gmail.com"
+                    href="mailto:support@rocketreplai.com"
                     className="text-[#55edab] hover:underline text-xs sm:text-sm"
                   >
-                    gauravgkhaire@gmail.com
+                    support@rocketreplai.com
                   </a>
                 </p>
                 <p className={`${themeStyles.ownerDetailText} flex`}>

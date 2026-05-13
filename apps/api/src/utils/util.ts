@@ -1,10 +1,5 @@
 import Razorpay from "razorpay";
 
-// Helper function to check if user is owner
-export const isOwner = (email: string | null): boolean => {
-  return email === "gauravgkhaire@gmail.com";
-};
-
 let razorpayInstance: Razorpay | null = null;
 
 export function getRazorpay(): Razorpay {

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getInstaAccounts,
   getUsers,
@@ -262,8 +263,9 @@ export default function AdminInstagramPage() {
   }, [filteredAccounts]);
 
   // Check access
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   // Guard screens
   if (!isLoaded) {

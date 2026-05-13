@@ -193,7 +193,7 @@ const TermsOfService = async () => {
               <ul className="list-disc list-inside space-y-2 text-gray-500">
                 <li className="flex">
                   <span className="text-[#00F0FF] mr-2">Email address:</span>
-                  gauravgkhaire@gmail.com
+                  support@rocketreplai.com
                 </li>
                 <li className="flex">
                   <span className="text-[#00F0FF] mr-2">Postal address:</span>

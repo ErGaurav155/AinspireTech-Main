@@ -127,10 +127,10 @@ export function Footer() {
                   Contact
                 </h3>
                 <a
-                  href="mailto:gauravgkhaire@gmail.com"
+                  href="mailto:support@rocketreplai.com"
                   className={`${themeStyles.subtitleText} hover:text-[#00F0FF] transition-colors duration-300 text-sm md:text-base font-montserrat`}
                 >
-                  gauravgkhaire@gmail.com
+                  support@rocketreplai.com
                 </a>
               </div>
             </div>

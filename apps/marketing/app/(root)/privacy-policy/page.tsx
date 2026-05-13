@@ -132,10 +132,10 @@ const PrivacyPolicy = () => {
                 <li className="flex">
                   <span className="text-[#00F0FF] mr-2">Email:</span>
                   <a
-                    href="mailto:gauravgkhaire@gmail.com"
+                    href="mailto:support@rocketreplai.com"
                     className="text-[#FF2E9F] hover:underline"
                   >
-                    gauravgkhaire@gmail.com
+                    support@rocketreplai.com
                   </a>
                 </li>
                 <li className="flex">

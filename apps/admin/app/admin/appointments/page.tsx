@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import { getAppointments, verifyOwner } from "@/lib/services/admin-actions.api";
 import * as Dialog from "@radix-ui/react-dialog";
 import {
@@ -178,8 +179,9 @@ export default function AdminAppointmentsPage() {
   }, [filteredAppointments, subjects]);
 
   // Check access
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   // Guard screens
   if (!isLoaded) {

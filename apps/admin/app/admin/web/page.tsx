@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getAllChatbots,
   getWebSubscriptions,
@@ -313,8 +314,9 @@ export default function AdminWebPage() {
     };
   }, [filteredUsers]);
 
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   if (!isLoaded) {
     return (

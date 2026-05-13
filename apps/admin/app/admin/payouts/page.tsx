@@ -20,6 +20,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getPayouts,
   updatePayoutStatus,
@@ -206,8 +207,9 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   if (!isLoaded) return <Spinner label="Loading..." />;
 

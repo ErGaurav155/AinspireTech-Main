@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
+import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   Button,
   GateScreen,
@@ -90,8 +91,9 @@ export default function AdminSettingsPage() {
   };
 
   // Check access
-  const isUserOwner =
-    user?.primaryEmailAddress?.emailAddress === "gauravgkhaire@gmail.com";
+  const isUserOwner = isAdminOwnerEmail(
+    user?.primaryEmailAddress?.emailAddress,
+  );
 
   if (!isLoaded || loading) {
     return <Spinner label="Loading settings…" />;
