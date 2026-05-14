@@ -1,22 +1,19 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
-import { Resend } from "resend";
 import { Twilio } from "twilio";
 import MyAppointment from "@/models/MyAppointment.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 // controllers/upload.controller.ts
 import { getAuth } from "@clerk/express";
 import { uploadToCloudinary } from "@/services/cloudinary.service";
+import { sendEmail } from "@/services/smtp-mailer.service";
 import multer from "multer";
 
 const twilioClient = new Twilio(
   process.env.TWILIO_ACCOUNT_SID,
   process.env.TWILIO_AUTH_TOKEN,
 );
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-const SUPPORT_EMAIL = "support@rocketreplai.com";
 
 // OWNER EMAIL
 export const sendSubscriptionEmailToOwnerController = async (
@@ -34,8 +31,7 @@ export const sendSubscriptionEmailToOwnerController = async (
       });
     }
 
-    await resend.emails.send({
-      from: SUPPORT_EMAIL,
+    await sendEmail({
       to: email,
       subject: "New Subscription Alert",
       html: `
@@ -75,8 +71,7 @@ export const sendSubscriptionEmailToUserController = async (
       });
     }
 
-    await resend.emails.send({
-      from: SUPPORT_EMAIL,
+    await sendEmail({
       to: email,
       subject: "Subscription Confirmed",
       html: `
@@ -120,8 +115,7 @@ export const sendAppointmentEmailToUserController = async (
     const userEmail = data[1]?.answer || "Not provided";
     const details = data[3]?.answer || "No details";
 
-    await resend.emails.send({
-      from: SUPPORT_EMAIL,
+    await sendEmail({
       to: email,
       subject: "New Appointment Booked",
       html: `
