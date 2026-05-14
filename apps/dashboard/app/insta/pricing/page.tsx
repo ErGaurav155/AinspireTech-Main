@@ -395,6 +395,72 @@ function PricingWithSearchParams() {
           },
         });
 
+        let hasFinalizedPayment = false;
+        const finalizeSuccessfulPayment = async (response?: any) => {
+          if (hasFinalizedPayment) return true;
+
+          const verifyResponse = await verifyRazorpayPayment(apiRequest, {
+            subscription_id: result.subscriptionId,
+            razorpay_payment_id: response?.razorpay_payment_id,
+            razorpay_signature: response?.razorpay_signature,
+            subscriptionKind: "insta",
+            subscriptionType: "insta",
+            productId: plan.id,
+            billingCycle: cycle,
+            previousSubscriptionId,
+            previousSubscriptionType: previousSubscriptionId
+              ? "insta"
+              : undefined,
+          });
+
+          if (!verifyResponse.success) {
+            showToast(
+              "Failed!",
+              `Payment verification failed: ${verifyResponse.message}`,
+              true,
+            );
+            return false;
+          }
+
+          hasFinalizedPayment = true;
+
+          if (referralCode) {
+            localStorage.removeItem("referral_code");
+          }
+
+          trackMetaEvent("Purchase", {
+            content_name: plan.name,
+            content_category: "instagram_subscription",
+            content_ids: [plan.id],
+            content_type: "product",
+            currency: "INR",
+            value: price,
+            billing_cycle: cycle,
+          });
+
+          await updateUserLimits(apiRequest, plan.limit, plan.account);
+          await sendSubscriptionEmailToOwner(apiRequest, {
+            email: checkoutEmail,
+            userId: userId!,
+            subscriptionId: result.subscriptionId,
+          });
+          await sendSubscriptionEmailToUser(apiRequest, {
+            email: checkoutEmail,
+            userId: userId!,
+            agentId: plan.id,
+            subscriptionId: result.subscriptionId,
+          });
+
+          showToast(
+            "Payment Successful!",
+            "Subscription activated successfully",
+          );
+          setIsSubscribed(true);
+          router.replace("/insta/automations?success=true");
+          router.refresh();
+          return true;
+        };
+
         const razorpay = new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
           amount: price * 100,
@@ -410,63 +476,16 @@ function PricingWithSearchParams() {
             referralCode: referralCode || "",
           },
           handler: async (response: any) => {
-            const verifyResponse = await verifyRazorpayPayment(apiRequest, {
-              subscription_id: result.subscriptionId,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              subscriptionKind: "insta",
-              subscriptionType: "insta",
-              productId: plan.id,
-              billingCycle: cycle,
-              previousSubscriptionId,
-              previousSubscriptionType: previousSubscriptionId
-                ? "insta"
-                : undefined,
-            });
-
-            if (!verifyResponse.success) {
+            try {
+              await finalizeSuccessfulPayment(response);
+            } catch (error: any) {
+              console.error("Payment verification error:", error);
               showToast(
                 "Failed!",
-                `Payment verification failed: ${verifyResponse.message}`,
+                error.message || "Payment verification failed",
                 true,
               );
-              return;
             }
-
-            if (referralCode) {
-              localStorage.removeItem("referral_code");
-            }
-
-            trackMetaEvent("Purchase", {
-              content_name: plan.name,
-              content_category: "instagram_subscription",
-              content_ids: [plan.id],
-              content_type: "product",
-              currency: "INR",
-              value: price,
-              billing_cycle: cycle,
-            });
-
-            await updateUserLimits(apiRequest, plan.limit, plan.account);
-            await sendSubscriptionEmailToOwner(apiRequest, {
-              email: checkoutEmail,
-              userId: userId!,
-              subscriptionId: result.subscriptionId,
-            });
-            await sendSubscriptionEmailToUser(apiRequest, {
-              email: checkoutEmail,
-              userId: userId!,
-              agentId: plan.id,
-              subscriptionId: result.subscriptionId,
-            });
-
-            showToast(
-              "Payment Successful!",
-              "Subscription activated successfully",
-            );
-            setIsSubscribed(true);
-            router.replace("/insta/automations?success=true");
-            router.refresh();
           },
           theme: {
             color: "#EC4899",
@@ -474,11 +493,33 @@ function PricingWithSearchParams() {
         });
 
         razorpay.on("payment.failed", (response: any) => {
-          showToast(
-            "Failed!",
-            `Payment failed: ${response.error.description}`,
-            true,
-          );
+          void (async () => {
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+              if (hasFinalizedPayment) return;
+
+              await new Promise((resolve) =>
+                window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
+              );
+
+              try {
+                const recovered = await finalizeSuccessfulPayment();
+                if (recovered) return;
+              } catch (error) {
+                console.warn(
+                  "Unable to recover Razorpay payment status:",
+                  error,
+                );
+              }
+            }
+
+            showToast(
+              "Failed!",
+              `Payment failed: ${
+                response.error?.description || "Payment could not be completed"
+              }`,
+              true,
+            );
+          })();
         });
 
         clearPendingCheckout();

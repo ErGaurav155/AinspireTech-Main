@@ -6,11 +6,12 @@ import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
+import { getRazorpay } from "@/utils/util";
 
 export interface VerifyBody {
   subscription_id: string;
-  razorpay_payment_id: string;
-  razorpay_signature: string;
+  razorpay_payment_id?: string;
+  razorpay_signature?: string;
   chatbotType?: string;
   productId?: string;
   subscriptionType?: string;
@@ -19,6 +20,107 @@ export interface VerifyBody {
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
 }
+
+const PAID_SUBSCRIPTION_STATUSES = new Set(["active"]);
+
+const activateVerifiedSubscription = async ({
+  userId,
+  subscription_id,
+  razorpay_payment_id,
+  chatbotType,
+  productId,
+  subscriptionType,
+  subscriptionKind,
+  billingCycle,
+  previousSubscriptionId,
+  previousSubscriptionType,
+  razorpaySubscription,
+}: VerifyBody & {
+  userId: string;
+  razorpaySubscription?: any;
+}) => {
+  await connectToDatabase();
+
+  const notes = razorpaySubscription?.notes || {};
+  const targetChatbotType =
+    chatbotType || productId || subscriptionType || notes.productId;
+  const currentSubscriptionKind =
+    subscriptionKind ||
+    (subscriptionType === "insta" || notes.subscriptionType === "insta"
+      ? "insta"
+      : "web");
+  const resolvedBillingCycle = billingCycle || notes.billingCycle || "monthly";
+  const expiresAt = razorpaySubscription?.current_end
+    ? new Date(razorpaySubscription.current_end * 1000)
+    : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+
+  if (!targetChatbotType) {
+    throw new Error("Unable to determine subscription product");
+  }
+
+  if (currentSubscriptionKind === "web") {
+    await initializeSubscriptionTokens(userId, targetChatbotType);
+  }
+
+  await cancelPreviousSubscriptionAfterPayment({
+    clerkId: userId,
+    previousSubscriptionId: previousSubscriptionId || notes.previousSubscriptionId,
+    previousSubscriptionType:
+      previousSubscriptionType || notes.previousSubscriptionType,
+  });
+
+  if (currentSubscriptionKind === "insta") {
+    await InstaSubscription.findOneAndUpdate(
+      { subscriptionId: subscription_id },
+      {
+        $set: {
+          clerkId: userId,
+          chatbotType: targetChatbotType,
+          subscriptionId: subscription_id,
+          plan: productId || razorpaySubscription?.plan_id || targetChatbotType,
+          billingCycle: resolvedBillingCycle,
+          status: "active",
+          expiresAt,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+  } else {
+    await WebSubscription.findOneAndUpdate(
+      { subscriptionId: subscription_id },
+      {
+        $set: {
+          clerkId: userId,
+          chatbotType: targetChatbotType,
+          chatbotName:
+            targetChatbotType === "chatbot-lead-generation"
+              ? "Lead Generation"
+              : targetChatbotType === "chatbot-education"
+                ? "Education (MCQ)"
+                : targetChatbotType,
+          subscriptionId: subscription_id,
+          plan: productId || targetChatbotType,
+          billingCycle: resolvedBillingCycle,
+          status: "active",
+          expiresAt,
+          productId,
+          updatedAt: new Date(),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+  }
+
+  return {
+    success: true,
+    message: "Subscription activated successfully",
+    chatbotType: targetChatbotType,
+    subscriptionTokens: currentSubscriptionKind === "web" ? 1000000 : undefined,
+    subscriptionId: subscription_id,
+    paymentId: razorpay_payment_id,
+  };
+};
 
 const cancelPreviousSubscriptionAfterPayment = async ({
   clerkId,
@@ -120,12 +222,10 @@ export const verifyRazorpayPaymentController = async (
       previousSubscriptionType,
     }: VerifyBody = req.body;
 
-    // Validate required parameters
-    if (!subscription_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!subscription_id) {
       return res.status(400).json({
         success: false,
-        error:
-          "Missing required parameters: subscription_id, razorpay_payment_id, razorpay_signature are required",
+        error: "Missing required parameter: subscription_id is required",
         timestamp: new Date().toISOString(),
       });
     }
@@ -150,7 +250,46 @@ export const verifyRazorpayPaymentController = async (
       });
     }
 
-    // Verify signature
+    if (!razorpay_payment_id || !razorpay_signature) {
+      const razorpay = getRazorpay();
+      const subscription = await razorpay.subscriptions.fetch(subscription_id);
+
+      if (subscription.notes?.buyerId && subscription.notes.buyerId !== userId) {
+        return res.status(403).json({
+          success: false,
+          error: "Subscription does not belong to this user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!PAID_SUBSCRIPTION_STATUSES.has(subscription.status)) {
+        return res.status(409).json({
+          success: false,
+          error: `Payment is not confirmed yet. Current status: ${subscription.status}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activationResult = await activateVerifiedSubscription({
+        userId,
+        subscription_id,
+        chatbotType,
+        productId,
+        subscriptionType,
+        subscriptionKind,
+        billingCycle,
+        previousSubscriptionId,
+        previousSubscriptionType,
+        razorpaySubscription: subscription,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: activationResult,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const HMAC = crypto.createHmac("sha256", secret);
     const data = `${razorpay_payment_id}|${subscription_id}`;
     HMAC.update(data, "utf8");
@@ -172,67 +311,29 @@ export const verifyRazorpayPaymentController = async (
 
     // Initialize subscription tokens and create/update subscription record
     try {
-      await connectToDatabase();
-
-      // Determine chatbot type
-      const targetChatbotType = (chatbotType || subscriptionType)!;
-      const currentSubscriptionKind =
-        subscriptionKind || (subscriptionType === "insta" ? "insta" : "web");
-
-      // Initialize subscription tokens (1 million tokens per chatbot)
-      if (currentSubscriptionKind === "web") {
-        await initializeSubscriptionTokens(userId, targetChatbotType);
-      }
-
-      await cancelPreviousSubscriptionAfterPayment({
-        clerkId: userId,
+      const activationResult = await activateVerifiedSubscription({
+        userId,
+        subscription_id,
+        razorpay_payment_id,
+        chatbotType,
+        productId,
+        subscriptionType,
+        subscriptionKind,
+        billingCycle,
         previousSubscriptionId,
         previousSubscriptionType,
       });
-
-      if (currentSubscriptionKind === "web") {
-        const subscriptionData = {
-          clerkId: userId,
-          chatbotType: targetChatbotType,
-          chatbotName:
-            targetChatbotType === "chatbot-lead-generation"
-              ? "Lead Generation"
-              : targetChatbotType === "chatbot-education"
-                ? "Education (MCQ)"
-                : targetChatbotType,
-          subscriptionId: subscription_id,
-          plan: productId || targetChatbotType,
-          billingCycle: billingCycle || "monthly",
-          status: "active",
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-          productId: productId,
-          updatedAt: new Date(),
-        };
-
-        await WebSubscription.findOneAndUpdate(
-          { subscriptionId: subscription_id },
-          { $set: subscriptionData },
-          { upsert: true, new: true, setDefaultsOnInsert: true },
-        );
-      }
 
       console.log(
         "Subscription tokens initialized and record created for user:",
         userId,
         "chatbot:",
-        targetChatbotType,
+        activationResult.chatbotType,
       );
 
       return res.status(200).json({
         success: true,
-        data: {
-          success: true,
-          message: "Subscription activated successfully",
-          chatbotType: targetChatbotType,
-          subscriptionTokens: 1000000,
-          subscriptionId: subscription_id,
-          paymentId: razorpay_payment_id,
-        },
+        data: activationResult,
         timestamp: new Date().toISOString(),
       });
     } catch (tokenError: any) {
