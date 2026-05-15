@@ -396,7 +396,10 @@ function PricingWithSearchParams() {
         });
 
         let hasFinalizedPayment = false;
-        const finalizeSuccessfulPayment = async (response?: any) => {
+        const finalizeSuccessfulPayment = async (
+          response?: any,
+          options: { silent?: boolean } = {},
+        ) => {
           if (hasFinalizedPayment) return true;
 
           const verifyResponse = await verifyRazorpayPayment(apiRequest, {
@@ -414,11 +417,13 @@ function PricingWithSearchParams() {
           });
 
           if (!verifyResponse.success) {
-            showToast(
-              "Failed!",
-              `Payment verification failed: ${verifyResponse.message}`,
-              true,
-            );
+            if (!options.silent) {
+              showToast(
+                "Failed!",
+                `Payment verification failed: ${verifyResponse.message}`,
+                true,
+              );
+            }
             return false;
           }
 
@@ -487,30 +492,49 @@ function PricingWithSearchParams() {
               );
             }
           },
+          modal: {
+            ondismiss: () => {
+              void recoverSuccessfulPayment(false);
+            },
+          },
           theme: {
             color: "#EC4899",
           },
         });
 
+        const recoverSuccessfulPayment = async (showFailureToast: boolean) => {
+          for (let attempt = 0; attempt < 10; attempt += 1) {
+            if (hasFinalizedPayment) return true;
+
+            await new Promise((resolve) =>
+              window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
+            );
+
+            try {
+              const recovered = await finalizeSuccessfulPayment(undefined, {
+                silent: true,
+              });
+              if (recovered) return true;
+            } catch (error) {
+              console.warn("Unable to recover Razorpay payment status:", error);
+            }
+          }
+
+          if (showFailureToast && !hasFinalizedPayment) {
+            showToast(
+              "Failed!",
+              "Payment could not be confirmed. Please try again.",
+              true,
+            );
+          }
+
+          return false;
+        };
+
         razorpay.on("payment.failed", (response: any) => {
           void (async () => {
-            for (let attempt = 0; attempt < 5; attempt += 1) {
-              if (hasFinalizedPayment) return;
-
-              await new Promise((resolve) =>
-                window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
-              );
-
-              try {
-                const recovered = await finalizeSuccessfulPayment();
-                if (recovered) return;
-              } catch (error) {
-                console.warn(
-                  "Unable to recover Razorpay payment status:",
-                  error,
-                );
-              }
-            }
+            const recovered = await recoverSuccessfulPayment(false);
+            if (recovered) return;
 
             showToast(
               "Failed!",

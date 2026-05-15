@@ -543,8 +543,51 @@ export const Checkout = ({
         },
       });
 
+      let hasFinalizedPayment = false;
+      const finalizeChatbotPayment = async (
+        response?: any,
+        options: { silent?: boolean } = {},
+      ) => {
+        if (hasFinalizedPayment) return true;
+
+        const finalized = await handleChatbotPaymentSuccess(
+          response,
+          result.subscriptionId,
+          tokens,
+          options,
+        );
+
+        if (finalized) {
+          hasFinalizedPayment = true;
+        }
+
+        return finalized;
+      };
+
+      const recoverChatbotPayment = async (showFailureToast: boolean) => {
+        for (let attempt = 0; attempt < 5; attempt += 1) {
+          if (hasFinalizedPayment) return true;
+
+          await new Promise((resolve) =>
+            window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
+          );
+
+          const recovered = await finalizeChatbotPayment(undefined, {
+            silent: true,
+          });
+
+          if (recovered) return true;
+        }
+
+        if (showFailureToast && !hasFinalizedPayment) {
+          showErrorToast("Payment could not be confirmed. Please try again.");
+        }
+
+        return false;
+      };
+
       const paymentOptions = {
-        key: process.env.NEXT_PUBLIINRC_RAZORPAY_KEY_ID!,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: amount * 100,
         currency: "INR",
         name: "RocketReplai",
@@ -563,19 +606,20 @@ export const Checkout = ({
           referralCode: referralCode || "",
         },
         handler: async (response: any) => {
-          await handleChatbotPaymentSuccess(
-            response,
-            result.subscriptionId,
-            tokens,
-          );
+          await finalizeChatbotPayment(response);
+        },
+        modal: {
+          ondismiss: () => {
+            void recoverChatbotPayment(false);
+          },
         },
         theme: { color: "#EC4899" },
       };
 
       const razorpay = new (window as any).Razorpay(paymentOptions);
 
-      razorpay.on("payment.failed", (response: any) => {
-        showErrorToast(response.error?.description || "Payment failed");
+      razorpay.on("payment.failed", () => {
+        void recoverChatbotPayment(true);
       });
 
       razorpay.open();
@@ -589,15 +633,16 @@ export const Checkout = ({
   };
 
   const handleChatbotPaymentSuccess = async (
-    razorpayResponse: any,
+    razorpayResponse: any | undefined,
     subscriptionId: string,
     tokens?: number,
-  ) => {
+    options: { silent?: boolean } = {},
+  ): Promise<boolean> => {
     try {
       const verificationData = {
         subscription_id: subscriptionId,
-        razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-        razorpay_signature: razorpayResponse.razorpay_signature,
+        razorpay_payment_id: razorpayResponse?.razorpay_payment_id,
+        razorpay_signature: razorpayResponse?.razorpay_signature,
         chatbotType: productId,
         subscriptionKind: "web",
         subscriptionType: productId,
@@ -646,12 +691,19 @@ export const Checkout = ({
           setShowModal(false);
           router.push("/web");
         }, 2000);
+        return true;
       } else {
-        showErrorToast(verifyResponse.message || "Verification failed");
+        if (!options.silent) {
+          showErrorToast(verifyResponse.message || "Verification failed");
+        }
+        return false;
       }
     } catch (error) {
       console.error("Chatbot payment verification error:", error);
-      showErrorToast("Payment verification failed");
+      if (!options.silent) {
+        showErrorToast("Payment verification failed");
+      }
+      return false;
     }
   };
 
