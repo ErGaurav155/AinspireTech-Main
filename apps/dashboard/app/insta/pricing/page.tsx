@@ -160,7 +160,7 @@ function PricingWithSearchParams() {
     useState<Subscription | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const hasStartedAutoCheckout = useRef(false);
   const processedInstagramCodeRef = useRef<string | null>(null);
 
@@ -1042,10 +1042,7 @@ function PricingWithSearchParams() {
     ) || null;
   const alternateBillingCycle =
     currentSubscription?.billingCycle === "yearly" ? "monthly" : "yearly";
-
-  // Loading state
-  if (isLoading || !isLoaded)
-    return <Spinner label="Loading pricing information..." />;
+  const isAccountDataLoading = !isLoaded || isLoading;
 
   return (
     <div
@@ -1054,7 +1051,6 @@ function PricingWithSearchParams() {
       }
     >
       {isDark && <Orbs />}
-
       {/* Hero Section */}
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -1144,14 +1140,23 @@ function PricingWithSearchParams() {
               </SignedOut>
               <SignedIn>
                 <Button
-                  disabled={!currentSubscription}
+                  disabled={isAccountDataLoading || !currentSubscription}
                   className={
-                    currentSubscription
+                    isAccountDataLoading || currentSubscription
                       ? pageStyles.buttonPrimary()
                       : pageStyles.buttonDisabled
                   }
                 >
-                  {currentSubscription ? "Free Plan" : "Your Current Plan"}
+                  {isAccountDataLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Checking plan...
+                    </>
+                  ) : currentSubscription ? (
+                    "Free Plan"
+                  ) : (
+                    "Your Current Plan"
+                  )}
                 </Button>
               </SignedIn>
             </div>
@@ -1244,7 +1249,15 @@ function PricingWithSearchParams() {
                     </Button>
                   </SignedOut>
                   <SignedIn>
-                    {isCurrentPlan ? (
+                    {isAccountDataLoading ? (
+                      <Button
+                        disabled
+                        className={pageStyles.buttonPrimary(true)}
+                      >
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Checking subscription...
+                      </Button>
+                    ) : isCurrentPlan ? (
                       <div className="space-y-2">
                         <Button disabled className={pageStyles.buttonCurrent}>
                           <BadgeCheck className="h-4 w-4 mr-2" />

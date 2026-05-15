@@ -256,29 +256,6 @@ export const getEmbedFAQ = (
 export const resetFreeTokens = (apiRequest: ApiRequestFn) =>
   apiRequest("/tokens/reset-free", { method: "POST" });
 
-export const purchaseTokens = (
-  apiRequest: ApiRequestFn,
-  data: {
-    tokens: number;
-    amount: number;
-    planId?: string;
-    buyerId?: string;
-  },
-) =>
-  apiRequest("/tokens/purchase", {
-    method: "POST",
-    body: JSON.stringify(data),
-  });
-
-export const verifyPurchaseTokens = (apiRequest: ApiRequestFn, data: any) =>
-  apiRequest("/tokens/purchase", {
-    method: "PUT",
-    body: JSON.stringify(data),
-  });
-
-export const getPurchaseHistory = (apiRequest: ApiRequestFn) =>
-  apiRequest("/tokens/purchase-history", { method: "GET" });
-
 export const getTokenBalance = (apiRequest: ApiRequestFn) =>
   apiRequest("/tokens/balance", { method: "GET" });
 

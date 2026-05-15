@@ -2,6 +2,78 @@ import { connectToDatabase } from "@/config/database.config";
 import User from "@/models/user.model";
 import { Twilio } from "twilio";
 import { sendEmail } from "@/services/smtp-mailer.service";
+import EmailNotificationLog from "@/models/EmailNotificationLog.model";
+
+const DASHBOARD_URL = process.env.APP_URL || "https://app.rocketreplai.com";
+const EMAIL_DEDUPE_DAYS = 28;
+
+const escapeHtml = (value: string | number | undefined | null) =>
+  String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+
+async function shouldSendNotification({
+  key,
+  type,
+  userId,
+  dedupeDays = EMAIL_DEDUPE_DAYS,
+}: {
+  key: string;
+  type: string;
+  userId: string;
+  dedupeDays?: number;
+}) {
+  await connectToDatabase();
+
+  try {
+    await EmailNotificationLog.create({
+      key,
+      type,
+      userId,
+      sentAt: new Date(),
+      expiresAt: new Date(Date.now() + dedupeDays * 24 * 60 * 60 * 1000),
+    });
+    return true;
+  } catch (error: any) {
+    if (error?.code === 11000) return false;
+    throw error;
+  }
+}
+
+async function getUserEmail(clerkId: string) {
+  await connectToDatabase();
+  const user = await User.findOne({ clerkId }).select("email firstName username");
+  return user?.email || "";
+}
+
+const baseEmail = ({
+  title,
+  body,
+  actionText,
+  actionUrl,
+}: {
+  title: string;
+  body: string;
+  actionText: string;
+  actionUrl: string;
+}) => `
+  <div style="font-family: Arial, sans-serif; padding: 20px; color: #111827;">
+    <h2 style="color:#EC4899; margin-bottom: 12px;">${title}</h2>
+    <div style="font-size: 14px; line-height: 1.6; color:#374151;">${body}</div>
+    <p style="margin-top: 22px;">
+      <a href="${actionUrl}" style="display:inline-block; background:#EC4899; color:#ffffff; padding:12px 16px; border-radius:10px; text-decoration:none; font-weight:600;">
+        ${actionText}
+      </a>
+    </p>
+    <p style="font-size:12px; color:#6B7280; margin-top:18px;">
+      If the button does not work, open this link: <br />
+      <a href="${actionUrl}" style="color:#2563EB;">${actionUrl}</a>
+    </p>
+  </div>
+`;
 
 // ================= OWNER EMAIL =================
 export const sendSubscriptionEmailToOwner = async ({
@@ -82,6 +154,155 @@ export const sendAppointmentEmailToUser = async ({
         <p><strong>Time:</strong> ${new Date().toLocaleString()}</p>
       </div>
     `,
+  });
+};
+
+export const sendInstaDMLimitEmailToUser = async ({
+  userId,
+  accountUsername,
+  limit,
+}: {
+  userId: string;
+  accountUsername?: string;
+  limit: number;
+}) => {
+  const email = await getUserEmail(userId);
+  if (!email) return;
+
+  const key = `insta:dm-limit:${userId}:${accountUsername || "account"}`;
+  if (!(await shouldSendNotification({ key, type: "insta_dm_limit", userId }))) {
+    return;
+  }
+
+  await sendEmail({
+    to: email,
+    subject: "Instagram DM limit reached",
+    html: baseEmail({
+      title: "Instagram DM limit reached",
+      body: `
+        <p>Your free Instagram DM limit has been reached${accountUsername ? ` for <strong>@${escapeHtml(accountUsername)}</strong>` : ""}.</p>
+        <p>Free plans include ${limit.toLocaleString()} automated DMs per cycle. To avoid missed customer replies, upgrade your Instagram plan and restart automation from the dashboard.</p>
+      `,
+      actionText: "Upgrade Instagram Plan",
+      actionUrl: `${DASHBOARD_URL}/insta/pricing`,
+    }),
+  });
+};
+
+export const sendInstaFollowCheckLimitEmailToUser = async ({
+  userId,
+  accountUsername,
+  limit,
+}: {
+  userId: string;
+  accountUsername?: string;
+  limit: number;
+}) => {
+  const email = await getUserEmail(userId);
+  if (!email) return;
+
+  const key = `insta:follow-limit:${userId}:${accountUsername || "account"}`;
+  if (
+    !(await shouldSendNotification({
+      key,
+      type: "insta_follow_check_limit",
+      userId,
+    }))
+  ) {
+    return;
+  }
+
+  await sendEmail({
+    to: email,
+    subject: "Instagram follow-check limit reached",
+    html: baseEmail({
+      title: "Instagram follow-check limit reached",
+      body: `
+        <p>Your free follow-check limit has been reached${accountUsername ? ` for <strong>@${escapeHtml(accountUsername)}</strong>` : ""}.</p>
+        <p>Free plans include ${limit.toLocaleString()} follow checks per cycle. Follow-gated automations may skip verification until the limit resets. Upgrade to keep those flows running smoothly.</p>
+      `,
+      actionText: "Upgrade Instagram Plan",
+      actionUrl: `${DASHBOARD_URL}/insta/pricing`,
+    }),
+  });
+};
+
+export const sendInstaTokenExpiredEmailToUser = async ({
+  userId,
+  accountUsername,
+}: {
+  userId: string;
+  accountUsername?: string;
+}) => {
+  const email = await getUserEmail(userId);
+  if (!email) return;
+
+  const key = `insta:token-expired:${userId}:${accountUsername || "account"}`;
+  if (
+    !(await shouldSendNotification({
+      key,
+      type: "insta_token_expired",
+      userId,
+      dedupeDays: 7,
+    }))
+  ) {
+    return;
+  }
+
+  await sendEmail({
+    to: email,
+    subject: "Refresh your Instagram connection",
+    html: baseEmail({
+      title: "Your Instagram token needs attention",
+      body: `
+        <p>Your Instagram connection${accountUsername ? ` for <strong>@${escapeHtml(accountUsername)}</strong>` : ""} has expired or needs to be refreshed.</p>
+        <p>Please reconnect or refresh the token from the dashboard. If you do not, automations for that account may stop sending replies and DMs.</p>
+      `,
+      actionText: "Refresh Instagram Token",
+      actionUrl: `${DASHBOARD_URL}/insta/settings?reconnect=1`,
+    }),
+  });
+};
+
+export const sendWebTokenExhaustedEmailToUser = async ({
+  userId,
+  chatbotType,
+  nextResetAt,
+}: {
+  userId: string;
+  chatbotType?: string;
+  nextResetAt?: Date;
+}) => {
+  const email = await getUserEmail(userId);
+  if (!email) return;
+
+  const key = `web:tokens-exhausted:${userId}:${chatbotType || "free"}`;
+  if (
+    !(await shouldSendNotification({
+      key,
+      type: "web_tokens_exhausted",
+      userId,
+    }))
+  ) {
+    return;
+  }
+
+  const resetText = nextResetAt
+    ? ` Your free tokens reset on ${nextResetAt.toLocaleDateString()}.`
+    : "";
+
+  await sendEmail({
+    to: email,
+    subject: "Your free chatbot tokens are finished",
+    html: baseEmail({
+      title: "Your chatbot tokens are finished",
+      body: `
+        <p>Your free 10,000 monthly chatbot tokens have been used${chatbotType ? ` for <strong>${escapeHtml(chatbotType)}</strong>` : ""}.</p>
+        <p>Your chatbot may stop responding until tokens reset.${resetText} Upgrade to a subscription plan to get 1,000,000 included tokens per chatbot each cycle.</p>
+      `,
+      actionText: "Upgrade Web Plan",
+      actionUrl: `${DASHBOARD_URL}/web/pricing`,
+    }),
   });
 };
 const client = new Twilio(

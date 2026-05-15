@@ -3,6 +3,7 @@ import { connectToDatabase } from "@/config/database.config";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import { sendWebTokenExhaustedEmailToUser } from "@/services/sendEmail.service";
 
 // Get user's token balance
 export async function getUserTokenBalance(userId: string) {
@@ -192,11 +193,45 @@ export async function usedTokens(
   const availableTokens = getAvailableTokensForChatbot(tokenBalance, chatbotId);
 
   if (availableTokens < tokens) {
+    const activeSubscriptions = await WebSubscription.countDocuments({
+      clerkId: userId,
+      status: "active",
+    });
+
+    if (activeSubscriptions === 0 && getFreeTokensRemaining(tokenBalance) === 0) {
+      try {
+        await sendWebTokenExhaustedEmailToUser({
+          userId,
+          chatbotType: chatbotId,
+          nextResetAt: tokenBalance.nextResetAt,
+        });
+      } catch (error) {
+        console.error("Failed to send web token exhausted email:", error);
+      }
+    }
+
     throw new Error("Insufficient tokens");
   }
 
   // Deduct tokens from balance
   await deductTokensFromBalance(tokenBalance, tokens, chatbotId);
+
+  const activeSubscriptions = await WebSubscription.countDocuments({
+    clerkId: userId,
+    status: "active",
+  });
+
+  if (activeSubscriptions === 0 && getFreeTokensRemaining(tokenBalance) === 0) {
+    try {
+      await sendWebTokenExhaustedEmailToUser({
+        userId,
+        chatbotType: chatbotId,
+        nextResetAt: tokenBalance.nextResetAt,
+      });
+    } catch (error) {
+      console.error("Failed to send web token exhausted email:", error);
+    }
+  }
 
   // Record token usage
   const tokenUsage = await TokenUsage.create({

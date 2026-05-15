@@ -12,7 +12,6 @@ export const API_ROUTES = {
   WEB_ANALYTICS: (id: string) => `/web/analytics/${id}`,
   WEB_CONVERSATIONS: (id: string) => `/web/conversations/${id}`,
   WEB_TOKENS_BALANCE: "/web/tokens/balance",
-  WEB_TOKENS_PURCHASE: "/web/tokens/purchase",
   WEB_SUBSCRIPTION_LIST: "/web/subscription/list",
 
   // Insta

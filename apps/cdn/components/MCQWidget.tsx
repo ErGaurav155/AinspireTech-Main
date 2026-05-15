@@ -538,7 +538,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
       // Check token balance before sending request
       if (!tokenBalance || tokenBalance.availableTokens <= 0) {
         throw new Error(
-          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+          "You have run out of tokens. Please ask the website owner to upgrade their plan to continue chatting.",
         );
       }
 
@@ -568,7 +568,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
 
       if (response.status === 402) {
         throw new Error(
-          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+          "You have run out of tokens. Please ask the website owner to upgrade their plan to continue chatting.",
         );
       }
       if (!response.ok) {
@@ -635,13 +635,13 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
     // Check if user has tokens before sending
     if (!tokenBalance || tokenBalance.availableTokens <= 0) {
       setError(
-        "You have run out of tokens. Please purchase more tokens to continue chatting.",
+        "You have run out of tokens. Please ask the website owner to upgrade their plan to continue chatting.",
       );
       setMessages((prev) => [
         ...prev,
         createMessage(
           "bot",
-          "You have run out of tokens. Please purchase more tokens to continue chatting.",
+          "You have run out of tokens. Please ask the website owner to upgrade their plan to continue chatting.",
         ),
       ]);
       return;
@@ -679,7 +679,7 @@ export default function MCQWidget({ userId, chatbotType, mode }: Props) {
 
     // Check if user has tokens before generating quiz
     if (!tokenBalance || tokenBalance.availableTokens <= 0) {
-      setError("You have run out of tokens. Please purchase more tokens to continue.");
+      setError("You have run out of tokens. Please ask the website owner to upgrade their plan to continue.");
       return;
     }
 

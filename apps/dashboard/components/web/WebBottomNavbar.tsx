@@ -49,11 +49,11 @@ const MENU_ITEMS = [
   ...CHATBOT_ITEMS,
   {
     id: "tokens",
-    label: "Buy Tokens",
+    label: "Tokens",
     href: "/web/tokens",
     icon: Coins,
     color: "#f59e0b",
-    description: "Purchase more tokens",
+    description: "Monitor usage",
     isNew: false,
     type: "global",
   },

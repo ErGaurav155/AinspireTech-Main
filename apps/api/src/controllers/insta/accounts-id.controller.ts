@@ -7,6 +7,7 @@ import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
+import { sendInstaTokenExpiredEmailToUser } from "@/services/sendEmail.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -142,6 +143,27 @@ function getReconnectRequirement(params: {
   };
 }
 
+async function notifyIfReconnectRequired({
+  reconnectStatus,
+  userId,
+  username,
+}: {
+  reconnectStatus: { needsReconnect: boolean; disconnectedReason: string };
+  userId: string;
+  username?: string;
+}) {
+  if (!reconnectStatus.needsReconnect) return;
+
+  try {
+    await sendInstaTokenExpiredEmailToUser({
+      userId,
+      accountUsername: username,
+    });
+  } catch (error) {
+    console.error("Failed to send Instagram token expiry email:", error);
+  }
+}
+
 // GET /api/insta/accounts - Get detailed Instagram info for ALL accounts of a user
 export const getAllInstaAccountsInfoController = async (
   req: Request,
@@ -209,6 +231,11 @@ export const getAllInstaAccountsInfoController = async (
             accessToken: account.accessToken,
             tokenExpiresAt: account.tokenExpiresAt,
             errorMessage: "Account not properly connected",
+          });
+          await notifyIfReconnectRequired({
+            reconnectStatus,
+            userId,
+            username: account.username,
           });
 
           // Return account with DB data even if no token
@@ -278,6 +305,11 @@ export const getAllInstaAccountsInfoController = async (
             tokenExpiresAt: account.tokenExpiresAt,
             errorCode: errorData.error?.code,
             errorMessage: errorData.error?.message,
+          });
+          await notifyIfReconnectRequired({
+            reconnectStatus,
+            userId,
+            username: account.username,
           });
           console.error(
             `Instagram API error for account ${account.instagramId}:`,
@@ -451,6 +483,11 @@ export const getAllInstaAccountsInfoController = async (
           accessToken: account.accessToken,
           tokenExpiresAt: account.tokenExpiresAt,
           errorMessage: error.message,
+        });
+        await notifyIfReconnectRequired({
+          reconnectStatus,
+          userId,
+          username: account.username,
         });
         console.error(
           `Error processing account ${account.instagramId}:`,

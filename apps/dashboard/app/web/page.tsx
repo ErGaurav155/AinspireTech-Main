@@ -83,7 +83,7 @@ export default function WebDashboardPage() {
 
   const [chatbots, setChatbots] = useState<ChatbotOverview[]>([]);
   const [tokenStats, setTokenStats] = useState<TokenStats | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -140,7 +140,8 @@ export default function WebDashboardPage() {
       let chatbotCount = 0;
 
       if (chatbotsData?.chatbots?.length) {
-        for (const bot of chatbotsData.chatbots) {
+        const builtChatbots = await Promise.all(
+          chatbotsData.chatbots.map(async (bot: any) => {
           // Fetch conversations for each chatbot to get accurate stats
           let conversations = [];
           let totalConvCount = 0;
@@ -168,14 +169,12 @@ export default function WebDashboardPage() {
           const msgCount = totalMsgCount;
           const analytics = bot.analytics || {};
 
-          totalConvs += convCount;
-          totalMsgs += msgCount;
           if (analytics.averageResponseTime) {
             totalResponseTime += analytics.averageResponseTime;
             chatbotCount++;
           }
 
-          chatbotList.push({
+          return {
             id: bot._id || bot.id,
             type: bot.type,
             name: bot.name || getChatbotName(bot.type),
@@ -192,8 +191,15 @@ export default function WebDashboardPage() {
               averageResponseTime: analytics.averageResponseTime || 0,
               satisfactionScore: analytics.satisfactionScore || 0,
             },
-          });
-        }
+          };
+          }),
+        );
+
+        builtChatbots.forEach((chatbot) => {
+          totalConvs += chatbot.conversations;
+          totalMsgs += chatbot.totalMessages;
+          chatbotList.push(chatbot);
+        });
       }
 
       // Add placeholders for not built chatbots
@@ -364,10 +370,6 @@ export default function WebDashboardPage() {
         </Link>
       </GateScreen>
     );
-  }
-
-  if (isLoading) {
-    return <Spinner label="Loading your dashboard…" />;
   }
 
   if (error) {
@@ -704,10 +706,10 @@ export default function WebDashboardPage() {
               </div>
               <div className="flex-1">
                 <p className={`text-sm font-medium ${styles.text.primary}`}>
-                  Buy Tokens
+                  Tokens
                 </p>
                 <p className={`text-xs ${styles.text.muted}`}>
-                  Add more tokens to your account
+                  Monitor your monthly token balance
                 </p>
               </div>
               <ArrowUpRight

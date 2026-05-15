@@ -455,14 +455,14 @@ export default function WebSidebar({
                       isDark ? "text-white" : "text-gray-700"
                     }`}
                   >
-                    Buy Tokens
+                    Tokens
                   </p>
                   <p
                     className={`text-xs ${
                       isDark ? "text-white/40" : "text-gray-400"
                     }`}
                   >
-                    Purchase more tokens
+                    Monitor usage
                   </p>
                 </div>
               </Link>

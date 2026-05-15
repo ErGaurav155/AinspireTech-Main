@@ -3,13 +3,12 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { useApi } from "@/lib/useApi";
 import { useRouter } from "next/navigation";
-import Script from "next/script";
 import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { Loader2, Bot, Check, Sparkles, Crown, Coins } from "lucide-react";
+import { Loader2, Bot, Check, Sparkles, Crown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -17,7 +16,6 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
   Button,
-  Orbs,
   toast,
   useThemeStyles,
 } from "@rocketreplai/ui";
@@ -37,19 +35,15 @@ import {
 import {
   createWebChatbot,
   processScrapedData,
-  purchaseTokens,
   scrapeWebsite,
   updateWebChatbot,
-  verifyPurchaseTokens,
 } from "@/lib/services/web-actions.api";
 
 interface CheckoutProps {
   userId: string;
   amount: number;
   productId: string;
-  billingCycle: "monthly" | "yearly" | "one-time";
-  planType: "chatbot" | "tokens";
-  tokens?: number;
+  billingCycle: "monthly" | "yearly";
   chatbotCreated?: boolean;
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
@@ -91,8 +85,6 @@ export const Checkout = ({
   amount,
   productId,
   billingCycle,
-  planType = "chatbot",
-  tokens,
   chatbotCreated = false,
   previousSubscriptionId,
   previousSubscriptionType,
@@ -104,6 +96,7 @@ export const Checkout = ({
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("weblink");
   const [showModal, setShowModal] = useState(false);
   const [processing, setProcessing] = useState(false);
+  const [razorpayScriptReady, setRazorpayScriptReady] = useState(false);
   const [scrapingStatus, setScrapingStatus] = useState("");
   const [scrapingComplete, setScrapingComplete] = useState(false);
   const [chatbotCreationComplete, setChatbotCreationComplete] = useState(false);
@@ -133,9 +126,6 @@ export const Checkout = ({
   });
 
   const getButtonGradient = () => {
-    if (planType === "tokens") {
-      return "from-purple-500 to-pink-500";
-    }
     switch (productId) {
       case "chatbot-lead-generation":
         return "from-purple-500 to-pink-500";
@@ -147,9 +137,6 @@ export const Checkout = ({
   };
 
   const getButtonIcon = () => {
-    if (planType === "tokens") {
-      return <Coins className="h-4 w-4 mr-2" />;
-    }
     if (chatbotCreated) {
       return <Crown className="h-4 w-4 mr-2" />;
     }
@@ -161,9 +148,6 @@ export const Checkout = ({
       return buttonText;
     }
 
-    if (planType === "tokens") {
-      return tokens ? `Buy ${tokens.toLocaleString()} Tokens` : "Buy Tokens";
-    }
     if (chatbotCreated) {
       return "Activate Subscription";
     }
@@ -171,6 +155,14 @@ export const Checkout = ({
       return "Free Tier";
     }
     return "Create & Subscribe";
+  };
+
+  const getProcessingButtonText = () => {
+    if (chatbotCreated) {
+      return razorpayScriptReady ? "Processing..." : "Loading payment...";
+    }
+
+    return "Processing...";
   };
 
   const getModalTitle = () => {
@@ -291,22 +283,63 @@ export const Checkout = ({
     });
   };
 
+  const loadRazorpayScript = useCallback((): Promise<void> => {
+    if (typeof window === "undefined") {
+      return Promise.reject(new Error("Payment checkout is not available"));
+    }
+
+    if ((window as any).Razorpay) {
+      setRazorpayScriptReady(true);
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const existingScript =
+        document.getElementById(RAZORPAY_SCRIPT_ID) ||
+        document.querySelector(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
+
+      const handleLoad = () => {
+        if ((window as any).Razorpay) {
+          setRazorpayScriptReady(true);
+          resolve();
+        } else {
+          reject(new Error("Payment checkout failed to load"));
+        }
+      };
+
+      const handleError = () => {
+        reject(new Error("Payment checkout failed to load"));
+      };
+
+      if (existingScript) {
+        existingScript.addEventListener("load", handleLoad, { once: true });
+        existingScript.addEventListener("error", handleError, { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = RAZORPAY_SCRIPT_ID;
+      script.src = RAZORPAY_SCRIPT_SRC;
+      script.async = true;
+      script.addEventListener("load", handleLoad, { once: true });
+      script.addEventListener("error", handleError, { once: true });
+      document.body.appendChild(script);
+    });
+  }, []);
+
   const fetchRequiredData = async (): Promise<boolean> => {
     try {
-      // For chatbot subscriptions, fetch plan info
-      if (planType === "chatbot") {
-        const planInfo = await getRazerpayPlanInfo(apiRequest, productId);
+      const planInfo = await getRazerpayPlanInfo(apiRequest, productId);
 
-        if (!planInfo.razorpaymonthlyplanId || !planInfo.razorpayyearlyplanId) {
-          router.push("/");
-          throw new Error("Plan information not found");
-        }
-
-        razorpayPlanRef.current = {
-          monthly: planInfo.razorpaymonthlyplanId,
-          yearly: planInfo.razorpayyearlyplanId,
-        };
+      if (!planInfo.razorpaymonthlyplanId || !planInfo.razorpayyearlyplanId) {
+        router.push("/");
+        throw new Error("Plan information not found");
       }
+
+      razorpayPlanRef.current = {
+        monthly: planInfo.razorpaymonthlyplanId,
+        yearly: planInfo.razorpayyearlyplanId,
+      };
 
       // Fetch user info
       if (!userId) {
@@ -422,11 +455,7 @@ export const Checkout = ({
     chatbotNameRef.current = data.chatbotName;
     websiteUrlRef.current = data.websiteUrl || "";
 
-    if (planType === "tokens") {
-      // For tokens, go directly to payment
-      setCurrentStep("payment");
-      await processTokenPayment();
-    } else if (chatbotCreated) {
+    if (chatbotCreated) {
       // If chatbot is already created, skip creation and go directly to payment
       setShowModal(false);
       setCurrentStep("payment");
@@ -446,10 +475,7 @@ export const Checkout = ({
       return;
     }
 
-    if (planType === "tokens") {
-      // For token purchases, go directly to payment
-      await processTokenPayment();
-    } else if (chatbotCreated) {
+    if (chatbotCreated) {
       // If chatbot is already created, go directly to payment without showing modal
       setCurrentStep("payment");
       await processChatbotPayment();
@@ -512,7 +538,11 @@ export const Checkout = ({
   };
 
   const processChatbotPayment = async () => {
+    setIsSubmitting(true);
+    setProcessing(true);
     try {
+      await loadRazorpayScript();
+
       // Fetch required data before proceeding
       const isDataReady = await fetchRequiredData();
       if (!isDataReady) {
@@ -553,7 +583,6 @@ export const Checkout = ({
         const finalized = await handleChatbotPaymentSuccess(
           response,
           result.subscriptionId,
-          tokens,
           options,
         );
 
@@ -635,7 +664,6 @@ export const Checkout = ({
   const handleChatbotPaymentSuccess = async (
     razorpayResponse: any | undefined,
     subscriptionId: string,
-    tokens?: number,
     options: { silent?: boolean } = {},
   ): Promise<boolean> => {
     try {
@@ -704,94 +732,6 @@ export const Checkout = ({
         showErrorToast("Payment verification failed");
       }
       return false;
-    }
-  };
-
-  const processTokenPayment = async () => {
-    if (!tokens) {
-      showErrorToast("Token amount is required");
-      return;
-    }
-
-    try {
-      // Fetch required data before proceeding
-      const isDataReady = await fetchRequiredData();
-      if (!isDataReady) {
-        return;
-      }
-
-      const orderData = await purchaseTokens(apiRequest, {
-        tokens,
-        amount,
-        planId: productId,
-        buyerId: userId,
-      });
-
-      if (!orderData.success) {
-        throw new Error("Failed to create token purchase order");
-      }
-
-      const paymentOptions = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-        amount: amount * 100,
-        currency: "INR",
-        name: "AI Chatbot Tokens",
-        description: `${tokens.toLocaleString()} tokens purchase`,
-        order_id: orderData.orderId,
-        prefill: {
-          email: userEmailRef.current || "",
-        },
-        notes: {
-          userId: userId,
-          tokens,
-          planId: productId,
-          type: "token_purchase",
-        },
-        handler: async (response: any) => {
-          await handleTokenPaymentSuccess(response, orderData.orderId, tokens);
-        },
-        theme: { color: "#EC4899" },
-      };
-
-      const razorpay = new (window as any).Razorpay(paymentOptions);
-      razorpay.open();
-    } catch (error) {
-      console.error("Token payment processing error:", error);
-      showErrorToast(error instanceof Error ? error.message : "Payment failed");
-    }
-  };
-
-  const handleTokenPaymentSuccess = async (
-    razorpayResponse: any,
-    orderId: string,
-    tokens: number,
-  ) => {
-    try {
-      const verificationData = {
-        razorpay_payment_id: razorpayResponse.razorpay_payment_id,
-        razorpay_order_id: razorpayResponse.razorpay_order_id,
-        razorpay_signature: razorpayResponse.razorpay_signature,
-        tokens,
-        amount,
-        currency: "INR",
-      };
-
-      const verificationResult = await verifyPurchaseTokens(
-        apiRequest,
-        verificationData,
-      );
-
-      if (verificationResult.success) {
-        showSuccessToast(
-          `${tokens.toLocaleString()} tokens added to your account!`,
-        );
-        router.push("/web/tokens");
-      } else {
-        showErrorToast(verificationResult.message || "Verification failed");
-      }
-    } catch (error) {
-      console.error("Token payment verification error:", error);
-      showErrorToast("Payment verification failed");
     }
   };
 
@@ -1050,7 +990,6 @@ export const Checkout = ({
 
   return (
     <>
-      {isDark && <Orbs />}
       <form onSubmit={handleCheckout} className="w-full">
         <Button
           type="submit"
@@ -1058,17 +997,22 @@ export const Checkout = ({
           className={`w-full py-3 rounded-xl font-medium hover:opacity-90 transition-opacity bg-gradient-to-r ${getButtonGradient()} text-white`}
         >
           <span className="flex items-center justify-center gap-2">
-            {getButtonIcon()}
-            {getButtonText()}
+            {processing || isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {getProcessingButtonText()}
+              </>
+            ) : (
+              <>
+                {getButtonIcon()}
+                {getButtonText()}
+              </>
+            )}
           </span>
         </Button>
       </form>
 
       {showModal && renderWebsiteModal()}
-
-      {(planType === "chatbot" || planType === "tokens") && (
-        <Script id={RAZORPAY_SCRIPT_ID} src={RAZORPAY_SCRIPT_SRC} />
-      )}
     </>
   );
 };

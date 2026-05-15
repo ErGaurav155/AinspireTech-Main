@@ -118,7 +118,7 @@ export const handleMcqChatbotRequest = async (req: Request, res: Response) => {
           return res.status(402).json({
             success: false,
             error:
-              "Insufficient tokens. Please purchase more tokens to continue.",
+              "Insufficient tokens. Please upgrade your plan to continue.",
             timestamp: new Date().toISOString(),
           });
         }

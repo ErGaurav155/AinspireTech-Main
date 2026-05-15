@@ -252,7 +252,7 @@ export default function Dashboard() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(
     null,
   );
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [hasError, setHasError] = useState<string[]>([]);
   const [userAccounts, setUserAccounts] = useState<DashboardAccount[]>([]);
@@ -560,7 +560,7 @@ export default function Dashboard() {
 
   // ── Loading state ─────────────────────────────────────────────────────────────
 
-  if ((isLoading && !dashboardData) || !isLoaded || isAccLoading) {
+  if (!isLoaded) {
     return <Spinner label="Loading your dashboard…" />;
   }
 

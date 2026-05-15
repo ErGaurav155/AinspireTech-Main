@@ -1,5 +1,9 @@
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import { getUserTier } from "@/services/rate-limit.service";
+import {
+  sendInstaDMLimitEmailToUser,
+  sendInstaFollowCheckLimitEmailToUser,
+} from "@/services/sendEmail.service";
 
 export const FREE_INSTA_DM_LIMIT = 1000;
 export const FREE_INSTA_FOLLOW_CHECK_LIMIT = 50;
@@ -42,6 +46,19 @@ export async function recordInstaFollowCheck(account: any) {
   account.accountFollowCheck = (account.accountFollowCheck || 0) + 1;
   account.lastActivity = new Date();
   await account.save();
+
+  try {
+    const quota = await getInstaQuotaStatus(account.userId, account);
+    if (quota.followCheckLimitReached) {
+      await sendInstaFollowCheckLimitEmailToUser({
+        userId: account.userId,
+        accountUsername: account.username,
+        limit: FREE_INSTA_FOLLOW_CHECK_LIMIT,
+      });
+    }
+  } catch (error) {
+    console.error("Failed to send follow-check limit email:", error);
+  }
 }
 
 export async function stopInstaAutomationForDMLimit(account: any) {
@@ -53,6 +70,16 @@ export async function stopInstaAutomationForDMLimit(account: any) {
     { _id: account._id },
     { $set: { autoDMEnabled: false, lastActivity: new Date() } },
   );
+
+  try {
+    await sendInstaDMLimitEmailToUser({
+      userId: account.userId,
+      accountUsername: account.username,
+      limit: FREE_INSTA_DM_LIMIT,
+    });
+  } catch (error) {
+    console.error("Failed to send Instagram DM limit email:", error);
+  }
 }
 
 export function dmLimitMessage() {

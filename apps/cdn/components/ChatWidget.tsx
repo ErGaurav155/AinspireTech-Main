@@ -1058,7 +1058,7 @@ export default function ChatWidget({
     // Check token balance before sending
     if (tokenBalance && tokenBalance.availableTokens <= 0) {
       addBotMsg(
-        "I'm sorry, but you've run out of tokens. Please contact the website owner to purchase more tokens or tell them to add tokens to continue chatting.",
+        "I'm sorry, but this chatbot has run out of tokens. Please contact the website owner and ask them to upgrade their plan to continue chatting.",
       );
       return;
     }
@@ -1114,7 +1114,7 @@ export default function ChatWidget({
 
       if (res.status === 402) {
         addBotMsg(
-          "I'm unable to process your request due to insufficient tokens. Please contact the website owner to purchase more tokens.",
+          "I'm unable to process your request due to insufficient tokens. Please contact the website owner and ask them to upgrade their plan.",
         );
         setIsTyping(false);
         return;

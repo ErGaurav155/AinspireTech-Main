@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import {
@@ -83,7 +83,7 @@ const PricingContent = () => {
 
   // State
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +99,8 @@ const PricingContent = () => {
     amount: number;
     chatbotCreated: boolean;
   } | null>(null);
+  const isAccountDataLoading = !isLoaded || isLoading;
+  const products = useMemo(() => Object.values(productSubscriptionDetails), []);
   // Fetch subscriptions and user chatbots
   useEffect(() => {
     const fetchUserData = async () => {
@@ -263,11 +265,6 @@ const PricingContent = () => {
       icon: Bot,
     },
   };
-  // Loading state
-  if (!isLoaded || isLoading) {
-    return <Spinner label="Loading pricing information..." />;
-  }
-
   // Error state
   if (error) {
     return (
@@ -479,7 +476,7 @@ const PricingContent = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-                {Object.values(productSubscriptionDetails).map((product) => {
+                {products.map((product) => {
                   const Icon = iconMapping[product.icon] || Bot;
                   const { displayPrice, originalPrice, isYearly } =
                     getProductPrice(product);
@@ -489,7 +486,9 @@ const PricingContent = () => {
                   );
                   const isSameBillingCycle =
                     activeSubscription?.billingCycle === billingMode;
-                  const hasCreated = hasChatbotCreated(product.productId);
+                  const hasCreated = isAccountDataLoading
+                    ? false
+                    : hasChatbotCreated(product.productId);
                   const isMostPopular =
                     product.productId === "chatbot-lead-generation";
 
@@ -635,7 +634,15 @@ const PricingContent = () => {
                           </Button>
                         </SignedOut>
                         <SignedIn>
-                          {isSubscribed && isSameBillingCycle ? (
+                          {isAccountDataLoading ? (
+                            <Button
+                              disabled
+                              className="w-full py-3 rounded-xl font-medium bg-gradient-to-r from-pink-500 to-rose-500 text-white opacity-70 cursor-not-allowed"
+                            >
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Checking subscription...
+                            </Button>
+                          ) : isSubscribed && isSameBillingCycle ? (
                             <div className="space-y-2">
                               <Button
                                 disabled
@@ -696,9 +703,7 @@ const PricingContent = () => {
                               productId={product.productId}
                               billingCycle={billingMode}
                               amount={displayPrice}
-                              planType="chatbot"
                               chatbotCreated={hasCreated}
-                              tokens={1000000}
                             />
                           )}
                         </SignedIn>
@@ -964,9 +969,7 @@ const PricingContent = () => {
                       productId={subscriptionChangeTarget.product.productId}
                       billingCycle={subscriptionChangeTarget.billingCycle}
                       amount={subscriptionChangeTarget.amount}
-                      planType="chatbot"
                       chatbotCreated={subscriptionChangeTarget.chatbotCreated}
-                      tokens={1000000}
                       previousSubscriptionId={
                         subscriptionToManage.subscriptionId
                       }
