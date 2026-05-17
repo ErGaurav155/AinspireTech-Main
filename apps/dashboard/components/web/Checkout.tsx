@@ -80,6 +80,13 @@ type WebsiteFormData = z.infer<ReturnType<typeof createWebsiteFormSchema>>;
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
+const isMobileCheckoutDevice = () => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+};
+
 export const Checkout = ({
   userId,
   amount,
@@ -572,6 +579,33 @@ export const Checkout = ({
           previousSubscriptionType,
         },
       });
+      const callbackUrl = new URL(
+        "/api/razorpay/checkout-callback",
+        window.location.origin,
+      );
+      callbackUrl.searchParams.set("returnTo", "/web/pricing");
+      callbackUrl.searchParams.set("kind", "web");
+      callbackUrl.searchParams.set("subscriptionId", result.subscriptionId);
+      callbackUrl.searchParams.set("productId", productId);
+      callbackUrl.searchParams.set("billingCycle", billingCycle);
+
+      if (createdChatbotId) {
+        callbackUrl.searchParams.set("chatbotId", createdChatbotId);
+      }
+
+      if (previousSubscriptionId) {
+        callbackUrl.searchParams.set(
+          "previousSubscriptionId",
+          previousSubscriptionId,
+        );
+      }
+
+      if (previousSubscriptionType) {
+        callbackUrl.searchParams.set(
+          "previousSubscriptionType",
+          previousSubscriptionType,
+        );
+      }
 
       let hasFinalizedPayment = false;
       const finalizeChatbotPayment = async (
@@ -642,6 +676,12 @@ export const Checkout = ({
             void recoverChatbotPayment(false);
           },
         },
+        ...(isMobileCheckoutDevice()
+          ? {
+              callback_url: callbackUrl.toString(),
+              redirect: true,
+            }
+          : {}),
         theme: { color: "#EC4899" },
       };
 

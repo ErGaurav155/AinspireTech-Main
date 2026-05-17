@@ -27,7 +27,7 @@
     "nodemailer": "^8.0.7",
     "openai": "^4.28.4",
     "puppeteer": "^24.39.0",
-    "razorpay": "^2.9.5",
+    "razorpay": "^2.9.6",
     "redis": "^4.6.10",
     "svix": "^1.17.0",
     "twilio": "^5.7.0",

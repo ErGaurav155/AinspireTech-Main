@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, Suspense, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import {
@@ -35,11 +35,18 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { productSubscriptionDetails } from "@rocketreplai/shared";
-import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
+import {
+  getChatbots,
+  getSubscriptions,
+  updateWebChatbot,
+} from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
+import { verifyRazorpayPayment } from "@/lib/services/subscription-actions.api";
+
+const PROCESSED_RAZORPAY_CALLBACK_PREFIX = "processed_razorpay_callback:";
 
 // Types
 interface Subscription {
@@ -99,6 +106,7 @@ const PricingContent = () => {
     amount: number;
     chatbotCreated: boolean;
   } | null>(null);
+  const processedRazorpayCallbackRef = useRef<string | null>(null);
   const isAccountDataLoading = !isLoaded || isLoading;
   const products = useMemo(() => Object.values(productSubscriptionDetails), []);
   // Fetch subscriptions and user chatbots
@@ -255,6 +263,81 @@ const PricingContent = () => {
   };
 
   const activeProductId = searchParams.get("id");
+  useEffect(() => {
+    const processRazorpayRedirectCallback = async () => {
+      if (!userId || searchParams.get("razorpay_checkout") !== "1") return;
+      if (searchParams.get("checkoutKind") !== "web") return;
+
+      const subscriptionId = searchParams.get("subscription_id");
+      const productId = searchParams.get("productId");
+      const callbackBillingCycle = searchParams.get("billingCycle") as
+        | "monthly"
+        | "yearly"
+        | null;
+
+      if (!subscriptionId || !productId || !callbackBillingCycle) return;
+
+      const callbackKey = `${PROCESSED_RAZORPAY_CALLBACK_PREFIX}${subscriptionId}`;
+      const hasAlreadyProcessed =
+        processedRazorpayCallbackRef.current === subscriptionId ||
+        sessionStorage.getItem(callbackKey);
+
+      if (hasAlreadyProcessed) return;
+
+      processedRazorpayCallbackRef.current = subscriptionId;
+      sessionStorage.setItem(callbackKey, Date.now().toString());
+      setIsLoading(true);
+
+      try {
+        const verifyResponse = await verifyRazorpayPayment(apiRequest, {
+          subscription_id: subscriptionId,
+          razorpay_payment_id: searchParams.get("razorpay_payment_id"),
+          razorpay_signature: searchParams.get("razorpay_signature"),
+          chatbotType: productId,
+          subscriptionKind: "web",
+          subscriptionType: productId,
+          productId,
+          billingCycle: callbackBillingCycle,
+          previousSubscriptionId: searchParams.get("previousSubscriptionId"),
+          previousSubscriptionType:
+            searchParams.get("previousSubscriptionType") || undefined,
+        });
+
+        if (!verifyResponse.success) {
+          throw new Error(verifyResponse.message || "Payment verification failed");
+        }
+
+        const chatbotId = searchParams.get("chatbotId");
+        if (chatbotId) {
+          await updateWebChatbot(apiRequest, chatbotId, {
+            subscriptionId,
+            isActive: true,
+          });
+        }
+
+        toast({
+          title: "Payment Successful!",
+          description: "Subscription activated successfully",
+        });
+        router.replace("/web");
+        router.refresh();
+      } catch (error: any) {
+        sessionStorage.removeItem(callbackKey);
+        processedRazorpayCallbackRef.current = null;
+        console.error("Razorpay redirect callback error:", error);
+        toast({
+          title: "Failed!",
+          description: error.message || "Payment verification failed",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void processRazorpayRedirectCallback();
+  }, [apiRequest, router, searchParams, userId]);
+
   const TAB_LABELS: Record<
     PlanType,
     { label: string; label2: string; icon: React.ElementType }

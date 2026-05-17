@@ -74,8 +74,16 @@ const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 const PENDING_INSTA_CHECKOUT_KEY = "pending_insta_checkout";
 const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
+const PROCESSED_RAZORPAY_CALLBACK_PREFIX = "processed_razorpay_callback:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+
+const isMobileCheckoutDevice = () => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
+    navigator.userAgent,
+  );
+};
 
 declare global {
   interface Window {
@@ -165,6 +173,7 @@ function PricingWithSearchParams() {
   const [isLoading, setIsLoading] = useState(false);
   const hasStartedAutoCheckout = useRef(false);
   const processedInstagramCodeRef = useRef<string | null>(null);
+  const processedRazorpayCallbackRef = useRef<string | null>(null);
 
   // Dialog states
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -406,6 +415,26 @@ function PricingWithSearchParams() {
           },
         });
 
+        const callbackUrl = new URL(
+          "/api/razorpay/checkout-callback",
+          window.location.origin,
+        );
+        callbackUrl.searchParams.set("returnTo", "/insta/pricing");
+        callbackUrl.searchParams.set("kind", "insta");
+        callbackUrl.searchParams.set("subscriptionId", result.subscriptionId);
+        callbackUrl.searchParams.set("productId", plan.id);
+        callbackUrl.searchParams.set("billingCycle", cycle);
+        callbackUrl.searchParams.set("planLimit", String(plan.limit));
+        callbackUrl.searchParams.set("accountLimit", String(plan.account));
+
+        if (previousSubscriptionId) {
+          callbackUrl.searchParams.set(
+            "previousSubscriptionId",
+            previousSubscriptionId,
+          );
+          callbackUrl.searchParams.set("previousSubscriptionType", "insta");
+        }
+
         let hasFinalizedPayment = false;
         const finalizeSuccessfulPayment = async (
           response?: any,
@@ -527,6 +556,12 @@ function PricingWithSearchParams() {
               );
             }
           },
+          ...(isMobileCheckoutDevice()
+            ? {
+                callback_url: callbackUrl.toString(),
+                redirect: true,
+              }
+            : {}),
           modal: {
             ondismiss: () => {
               void recoverSuccessfulPayment(false);
@@ -607,6 +642,115 @@ function PricingWithSearchParams() {
       userId,
     ],
   );
+
+  useEffect(() => {
+    const processRazorpayRedirectCallback = async () => {
+      if (!userId || searchParams.get("razorpay_checkout") !== "1") return;
+      if (searchParams.get("checkoutKind") !== "insta") return;
+
+      const subscriptionId = searchParams.get("subscription_id");
+      const productId = searchParams.get("productId");
+      const callbackBillingCycle = searchParams.get("billingCycle") as
+        | "monthly"
+        | "yearly"
+        | null;
+
+      if (!subscriptionId || !productId || !callbackBillingCycle) return;
+
+      const callbackKey = `${PROCESSED_RAZORPAY_CALLBACK_PREFIX}${subscriptionId}`;
+      const hasAlreadyProcessed =
+        processedRazorpayCallbackRef.current === subscriptionId ||
+        sessionStorage.getItem(callbackKey);
+
+      if (hasAlreadyProcessed) return;
+
+      processedRazorpayCallbackRef.current = subscriptionId;
+      sessionStorage.setItem(callbackKey, Date.now().toString());
+      setIsUpgrading(true);
+
+      try {
+        const verifyResponse = await verifyRazorpayPayment(apiRequest, {
+          subscription_id: subscriptionId,
+          razorpay_payment_id: searchParams.get("razorpay_payment_id"),
+          razorpay_signature: searchParams.get("razorpay_signature"),
+          subscriptionKind: "insta",
+          subscriptionType: "insta",
+          productId,
+          billingCycle: callbackBillingCycle,
+          previousSubscriptionId: searchParams.get("previousSubscriptionId"),
+          previousSubscriptionType:
+            searchParams.get("previousSubscriptionType") || undefined,
+        });
+
+        if (!verifyResponse.success) {
+          throw new Error(verifyResponse.message || "Payment verification failed");
+        }
+
+        const plan = instagramPricingPlans.find(
+          (pricingPlan) => pricingPlan.id === productId,
+        );
+        const planLimit = Number(searchParams.get("planLimit") || plan?.limit);
+        const accountLimit = Number(
+          searchParams.get("accountLimit") || plan?.account,
+        );
+
+        clearPendingCheckout();
+        setIsSubscribed(true);
+        setCurrentSubscription({
+          productId,
+          billingCycle: callbackBillingCycle,
+          subscriptionId,
+          chatbotType: "insta",
+        });
+
+        if (Number.isFinite(planLimit) && Number.isFinite(accountLimit)) {
+          await updateUserLimits(apiRequest, planLimit, accountLimit);
+        }
+
+        void Promise.allSettled([
+          sendSubscriptionEmailToOwner(apiRequest, {
+            email,
+            userId,
+            subscriptionId,
+          }),
+          sendSubscriptionEmailToUser(apiRequest, {
+            email,
+            userId,
+            agentId: productId,
+            subscriptionId,
+          }),
+        ]);
+
+        showToast(
+          "Payment Successful!",
+          "Subscription activated successfully",
+        );
+        router.replace("/insta/automations?success=true");
+        router.refresh();
+      } catch (error: any) {
+        sessionStorage.removeItem(callbackKey);
+        processedRazorpayCallbackRef.current = null;
+        console.error("Razorpay redirect callback error:", error);
+        showToast(
+          "Failed!",
+          error.message || "Payment verification failed",
+          true,
+        );
+      } finally {
+        setIsUpgrading(false);
+      }
+    };
+
+    void processRazorpayRedirectCallback();
+  }, [
+    apiRequest,
+    clearPendingCheckout,
+    email,
+    router,
+    searchParams,
+    showToast,
+    userId,
+  ]);
 
   // Fetch user data and subscription info
   useEffect(() => {
