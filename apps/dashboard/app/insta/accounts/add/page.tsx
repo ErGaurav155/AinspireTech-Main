@@ -23,12 +23,13 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
 import { getUserById } from "@/lib/services/user-actions.api";
 import LoginPage from "@/components/insta/InstagramAutomationWizard";
+import { connectInstaAccount } from "@/lib/services/insta-actions.api";
 
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
@@ -38,6 +39,7 @@ export default function AddAccountPage() {
   const { userId, isLoaded } = useAuth();
   const { resolvedTheme } = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
@@ -53,6 +55,7 @@ export default function AddAccountPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showLimitDialog, setShowLimitDialog] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [processedCode, setProcessedCode] = useState<string | null>(null);
 
   // Page-specific styles (not in central theme)
   const pageStyles = useMemo(() => {
@@ -132,6 +135,36 @@ export default function AddAccountPage() {
       setTotalAccounts(contextAccounts.length);
     }
   }, [contextAccounts, isAccLoading]);
+
+  useEffect(() => {
+    const code = searchParams.get("code");
+
+    if (!code || processedCode === code || !isLoaded || !userId) return;
+
+    const connectAccount = async () => {
+      try {
+        setProcessedCode(code);
+        setIsConnecting(true);
+        await connectInstaAccount(apiRequest, code);
+        await refreshAccounts();
+        router.replace("/insta/accounts");
+        router.refresh();
+      } catch (error) {
+        console.error("Error connecting Instagram account:", error);
+        setIsConnecting(false);
+      }
+    };
+
+    void connectAccount();
+  }, [
+    apiRequest,
+    isLoaded,
+    processedCode,
+    refreshAccounts,
+    router,
+    searchParams,
+    userId,
+  ]);
 
   const hasReconnectableAccount = useMemo(() => {
     return contextAccounts.some(

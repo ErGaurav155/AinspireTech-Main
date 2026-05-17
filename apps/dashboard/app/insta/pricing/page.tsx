@@ -59,6 +59,7 @@ import {
   sendSubscriptionEmailToUser,
 } from "@/lib/services/misc-actions.api";
 import { trackMetaEvent } from "@/lib/meta-pixel";
+import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
 // Types
 interface Subscription {
@@ -148,6 +149,7 @@ function PricingWithSearchParams() {
   const activeProductId = searchParams.get("code");
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { refreshAccounts } = useInstaAccount();
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
@@ -203,12 +205,21 @@ function PricingWithSearchParams() {
     }
   }, [apiRequest]);
 
+  const refreshUserAccounts = useCallback(async (): Promise<any[]> => {
+    const accounts = await fetchUserAccounts();
+    setUserAccounts(accounts);
+    setIsInstaAccount(accounts.length > 0);
+    await refreshAccounts();
+    return accounts;
+  }, [fetchUserAccounts, refreshAccounts]);
+
   // Helper: Connect Instagram account
   const connectInstagramAccount = useCallback(
     async (code: string): Promise<boolean> => {
       try {
         const response = await connectInstaAccount(apiRequest, code);
         if (response.account) {
+          await refreshUserAccounts();
           showToast(
             "Success!",
             "Instagram account connected successfully",
@@ -229,7 +240,7 @@ function PricingWithSearchParams() {
         return false;
       }
     },
-    [showToast, apiRequest],
+    [showToast, apiRequest, refreshUserAccounts],
   );
 
   const savePendingCheckout = useCallback(
@@ -443,26 +454,50 @@ function PricingWithSearchParams() {
             billing_cycle: cycle,
           });
 
-          await updateUserLimits(apiRequest, plan.limit, plan.account);
-          await sendSubscriptionEmailToOwner(apiRequest, {
-            email: checkoutEmail,
-            userId: userId!,
-            subscriptionId: result.subscriptionId,
-          });
-          await sendSubscriptionEmailToUser(apiRequest, {
-            email: checkoutEmail,
-            userId: userId!,
-            agentId: plan.id,
-            subscriptionId: result.subscriptionId,
-          });
-
           showToast(
             "Payment Successful!",
             "Subscription activated successfully",
           );
           setIsSubscribed(true);
-          router.replace("/insta/automations?success=true");
+          setCurrentSubscription({
+            productId: plan.id,
+            billingCycle: cycle,
+            subscriptionId: result.subscriptionId,
+            chatbotType: "insta",
+          });
+          clearPendingCheckout();
+          router.push("/insta/automations?success=true");
           router.refresh();
+
+          void Promise.allSettled([
+            updateUserLimits(apiRequest, plan.limit, plan.account),
+            sendSubscriptionEmailToOwner(apiRequest, {
+              email: checkoutEmail,
+              userId: userId!,
+              subscriptionId: result.subscriptionId,
+            }),
+            sendSubscriptionEmailToUser(apiRequest, {
+              email: checkoutEmail,
+              userId: userId!,
+              agentId: plan.id,
+              subscriptionId: result.subscriptionId,
+            }),
+          ]).then((results) => {
+            results.forEach((sideEffectResult) => {
+              if (sideEffectResult.status === "rejected") {
+                console.warn(
+                  "Post-payment side effect failed:",
+                  sideEffectResult.reason,
+                );
+              }
+            });
+          });
+
+          window.setTimeout(() => {
+            if (window.location.pathname === "/insta/pricing") {
+              window.location.assign("/insta/automations?success=true");
+            }
+          }, 500);
           return true;
         };
 
@@ -566,6 +601,7 @@ function PricingWithSearchParams() {
       isInstaAccount,
       loadRazorpayScript,
       redirectToInstagramConnect,
+      refreshUserAccounts,
       router,
       showToast,
       userId,
@@ -632,9 +668,9 @@ function PricingWithSearchParams() {
           activeProductId &&
           shouldProcessInstagramCode
         ) {
-          const connected = await connectInstagramAccount(activeProductId);
-          hasConnectedAccount = connected;
-          setIsInstaAccount(connected);
+        const connected = await connectInstagramAccount(activeProductId);
+        hasConnectedAccount = connected;
+        setIsInstaAccount(connected);
         } else {
           setIsInstaAccount(hasAccounts);
         }
@@ -779,7 +815,7 @@ function PricingWithSearchParams() {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
         const result = await deleteInstaAccount(apiRequest, accountId);
-        if (!result.success) {
+        if (result?.success === false) {
           showToast("Failed!", "Failed to delete accounts", true);
           setIsProcessingChange(false);
           return;
@@ -788,14 +824,7 @@ function PricingWithSearchParams() {
 
       showToast("Success!", "Accounts deleted successfully", false);
 
-      // Update user accounts list
-      const updatedAccounts = userAccounts.filter(
-        (account) =>
-          !selectedAccountIds.includes(
-            account.instagramId || account._id || account.username,
-          ),
-      );
-      setUserAccounts(updatedAccounts);
+      await refreshUserAccounts();
 
       if (pendingPlan) {
         await openRazorpayCheckout(
@@ -840,7 +869,7 @@ function PricingWithSearchParams() {
         mode: "Immediate",
       });
 
-      if (!cancelResult.success) {
+      if (cancelResult?.success === false) {
         showToast("Failed!", "Failed to cancel subscription", true);
         return;
       }
@@ -848,6 +877,7 @@ function PricingWithSearchParams() {
       showToast("Success!", "Subscription cancelled successfully", false);
       setCurrentSubscription(null);
       setIsSubscribed(false);
+      router.refresh();
     } catch (error) {
       console.error("Error cancelling subscription:", error);
       showToast("Failed!", "Failed to cancel subscription", true);
@@ -865,7 +895,7 @@ function PricingWithSearchParams() {
       // Delete selected accounts
       for (const accountId of selectedAccountIds) {
         const result = await deleteInstaAccount(apiRequest, accountId);
-        if (!result.success) {
+        if (result?.success === false) {
           showToast("Failed!", "Failed to delete accounts", true);
           setIsCancelling(false);
           return;
@@ -874,14 +904,7 @@ function PricingWithSearchParams() {
 
       showToast("Success!", "Accounts deleted successfully", false);
 
-      // Update user accounts list
-      const updatedAccounts = userAccounts.filter(
-        (account) =>
-          !selectedAccountIds.includes(
-            account.instagramId || account._id || account.username,
-          ),
-      );
-      setUserAccounts(updatedAccounts);
+      await refreshUserAccounts();
 
       // Proceed with cancellation
       await processCancellation();

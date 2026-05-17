@@ -45,9 +45,14 @@ console.log("🔧 Allowed origins:", allowedOrigins);
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // ✅ IMPORTANT: Skip origin check for embed and cron routes
-  // These routes handle their own authentication via API keys and cron secrets
-  if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
+  // ✅ IMPORTANT: Skip origin check for server-to-server routes.
+  // These routes handle their own authentication via API keys, cron secrets,
+  // or provider webhook signatures.
+  if (
+    req.path.startsWith("/api/embed/") ||
+    req.path.startsWith("/api/cron/") ||
+    req.path.startsWith("/api/webhooks/")
+  ) {
     return next();
   }
 
@@ -203,8 +208,12 @@ app.use(
 
 // Custom middleware to skip Clerk for embed and cron routes
 app.use((req, res, next) => {
-  // Skip Clerk authentication for embed and cron routes
-  if (req.path.startsWith("/api/embed/") || req.path.startsWith("/api/cron/")) {
+  // Skip Clerk authentication for server-to-server routes.
+  if (
+    req.path.startsWith("/api/embed/") ||
+    req.path.startsWith("/api/cron/") ||
+    req.path.startsWith("/api/webhooks/")
+  ) {
     return next();
   }
 
