@@ -1057,6 +1057,18 @@ export default function ChatbotSettingsPage() {
         cancelText="Cancel"
         isDestructive={true}
         isLoading={isDeleting}
+        acknowledgements={[
+          {
+            id: "chatbot-delete-subscription",
+            label:
+              "I understand deleting this chatbot permanently removes the chatbot, its settings, and any connected subscription access.",
+          },
+          {
+            id: "chatbot-delete-contacts-emails",
+            label:
+              "I understand all conversations, contacts, leads, collected emails, FAQ data, and related chatbot data will be permanently lost.",
+          },
+        ]}
       />
     </div>
   );

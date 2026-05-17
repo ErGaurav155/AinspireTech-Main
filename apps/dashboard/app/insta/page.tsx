@@ -1128,6 +1128,18 @@ export default function Dashboard() {
         confirmText="Delete"
         isDestructive={true}
         isLoading={isProcessingDeletion}
+        acknowledgements={[
+          {
+            id: "insta-delete-automations-subscription",
+            label:
+              "I understand deleting this Instagram account permanently removes all automations and any connected subscription access for this account.",
+          },
+          {
+            id: "insta-delete-contacts-emails",
+            label:
+              "I understand all contacts, collected emails, messages, analytics, and related data for this account will be permanently lost.",
+          },
+        ]}
       />
     </div>
   );

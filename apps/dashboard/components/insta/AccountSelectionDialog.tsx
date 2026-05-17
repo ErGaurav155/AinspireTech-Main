@@ -39,6 +39,10 @@ export function AccountSelectionDialog({
   mode = "delete",
 }: AccountSelectionDialogProps) {
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
+  const [acceptedDeletionImpact, setAcceptedDeletionImpact] = useState({
+    automationsAndSubscription: false,
+    contactsAndEmails: false,
+  });
   const { resolvedTheme } = useTheme();
   const { styles, isDark } = useThemeStyles();
 
@@ -85,6 +89,10 @@ export function AccountSelectionDialog({
   useEffect(() => {
     if (!isOpen) {
       setSelectedAccounts([]);
+      setAcceptedDeletionImpact({
+        automationsAndSubscription: false,
+        contactsAndEmails: false,
+      });
     }
   }, [isOpen]);
 
@@ -97,7 +105,11 @@ export function AccountSelectionDialog({
   };
 
   const handleConfirm = () => {
-    if (selectedAccounts.length >= requiredSelections) {
+    if (
+      selectedAccounts.length >= requiredSelections &&
+      acceptedDeletionImpact.automationsAndSubscription &&
+      acceptedDeletionImpact.contactsAndEmails
+    ) {
       if (mode === "keep") {
         const selectedToKeep = new Set(selectedAccounts);
         onConfirm(
@@ -111,6 +123,11 @@ export function AccountSelectionDialog({
       onConfirm(selectedAccounts);
     }
   };
+
+  const canConfirm =
+    selectedAccounts.length >= requiredSelections &&
+    acceptedDeletionImpact.automationsAndSubscription &&
+    acceptedDeletionImpact.contactsAndEmails;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,6 +181,62 @@ export function AccountSelectionDialog({
                 more account(s)
               </p>
             )}
+            <div
+              className={`mt-4 space-y-3 rounded-xl border p-3 ${
+                isDark
+                  ? "border-red-500/20 bg-red-500/10"
+                  : "border-red-100 bg-red-50"
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="bulk-insta-delete-automations-subscription"
+                  checked={acceptedDeletionImpact.automationsAndSubscription}
+                  onCheckedChange={(checked) =>
+                    setAcceptedDeletionImpact((current) => ({
+                      ...current,
+                      automationsAndSubscription: checked === true,
+                    }))
+                  }
+                  disabled={isLoading}
+                  className={pageStyles.checkbox}
+                />
+                <Label
+                  htmlFor="bulk-insta-delete-automations-subscription"
+                  className={`cursor-pointer text-sm leading-5 ${
+                    isDark ? "text-red-100" : "text-red-800"
+                  }`}
+                >
+                  I understand deleting these Instagram accounts permanently
+                  removes all automations and any connected subscription access
+                  for those accounts.
+                </Label>
+              </div>
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="bulk-insta-delete-contacts-emails"
+                  checked={acceptedDeletionImpact.contactsAndEmails}
+                  onCheckedChange={(checked) =>
+                    setAcceptedDeletionImpact((current) => ({
+                      ...current,
+                      contactsAndEmails: checked === true,
+                    }))
+                  }
+                  disabled={isLoading}
+                  className={pageStyles.checkbox}
+                />
+                <Label
+                  htmlFor="bulk-insta-delete-contacts-emails"
+                  className={`cursor-pointer text-sm leading-5 ${
+                    isDark ? "text-red-100" : "text-red-800"
+                  }`}
+                >
+                  I understand all contacts, collected emails, messages,
+                  analytics, and related data for these accounts will be
+                  permanently lost.
+                </Label>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -176,9 +249,7 @@ export function AccountSelectionDialog({
             </Button>
             <Button
               onClick={handleConfirm}
-              disabled={
-                isLoading || selectedAccounts.length < requiredSelections
-              }
+              disabled={isLoading || !canConfirm}
               className={pageStyles.buttonConfirm}
             >
               {isLoading ? (

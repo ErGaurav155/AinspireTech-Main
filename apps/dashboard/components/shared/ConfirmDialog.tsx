@@ -1,6 +1,7 @@
 // components/shared/ConfirmDialog.tsx
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -10,9 +11,16 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  Checkbox,
+  Label,
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { Loader2 } from "lucide-react";
+
+interface ConfirmationAcknowledgement {
+  id: string;
+  label: string;
+}
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -24,6 +32,7 @@ interface ConfirmDialogProps {
   cancelText?: string;
   isDestructive?: boolean;
   isLoading?: boolean;
+  acknowledgements?: ConfirmationAcknowledgement[];
 }
 
 export function ConfirmDialog({
@@ -36,8 +45,29 @@ export function ConfirmDialog({
   cancelText = "Cancel",
   isDestructive = false,
   isLoading = false,
+  acknowledgements = [],
 }: ConfirmDialogProps) {
   const { styles, isDark } = useThemeStyles();
+  const [checkedAcknowledgements, setCheckedAcknowledgements] = useState<
+    Record<string, boolean>
+  >({});
+
+  useEffect(() => {
+    if (!open) {
+      setCheckedAcknowledgements({});
+    }
+  }, [open]);
+
+  const hasAcceptedAcknowledgements = useMemo(
+    () =>
+      acknowledgements.every(
+        (acknowledgement) => checkedAcknowledgements[acknowledgement.id],
+      ),
+    [acknowledgements, checkedAcknowledgements],
+  );
+
+  const isConfirmDisabled =
+    isLoading || (acknowledgements.length > 0 && !hasAcceptedAcknowledgements);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -56,6 +86,47 @@ export function ConfirmDialog({
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>
+        {acknowledgements.length > 0 && (
+          <div
+            className={`space-y-3 rounded-xl border p-4 ${
+              isDark
+                ? "border-red-500/20 bg-red-500/10"
+                : "border-red-100 bg-red-50"
+            }`}
+          >
+            {acknowledgements.map((acknowledgement) => (
+              <div
+                key={acknowledgement.id}
+                className="flex items-start gap-3"
+              >
+                <Checkbox
+                  id={acknowledgement.id}
+                  checked={!!checkedAcknowledgements[acknowledgement.id]}
+                  onCheckedChange={(checked) =>
+                    setCheckedAcknowledgements((current) => ({
+                      ...current,
+                      [acknowledgement.id]: checked === true,
+                    }))
+                  }
+                  disabled={isLoading}
+                  className={
+                    isDark
+                      ? "mt-0.5 border-white/30 data-[state=checked]:border-red-500 data-[state=checked]:bg-red-500"
+                      : "mt-0.5 border-red-300 data-[state=checked]:border-red-500 data-[state=checked]:bg-red-500"
+                  }
+                />
+                <Label
+                  htmlFor={acknowledgement.id}
+                  className={`cursor-pointer text-sm leading-5 ${
+                    isDark ? "text-red-100" : "text-red-800"
+                  }`}
+                >
+                  {acknowledgement.label}
+                </Label>
+              </div>
+            ))}
+          </div>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel
             className={
@@ -69,10 +140,10 @@ export function ConfirmDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
-            disabled={isLoading}
+            disabled={isConfirmDisabled}
             className={
               isDestructive
-                ? "rounded-xl bg-red-500 hover:bg-red-600 text-white"
+                ? "rounded-xl bg-red-500 hover:bg-red-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 : styles.button.primary
             }
           >

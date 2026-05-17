@@ -748,6 +748,18 @@ export default function AccountDetailsPage() {
         description={`Are you sure you want to delete @${account.username}? This will permanently remove the account and all associated automations, templates, and data. This action cannot be undone.`}
         confirmText="Delete Permanently"
         isDestructive={true}
+        acknowledgements={[
+          {
+            id: "insta-delete-automations-subscription",
+            label:
+              "I understand deleting this Instagram account permanently removes all automations and any connected subscription access for this account.",
+          },
+          {
+            id: "insta-delete-contacts-emails",
+            label:
+              "I understand all contacts, collected emails, messages, analytics, and related data for this account will be permanently lost.",
+          },
+        ]}
       />
     </div>
   );
