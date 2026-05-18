@@ -46,6 +46,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
 import { verifyRazorpayPayment } from "@/lib/services/subscription-actions.api";
 
+const PENDING_RAZORPAY_CALLBACK_KEY = "pending_razorpay_callback";
 const PROCESSED_RAZORPAY_CALLBACK_PREFIX = "processed_razorpay_callback:";
 
 // Types
@@ -106,6 +107,12 @@ const PricingContent = () => {
     amount: number;
     chatbotCreated: boolean;
   } | null>(null);
+  const [pendingRazorpayCallbackId, setPendingRazorpayCallbackId] = useState<
+    string | null
+  >(null);
+  const [pendingVerificationSubId, setPendingVerificationSubId] = useState<
+    string | null
+  >(null);
   const processedRazorpayCallbackRef = useRef<string | null>(null);
   const isAccountDataLoading = !isLoaded || isLoading;
   const products = useMemo(() => Object.values(productSubscriptionDetails), []);
@@ -265,17 +272,27 @@ const PricingContent = () => {
   const activeProductId = searchParams.get("id");
   useEffect(() => {
     const processRazorpayRedirectCallback = async () => {
-      if (!userId || searchParams.get("razorpay_checkout") !== "1") return;
-      if (searchParams.get("checkoutKind") !== "web") return;
+      if (!userId) return;
 
-      const subscriptionId = searchParams.get("subscription_id");
-      const productId = searchParams.get("productId");
+      const isRazorpayCallback = searchParams.get("razorpay_checkout") === "1";
+      const pendingCallbackId = sessionStorage.getItem(
+        PENDING_RAZORPAY_CALLBACK_KEY,
+      );
+
+      if (!isRazorpayCallback && !pendingCallbackId) return;
+      if (isRazorpayCallback && searchParams.get("checkoutKind") !== "web") {
+        return;
+      }
+
+      const subscriptionId =
+        searchParams.get("subscription_id") || pendingCallbackId;
+      const productId = searchParams.get("productId") || "";
       const callbackBillingCycle = searchParams.get("billingCycle") as
         | "monthly"
         | "yearly"
         | null;
 
-      if (!subscriptionId || !productId || !callbackBillingCycle) return;
+      if (!subscriptionId) return;
 
       const callbackKey = `${PROCESSED_RAZORPAY_CALLBACK_PREFIX}${subscriptionId}`;
       const hasAlreadyProcessed =
@@ -286,6 +303,8 @@ const PricingContent = () => {
 
       processedRazorpayCallbackRef.current = subscriptionId;
       sessionStorage.setItem(callbackKey, Date.now().toString());
+      sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
+      setPendingRazorpayCallbackId(null);
       setIsLoading(true);
 
       try {
@@ -295,10 +314,11 @@ const PricingContent = () => {
           razorpay_signature: searchParams.get("razorpay_signature"),
           chatbotType: productId,
           subscriptionKind: "web",
-          subscriptionType: productId,
+          subscriptionType: productId || "web",
           productId,
-          billingCycle: callbackBillingCycle,
-          previousSubscriptionId: searchParams.get("previousSubscriptionId"),
+          billingCycle: callbackBillingCycle || "monthly",
+          previousSubscriptionId:
+            searchParams.get("previousSubscriptionId") || undefined,
           previousSubscriptionType:
             searchParams.get("previousSubscriptionType") || undefined,
         });
@@ -324,19 +344,84 @@ const PricingContent = () => {
       } catch (error: any) {
         sessionStorage.removeItem(callbackKey);
         processedRazorpayCallbackRef.current = null;
+        sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
+        setPendingRazorpayCallbackId(subscriptionId);
         console.error("Razorpay redirect callback error:", error);
         toast({
-          title: "Failed!",
-          description: error.message || "Payment verification failed",
+          title: "Payment Status Unknown",
+          description:
+            "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
           variant: "destructive",
         });
       } finally {
         setIsLoading(false);
+        if (typeof window !== "undefined" && isRazorpayCallback) {
+          const params = new URLSearchParams(window.location.search);
+          [
+            "razorpay_checkout",
+            "checkoutKind",
+            "subscription_id",
+            "razorpay_payment_id",
+            "razorpay_signature",
+            "productId",
+            "billingCycle",
+            "chatbotId",
+            "previousSubscriptionId",
+            "previousSubscriptionType",
+          ].forEach((param) => params.delete(param));
+          const nextUrl = params.toString()
+            ? `${window.location.pathname}?${params.toString()}`
+            : window.location.pathname;
+          router.replace(nextUrl, { scroll: false });
+        }
       }
     };
 
     void processRazorpayRedirectCallback();
   }, [apiRequest, router, searchParams, userId]);
+
+  useEffect(() => {
+    setPendingRazorpayCallbackId(
+      sessionStorage.getItem(PENDING_RAZORPAY_CALLBACK_KEY),
+    );
+  }, []);
+
+  const manualVerifyPayment = async (subscriptionId: string) => {
+    setPendingVerificationSubId(subscriptionId);
+
+    try {
+      const verifyResponse = await verifyRazorpayPayment(apiRequest, {
+        subscription_id: subscriptionId,
+        subscriptionKind: "web",
+        subscriptionType: "web",
+        productId: "",
+        billingCycle: "monthly",
+      });
+
+      if (!verifyResponse.success) {
+        throw new Error(verifyResponse.message || "Payment not found");
+      }
+
+      sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
+      setPendingRazorpayCallbackId(null);
+      toast({
+        title: "Success!",
+        description: "Payment verified! Subscription activated.",
+      });
+      router.push("/web");
+      router.refresh();
+    } catch (error: any) {
+      console.error("Manual Razorpay verification error:", error);
+      toast({
+        title: "Failed!",
+        description:
+          error.message || "Could not verify payment. Please contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingVerificationSubId(null);
+    }
+  };
 
   const TAB_LABELS: Record<
     PlanType,
@@ -1112,6 +1197,33 @@ const PricingContent = () => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {pendingRazorpayCallbackId && (
+        <div
+          className={`fixed bottom-4 right-4 z-50 w-[calc(100%-2rem)] max-w-sm rounded-xl border p-4 shadow-xl ${
+            isDark
+              ? "border-yellow-500/20 bg-[#1A1A1E] text-yellow-100"
+              : "border-yellow-200 bg-yellow-50 text-yellow-900"
+          }`}
+        >
+          <p className="mb-3 text-sm">
+            Completed the UPI payment? Check the latest Razorpay status here.
+          </p>
+          <Button
+            onClick={() => manualVerifyPayment(pendingRazorpayCallbackId)}
+            disabled={!!pendingVerificationSubId}
+            className="w-full rounded-xl bg-yellow-500 text-white hover:bg-yellow-600"
+          >
+            {pendingVerificationSubId ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Checking...
+              </>
+            ) : (
+              "Check Payment Status"
+            )}
+          </Button>
         </div>
       )}
       <ConfirmDialog

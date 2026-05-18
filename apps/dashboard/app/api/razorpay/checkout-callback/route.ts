@@ -10,12 +10,14 @@ const appendParam = (
   }
 };
 
-export async function POST(request: NextRequest) {
+const buildRedirectResponse = (
+  request: NextRequest,
+  formData?: FormData,
+) => {
   const requestUrl = new URL(request.url);
   const returnTo = requestUrl.searchParams.get("returnTo") || "/";
   const redirectUrl = new URL(returnTo, requestUrl.origin);
   const callbackParams = new URLSearchParams(redirectUrl.search);
-  const formData = await request.formData();
 
   callbackParams.set("razorpay_checkout", "1");
   appendParam(callbackParams, "checkoutKind", requestUrl.searchParams.get("kind"));
@@ -23,17 +25,23 @@ export async function POST(request: NextRequest) {
     callbackParams,
     "subscription_id",
     requestUrl.searchParams.get("subscriptionId") ||
-      formData.get("razorpay_subscription_id"),
+      requestUrl.searchParams.get("razorpay_subscription_id") ||
+      formData?.get("razorpay_subscription_id") ||
+      null,
   );
   appendParam(
     callbackParams,
     "razorpay_payment_id",
-    formData.get("razorpay_payment_id"),
+    requestUrl.searchParams.get("razorpay_payment_id") ||
+      formData?.get("razorpay_payment_id") ||
+      null,
   );
   appendParam(
     callbackParams,
     "razorpay_signature",
-    formData.get("razorpay_signature"),
+    requestUrl.searchParams.get("razorpay_signature") ||
+      formData?.get("razorpay_signature") ||
+      null,
   );
   appendParam(callbackParams, "productId", requestUrl.searchParams.get("productId"));
   appendParam(
@@ -61,4 +69,12 @@ export async function POST(request: NextRequest) {
 
   redirectUrl.search = callbackParams.toString();
   return NextResponse.redirect(redirectUrl, 303);
+};
+
+export async function GET(request: NextRequest) {
+  return buildRedirectResponse(request);
+}
+
+export async function POST(request: NextRequest) {
+  return buildRedirectResponse(request, await request.formData());
 }

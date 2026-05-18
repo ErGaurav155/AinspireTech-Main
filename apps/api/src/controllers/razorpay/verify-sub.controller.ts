@@ -44,7 +44,7 @@ const activateVerifiedSubscription = async ({
 
   const notes = razorpaySubscription?.notes || {};
   const targetChatbotType =
-    chatbotType || productId || subscriptionType || notes.productId;
+    chatbotType || productId || notes.productId || subscriptionType;
   const currentSubscriptionKind =
     subscriptionKind ||
     (subscriptionType === "insta" || notes.subscriptionType === "insta"
