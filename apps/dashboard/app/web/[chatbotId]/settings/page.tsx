@@ -1061,7 +1061,7 @@ export default function ChatbotSettingsPage() {
           {
             id: "chatbot-delete-subscription",
             label:
-              "I understand deleting this chatbot permanently removes the chatbot, its settings, and any connected subscription access.",
+              "I understand deleting this chatbot permanently removes the chatbot, its settings.",
           },
           {
             id: "chatbot-delete-contacts-emails",

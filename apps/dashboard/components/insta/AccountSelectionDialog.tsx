@@ -208,8 +208,7 @@ export function AccountSelectionDialog({
                   }`}
                 >
                   I understand deleting these Instagram accounts permanently
-                  removes all automations and any connected subscription access
-                  for those accounts.
+                  removes all automations.
                 </Label>
               </div>
               <div className="flex items-start gap-3">
@@ -252,13 +251,11 @@ export function AccountSelectionDialog({
               disabled={isLoading || !canConfirm}
               className={pageStyles.buttonConfirm}
             >
-              {isLoading ? (
-                "Processing..."
-              ) : mode === "keep" ? (
-                `Keep Selected Account (${selectedAccounts.length}/${requiredSelections})`
-              ) : (
-                `Delete Selected Accounts (${selectedAccounts.length}/${accountsToDelete})`
-              )}
+              {isLoading
+                ? "Processing..."
+                : mode === "keep"
+                  ? `Keep Selected Account (${selectedAccounts.length}/${requiredSelections})`
+                  : `Delete Selected Accounts (${selectedAccounts.length}/${accountsToDelete})`}
             </Button>
           </DialogFooter>
         </DialogContent>

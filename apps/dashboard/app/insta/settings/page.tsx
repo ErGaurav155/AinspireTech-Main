@@ -774,7 +774,7 @@ export default function SettingsPage() {
             {
               id: "insta-delete-automations-subscription",
               label:
-                "I understand deleting this Instagram account permanently removes all automations and any connected subscription access for this account.",
+                "I understand deleting this Instagram account permanently removes all automations.",
             },
             {
               id: "insta-delete-contacts-emails",
