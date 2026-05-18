@@ -250,6 +250,14 @@ function ChooseProductContent() {
               products later.
             </p>
           </div>
+          <div className="mt-5">
+            <Button
+              onClick={() => router.push("/subscription-test")}
+              className="rounded-xl bg-yellow-500 px-5 py-3 text-white hover:bg-yellow-600"
+            >
+              Test Razorpay Checkout
+            </Button>
+          </div>
         </motion.div>
       </div>
     </div>

@@ -4,6 +4,10 @@ import { createRazorpaySubscriptionController } from "@/controllers/razorpay/cre
 import { verifyRazorpayPaymentController } from "@/controllers/razorpay/verify-sub.controller";
 import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel-sub.controller";
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
+import {
+  createTestRazorpaySubscriptionController,
+  verifyTestRazorpaySubscriptionController,
+} from "@/controllers/razorpay/test-sub.controller";
 
 const router = Router();
 
@@ -20,5 +24,17 @@ router.post("/subscription/verify", verifyRazorpayPaymentController);
 
 // POST /api/razorpay/subscription/cancel - Verify Razorpay payment
 router.post("/subscription/cancel", cancelInstaSubscriptionController);
+
+// POST /api/razorpay/test-subscription/create - Create isolated Razorpay test subscription
+router.post(
+  "/test-subscription/create",
+  createTestRazorpaySubscriptionController,
+);
+
+// POST /api/razorpay/test-subscription/verify - Verify isolated Razorpay test subscription
+router.post(
+  "/test-subscription/verify",
+  verifyTestRazorpaySubscriptionController,
+);
 
 export default router;
