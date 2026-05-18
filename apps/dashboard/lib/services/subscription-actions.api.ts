@@ -45,3 +45,30 @@ export const verifyRazorpayPayment = (
     body: JSON.stringify(data),
   });
 };
+
+export const createTestRazorpaySubscription = (
+  apiRequest: ApiRequestFn,
+): Promise<{ subscriptionId: string; planId: string }> => {
+  return apiRequest("/razorpay/test-subscription/create", {
+    method: "POST",
+  });
+};
+
+export const verifyTestRazorpaySubscription = (
+  apiRequest: ApiRequestFn,
+  data: {
+    subscription_id: string;
+    razorpay_payment_id?: string;
+    razorpay_signature?: string;
+  },
+): Promise<{
+  verified: boolean;
+  subscriptionId?: string;
+  paymentId?: string;
+  message?: string;
+}> => {
+  return apiRequest("/razorpay/test-subscription/verify", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
