@@ -33,6 +33,12 @@ interface RazorpayFailureDebug {
   raw: any;
 }
 
+interface CheckoutEventLog {
+  at: string;
+  label: string;
+  details?: any;
+}
+
 export default function SubscriptionTestPage() {
   const router = useRouter();
   const { userId } = useAuth();
@@ -41,6 +47,18 @@ export default function SubscriptionTestPage() {
   const [result, setResult] = useState<boolean | null>(null);
   const [failureDebug, setFailureDebug] =
     useState<RazorpayFailureDebug | null>(null);
+  const [eventLogs, setEventLogs] = useState<CheckoutEventLog[]>([]);
+
+  const addEventLog = (label: string, details?: any) => {
+    setEventLogs((current) => [
+      {
+        at: new Date().toLocaleTimeString(),
+        label,
+        details,
+      },
+      ...current,
+    ]);
+  };
 
   const openCheckout = async () => {
     if (!userId) {
@@ -51,10 +69,14 @@ export default function SubscriptionTestPage() {
     setIsProcessing(true);
     setResult(null);
     setFailureDebug(null);
+    setEventLogs([]);
+    addEventLog("Checkout started with handler-only flow", {
+      planId: TEST_PLAN_ID,
+    });
 
     try {
-      // Dynamically load Razorpay checkout script if not already loaded
       if (!window.Razorpay) {
+        addEventLog("Loading Razorpay checkout.js");
         await new Promise<void>((resolve, reject) => {
           const script = document.createElement("script");
           script.src = RAZORPAY_SCRIPT_SRC;
@@ -63,13 +85,15 @@ export default function SubscriptionTestPage() {
             reject(new Error("Failed to load Razorpay script"));
           document.body.appendChild(script);
         });
+        addEventLog("Razorpay checkout.js loaded");
+      } else {
+        addEventLog("Razorpay checkout.js already available");
       }
 
-      // Create subscription on backend
       const subscriptionCreate =
         await createTestRazorpaySubscription(apiRequest);
+      addEventLog("Test subscription created", subscriptionCreate);
 
-      // Razorpay checkout options
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         name: "RocketReplai",
@@ -80,26 +104,49 @@ export default function SubscriptionTestPage() {
           testCheckout: "true",
         },
         handler: async (response: any) => {
-          // Verify payment immediately after success
-          const verifyResponse = await verifyTestRazorpaySubscription(
-            apiRequest,
-            {
+          addEventLog("Razorpay handler fired", response);
+
+          try {
+            addEventLog("Calling verify API", {
               subscription_id: subscriptionCreate.subscriptionId,
               razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            },
-          );
+              hasSignature: !!response.razorpay_signature,
+            });
 
-          setResult(verifyResponse.verified);
-          toast({
-            title: "Subscription verification result",
-            description: String(verifyResponse.verified),
-            variant: verifyResponse.verified ? "default" : "destructive",
-          });
-          setIsProcessing(false);
+            const verifyResponse = await verifyTestRazorpaySubscription(
+              apiRequest,
+              {
+                subscription_id: subscriptionCreate.subscriptionId,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            );
+
+            addEventLog("Verify API response", verifyResponse);
+            setResult(verifyResponse.verified);
+            toast({
+              title: "Subscription verification result",
+              description: String(verifyResponse.verified),
+              variant: verifyResponse.verified ? "default" : "destructive",
+            });
+          } catch (error: any) {
+            addEventLog("Verify API failed", {
+              message: error.message,
+              raw: error,
+            });
+            setResult(false);
+            toast({
+              title: "Verification request failed",
+              description: error.message || "Could not call verify API",
+              variant: "destructive",
+            });
+          } finally {
+            setIsProcessing(false);
+          }
         },
         modal: {
           ondismiss: () => {
+            addEventLog("Razorpay modal dismissed");
             setResult(false);
             toast({
               title: "Payment cancelled",
@@ -113,6 +160,7 @@ export default function SubscriptionTestPage() {
       };
 
       const rzp = new window.Razorpay(options);
+      addEventLog("Razorpay instance created");
 
       rzp.on("payment.failed", (response: any) => {
         const debugInfo: RazorpayFailureDebug = {
@@ -126,6 +174,7 @@ export default function SubscriptionTestPage() {
           raw: response,
         };
 
+        addEventLog("Razorpay payment.failed fired", debugInfo);
         setFailureDebug(debugInfo);
         setResult(false);
         toast({
@@ -138,7 +187,12 @@ export default function SubscriptionTestPage() {
       });
 
       rzp.open();
+      addEventLog("Razorpay checkout opened");
     } catch (error: any) {
+      addEventLog("Checkout error", {
+        message: error.message,
+        raw: error,
+      });
       setResult(false);
       toast({
         title: "Error",
@@ -228,6 +282,41 @@ export default function SubscriptionTestPage() {
           <pre className="mt-3 max-h-60 overflow-auto rounded-lg bg-black/80 p-3 text-xs text-white">
             {JSON.stringify(failureDebug.raw, null, 2)}
           </pre>
+        </div>
+      )}
+
+      {eventLogs.length > 0 && (
+        <div className="w-full max-w-xl rounded-xl border border-gray-200 bg-white p-4 text-left text-sm text-gray-900 shadow-sm dark:border-white/10 dark:bg-[#17171A] dark:text-gray-100">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Checkout event log</h2>
+            <Button
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  JSON.stringify(eventLogs, null, 2),
+                )
+              }
+              className="rounded-lg bg-gray-900 px-3 py-1 text-xs text-white hover:bg-black dark:bg-white/10 dark:hover:bg-white/20"
+            >
+              Copy Logs
+            </Button>
+          </div>
+          <div className="space-y-3">
+            {eventLogs.map((event, index) => (
+              <div
+                key={`${event.at}-${event.label}-${index}`}
+                className="rounded-lg bg-gray-50 p-3 dark:bg-white/[0.04]"
+              >
+                <p className="font-medium">
+                  {event.at} - {event.label}
+                </p>
+                {event.details !== undefined && (
+                  <pre className="mt-2 max-h-40 overflow-auto rounded bg-black/80 p-2 text-xs text-white">
+                    {JSON.stringify(event.details, null, 2)}
+                  </pre>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

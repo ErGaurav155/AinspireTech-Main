@@ -32,6 +32,13 @@ export const createTestRazorpaySubscriptionController = async (
       },
     });
 
+    console.log("Test Razorpay subscription created:", {
+      userId,
+      subscriptionId: subscription.id,
+      planId: TEST_RAZORPAY_PLAN_ID,
+      status: subscription.status,
+    });
+
     return res.status(201).json({
       success: true,
       data: {
@@ -75,6 +82,13 @@ export const verifyTestRazorpaySubscriptionController = async (
       razorpay_signature?: string;
     } = req.body;
 
+    console.log("Test Razorpay subscription verify request:", {
+      userId,
+      subscription_id,
+      razorpay_payment_id,
+      hasSignature: !!razorpay_signature,
+    });
+
     if (!subscription_id || !razorpay_payment_id || !razorpay_signature) {
       return res.status(200).json({
         success: true,
@@ -100,11 +114,19 @@ export const verifyTestRazorpaySubscriptionController = async (
       .createHmac("sha256", secret)
       .update(`${razorpay_payment_id}|${subscription_id}`, "utf8")
       .digest("hex");
+    const verified = generatedSignature === razorpay_signature;
+
+    console.log("Test Razorpay subscription verify result:", {
+      userId,
+      subscription_id,
+      razorpay_payment_id,
+      verified,
+    });
 
     return res.status(200).json({
       success: true,
       data: {
-        verified: generatedSignature === razorpay_signature,
+        verified,
         subscriptionId: subscription_id,
         paymentId: razorpay_payment_id,
       },
