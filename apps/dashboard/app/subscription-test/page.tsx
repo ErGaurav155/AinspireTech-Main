@@ -259,6 +259,7 @@ export default function SubscriptionTestPage() {
           paymentId: response.error?.metadata?.payment_id,
           raw: response,
         };
+
         addEventLog("Razorpay payment.failed fired", debugInfo);
         const status = await checkRazorpayStatus(
           subscriptionCreate.subscriptionId,
