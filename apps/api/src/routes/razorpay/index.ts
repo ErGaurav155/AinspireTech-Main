@@ -6,6 +6,7 @@ import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
 import {
   createTestRazorpaySubscriptionController,
+  getTestRazorpaySubscriptionStatusController,
   verifyTestRazorpaySubscriptionController,
 } from "@/controllers/razorpay/test-sub.controller";
 
@@ -35,6 +36,12 @@ router.post(
 router.post(
   "/test-subscription/verify",
   verifyTestRazorpaySubscriptionController,
+);
+
+// GET /api/razorpay/test-subscription/:subscriptionId/status - Fetch isolated Razorpay test status
+router.get(
+  "/test-subscription/:subscriptionId/status",
+  getTestRazorpaySubscriptionStatusController,
 );
 
 export default router;

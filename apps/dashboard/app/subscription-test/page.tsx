@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { CreditCard, Loader2 } from "lucide-react";
@@ -9,6 +9,7 @@ import { Button, toast } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
   createTestRazorpaySubscription,
+  getTestRazorpaySubscriptionStatus,
   verifyTestRazorpaySubscription,
 } from "@/lib/services/subscription-actions.api";
 
@@ -45,9 +46,14 @@ export default function SubscriptionTestPage() {
   const { apiRequest } = useApi();
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<boolean | null>(null);
-  const [failureDebug, setFailureDebug] =
-    useState<RazorpayFailureDebug | null>(null);
+  const [failureDebug, setFailureDebug] = useState<RazorpayFailureDebug | null>(
+    null,
+  );
   const [eventLogs, setEventLogs] = useState<CheckoutEventLog[]>([]);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [statusResult, setStatusResult] = useState<any>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const subscriptionIdRef = useRef<string | null>(null);
 
   const addEventLog = (label: string, details?: any) => {
     setEventLogs((current) => [
@@ -60,6 +66,58 @@ export default function SubscriptionTestPage() {
     ]);
   };
 
+  const checkRazorpayStatus = async (id = subscriptionIdRef.current) => {
+    if (!id) {
+      addEventLog("Status check skipped: no subscription id");
+      return;
+    }
+
+    setIsCheckingStatus(true);
+
+    try {
+      addEventLog("Fetching Razorpay subscription/payment status", {
+        subscriptionId: id,
+      });
+      const status = await getTestRazorpaySubscriptionStatus(apiRequest, id);
+      setStatusResult(status);
+      addEventLog("Razorpay status response", status);
+    } catch (error: any) {
+      addEventLog("Razorpay status fetch failed", {
+        message: error.message,
+        raw: error,
+      });
+      toast({
+        title: "Status check failed",
+        description: error.message || "Could not fetch Razorpay status",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible" && subscriptionIdRef.current) {
+        void checkRazorpayStatus(subscriptionIdRef.current);
+      }
+    };
+
+    const handleFocus = () => {
+      if (subscriptionIdRef.current) {
+        void checkRazorpayStatus(subscriptionIdRef.current);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
   const openCheckout = async () => {
     if (!userId) {
       router.push("/sign-in?redirect_url=/subscription-test");
@@ -69,6 +127,7 @@ export default function SubscriptionTestPage() {
     setIsProcessing(true);
     setResult(null);
     setFailureDebug(null);
+    setStatusResult(null);
     setEventLogs([]);
     addEventLog("Checkout started with handler-only flow", {
       planId: TEST_PLAN_ID,
@@ -92,6 +151,8 @@ export default function SubscriptionTestPage() {
 
       const subscriptionCreate =
         await createTestRazorpaySubscription(apiRequest);
+      setSubscriptionId(subscriptionCreate.subscriptionId);
+      subscriptionIdRef.current = subscriptionCreate.subscriptionId;
       addEventLog("Test subscription created", subscriptionCreate);
 
       const options = {
@@ -123,6 +184,7 @@ export default function SubscriptionTestPage() {
             );
 
             addEventLog("Verify API response", verifyResponse);
+            await checkRazorpayStatus(subscriptionCreate.subscriptionId);
             setResult(verifyResponse.verified);
             toast({
               title: "Subscription verification result",
@@ -147,6 +209,7 @@ export default function SubscriptionTestPage() {
         modal: {
           ondismiss: () => {
             addEventLog("Razorpay modal dismissed");
+            void checkRazorpayStatus(subscriptionCreate.subscriptionId);
             setResult(false);
             toast({
               title: "Payment cancelled",
@@ -175,6 +238,7 @@ export default function SubscriptionTestPage() {
         };
 
         addEventLog("Razorpay payment.failed fired", debugInfo);
+        void checkRazorpayStatus(subscriptionCreate.subscriptionId);
         setFailureDebug(debugInfo);
         setResult(false);
         toast({
@@ -237,6 +301,27 @@ export default function SubscriptionTestPage() {
       <p className="text-sm text-gray-600 dark:text-gray-300">
         Subscription success: {result === null ? "-" : String(result)}
       </p>
+      {subscriptionId && (
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
+            Test subscription id: {subscriptionId}
+          </p>
+          <Button
+            onClick={() => checkRazorpayStatus(subscriptionId)}
+            disabled={isCheckingStatus}
+            className="rounded-xl bg-gray-900 px-4 py-2 text-white hover:bg-black dark:bg-white/10 dark:hover:bg-white/20"
+          >
+            {isCheckingStatus ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Checking Razorpay...
+              </>
+            ) : (
+              "Check Razorpay Status"
+            )}
+          </Button>
+        </div>
+      )}
 
       {failureDebug && (
         <div className="w-full max-w-xl rounded-xl border border-red-200 bg-red-50 p-4 text-left text-sm text-red-950 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-100">
@@ -320,7 +405,36 @@ export default function SubscriptionTestPage() {
         </div>
       )}
 
-      <Script id={RAZORPAY_SCRIPT_ID} src={RAZORPAY_SCRIPT_SRC} />
+      {statusResult && (
+        <div className="w-full max-w-xl rounded-xl border border-blue-200 bg-blue-50 p-4 text-left text-sm text-blue-950 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-100">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="font-semibold">Razorpay backend status</h2>
+            <Button
+              onClick={() =>
+                navigator.clipboard.writeText(
+                  JSON.stringify(statusResult, null, 2),
+                )
+              }
+              className="rounded-lg bg-blue-500 px-3 py-1 text-xs text-white hover:bg-blue-600"
+            >
+              Copy Status
+            </Button>
+          </div>
+          <p>
+            <span className="font-medium">subscription.status:</span>{" "}
+            {statusResult.subscription?.status || "-"}
+          </p>
+          <p>
+            <span className="font-medium">payments:</span>{" "}
+            {statusResult.payments?.length ?? 0}
+          </p>
+          <pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-black/80 p-3 text-xs text-white">
+            {JSON.stringify(statusResult, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      <script id={RAZORPAY_SCRIPT_ID} src={RAZORPAY_SCRIPT_SRC} />
     </main>
   );
 }

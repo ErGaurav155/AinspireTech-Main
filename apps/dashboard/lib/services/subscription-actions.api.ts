@@ -72,3 +72,12 @@ export const verifyTestRazorpaySubscription = (
     body: JSON.stringify(data),
   });
 };
+
+export const getTestRazorpaySubscriptionStatus = (
+  apiRequest: ApiRequestFn,
+  subscriptionId: string,
+): Promise<any> => {
+  return apiRequest(`/razorpay/test-subscription/${subscriptionId}/status`, {
+    method: "GET",
+  });
+};

@@ -141,3 +141,86 @@ export const verifyTestRazorpaySubscriptionController = async (
     });
   }
 };
+
+export const getTestRazorpaySubscriptionStatusController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const { subscriptionId } = req.params;
+
+    if (!subscriptionId) {
+      return res.status(400).json({
+        success: false,
+        error: "Missing subscription id",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const razorpay = getRazorpay();
+    const subscription = await razorpay.subscriptions.fetch(subscriptionId);
+    const payments = await razorpay.payments.all({
+      subscription_id: subscriptionId,
+      count: 10,
+    } as any);
+
+    const status = {
+      subscription: {
+        id: subscription.id,
+        status: subscription.status,
+        plan_id: subscription.plan_id,
+        current_start: subscription.current_start,
+        current_end: subscription.current_end,
+        charge_at: subscription.charge_at,
+        paid_count: subscription.paid_count,
+        remaining_count: subscription.remaining_count,
+        notes: subscription.notes,
+      },
+      payments: payments.items?.map((payment: any) => ({
+        id: payment.id,
+        order_id: payment.order_id,
+        status: payment.status,
+        method: payment.method,
+        amount: payment.amount,
+        currency: payment.currency,
+        error_code: payment.error_code,
+        error_description: payment.error_description,
+        error_source: payment.error_source,
+        error_step: payment.error_step,
+        error_reason: payment.error_reason,
+        created_at: payment.created_at,
+        captured: payment.captured,
+        notes: payment.notes,
+      })),
+    };
+
+    console.log("Test Razorpay subscription status:", {
+      userId,
+      subscriptionId,
+      status,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Test Razorpay subscription status error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to fetch test subscription status",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
