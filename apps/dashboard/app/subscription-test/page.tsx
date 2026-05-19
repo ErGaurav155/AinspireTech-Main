@@ -42,7 +42,8 @@ interface CheckoutEventLog {
 
 const hasSuccessfulPayment = (status: any) =>
   status?.payments?.some(
-    (payment: any) => payment?.captured === true || payment?.status === "captured",
+    (payment: any) =>
+      payment?.captured === true || payment?.status === "captured",
   );
 
 export default function SubscriptionTestPage() {
@@ -258,12 +259,10 @@ export default function SubscriptionTestPage() {
           paymentId: response.error?.metadata?.payment_id,
           raw: response,
         };
-
         addEventLog("Razorpay payment.failed fired", debugInfo);
         const status = await checkRazorpayStatus(
           subscriptionCreate.subscriptionId,
         );
-
         if (hasSuccessfulPayment(status)) {
           addEventLog("Failure ignored: Razorpay payment is captured", {
             failure: debugInfo,
