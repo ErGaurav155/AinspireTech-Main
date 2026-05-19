@@ -40,6 +40,11 @@ interface CheckoutEventLog {
   details?: any;
 }
 
+const hasSuccessfulPayment = (status: any) =>
+  status?.payments?.some(
+    (payment: any) => payment?.captured === true || payment?.status === "captured",
+  );
+
 export default function SubscriptionTestPage() {
   const router = useRouter();
   const { userId } = useAuth();
@@ -69,7 +74,7 @@ export default function SubscriptionTestPage() {
   const checkRazorpayStatus = async (id = subscriptionIdRef.current) => {
     if (!id) {
       addEventLog("Status check skipped: no subscription id");
-      return;
+      return null;
     }
 
     setIsCheckingStatus(true);
@@ -81,6 +86,7 @@ export default function SubscriptionTestPage() {
       const status = await getTestRazorpaySubscriptionStatus(apiRequest, id);
       setStatusResult(status);
       addEventLog("Razorpay status response", status);
+      return status;
     } catch (error: any) {
       addEventLog("Razorpay status fetch failed", {
         message: error.message,
@@ -91,6 +97,7 @@ export default function SubscriptionTestPage() {
         description: error.message || "Could not fetch Razorpay status",
         variant: "destructive",
       });
+      return null;
     } finally {
       setIsCheckingStatus(false);
     }
@@ -160,6 +167,7 @@ export default function SubscriptionTestPage() {
         name: "RocketReplai",
         description: `Subscription test: ${TEST_PLAN_ID}`,
         subscription_id: subscriptionCreate.subscriptionId,
+        payment_capture: "1",
         notes: {
           planId: TEST_PLAN_ID,
           testCheckout: "true",
@@ -207,9 +215,23 @@ export default function SubscriptionTestPage() {
           }
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
             addEventLog("Razorpay modal dismissed");
-            void checkRazorpayStatus(subscriptionCreate.subscriptionId);
+            const status = await checkRazorpayStatus(
+              subscriptionCreate.subscriptionId,
+            );
+
+            if (hasSuccessfulPayment(status)) {
+              addEventLog("Dismiss ignored: Razorpay payment is captured");
+              setResult(true);
+              toast({
+                title: "Payment successful",
+                description: "Razorpay shows the UPI payment as captured.",
+              });
+              setIsProcessing(false);
+              return;
+            }
+
             setResult(false);
             toast({
               title: "Payment cancelled",
@@ -225,7 +247,7 @@ export default function SubscriptionTestPage() {
       const rzp = new window.Razorpay(options);
       addEventLog("Razorpay instance created");
 
-      rzp.on("payment.failed", (response: any) => {
+      rzp.on("payment.failed", async (response: any) => {
         const debugInfo: RazorpayFailureDebug = {
           code: response.error?.code,
           description: response.error?.description,
@@ -238,7 +260,26 @@ export default function SubscriptionTestPage() {
         };
 
         addEventLog("Razorpay payment.failed fired", debugInfo);
-        void checkRazorpayStatus(subscriptionCreate.subscriptionId);
+        const status = await checkRazorpayStatus(
+          subscriptionCreate.subscriptionId,
+        );
+
+        if (hasSuccessfulPayment(status)) {
+          addEventLog("Failure ignored: Razorpay payment is captured", {
+            failure: debugInfo,
+            status,
+          });
+          setFailureDebug(null);
+          setResult(true);
+          toast({
+            title: "Payment successful",
+            description:
+              "Razorpay reported a checkout error, but the UPI payment is captured.",
+          });
+          setIsProcessing(false);
+          return;
+        }
+
         setFailureDebug(debugInfo);
         setResult(false);
         toast({
