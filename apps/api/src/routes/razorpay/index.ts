@@ -9,6 +9,11 @@ import {
   getTestRazorpaySubscriptionStatusController,
   verifyTestRazorpaySubscriptionController,
 } from "@/controllers/razorpay/test-sub.controller";
+import {
+  createTestRazorpayOrderController,
+  getTestRazorpayOrderStatusController,
+  verifyTestRazorpayOrderController,
+} from "@/controllers/razorpay/test-order.controller";
 
 const router = Router();
 
@@ -43,5 +48,9 @@ router.get(
   "/test-subscription/:subscriptionId/status",
   getTestRazorpaySubscriptionStatusController,
 );
+
+router.post("/test-order/create", createTestRazorpayOrderController);
+router.post("/test-order/verify", verifyTestRazorpayOrderController);
+router.get("/test-order/:orderId/status", getTestRazorpayOrderStatusController);
 
 export default router;

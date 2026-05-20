@@ -85,3 +85,42 @@ export const getTestRazorpaySubscriptionStatus = (
     method: "GET",
   });
 };
+
+export const createTestRazorpayOrder = (
+  apiRequest: ApiRequestFn,
+): Promise<{ orderId: string; amount: number; currency: string }> => {
+  return apiRequest("/razorpay/test-order/create", {
+    method: "POST",
+  });
+};
+
+export const verifyTestRazorpayOrder = (
+  apiRequest: ApiRequestFn,
+  data: {
+    razorpay_order_id: string;
+    razorpay_payment_id?: string;
+    razorpay_signature?: string;
+  },
+): Promise<{
+  verified: boolean;
+  orderId?: string;
+  paymentId?: string;
+  orderStatus?: string;
+  latestPaymentStatus?: string;
+  latestPaymentCaptured?: boolean;
+  signatureVerified?: boolean;
+}> => {
+  return apiRequest("/razorpay/test-order/verify", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+export const getTestRazorpayOrderStatus = (
+  apiRequest: ApiRequestFn,
+  orderId: string,
+): Promise<any> => {
+  return apiRequest(`/razorpay/test-order/${orderId}/status`, {
+    method: "GET",
+  });
+};

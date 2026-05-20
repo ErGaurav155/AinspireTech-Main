@@ -23,6 +23,14 @@ const buildRedirectResponse = (
   appendParam(callbackParams, "checkoutKind", requestUrl.searchParams.get("kind"));
   appendParam(
     callbackParams,
+    "order_id",
+    requestUrl.searchParams.get("orderId") ||
+      requestUrl.searchParams.get("razorpay_order_id") ||
+      formData?.get("razorpay_order_id") ||
+      null,
+  );
+  appendParam(
+    callbackParams,
     "subscription_id",
     requestUrl.searchParams.get("subscriptionId") ||
       requestUrl.searchParams.get("razorpay_subscription_id") ||
