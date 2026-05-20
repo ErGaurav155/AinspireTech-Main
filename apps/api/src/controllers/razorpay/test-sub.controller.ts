@@ -4,6 +4,15 @@ import { getAuth } from "@clerk/express";
 import { getRazorpay } from "@/utils/util";
 
 const TEST_RAZORPAY_PLAN_ID = "plan_SqlXUaV8XVVnSr";
+const PAID_TEST_SUBSCRIPTION_STATUSES = new Set([
+  "active",
+  "authenticated",
+  "charged",
+  "completed",
+]);
+
+const isCapturedPayment = (payment: any) =>
+  payment?.captured === true || payment?.status === "captured";
 
 export const createTestRazorpaySubscriptionController = async (
   req: Request,
@@ -89,12 +98,12 @@ export const verifyTestRazorpaySubscriptionController = async (
       hasSignature: !!razorpay_signature,
     });
 
-    if (!subscription_id || !razorpay_payment_id || !razorpay_signature) {
+    if (!subscription_id) {
       return res.status(200).json({
         success: true,
         data: {
           verified: false,
-          message: "Missing payment verification fields",
+          message: "Missing subscription id",
         },
         timestamp: new Date().toISOString(),
       });
@@ -106,6 +115,41 @@ export const verifyTestRazorpaySubscriptionController = async (
       return res.status(500).json({
         success: false,
         error: "Razorpay secret not configured",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!razorpay_payment_id || !razorpay_signature) {
+      const razorpay = getRazorpay();
+      const subscription = await razorpay.subscriptions.fetch(subscription_id);
+      const payments = await razorpay.payments.all({
+        subscription_id,
+        count: 10,
+      } as any);
+      const capturedPayment = payments.items?.find(isCapturedPayment);
+      const verified =
+        PAID_TEST_SUBSCRIPTION_STATUSES.has(subscription.status) ||
+        !!capturedPayment;
+
+      console.log("Test Razorpay subscription server fetch verify result:", {
+        userId,
+        subscription_id,
+        subscriptionStatus: subscription.status,
+        capturedPaymentId: capturedPayment?.id,
+        verified,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          verified,
+          subscriptionId: subscription_id,
+          paymentId: capturedPayment?.id,
+          subscriptionStatus: subscription.status,
+          message: verified
+            ? "Verified from Razorpay server status"
+            : "Payment is not confirmed yet",
+        },
         timestamp: new Date().toISOString(),
       });
     }

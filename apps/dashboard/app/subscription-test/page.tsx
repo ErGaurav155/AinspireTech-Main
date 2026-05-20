@@ -22,6 +22,12 @@ declare global {
 const TEST_PLAN_ID = "plan_SqlXUaV8XVVnSr";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const PENDING_TEST_CHECKOUT_KEY = "pending_razorpay_test_checkout";
+
+const isMobileCheckoutDevice = () => {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+};
 
 interface RazorpayFailureDebug {
   code?: string;
@@ -60,6 +66,7 @@ export default function SubscriptionTestPage() {
   const [statusResult, setStatusResult] = useState<any>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const subscriptionIdRef = useRef<string | null>(null);
+  const processedCallbackRef = useRef<string | null>(null);
 
   const addEventLog = (label: string, details?: any) => {
     setEventLogs((current) => [
@@ -104,27 +111,179 @@ export default function SubscriptionTestPage() {
     }
   };
 
+  const markSuccessFromStatus = (status: any, label: string) => {
+    if (!hasSuccessfulPayment(status)) return false;
+
+    addEventLog(label, status);
+    setFailureDebug(null);
+    setResult(true);
+    setIsProcessing(false);
+    toast({
+      title: "Payment successful",
+      description: "Razorpay shows the UPI payment as captured.",
+    });
+    return true;
+  };
+
+  const pollRazorpayStatusForSuccess = async (
+    id: string,
+    label: string,
+    attempts = 8,
+  ) => {
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      addEventLog(`${label}: status poll ${attempt}/${attempts}`, {
+        subscriptionId: id,
+      });
+      const status = await checkRazorpayStatus(id);
+
+      if (markSuccessFromStatus(status, `${label}: captured payment found`)) {
+        return status;
+      }
+
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+    }
+
+    return null;
+  };
+
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "visible" && subscriptionIdRef.current) {
-        void checkRazorpayStatus(subscriptionIdRef.current);
+        void checkRazorpayStatus(subscriptionIdRef.current).then((status) =>
+          markSuccessFromStatus(status, "Visible tab status check found success"),
+        );
       }
     };
 
     const handleFocus = () => {
       if (subscriptionIdRef.current) {
-        void checkRazorpayStatus(subscriptionIdRef.current);
+        void checkRazorpayStatus(subscriptionIdRef.current).then((status) =>
+          markSuccessFromStatus(status, "Window focus status check found success"),
+        );
+      }
+    };
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      addEventLog("Page shown after external app/browser return", {
+        persisted: event.persisted,
+        visibilityState: document.visibilityState,
+      });
+
+      if (subscriptionIdRef.current) {
+        void pollRazorpayStatusForSuccess(
+          subscriptionIdRef.current,
+          "Page return",
+          4,
+        );
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handlePageShow);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
     };
   }, []);
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    const isRazorpayCallback = searchParams.get("razorpay_checkout") === "1";
+    const checkoutKind = searchParams.get("checkoutKind");
+    const callbackSubscriptionId =
+      searchParams.get("subscription_id") ||
+      searchParams.get("razorpay_subscription_id");
+    const pendingSubscriptionId =
+      typeof window !== "undefined"
+        ? sessionStorage.getItem(PENDING_TEST_CHECKOUT_KEY)
+        : null;
+    const targetSubscriptionId = callbackSubscriptionId || pendingSubscriptionId;
+
+    if (
+      !isRazorpayCallback ||
+      checkoutKind !== "test-subscription" ||
+      !targetSubscriptionId ||
+      processedCallbackRef.current === targetSubscriptionId
+    ) {
+      return;
+    }
+
+    processedCallbackRef.current = targetSubscriptionId;
+    subscriptionIdRef.current = targetSubscriptionId;
+    setSubscriptionId(targetSubscriptionId);
+    setIsProcessing(true);
+    addEventLog("Razorpay mobile callback received", {
+      checkoutKind,
+      subscriptionId: targetSubscriptionId,
+      razorpay_payment_id: searchParams.get("razorpay_payment_id"),
+      hasSignature: !!searchParams.get("razorpay_signature"),
+      fullUrl: window.location.href,
+    });
+
+    const processCallback = async () => {
+      try {
+        const paymentId = searchParams.get("razorpay_payment_id") || undefined;
+        const signature = searchParams.get("razorpay_signature") || undefined;
+
+        const verifyResponse = await verifyTestRazorpaySubscription(
+          apiRequest,
+          {
+            subscription_id: targetSubscriptionId,
+            razorpay_payment_id: paymentId,
+            razorpay_signature: signature,
+          },
+        );
+
+        addEventLog("Mobile callback verify API response", verifyResponse);
+
+        if (verifyResponse.verified) {
+          setFailureDebug(null);
+          setResult(true);
+          setIsProcessing(false);
+          sessionStorage.removeItem(PENDING_TEST_CHECKOUT_KEY);
+          toast({
+            title: "Payment successful",
+            description:
+              verifyResponse.message || "Razorpay server verification passed.",
+          });
+          return;
+        }
+
+        await pollRazorpayStatusForSuccess(
+          targetSubscriptionId,
+          "Mobile callback",
+          10,
+        );
+      } catch (error: any) {
+        addEventLog("Mobile callback processing failed", {
+          message: error.message,
+          raw: error,
+        });
+        setResult(false);
+        setIsProcessing(false);
+      } finally {
+        const cleanParams = new URLSearchParams(window.location.search);
+        [
+          "razorpay_checkout",
+          "checkoutKind",
+          "subscription_id",
+          "razorpay_payment_id",
+          "razorpay_signature",
+        ].forEach((key) => cleanParams.delete(key));
+        const cleanUrl = cleanParams.toString()
+          ? `${window.location.pathname}?${cleanParams.toString()}`
+          : window.location.pathname;
+        router.replace(cleanUrl, { scroll: false });
+      }
+    };
+
+    void processCallback();
+  }, [apiRequest, router]);
 
   const openCheckout = async () => {
     if (!userId) {
@@ -139,6 +298,8 @@ export default function SubscriptionTestPage() {
     setEventLogs([]);
     addEventLog("Checkout started with handler-only flow", {
       planId: TEST_PLAN_ID,
+      isMobileCheckoutDevice: isMobileCheckoutDevice(),
+      userAgent: navigator.userAgent,
     });
 
     try {
@@ -161,7 +322,22 @@ export default function SubscriptionTestPage() {
         await createTestRazorpaySubscription(apiRequest);
       setSubscriptionId(subscriptionCreate.subscriptionId);
       subscriptionIdRef.current = subscriptionCreate.subscriptionId;
+      sessionStorage.setItem(
+        PENDING_TEST_CHECKOUT_KEY,
+        subscriptionCreate.subscriptionId,
+      );
       addEventLog("Test subscription created", subscriptionCreate);
+
+      const callbackUrl = new URL(
+        "/api/razorpay/checkout-callback",
+        window.location.origin,
+      );
+      callbackUrl.searchParams.set("returnTo", "/subscription-test");
+      callbackUrl.searchParams.set("kind", "test-subscription");
+      callbackUrl.searchParams.set(
+        "subscriptionId",
+        subscriptionCreate.subscriptionId,
+      );
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -173,6 +349,12 @@ export default function SubscriptionTestPage() {
           planId: TEST_PLAN_ID,
           testCheckout: "true",
         },
+        ...(isMobileCheckoutDevice()
+          ? {
+              callback_url: callbackUrl.toString(),
+              redirect: true,
+            }
+          : {}),
         handler: async (response: any) => {
           addEventLog("Razorpay handler fired", response);
 
@@ -195,6 +377,9 @@ export default function SubscriptionTestPage() {
             addEventLog("Verify API response", verifyResponse);
             await checkRazorpayStatus(subscriptionCreate.subscriptionId);
             setResult(verifyResponse.verified);
+            if (verifyResponse.verified) {
+              sessionStorage.removeItem(PENDING_TEST_CHECKOUT_KEY);
+            }
             toast({
               title: "Subscription verification result",
               description: String(verifyResponse.verified),
@@ -222,14 +407,13 @@ export default function SubscriptionTestPage() {
               subscriptionCreate.subscriptionId,
             );
 
-            if (hasSuccessfulPayment(status)) {
-              addEventLog("Dismiss ignored: Razorpay payment is captured");
-              setResult(true);
-              toast({
-                title: "Payment successful",
-                description: "Razorpay shows the UPI payment as captured.",
-              });
-              setIsProcessing(false);
+            if (
+              markSuccessFromStatus(
+                status,
+                "Dismiss ignored: Razorpay payment is captured",
+              )
+            ) {
+              sessionStorage.removeItem(PENDING_TEST_CHECKOUT_KEY);
               return;
             }
 
@@ -264,19 +448,21 @@ export default function SubscriptionTestPage() {
         const status = await checkRazorpayStatus(
           subscriptionCreate.subscriptionId,
         );
-        if (hasSuccessfulPayment(status)) {
-          addEventLog("Failure ignored: Razorpay payment is captured", {
-            failure: debugInfo,
-            status,
-          });
-          setFailureDebug(null);
-          setResult(true);
-          toast({
-            title: "Payment successful",
-            description:
-              "Razorpay reported a checkout error, but the UPI payment is captured.",
-          });
-          setIsProcessing(false);
+        if (
+          markSuccessFromStatus(status, "Failure ignored: captured immediately")
+        ) {
+          sessionStorage.removeItem(PENDING_TEST_CHECKOUT_KEY);
+          return;
+        }
+
+        const polledStatus = await pollRazorpayStatusForSuccess(
+          subscriptionCreate.subscriptionId,
+          "Failure event",
+          10,
+        );
+
+        if (hasSuccessfulPayment(polledStatus)) {
+          sessionStorage.removeItem(PENDING_TEST_CHECKOUT_KEY);
           return;
         }
 
