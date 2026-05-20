@@ -66,6 +66,10 @@ export const verifyTestRazorpaySubscription = (
   subscriptionId?: string;
   paymentId?: string;
   message?: string;
+  subscriptionStatus?: string;
+  latestPaymentStatus?: string;
+  latestPaymentCaptured?: boolean;
+  captureAttempt?: any;
 }> => {
   return apiRequest("/razorpay/test-subscription/verify", {
     method: "POST",

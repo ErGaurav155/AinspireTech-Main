@@ -46,11 +46,19 @@ interface CheckoutEventLog {
   details?: any;
 }
 
+const PAID_SUBSCRIPTION_STATUSES = new Set([
+  "active",
+  "authenticated",
+  "charged",
+  "completed",
+]);
+
+const isCapturedPayment = (payment: any) =>
+  payment?.captured === true || payment?.status === "captured";
+
 const hasSuccessfulPayment = (status: any) =>
-  status?.payments?.some(
-    (payment: any) =>
-      payment?.captured === true || payment?.status === "captured",
-  );
+  PAID_SUBSCRIPTION_STATUSES.has(status?.subscription?.status) ||
+  isCapturedPayment(status?.latestPayment);
 
 export default function SubscriptionTestPage() {
   const router = useRouter();
@@ -120,7 +128,10 @@ export default function SubscriptionTestPage() {
     setIsProcessing(false);
     toast({
       title: "Payment successful",
-      description: "Razorpay shows the UPI payment as captured.",
+      description:
+        status?.captureAttempt?.success === true
+          ? "Latest UPI payment was captured on the backend."
+          : "Razorpay shows the latest payment/subscription as successful.",
     });
     return true;
   };
@@ -654,6 +665,22 @@ export default function SubscriptionTestPage() {
           <p>
             <span className="font-medium">payments:</span>{" "}
             {statusResult.payments?.length ?? 0}
+          </p>
+          <p>
+            <span className="font-medium">latestPayment.status:</span>{" "}
+            {statusResult.latestPayment?.status || "-"}
+          </p>
+          <p>
+            <span className="font-medium">latestPayment.captured:</span>{" "}
+            {statusResult.latestPayment
+              ? String(statusResult.latestPayment.captured)
+              : "-"}
+          </p>
+          <p>
+            <span className="font-medium">captureAttempt:</span>{" "}
+            {statusResult.captureAttempt
+              ? String(statusResult.captureAttempt.success)
+              : "-"}
           </p>
           <pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-black/80 p-3 text-xs text-white">
             {JSON.stringify(statusResult, null, 2)}
