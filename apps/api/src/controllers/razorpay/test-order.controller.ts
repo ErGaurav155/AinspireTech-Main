@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getAuth } from "@clerk/express";
 import { getRazorpay } from "@/utils/util";
 
-const TEST_ORDER_AMOUNT = 3;
+const TEST_ORDER_AMOUNT = 300;
 const TEST_ORDER_CURRENCY = "INR";
 
 const isCapturedPayment = (payment: any) =>
