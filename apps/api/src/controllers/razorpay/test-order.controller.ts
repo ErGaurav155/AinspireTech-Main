@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getAuth } from "@clerk/express";
 import { getRazorpay } from "@/utils/util";
 
-const TEST_ORDER_AMOUNT = 300;
+const TEST_ORDER_AMOUNT = 3;
 const TEST_ORDER_CURRENCY = "INR";
 
 const isCapturedPayment = (payment: any) =>
@@ -99,9 +99,8 @@ export const verifyTestRazorpayOrderController = async (
 
     const razorpay = getRazorpay();
     const order = await razorpay.orders.fetch(razorpay_order_id);
-    const orderPayments = await razorpay.orders.fetchPayments(
-      razorpay_order_id,
-    );
+    const orderPayments =
+      await razorpay.orders.fetchPayments(razorpay_order_id);
     const latestPayment = [...(orderPayments.items || [])].sort(
       (a: any, b: any) => (b?.created_at || 0) - (a?.created_at || 0),
     )[0];
