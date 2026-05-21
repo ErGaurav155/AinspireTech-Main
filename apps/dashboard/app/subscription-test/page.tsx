@@ -8,9 +8,9 @@ import Script from "next/script";
 import { Button, toast } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
-  createTestRazorpayOrder,
-  getTestRazorpayOrderStatus,
-  verifyTestRazorpayOrder,
+  createTestRazorpaySubscription,
+  getTestRazorpaySubscriptionStatus,
+  verifyTestRazorpaySubscription,
 } from "@/lib/services/subscription-actions.api";
 
 declare global {
@@ -19,9 +19,10 @@ declare global {
   }
 }
 
+const TEST_PLAN_ID = "plan_SqlXUaV8XVVnSr";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
-const PENDING_TEST_ORDER_KEY = "pending_razorpay_test_order";
+const PENDING_TEST_SUBSCRIPTION_KEY = "pending_razorpay_test_subscription";
 
 interface CheckoutEventLog {
   at: string;
@@ -40,11 +41,19 @@ interface RazorpayFailureDebug {
   raw: any;
 }
 
+const PAID_SUBSCRIPTION_STATUSES = new Set([
+  "active",
+  "authenticated",
+  "charged",
+  "completed",
+]);
+
 const isCapturedPayment = (payment: any) =>
   payment?.captured === true || payment?.status === "captured";
 
-const hasSuccessfulOrderPayment = (status: any) =>
-  status?.order?.status === "paid" || isCapturedPayment(status?.latestPayment);
+const hasSuccessfulSubscriptionPayment = (status: any) =>
+  PAID_SUBSCRIPTION_STATUSES.has(status?.subscription?.status) ||
+  isCapturedPayment(status?.latestPayment);
 
 export default function SubscriptionTestPage() {
   const router = useRouter();
@@ -55,10 +64,10 @@ export default function SubscriptionTestPage() {
   const [failureDebug, setFailureDebug] =
     useState<RazorpayFailureDebug | null>(null);
   const [eventLogs, setEventLogs] = useState<CheckoutEventLog[]>([]);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [statusResult, setStatusResult] = useState<any>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
-  const orderIdRef = useRef<string | null>(null);
+  const subscriptionIdRef = useRef<string | null>(null);
   const processedCallbackRef = useRef<string | null>(null);
 
   const addEventLog = (label: string, details?: any) => {
@@ -105,28 +114,33 @@ export default function SubscriptionTestPage() {
     addEventLog("Razorpay checkout.js loaded");
   };
 
-  const checkRazorpayOrderStatus = async (id = orderIdRef.current) => {
+  const checkRazorpaySubscriptionStatus = async (
+    id = subscriptionIdRef.current,
+  ) => {
     if (!id) {
-      addEventLog("Order status check skipped: no order id");
+      addEventLog("Subscription status check skipped: no subscription id");
       return null;
     }
 
     setIsCheckingStatus(true);
 
     try {
-      addEventLog("Fetching Razorpay order/payment status", { orderId: id });
-      const status = await getTestRazorpayOrderStatus(apiRequest, id);
+      addEventLog("Fetching Razorpay subscription/payment status", {
+        subscriptionId: id,
+      });
+      const status = await getTestRazorpaySubscriptionStatus(apiRequest, id);
       setStatusResult(status);
-      addEventLog("Razorpay order status response", status);
+      addEventLog("Razorpay subscription status response", status);
       return status;
     } catch (error: any) {
-      addEventLog("Razorpay order status fetch failed", {
+      addEventLog("Razorpay subscription status fetch failed", {
         message: error.message,
         raw: error,
       });
       toast({
-        title: "Order status check failed",
-        description: error.message || "Could not fetch Razorpay order status",
+        title: "Subscription status check failed",
+        description:
+          error.message || "Could not fetch Razorpay subscription status",
         variant: "destructive",
       });
       return null;
@@ -135,33 +149,41 @@ export default function SubscriptionTestPage() {
     }
   };
 
-  const markOrderSuccessFromStatus = (status: any, label: string) => {
-    if (!hasSuccessfulOrderPayment(status)) return false;
+  const markSubscriptionSuccessFromStatus = (status: any, label: string) => {
+    if (!hasSuccessfulSubscriptionPayment(status)) return false;
 
     addEventLog(label, status);
     setFailureDebug(null);
     setResult(true);
     setIsProcessing(false);
-    sessionStorage.removeItem(PENDING_TEST_ORDER_KEY);
+    sessionStorage.removeItem(PENDING_TEST_SUBSCRIPTION_KEY);
     toast({
-      title: "Payment successful",
-      description: "Razorpay shows the order payment as captured.",
+      title: "Subscription payment successful",
+      description:
+        status?.captureAttempt?.success === true
+          ? "Latest subscription payment was captured on the backend."
+          : "Razorpay shows the subscription/payment as successful.",
     });
     return true;
   };
 
-  const pollRazorpayOrderStatusForSuccess = async (
+  const pollRazorpaySubscriptionStatusForSuccess = async (
     id: string,
     label: string,
     attempts = 10,
   ) => {
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
-      addEventLog(`${label}: order status poll ${attempt}/${attempts}`, {
-        orderId: id,
+      addEventLog(`${label}: subscription status poll ${attempt}/${attempts}`, {
+        subscriptionId: id,
       });
-      const status = await checkRazorpayOrderStatus(id);
+      const status = await checkRazorpaySubscriptionStatus(id);
 
-      if (markOrderSuccessFromStatus(status, `${label}: captured order found`)) {
+      if (
+        markSubscriptionSuccessFromStatus(
+          status,
+          `${label}: successful subscription payment found`,
+        )
+      ) {
         return status;
       }
 
@@ -175,9 +197,14 @@ export default function SubscriptionTestPage() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible" && orderIdRef.current) {
-        void checkRazorpayOrderStatus(orderIdRef.current).then((status) =>
-          markOrderSuccessFromStatus(
+      if (
+        document.visibilityState === "visible" &&
+        subscriptionIdRef.current
+      ) {
+        void checkRazorpaySubscriptionStatus(
+          subscriptionIdRef.current,
+        ).then((status) =>
+          markSubscriptionSuccessFromStatus(
             status,
             "Visible tab status check found success",
           ),
@@ -186,9 +213,11 @@ export default function SubscriptionTestPage() {
     };
 
     const handleFocus = () => {
-      if (orderIdRef.current) {
-        void checkRazorpayOrderStatus(orderIdRef.current).then((status) =>
-          markOrderSuccessFromStatus(
+      if (subscriptionIdRef.current) {
+        void checkRazorpaySubscriptionStatus(
+          subscriptionIdRef.current,
+        ).then((status) =>
+          markSubscriptionSuccessFromStatus(
             status,
             "Window focus status check found success",
           ),
@@ -202,8 +231,11 @@ export default function SubscriptionTestPage() {
         visibilityState: document.visibilityState,
       });
 
-      if (orderIdRef.current) {
-        void pollRazorpayOrderStatusForSuccess(orderIdRef.current, "Page return");
+      if (subscriptionIdRef.current) {
+        void pollRazorpaySubscriptionStatusForSuccess(
+          subscriptionIdRef.current,
+          "Page return",
+        );
       }
     };
 
@@ -222,27 +254,30 @@ export default function SubscriptionTestPage() {
     const searchParams = new URLSearchParams(window.location.search);
     const isRazorpayCallback = searchParams.get("razorpay_checkout") === "1";
     const checkoutKind = searchParams.get("checkoutKind");
-    const callbackOrderId =
-      searchParams.get("order_id") || searchParams.get("razorpay_order_id");
-    const pendingOrderId = sessionStorage.getItem(PENDING_TEST_ORDER_KEY);
-    const targetOrderId = callbackOrderId || pendingOrderId;
+    const callbackSubscriptionId =
+      searchParams.get("subscription_id") ||
+      searchParams.get("razorpay_subscription_id");
+    const pendingSubscriptionId = sessionStorage.getItem(
+      PENDING_TEST_SUBSCRIPTION_KEY,
+    );
+    const targetSubscriptionId = callbackSubscriptionId || pendingSubscriptionId;
 
     if (
       !isRazorpayCallback ||
-      checkoutKind !== "test-order" ||
-      !targetOrderId ||
-      processedCallbackRef.current === targetOrderId
+      checkoutKind !== "test-subscription" ||
+      !targetSubscriptionId ||
+      processedCallbackRef.current === targetSubscriptionId
     ) {
       return;
     }
 
-    processedCallbackRef.current = targetOrderId;
-    orderIdRef.current = targetOrderId;
-    setOrderId(targetOrderId);
+    processedCallbackRef.current = targetSubscriptionId;
+    subscriptionIdRef.current = targetSubscriptionId;
+    setSubscriptionId(targetSubscriptionId);
     setIsProcessing(true);
-    addEventLog("Razorpay order mobile callback received", {
+    addEventLog("Razorpay subscription mobile callback received", {
       checkoutKind,
-      orderId: targetOrderId,
+      subscriptionId: targetSubscriptionId,
       razorpay_payment_id: searchParams.get("razorpay_payment_id"),
       hasSignature: !!searchParams.get("razorpay_signature"),
       fullUrl: window.location.href,
@@ -253,11 +288,14 @@ export default function SubscriptionTestPage() {
         const paymentId = searchParams.get("razorpay_payment_id") || undefined;
         const signature = searchParams.get("razorpay_signature") || undefined;
 
-        const verifyResponse = await verifyTestRazorpayOrder(apiRequest, {
-          razorpay_order_id: targetOrderId,
-          razorpay_payment_id: paymentId,
-          razorpay_signature: signature,
-        });
+        const verifyResponse = await verifyTestRazorpaySubscription(
+          apiRequest,
+          {
+            subscription_id: targetSubscriptionId,
+            razorpay_payment_id: paymentId,
+            razorpay_signature: signature,
+          },
+        );
 
         addEventLog("Mobile callback verify API response", verifyResponse);
 
@@ -265,16 +303,17 @@ export default function SubscriptionTestPage() {
           setFailureDebug(null);
           setResult(true);
           setIsProcessing(false);
-          sessionStorage.removeItem(PENDING_TEST_ORDER_KEY);
+          sessionStorage.removeItem(PENDING_TEST_SUBSCRIPTION_KEY);
           toast({
-            title: "Payment successful",
-            description: "Razorpay order verification passed.",
+            title: "Subscription payment successful",
+            description:
+              verifyResponse.message || "Razorpay subscription verification passed.",
           });
           return;
         }
 
-        await pollRazorpayOrderStatusForSuccess(
-          targetOrderId,
+        await pollRazorpaySubscriptionStatusForSuccess(
+          targetSubscriptionId,
           "Mobile callback",
         );
       } catch (error: any) {
@@ -289,8 +328,8 @@ export default function SubscriptionTestPage() {
         [
           "razorpay_checkout",
           "checkoutKind",
-          "order_id",
-          "razorpay_order_id",
+          "subscription_id",
+          "razorpay_subscription_id",
           "razorpay_payment_id",
           "razorpay_signature",
         ].forEach((key) => cleanParams.delete(key));
@@ -304,7 +343,7 @@ export default function SubscriptionTestPage() {
     void processCallback();
   }, [apiRequest, router]);
 
-  const openOrderCheckout = async () => {
+  const openSubscriptionCheckout = async () => {
     if (!userId) {
       router.push("/sign-in?redirect_url=/subscription-test");
       return;
@@ -315,60 +354,72 @@ export default function SubscriptionTestPage() {
     setFailureDebug(null);
     setStatusResult(null);
     setEventLogs([]);
-    addEventLog("Order checkout started", {
+    addEventLog("Subscription checkout started", {
+      planId: TEST_PLAN_ID,
       userAgent: navigator.userAgent,
     });
 
     try {
       await loadRazorpayScript();
 
-      const orderCreate = await createTestRazorpayOrder(apiRequest);
-      setOrderId(orderCreate.orderId);
-      orderIdRef.current = orderCreate.orderId;
-      sessionStorage.setItem(PENDING_TEST_ORDER_KEY, orderCreate.orderId);
-      addEventLog("Test order created", orderCreate);
+      const subscriptionCreate =
+        await createTestRazorpaySubscription(apiRequest);
+      setSubscriptionId(subscriptionCreate.subscriptionId);
+      subscriptionIdRef.current = subscriptionCreate.subscriptionId;
+      sessionStorage.setItem(
+        PENDING_TEST_SUBSCRIPTION_KEY,
+        subscriptionCreate.subscriptionId,
+      );
+      addEventLog("Test subscription created", subscriptionCreate);
 
       const callbackUrl = new URL(
         "/api/razorpay/checkout-callback",
         window.location.origin,
       );
       callbackUrl.searchParams.set("returnTo", "/subscription-test");
-      callbackUrl.searchParams.set("kind", "test-order");
-      callbackUrl.searchParams.set("orderId", orderCreate.orderId);
+      callbackUrl.searchParams.set("kind", "test-subscription");
+      callbackUrl.searchParams.set(
+        "subscriptionId",
+        subscriptionCreate.subscriptionId,
+      );
 
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
-        amount: orderCreate.amount,
-        currency: orderCreate.currency,
         name: "RocketReplai",
-        description: "Test Transaction",
-        order_id: orderCreate.orderId,
+        description: `Subscription test: ${TEST_PLAN_ID}`,
+        subscription_id: subscriptionCreate.subscriptionId,
         callback_url: callbackUrl.toString(),
         redirect: true,
         notes: {
+          planId: TEST_PLAN_ID,
           testCheckout: "true",
-          checkoutKind: "test-order",
+          checkoutKind: "test-subscription",
         },
         handler: async (response: any) => {
           addEventLog("Razorpay handler fired", response);
 
           try {
-            const verifyResponse = await verifyTestRazorpayOrder(apiRequest, {
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-            });
+            const verifyResponse = await verifyTestRazorpaySubscription(
+              apiRequest,
+              {
+                subscription_id: subscriptionCreate.subscriptionId,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+              },
+            );
 
             addEventLog("Verify API response", verifyResponse);
-            await checkRazorpayOrderStatus(orderCreate.orderId);
+            await checkRazorpaySubscriptionStatus(
+              subscriptionCreate.subscriptionId,
+            );
             setResult(verifyResponse.verified);
 
             if (verifyResponse.verified) {
-              sessionStorage.removeItem(PENDING_TEST_ORDER_KEY);
+              sessionStorage.removeItem(PENDING_TEST_SUBSCRIPTION_KEY);
             }
 
             toast({
-              title: "Payment verification result",
+              title: "Subscription verification result",
               description: String(verifyResponse.verified),
               variant: verifyResponse.verified ? "default" : "destructive",
             });
@@ -379,8 +430,9 @@ export default function SubscriptionTestPage() {
             });
             setResult(false);
             toast({
-              title: "Payment verification failed",
-              description: error.message || "Could not verify payment",
+              title: "Subscription verification failed",
+              description:
+                error.message || "Could not verify subscription payment",
               variant: "destructive",
             });
           } finally {
@@ -390,12 +442,14 @@ export default function SubscriptionTestPage() {
         modal: {
           ondismiss: async () => {
             addEventLog("Razorpay modal dismissed");
-            const status = await checkRazorpayOrderStatus(orderCreate.orderId);
+            const status = await checkRazorpaySubscriptionStatus(
+              subscriptionCreate.subscriptionId,
+            );
 
             if (
-              markOrderSuccessFromStatus(
+              markSubscriptionSuccessFromStatus(
                 status,
-                "Dismiss ignored: order payment is captured",
+                "Dismiss ignored: subscription payment is successful",
               )
             ) {
               return;
@@ -431,19 +485,21 @@ export default function SubscriptionTestPage() {
         };
 
         addEventLog("Razorpay payment.failed fired", debugInfo);
-        const status = await checkRazorpayOrderStatus(orderCreate.orderId);
+        const status = await checkRazorpaySubscriptionStatus(
+          subscriptionCreate.subscriptionId,
+        );
 
         if (
-          markOrderSuccessFromStatus(
+          markSubscriptionSuccessFromStatus(
             status,
-            "Failure ignored: order payment is captured",
+            "Failure ignored: subscription payment is successful",
           )
         ) {
           return;
         }
 
-        await pollRazorpayOrderStatusForSuccess(
-          orderCreate.orderId,
+        await pollRazorpaySubscriptionStatusForSuccess(
+          subscriptionCreate.subscriptionId,
           "Failure event",
         );
 
@@ -489,7 +545,7 @@ export default function SubscriptionTestPage() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#F8F9FA] px-4 py-8 dark:bg-[#0F0F11]">
       <Button
-        onClick={openOrderCheckout}
+        onClick={openSubscriptionCheckout}
         disabled={isProcessing}
         className="rounded-xl bg-orange-500 px-6 py-3 text-white hover:bg-orange-600"
       >
@@ -501,22 +557,22 @@ export default function SubscriptionTestPage() {
         ) : (
           <>
             <CreditCard className="mr-2 h-4 w-4" />
-            Open Razorpay Order Checkout
+            Open Razorpay Subscription Checkout
           </>
         )}
       </Button>
 
       <p className="text-sm text-gray-600 dark:text-gray-300">
-        Payment success: {result === null ? "-" : String(result)}
+        Subscription success: {result === null ? "-" : String(result)}
       </p>
 
-      {orderId && (
+      {subscriptionId && (
         <div className="flex flex-col items-center gap-2">
           <p className="text-xs text-gray-500 dark:text-gray-400">
-            Test order id: {orderId}
+            Test subscription id: {subscriptionId}
           </p>
           <Button
-            onClick={() => checkRazorpayOrderStatus(orderId)}
+            onClick={() => checkRazorpaySubscriptionStatus(subscriptionId)}
             disabled={isCheckingStatus}
             className="rounded-xl bg-gray-900 px-4 py-2 text-white hover:bg-black dark:bg-white/10 dark:hover:bg-white/20"
           >
@@ -630,8 +686,8 @@ export default function SubscriptionTestPage() {
             </Button>
           </div>
           <p>
-            <span className="font-medium">order.status:</span>{" "}
-            {statusResult.order?.status || "-"}
+            <span className="font-medium">subscription.status:</span>{" "}
+            {statusResult.subscription?.status || "-"}
           </p>
           <p>
             <span className="font-medium">latestPayment.status:</span>{" "}
@@ -641,6 +697,12 @@ export default function SubscriptionTestPage() {
             <span className="font-medium">latestPayment.captured:</span>{" "}
             {statusResult.latestPayment
               ? String(statusResult.latestPayment.captured)
+              : "-"}
+          </p>
+          <p>
+            <span className="font-medium">captureAttempt:</span>{" "}
+            {statusResult.captureAttempt
+              ? String(statusResult.captureAttempt.success)
               : "-"}
           </p>
           <pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-black/80 p-3 text-xs text-white">
