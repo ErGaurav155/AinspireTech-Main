@@ -636,28 +636,6 @@ export const Checkout = ({
         return finalized;
       };
 
-      const recoverChatbotPayment = async (showFailureToast: boolean) => {
-        for (let attempt = 0; attempt < 5; attempt += 1) {
-          if (hasFinalizedPayment) return true;
-
-          await new Promise((resolve) =>
-            window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
-          );
-
-          const recovered = await finalizeChatbotPayment(undefined, {
-            silent: true,
-          });
-
-          if (recovered) return true;
-        }
-
-        if (showFailureToast && !hasFinalizedPayment) {
-          showErrorToast("Payment could not be confirmed. Please try again.");
-        }
-
-        return false;
-      };
-
       const paymentOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: amount * 100,
@@ -682,7 +660,7 @@ export const Checkout = ({
         },
         modal: {
           ondismiss: () => {
-            void recoverChatbotPayment(false);
+            showErrorToast("Checkout was closed before payment was confirmed.");
           },
         },
         ...(isMobileCheckoutDevice()
@@ -697,7 +675,7 @@ export const Checkout = ({
       const razorpay = new (window as any).Razorpay(paymentOptions);
 
       razorpay.on("payment.failed", () => {
-        void recoverChatbotPayment(true);
+        showErrorToast("Payment could not be completed. Please try again.");
       });
 
       razorpay.open();

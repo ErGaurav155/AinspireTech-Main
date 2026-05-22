@@ -61,8 +61,9 @@ export default function SubscriptionTestPage() {
   const { apiRequest } = useApi();
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<boolean | null>(null);
-  const [failureDebug, setFailureDebug] =
-    useState<RazorpayFailureDebug | null>(null);
+  const [failureDebug, setFailureDebug] = useState<RazorpayFailureDebug | null>(
+    null,
+  );
   const [eventLogs, setEventLogs] = useState<CheckoutEventLog[]>([]);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
   const [statusResult, setStatusResult] = useState<any>(null);
@@ -197,30 +198,25 @@ export default function SubscriptionTestPage() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (
-        document.visibilityState === "visible" &&
-        subscriptionIdRef.current
-      ) {
-        void checkRazorpaySubscriptionStatus(
-          subscriptionIdRef.current,
-        ).then((status) =>
-          markSubscriptionSuccessFromStatus(
-            status,
-            "Visible tab status check found success",
-          ),
+      if (document.visibilityState === "visible" && subscriptionIdRef.current) {
+        void checkRazorpaySubscriptionStatus(subscriptionIdRef.current).then(
+          (status) =>
+            markSubscriptionSuccessFromStatus(
+              status,
+              "Visible tab status check found success",
+            ),
         );
       }
     };
 
     const handleFocus = () => {
       if (subscriptionIdRef.current) {
-        void checkRazorpaySubscriptionStatus(
-          subscriptionIdRef.current,
-        ).then((status) =>
-          markSubscriptionSuccessFromStatus(
-            status,
-            "Window focus status check found success",
-          ),
+        void checkRazorpaySubscriptionStatus(subscriptionIdRef.current).then(
+          (status) =>
+            markSubscriptionSuccessFromStatus(
+              status,
+              "Window focus status check found success",
+            ),
         );
       }
     };
@@ -260,7 +256,8 @@ export default function SubscriptionTestPage() {
     const pendingSubscriptionId = sessionStorage.getItem(
       PENDING_TEST_SUBSCRIPTION_KEY,
     );
-    const targetSubscriptionId = callbackSubscriptionId || pendingSubscriptionId;
+    const targetSubscriptionId =
+      callbackSubscriptionId || pendingSubscriptionId;
 
     if (
       !isRazorpayCallback ||
@@ -307,7 +304,8 @@ export default function SubscriptionTestPage() {
           toast({
             title: "Subscription payment successful",
             description:
-              verifyResponse.message || "Razorpay subscription verification passed.",
+              verifyResponse.message ||
+              "Razorpay subscription verification passed.",
           });
           return;
         }

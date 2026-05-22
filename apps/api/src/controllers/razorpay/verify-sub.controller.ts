@@ -21,8 +21,7 @@ export interface VerifyBody {
   previousSubscriptionType?: "web" | "insta";
 }
 
-const PAID_SUBSCRIPTION_STATUSES = new Set(["active"]);
-const PAID_PAYMENT_STATUSES = new Set(["captured", "authorized"]);
+const PAID_PAYMENT_STATUSES = new Set(["captured"]);
 
 const activateVerifiedSubscription = async ({
   userId,
@@ -263,20 +262,16 @@ export const verifyRazorpayPaymentController = async (
         });
       }
 
-      let paidPayment: any = null;
+      const payments = await razorpay.payments.all({
+        subscription_id,
+        count: 10,
+      } as any);
 
-      if (!PAID_SUBSCRIPTION_STATUSES.has(subscription.status)) {
-        const payments = await razorpay.payments.all({
-          subscription_id,
-          count: 10,
-        } as any);
+      const paidPayment = payments.items?.find((payment: any) =>
+        PAID_PAYMENT_STATUSES.has(payment.status),
+      );
 
-        paidPayment = payments.items?.find((payment: any) =>
-          PAID_PAYMENT_STATUSES.has(payment.status),
-        );
-      }
-
-      if (!PAID_SUBSCRIPTION_STATUSES.has(subscription.status) && !paidPayment) {
+      if (!paidPayment) {
         return res.status(409).json({
           success: false,
           error: `Payment is not confirmed yet. Current status: ${subscription.status}`,

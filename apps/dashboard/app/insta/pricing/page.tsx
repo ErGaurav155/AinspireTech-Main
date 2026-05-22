@@ -580,7 +580,11 @@ function PricingWithSearchParams() {
             : {}),
           modal: {
             ondismiss: () => {
-              void recoverSuccessfulPayment(false);
+              showToast(
+                "Payment Not Completed",
+                "Checkout was closed before payment was confirmed.",
+                true,
+              );
             },
           },
           theme: {
@@ -588,48 +592,14 @@ function PricingWithSearchParams() {
           },
         });
 
-        const recoverSuccessfulPayment = async (showFailureToast: boolean) => {
-          for (let attempt = 0; attempt < 10; attempt += 1) {
-            if (hasFinalizedPayment) return true;
-
-            await new Promise((resolve) =>
-              window.setTimeout(resolve, attempt === 0 ? 3000 : 2000),
-            );
-
-            try {
-              const recovered = await finalizeSuccessfulPayment(undefined, {
-                silent: true,
-              });
-              if (recovered) return true;
-            } catch (error) {
-              console.warn("Unable to recover Razorpay payment status:", error);
-            }
-          }
-
-          if (showFailureToast && !hasFinalizedPayment) {
-            showToast(
-              "Failed!",
-              "Payment could not be confirmed. Please try again.",
-              true,
-            );
-          }
-
-          return false;
-        };
-
         razorpay.on("payment.failed", (response: any) => {
-          void (async () => {
-            const recovered = await recoverSuccessfulPayment(false);
-            if (recovered) return;
-
-            showToast(
-              "Failed!",
-              `Payment failed: ${
-                response.error?.description || "Payment could not be completed"
-              }`,
-              true,
-            );
-          })();
+          showToast(
+            "Failed!",
+            `Payment failed: ${
+              response.error?.description || "Payment could not be completed"
+            }`,
+            true,
+          );
         });
 
         clearPendingCheckout();
@@ -668,7 +638,7 @@ function PricingWithSearchParams() {
         PENDING_RAZORPAY_CALLBACK_KEY,
       );
 
-      if (!isRazorpayCallback && !pendingCallbackId) return;
+      if (!isRazorpayCallback) return;
       if (isRazorpayCallback && searchParams.get("checkoutKind") !== "insta") {
         return;
       }
@@ -697,6 +667,13 @@ function PricingWithSearchParams() {
       setIsUpgrading(true);
 
       try {
+        if (
+          !searchParams.get("razorpay_payment_id") ||
+          !searchParams.get("razorpay_signature")
+        ) {
+          throw new Error("Payment was not completed");
+        }
+
         const verifyResponse = await verifyRazorpayPayment(apiRequest, {
           subscription_id: subscriptionId,
           razorpay_payment_id: searchParams.get("razorpay_payment_id"),

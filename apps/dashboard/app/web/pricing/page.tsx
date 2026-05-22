@@ -279,7 +279,7 @@ const PricingContent = () => {
         PENDING_RAZORPAY_CALLBACK_KEY,
       );
 
-      if (!isRazorpayCallback && !pendingCallbackId) return;
+      if (!isRazorpayCallback) return;
       if (isRazorpayCallback && searchParams.get("checkoutKind") !== "web") {
         return;
       }
@@ -308,6 +308,13 @@ const PricingContent = () => {
       setIsLoading(true);
 
       try {
+        if (
+          !searchParams.get("razorpay_payment_id") ||
+          !searchParams.get("razorpay_signature")
+        ) {
+          throw new Error("Payment was not completed");
+        }
+
         const verifyResponse = await verifyRazorpayPayment(apiRequest, {
           subscription_id: subscriptionId,
           razorpay_payment_id: searchParams.get("razorpay_payment_id"),
