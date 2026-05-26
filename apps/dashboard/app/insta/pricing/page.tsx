@@ -44,7 +44,7 @@ import {
   getInstaAccount,
   getSubscriptioninfo,
 } from "@/lib/services/insta-actions.api";
-import { getUserById, updateUserLimits } from "@/lib/services/user-actions.api";
+import { getUserById } from "@/lib/services/user-actions.api";
 import { getInstagramAuthUrl } from "@/lib/instagram-auth";
 import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcriptionChangeDialog";
 
@@ -52,12 +52,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
-  verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
-import {
-  sendSubscriptionEmailToOwner,
-  sendSubscriptionEmailToUser,
-} from "@/lib/services/misc-actions.api";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 
@@ -357,6 +352,84 @@ function PricingWithSearchParams() {
     [savePendingCheckout, showToast],
   );
 
+  const waitForInstaSubscriptionActivation = useCallback(
+    async (subscriptionId: string) => {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const response = await getSubscriptioninfo(apiRequest);
+        const activeSubscription = response?.subscriptions?.find(
+          (subscription: any) =>
+            subscription.subscriptionId === subscriptionId &&
+            subscription.status === "active",
+        );
+
+        if (activeSubscription) return activeSubscription;
+
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      }
+
+      return null;
+    },
+    [apiRequest],
+  );
+
+  const finishWebhookActivatedInstaPayment = useCallback(
+    async ({
+      subscriptionId,
+      productId,
+      billingCycle,
+      planName,
+      price,
+    }: {
+      subscriptionId: string;
+      productId: string;
+      billingCycle: "monthly" | "yearly";
+      planName: string;
+      price: number;
+    }) => {
+      const activeSubscription =
+        await waitForInstaSubscriptionActivation(subscriptionId);
+
+      if (!activeSubscription) {
+        showToast(
+          "Payment Processing",
+          "Payment was received. We are waiting for Razorpay confirmation, please refresh in a moment.",
+          true,
+        );
+        return false;
+      }
+
+      localStorage.removeItem("referral_code");
+      trackMetaEvent("Purchase", {
+        content_name: planName,
+        content_category: "instagram_subscription",
+        content_ids: [productId],
+        content_type: "product",
+        currency: "INR",
+        value: price,
+        billing_cycle: billingCycle,
+      });
+
+      clearPendingCheckout();
+      setIsSubscribed(true);
+      setCurrentSubscription({
+        productId,
+        billingCycle,
+        subscriptionId,
+        chatbotType: "insta",
+      });
+      showToast("Payment Successful!", "Subscription activated successfully");
+      router.push("/insta/automations?success=true");
+      router.refresh();
+      return true;
+    },
+    [
+      clearPendingCheckout,
+      router,
+      showToast,
+      waitForInstaSubscriptionActivation,
+    ],
+  );
+
   const openRazorpayCheckout = useCallback(
     async (
       plan: PricingPlan,
@@ -410,6 +483,9 @@ function PricingWithSearchParams() {
             previousSubscriptionType: previousSubscriptionId
               ? "insta"
               : undefined,
+            email: checkoutEmail,
+            planLimit: plan.limit,
+            accountLimit: plan.account,
           },
         });
 
@@ -434,101 +510,6 @@ function PricingWithSearchParams() {
           callbackUrl.searchParams.set("previousSubscriptionType", "insta");
         }
 
-        let hasFinalizedPayment = false;
-        const finalizeSuccessfulPayment = async (
-          response?: any,
-          options: { silent?: boolean } = {},
-        ) => {
-          if (hasFinalizedPayment) return true;
-
-          const verifyResponse = await verifyRazorpayPayment(apiRequest, {
-            subscription_id: result.subscriptionId,
-            razorpay_payment_id: response?.razorpay_payment_id,
-            razorpay_signature: response?.razorpay_signature,
-            subscriptionKind: "insta",
-            subscriptionType: "insta",
-            productId: plan.id,
-            billingCycle: cycle,
-            previousSubscriptionId,
-            previousSubscriptionType: previousSubscriptionId
-              ? "insta"
-              : undefined,
-          });
-
-          if (!verifyResponse.success) {
-            if (!options.silent) {
-              showToast(
-                "Failed!",
-                `Payment verification failed: ${verifyResponse.message}`,
-                true,
-              );
-            }
-            return false;
-          }
-
-          hasFinalizedPayment = true;
-
-          if (referralCode) {
-            localStorage.removeItem("referral_code");
-          }
-
-          trackMetaEvent("Purchase", {
-            content_name: plan.name,
-            content_category: "instagram_subscription",
-            content_ids: [plan.id],
-            content_type: "product",
-            currency: "INR",
-            value: price,
-            billing_cycle: cycle,
-          });
-
-          showToast(
-            "Payment Successful!",
-            "Subscription activated successfully",
-          );
-          setIsSubscribed(true);
-          setCurrentSubscription({
-            productId: plan.id,
-            billingCycle: cycle,
-            subscriptionId: result.subscriptionId,
-            chatbotType: "insta",
-          });
-          clearPendingCheckout();
-          router.push("/insta/automations?success=true");
-          router.refresh();
-
-          void Promise.allSettled([
-            updateUserLimits(apiRequest, plan.limit, plan.account),
-            sendSubscriptionEmailToOwner(apiRequest, {
-              email: checkoutEmail,
-              userId: userId!,
-              subscriptionId: result.subscriptionId,
-            }),
-            sendSubscriptionEmailToUser(apiRequest, {
-              email: checkoutEmail,
-              userId: userId!,
-              agentId: plan.id,
-              subscriptionId: result.subscriptionId,
-            }),
-          ]).then((results) => {
-            results.forEach((sideEffectResult) => {
-              if (sideEffectResult.status === "rejected") {
-                console.warn(
-                  "Post-payment side effect failed:",
-                  sideEffectResult.reason,
-                );
-              }
-            });
-          });
-
-          window.setTimeout(() => {
-            if (window.location.pathname === "/insta/pricing") {
-              window.location.assign("/insta/automations?success=true");
-            }
-          }, 500);
-          return true;
-        };
-
         const razorpay = new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
           amount: price * 100,
@@ -545,14 +526,30 @@ function PricingWithSearchParams() {
           },
           handler: async (response: any) => {
             try {
-              await finalizeSuccessfulPayment(response);
+              if (
+                !response?.razorpay_payment_id ||
+                !response?.razorpay_signature
+              ) {
+                throw new Error("Payment was not completed");
+              }
+
+              setIsUpgrading(true);
+              await finishWebhookActivatedInstaPayment({
+                subscriptionId: result.subscriptionId,
+                productId: plan.id,
+                billingCycle: cycle,
+                planName: plan.name,
+                price,
+              });
             } catch (error: any) {
               console.error("Payment verification error:", error);
               showToast(
                 "Failed!",
-                error.message || "Payment verification failed",
+                error.message || "Payment could not be confirmed",
                 true,
               );
+            } finally {
+              setIsUpgrading(false);
             }
           },
           ...(isMobileCheckoutDevice()
@@ -602,11 +599,10 @@ function PricingWithSearchParams() {
       apiRequest,
       clearPendingCheckout,
       email,
+      finishWebhookActivatedInstaPayment,
       isInstaAccount,
       loadRazorpayScript,
       redirectToInstagramConnect,
-      refreshUserAccounts,
-      router,
       showToast,
       userId,
     ],
@@ -642,65 +638,20 @@ function PricingWithSearchParams() {
           throw new Error("Payment was not completed");
         }
 
-        const verifyResponse = await verifyRazorpayPayment(apiRequest, {
-          subscription_id: subscriptionId,
-          razorpay_payment_id: searchParams.get("razorpay_payment_id"),
-          razorpay_signature: searchParams.get("razorpay_signature"),
-          subscriptionKind: "insta",
-          subscriptionType: "insta",
-          productId,
-          billingCycle: callbackBillingCycle || "monthly",
-          previousSubscriptionId:
-            searchParams.get("previousSubscriptionId") || undefined,
-          previousSubscriptionType:
-            searchParams.get("previousSubscriptionType") || undefined,
-        });
-
-        if (!verifyResponse.success) {
-          throw new Error(verifyResponse.message || "Payment verification failed");
-        }
-
         const plan = instagramPricingPlans.find(
           (pricingPlan) => pricingPlan.id === productId,
         );
-        const planLimit = Number(searchParams.get("planLimit") || plan?.limit);
-        const accountLimit = Number(
-          searchParams.get("accountLimit") || plan?.account,
-        );
 
-        clearPendingCheckout();
-        setIsSubscribed(true);
-        setCurrentSubscription({
-          productId: productId || verifyResponse.chatbotType || "insta",
-          billingCycle: callbackBillingCycle || "monthly",
+        await finishWebhookActivatedInstaPayment({
           subscriptionId,
-          chatbotType: "insta",
+          productId,
+          billingCycle: callbackBillingCycle || "monthly",
+          planName: plan?.name || productId,
+          price:
+            callbackBillingCycle === "yearly"
+              ? plan?.yearlyPrice || 0
+              : plan?.monthlyPrice || 0,
         });
-
-        if (Number.isFinite(planLimit) && Number.isFinite(accountLimit)) {
-          await updateUserLimits(apiRequest, planLimit, accountLimit);
-        }
-
-        void Promise.allSettled([
-          sendSubscriptionEmailToOwner(apiRequest, {
-            email,
-            userId,
-            subscriptionId,
-          }),
-          sendSubscriptionEmailToUser(apiRequest, {
-            email,
-            userId,
-            agentId: productId || verifyResponse.chatbotType || "insta",
-            subscriptionId,
-          }),
-        ]);
-
-        showToast(
-          "Payment Successful!",
-          "Subscription activated successfully",
-        );
-        router.replace("/insta/automations?success=true");
-        router.refresh();
       } catch (error: any) {
         console.error("Razorpay redirect callback error:", error);
         showToast(
@@ -735,9 +686,7 @@ function PricingWithSearchParams() {
 
     void processRazorpayRedirectCallback();
   }, [
-    apiRequest,
-    clearPendingCheckout,
-    email,
+    finishWebhookActivatedInstaPayment,
     router,
     searchParams,
     showToast,

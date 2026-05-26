@@ -22,21 +22,16 @@ import {
 import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
-  verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
-import {
-  sendSubscriptionEmailToOwner,
-  sendSubscriptionEmailToUser,
-} from "@/lib/services/misc-actions.api";
 import {
   checkAndPrepareScrape,
   getUserById,
 } from "@/lib/services/user-actions.api";
 import {
   createWebChatbot,
+  getSubscriptions,
   processScrapedData,
   scrapeWebsite,
-  updateWebChatbot,
 } from "@/lib/services/web-actions.api";
 
 interface CheckoutProps {
@@ -441,21 +436,21 @@ export const Checkout = ({
     }
   };
 
-  const updateChatbotWithSubscription = async (
-    chatbotId: string,
-    subscriptionId: string,
-  ) => {
-    try {
-      const result = await updateWebChatbot(apiRequest, chatbotId, {
-        subscriptionId,
-        isActive: true,
-      });
+  const waitForWebSubscriptionActivation = async (subscriptionId: string) => {
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const subscriptions = await getSubscriptions(apiRequest);
+      const activeSubscription = subscriptions?.find(
+        (subscription: any) =>
+          subscription.subscriptionId === subscriptionId &&
+          subscription.status === "active",
+      );
 
-      return result;
-    } catch (error) {
-      console.error("Error updating chatbot:", error);
-      throw error;
+      if (activeSubscription) return activeSubscription;
+
+      await new Promise((resolve) => window.setTimeout(resolve, 3000));
     }
+
+    return null;
   };
 
   const handleWebsiteFormSubmit = async (data: WebsiteFormData) => {
@@ -577,6 +572,10 @@ export const Checkout = ({
           billingCycle: billingCycle,
           previousSubscriptionId,
           previousSubscriptionType,
+          email: userEmailRef.current,
+          chatbotId: createdChatbotId,
+          chatbotName: chatbotNameRef.current,
+          websiteUrl: websiteUrlRef.current,
         },
       });
       const callbackUrl = new URL(
@@ -608,26 +607,6 @@ export const Checkout = ({
         );
       }
 
-      let hasFinalizedPayment = false;
-      const finalizeChatbotPayment = async (
-        response?: any,
-        options: { silent?: boolean } = {},
-      ) => {
-        if (hasFinalizedPayment) return true;
-
-        const finalized = await handleChatbotPaymentSuccess(
-          response,
-          result.subscriptionId,
-          options,
-        );
-
-        if (finalized) {
-          hasFinalizedPayment = true;
-        }
-
-        return finalized;
-      };
-
       const paymentOptions = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
         amount: amount * 100,
@@ -648,7 +627,7 @@ export const Checkout = ({
           referralCode: referralCode || "",
         },
         handler: async (response: any) => {
-          await finalizeChatbotPayment(response);
+          await handleChatbotPaymentSuccess(response, result.subscriptionId);
         },
         modal: {
           ondismiss: () => {
@@ -683,73 +662,41 @@ export const Checkout = ({
   const handleChatbotPaymentSuccess = async (
     razorpayResponse: any | undefined,
     subscriptionId: string,
-    options: { silent?: boolean } = {},
   ): Promise<boolean> => {
     try {
-      const verificationData = {
-        subscription_id: subscriptionId,
-        razorpay_payment_id: razorpayResponse?.razorpay_payment_id,
-        razorpay_signature: razorpayResponse?.razorpay_signature,
-        chatbotType: productId,
-        subscriptionKind: "web",
-        subscriptionType: productId,
-        productId,
-        billingCycle,
-        previousSubscriptionId,
-        previousSubscriptionType,
-      };
-
-      const verifyResponse = await verifyRazorpayPayment(
-        apiRequest,
-        verificationData,
-      );
-
-      if (verifyResponse.success) {
-        const referralCode = localStorage.getItem("referral_code");
-        if (referralCode) {
-          localStorage.removeItem("referral_code");
-        }
-
-        // Update chatbot with subscription ID if it was newly created
-        if (createdChatbotId && !chatbotCreated) {
-          await updateChatbotWithSubscription(createdChatbotId, subscriptionId);
-        }
-
-        setCurrentStep("subscription-activate");
-        setShowModal(true);
-        setScrapingStatus("Activating your subscription...");
-
-        // Send subscription email
-        await sendSubscriptionEmailToOwner(apiRequest, {
-          email: userEmailRef.current,
-          userId: userId,
-          subscriptionId,
-        });
-        await sendSubscriptionEmailToUser(apiRequest, {
-          email: userEmailRef.current,
-          userId: userId,
-          agentId: productId,
-          subscriptionId,
-        });
-
-        showSuccessToast("Subscription activated successfully!");
-
-        setTimeout(() => {
-          setShowModal(false);
-          router.push("/web");
-        }, 2000);
-        return true;
-      } else {
-        if (!options.silent) {
-          showErrorToast(verifyResponse.message || "Verification failed");
-        }
+      if (
+        !razorpayResponse?.razorpay_payment_id ||
+        !razorpayResponse?.razorpay_signature
+      ) {
+        showErrorToast("Payment was not completed.");
         return false;
       }
-    } catch (error) {
-      console.error("Chatbot payment verification error:", error);
-      if (!options.silent) {
-        showErrorToast("Payment verification failed");
+
+      setCurrentStep("subscription-activate");
+      setShowModal(true);
+      setScrapingStatus("Waiting for Razorpay confirmation...");
+
+      const activeSubscription =
+        await waitForWebSubscriptionActivation(subscriptionId);
+
+      if (!activeSubscription) {
+        showErrorToast(
+          "Payment received. We are waiting for Razorpay confirmation, please refresh in a moment.",
+        );
+        return false;
       }
+
+      localStorage.removeItem("referral_code");
+      showSuccessToast("Subscription activated successfully!");
+
+      setTimeout(() => {
+        setShowModal(false);
+        router.push("/web");
+      }, 1000);
+      return true;
+    } catch (error) {
+      console.error("Chatbot payment confirmation error:", error);
+      showErrorToast("Payment confirmation failed");
       return false;
     }
   };

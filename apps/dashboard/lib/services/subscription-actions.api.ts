@@ -25,6 +25,12 @@ export const createRazorpaySubscription = (
       billingCycle: "monthly" | "yearly" | "one-time";
       previousSubscriptionId?: string;
       previousSubscriptionType?: "web" | "insta";
+      email?: string;
+      planLimit?: number;
+      accountLimit?: number;
+      chatbotId?: string | null;
+      chatbotName?: string;
+      websiteUrl?: string;
     };
   },
 ): Promise<any> => {

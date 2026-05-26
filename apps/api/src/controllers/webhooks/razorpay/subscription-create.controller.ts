@@ -4,12 +4,17 @@ import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
 import Affiliate from "@/models/affiliate/Affiliate";
 import AffiReferral from "@/models/affiliate/Referral";
 import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { initializeSubscriptionTokens } from "@/services/token.service";
+import {
+  sendSubscriptionEmailToOwner,
+  sendSubscriptionEmailToUser,
+} from "@/services/sendEmail.service";
 
 async function finalizeSubscriptionReplacementFromNotes(notes: any) {
   const previousSubscriptionId = notes.previousSubscriptionId;
@@ -154,6 +159,21 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   if (subscriptionType === "insta") {
     newSubscription = await InstaSubscription.create(commonData);
+    const replyLimit = Number(notes.planLimit);
+    const accountLimit = Number(notes.accountLimit);
+
+    if (Number.isFinite(replyLimit) && Number.isFinite(accountLimit)) {
+      await User.findOneAndUpdate(
+        { clerkId },
+        {
+          $set: {
+            replyLimit,
+            accountLimit,
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
   } else {
     newSubscription = await WebSubscription.create({
       ...commonData,
@@ -161,9 +181,45 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       chatbotMessage: "Hi, How May I help you?",
     });
     await initializeSubscriptionTokens(clerkId, chatbotType);
+
+    if (notes.chatbotId) {
+      await WebChatbot.findOneAndUpdate(
+        { _id: notes.chatbotId, clerkId },
+        {
+          $set: {
+            subscriptionId: subscriptionData.id,
+            isActive: true,
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
   }
 
   await finalizeSubscriptionReplacementFromNotes(notes);
+
+  const email = notes.email || user.email;
+  if (email) {
+    void Promise.allSettled([
+      sendSubscriptionEmailToOwner({
+        email,
+        userDbId: clerkId,
+        subscriptionId: subscriptionData.id,
+      }),
+      sendSubscriptionEmailToUser({
+        email,
+        userDbId: clerkId,
+        agentId: chatbotType,
+        subscriptionId: subscriptionData.id,
+      }),
+    ]).then((results) => {
+      results.forEach((result) => {
+        if (result.status === "rejected") {
+          console.warn("Webhook subscription email failed:", result.reason);
+        }
+      });
+    });
+  }
 
   let referralRecord = null;
 

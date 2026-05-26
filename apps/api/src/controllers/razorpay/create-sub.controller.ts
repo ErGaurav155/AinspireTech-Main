@@ -26,6 +26,11 @@ export const createRazorpaySubscriptionController = async (
       previousSubscriptionId,
       previousSubscriptionType,
     } = metadata;
+    const extraNotes = Object.fromEntries(
+      Object.entries(metadata).filter(
+        ([, value]) => value !== undefined && value !== null,
+      ),
+    );
     if (!subscriptionType || !productId || !billingCycle) {
       return res.status(400).json({
         success: false,
@@ -51,6 +56,7 @@ export const createRazorpaySubscriptionController = async (
         total_count: 12, // 12 months subscription
         customer_notify: 1 as 0 | 1,
         notes: {
+          ...extraNotes,
           subscriptionType: subscriptionType,
           buyerId: buyerId,
           productId: productId,

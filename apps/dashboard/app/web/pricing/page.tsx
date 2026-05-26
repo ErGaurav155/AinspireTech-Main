@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense, useMemo } from "react";
+import { useState, useEffect, Suspense, useMemo, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import {
@@ -38,13 +38,11 @@ import { productSubscriptionDetails } from "@rocketreplai/shared";
 import {
   getChatbots,
   getSubscriptions,
-  updateWebChatbot,
 } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
-import { verifyRazorpayPayment } from "@/lib/services/subscription-actions.api";
 
 // Types
 interface Subscription {
@@ -260,6 +258,26 @@ const PricingContent = () => {
   };
 
   const activeProductId = searchParams.get("id");
+  const waitForWebSubscriptionActivation = useCallback(
+    async (subscriptionId: string) => {
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        const subscriptionsResponse = await getSubscriptions(apiRequest);
+        const activeSubscription = subscriptionsResponse?.find(
+          (subscription: any) =>
+            subscription.subscriptionId === subscriptionId &&
+            subscription.status === "active",
+        );
+
+        if (activeSubscription) return activeSubscription;
+
+        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      }
+
+      return null;
+    },
+    [apiRequest],
+  );
+
   useEffect(() => {
     const processRazorpayRedirectCallback = async () => {
       if (!userId) return;
@@ -272,11 +290,6 @@ const PricingContent = () => {
       }
 
       const subscriptionId = searchParams.get("subscription_id");
-      const productId = searchParams.get("productId") || "";
-      const callbackBillingCycle = searchParams.get("billingCycle") as
-        | "monthly"
-        | "yearly"
-        | null;
 
       if (!subscriptionId) return;
 
@@ -290,31 +303,17 @@ const PricingContent = () => {
           throw new Error("Payment was not completed");
         }
 
-        const verifyResponse = await verifyRazorpayPayment(apiRequest, {
-          subscription_id: subscriptionId,
-          razorpay_payment_id: searchParams.get("razorpay_payment_id"),
-          razorpay_signature: searchParams.get("razorpay_signature"),
-          chatbotType: productId,
-          subscriptionKind: "web",
-          subscriptionType: productId || "web",
-          productId,
-          billingCycle: callbackBillingCycle || "monthly",
-          previousSubscriptionId:
-            searchParams.get("previousSubscriptionId") || undefined,
-          previousSubscriptionType:
-            searchParams.get("previousSubscriptionType") || undefined,
-        });
+        const activeSubscription =
+          await waitForWebSubscriptionActivation(subscriptionId);
 
-        if (!verifyResponse.success) {
-          throw new Error(verifyResponse.message || "Payment verification failed");
-        }
-
-        const chatbotId = searchParams.get("chatbotId");
-        if (chatbotId) {
-          await updateWebChatbot(apiRequest, chatbotId, {
-            subscriptionId,
-            isActive: true,
+        if (!activeSubscription) {
+          toast({
+            title: "Payment Processing",
+            description:
+              "Payment was received. We are waiting for Razorpay confirmation, please refresh in a moment.",
+            variant: "destructive",
           });
+          return;
         }
 
         toast({
@@ -355,7 +354,7 @@ const PricingContent = () => {
     };
 
     void processRazorpayRedirectCallback();
-  }, [apiRequest, router, searchParams, userId]);
+  }, [router, searchParams, userId, waitForWebSubscriptionActivation]);
 
   const TAB_LABELS: Record<
     PlanType,
