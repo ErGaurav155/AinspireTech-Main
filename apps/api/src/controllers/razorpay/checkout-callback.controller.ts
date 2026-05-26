@@ -12,16 +12,6 @@ const appendParam = (
   }
 };
 
-const getRazorpayErrorValue = (body: any, key: string) => {
-  const error = body?.error;
-
-  if (error && typeof error === "object" && typeof error[key] === "string") {
-    return error[key];
-  }
-
-  return body?.[`error[${key}]`] || body?.[`error.${key}`];
-};
-
 export const razorpayCheckoutCallbackController = (
   req: Request,
   res: Response,
@@ -56,21 +46,6 @@ export const razorpayCheckoutCallbackController = (
     callbackParams,
     "razorpay_signature",
     req.query.razorpay_signature || req.body?.razorpay_signature,
-  );
-  appendParam(
-    callbackParams,
-    "razorpay_error_code",
-    getRazorpayErrorValue(req.body, "code"),
-  );
-  appendParam(
-    callbackParams,
-    "razorpay_error_description",
-    getRazorpayErrorValue(req.body, "description"),
-  );
-  appendParam(
-    callbackParams,
-    "razorpay_error_reason",
-    getRazorpayErrorValue(req.body, "reason"),
   );
   appendParam(callbackParams, "productId", req.query.productId);
   appendParam(callbackParams, "billingCycle", req.query.billingCycle);

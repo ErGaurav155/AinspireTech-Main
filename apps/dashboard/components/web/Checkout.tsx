@@ -79,7 +79,6 @@ type WebsiteFormData = z.infer<ReturnType<typeof createWebsiteFormSchema>>;
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
-const PENDING_RAZORPAY_CALLBACK_KEY = "pending_razorpay_callback";
 
 const isMobileCheckoutDevice = () => {
   if (typeof navigator === "undefined") return false;
@@ -606,13 +605,6 @@ export const Checkout = ({
         callbackUrl.searchParams.set(
           "previousSubscriptionType",
           previousSubscriptionType,
-        );
-      }
-
-      if (isMobileCheckoutDevice()) {
-        sessionStorage.setItem(
-          PENDING_RAZORPAY_CALLBACK_KEY,
-          result.subscriptionId,
         );
       }
 

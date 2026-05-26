@@ -73,9 +73,7 @@ interface Subscription {
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 const PENDING_INSTA_CHECKOUT_KEY = "pending_insta_checkout";
-const PENDING_RAZORPAY_CALLBACK_KEY = "pending_razorpay_callback";
 const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
-const PROCESSED_RAZORPAY_CALLBACK_PREFIX = "processed_razorpay_callback:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 
@@ -172,15 +170,8 @@ function PricingWithSearchParams() {
   const [isCancelling, setIsCancelling] = useState(false);
   const [isUpgrading, setIsUpgrading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingRazorpayCallbackId, setPendingRazorpayCallbackId] = useState<
-    string | null
-  >(null);
-  const [pendingVerificationSubId, setPendingVerificationSubId] = useState<
-    string | null
-  >(null);
   const hasStartedAutoCheckout = useRef(false);
   const processedInstagramCodeRef = useRef<string | null>(null);
-  const processedRazorpayCallbackRef = useRef<string | null>(null);
 
   // Dialog states
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -435,14 +426,6 @@ function PricingWithSearchParams() {
         callbackUrl.searchParams.set("accountLimit", String(plan.account));
         callbackUrl.searchParams.set("razorpay_checkout", "1");
 
-        if (isMobileCheckoutDevice()) {
-          sessionStorage.setItem(
-            PENDING_RAZORPAY_CALLBACK_KEY,
-            result.subscriptionId,
-          );
-          setPendingRazorpayCallbackId(result.subscriptionId);
-        }
-
         if (previousSubscriptionId) {
           callbackUrl.searchParams.set(
             "previousSubscriptionId",
@@ -634,17 +617,13 @@ function PricingWithSearchParams() {
       if (!userId) return;
 
       const isRazorpayCallback = searchParams.get("razorpay_checkout") === "1";
-      const pendingCallbackId = sessionStorage.getItem(
-        PENDING_RAZORPAY_CALLBACK_KEY,
-      );
 
       if (!isRazorpayCallback) return;
       if (isRazorpayCallback && searchParams.get("checkoutKind") !== "insta") {
         return;
       }
 
-      const subscriptionId =
-        searchParams.get("subscription_id") || pendingCallbackId;
+      const subscriptionId = searchParams.get("subscription_id");
       const productId = searchParams.get("productId") || "";
       const callbackBillingCycle = searchParams.get("billingCycle") as
         | "monthly"
@@ -653,28 +632,9 @@ function PricingWithSearchParams() {
 
       if (!subscriptionId) return;
 
-      const callbackKey = `${PROCESSED_RAZORPAY_CALLBACK_PREFIX}${subscriptionId}`;
-      const hasAlreadyProcessed =
-        processedRazorpayCallbackRef.current === subscriptionId ||
-        sessionStorage.getItem(callbackKey);
-
-      if (hasAlreadyProcessed) return;
-
-      processedRazorpayCallbackRef.current = subscriptionId;
-      sessionStorage.setItem(callbackKey, Date.now().toString());
-      sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
-      setPendingRazorpayCallbackId(null);
       setIsUpgrading(true);
 
       try {
-        const razorpayError =
-          searchParams.get("razorpay_error_description") ||
-          searchParams.get("razorpay_error_reason");
-
-        if (razorpayError) {
-          throw new Error(razorpayError);
-        }
-
         if (
           !searchParams.get("razorpay_payment_id") ||
           !searchParams.get("razorpay_signature")
@@ -742,25 +702,10 @@ function PricingWithSearchParams() {
         router.replace("/insta/automations?success=true");
         router.refresh();
       } catch (error: any) {
-        const isFailedPayment = Boolean(
-          searchParams.get("razorpay_error_code") ||
-            searchParams.get("razorpay_error_description"),
-        );
-        sessionStorage.removeItem(callbackKey);
-        processedRazorpayCallbackRef.current = null;
-        if (isFailedPayment) {
-          sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
-          setPendingRazorpayCallbackId(null);
-        } else {
-          sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
-          setPendingRazorpayCallbackId(subscriptionId);
-        }
         console.error("Razorpay redirect callback error:", error);
         showToast(
-          isFailedPayment ? "Failed!" : "Payment Status Unknown",
-          isFailedPayment
-            ? error.message || "Payment could not be completed."
-            : "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
+          "Failed!",
+          error.message || "Payment could not be completed.",
           true,
         );
       } finally {
@@ -773,9 +718,6 @@ function PricingWithSearchParams() {
             "subscription_id",
             "razorpay_payment_id",
             "razorpay_signature",
-            "razorpay_error_code",
-            "razorpay_error_description",
-            "razorpay_error_reason",
             "productId",
             "billingCycle",
             "planLimit",
@@ -801,48 +743,6 @@ function PricingWithSearchParams() {
     showToast,
     userId,
   ]);
-
-  useEffect(() => {
-    setPendingRazorpayCallbackId(
-      sessionStorage.getItem(PENDING_RAZORPAY_CALLBACK_KEY),
-    );
-  }, []);
-
-  const manualVerifyPayment = useCallback(
-    async (subscriptionId: string) => {
-      setPendingVerificationSubId(subscriptionId);
-
-      try {
-        const verifyResponse = await verifyRazorpayPayment(apiRequest, {
-          subscription_id: subscriptionId,
-          subscriptionKind: "insta",
-          subscriptionType: "insta",
-          productId: "",
-          billingCycle: "monthly",
-        });
-
-        if (!verifyResponse.success) {
-          throw new Error(verifyResponse.message || "Payment not found");
-        }
-
-        sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
-        setPendingRazorpayCallbackId(null);
-        showToast("Success!", "Payment verified! Subscription activated.");
-        router.push("/insta/automations?success=true");
-        router.refresh();
-      } catch (error: any) {
-        console.error("Manual Razorpay verification error:", error);
-        showToast(
-          "Failed!",
-          error.message || "Could not verify payment. Please contact support.",
-          true,
-        );
-      } finally {
-        setPendingVerificationSubId(null);
-      }
-    },
-    [apiRequest, router, showToast],
-  );
 
   // Fetch user data and subscription info
   useEffect(() => {
@@ -1780,34 +1680,6 @@ function PricingWithSearchParams() {
               </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {pendingRazorpayCallbackId && (
-        <div
-          className={`fixed bottom-4 right-4 z-50 w-[calc(100%-2rem)] max-w-sm rounded-xl border p-4 shadow-xl ${
-            isDark
-              ? "border-yellow-500/20 bg-[#1A1A1E] text-yellow-100"
-              : "border-yellow-200 bg-yellow-50 text-yellow-900"
-          }`}
-        >
-          <p className="mb-3 text-sm">
-            Completed the UPI payment? Check the latest Razorpay status here.
-          </p>
-          <Button
-            onClick={() => manualVerifyPayment(pendingRazorpayCallbackId)}
-            disabled={!!pendingVerificationSubId}
-            className="w-full rounded-xl bg-yellow-500 text-white hover:bg-yellow-600"
-          >
-            {pendingVerificationSubId ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Checking...
-              </>
-            ) : (
-              "Check Payment Status"
-            )}
-          </Button>
         </div>
       )}
 
