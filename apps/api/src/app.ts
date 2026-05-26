@@ -51,7 +51,8 @@ app.use((req, res, next) => {
   if (
     req.path.startsWith("/api/embed/") ||
     req.path.startsWith("/api/cron/") ||
-    req.path.startsWith("/api/webhooks/")
+    req.path.startsWith("/api/webhooks/") ||
+    req.path.startsWith("/api/razorpay/checkout-callback")
   ) {
     return next();
   }
@@ -212,7 +213,8 @@ app.use((req, res, next) => {
   if (
     req.path.startsWith("/api/embed/") ||
     req.path.startsWith("/api/cron/") ||
-    req.path.startsWith("/api/webhooks/")
+    req.path.startsWith("/api/webhooks/") ||
+    req.path.startsWith("/api/razorpay/checkout-callback")
   ) {
     return next();
   }

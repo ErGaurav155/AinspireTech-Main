@@ -582,7 +582,7 @@ export const Checkout = ({
       });
       const callbackUrl = new URL(
         "/api/razorpay/checkout-callback",
-        window.location.origin,
+        process.env.NEXT_PUBLIC_API_URL || window.location.origin,
       );
       callbackUrl.searchParams.set("returnTo", "/web/pricing");
       callbackUrl.searchParams.set("kind", "web");

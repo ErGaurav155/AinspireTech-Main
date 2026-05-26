@@ -4,6 +4,7 @@ import { createRazorpaySubscriptionController } from "@/controllers/razorpay/cre
 import { verifyRazorpayPaymentController } from "@/controllers/razorpay/verify-sub.controller";
 import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel-sub.controller";
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
+import { razorpayCheckoutCallbackController } from "@/controllers/razorpay/checkout-callback.controller";
 import {
   createTestRazorpaySubscriptionController,
   getTestRazorpaySubscriptionStatusController,
@@ -16,6 +17,9 @@ import {
 } from "@/controllers/razorpay/test-order.controller";
 
 const router = Router();
+
+router.get("/checkout-callback", razorpayCheckoutCallbackController);
+router.post("/checkout-callback", razorpayCheckoutCallbackController);
 
 router.use(requireAuth());
 

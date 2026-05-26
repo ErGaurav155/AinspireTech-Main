@@ -424,7 +424,7 @@ function PricingWithSearchParams() {
 
         const callbackUrl = new URL(
           "/api/razorpay/checkout-callback",
-          window.location.origin,
+          process.env.NEXT_PUBLIC_API_URL || window.location.origin,
         );
         callbackUrl.searchParams.set("returnTo", "/insta/pricing");
         callbackUrl.searchParams.set("kind", "insta");
@@ -667,6 +667,14 @@ function PricingWithSearchParams() {
       setIsUpgrading(true);
 
       try {
+        const razorpayError =
+          searchParams.get("razorpay_error_description") ||
+          searchParams.get("razorpay_error_reason");
+
+        if (razorpayError) {
+          throw new Error(razorpayError);
+        }
+
         if (
           !searchParams.get("razorpay_payment_id") ||
           !searchParams.get("razorpay_signature")
@@ -734,14 +742,25 @@ function PricingWithSearchParams() {
         router.replace("/insta/automations?success=true");
         router.refresh();
       } catch (error: any) {
+        const isFailedPayment = Boolean(
+          searchParams.get("razorpay_error_code") ||
+            searchParams.get("razorpay_error_description"),
+        );
         sessionStorage.removeItem(callbackKey);
         processedRazorpayCallbackRef.current = null;
-        sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
-        setPendingRazorpayCallbackId(subscriptionId);
+        if (isFailedPayment) {
+          sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
+          setPendingRazorpayCallbackId(null);
+        } else {
+          sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
+          setPendingRazorpayCallbackId(subscriptionId);
+        }
         console.error("Razorpay redirect callback error:", error);
         showToast(
-          "Payment Status Unknown",
-          "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
+          isFailedPayment ? "Failed!" : "Payment Status Unknown",
+          isFailedPayment
+            ? error.message || "Payment could not be completed."
+            : "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
           true,
         );
       } finally {
@@ -754,6 +773,9 @@ function PricingWithSearchParams() {
             "subscription_id",
             "razorpay_payment_id",
             "razorpay_signature",
+            "razorpay_error_code",
+            "razorpay_error_description",
+            "razorpay_error_reason",
             "productId",
             "billingCycle",
             "planLimit",

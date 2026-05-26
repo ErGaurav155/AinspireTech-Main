@@ -308,6 +308,14 @@ const PricingContent = () => {
       setIsLoading(true);
 
       try {
+        const razorpayError =
+          searchParams.get("razorpay_error_description") ||
+          searchParams.get("razorpay_error_reason");
+
+        if (razorpayError) {
+          throw new Error(razorpayError);
+        }
+
         if (
           !searchParams.get("razorpay_payment_id") ||
           !searchParams.get("razorpay_signature")
@@ -349,15 +357,26 @@ const PricingContent = () => {
         router.replace("/web");
         router.refresh();
       } catch (error: any) {
+        const isFailedPayment = Boolean(
+          searchParams.get("razorpay_error_code") ||
+            searchParams.get("razorpay_error_description"),
+        );
         sessionStorage.removeItem(callbackKey);
         processedRazorpayCallbackRef.current = null;
-        sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
-        setPendingRazorpayCallbackId(subscriptionId);
+        if (isFailedPayment) {
+          sessionStorage.removeItem(PENDING_RAZORPAY_CALLBACK_KEY);
+          setPendingRazorpayCallbackId(null);
+        } else {
+          sessionStorage.setItem(PENDING_RAZORPAY_CALLBACK_KEY, subscriptionId);
+          setPendingRazorpayCallbackId(subscriptionId);
+        }
         console.error("Razorpay redirect callback error:", error);
         toast({
-          title: "Payment Status Unknown",
+          title: isFailedPayment ? "Failed!" : "Payment Status Unknown",
           description:
-            "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
+            isFailedPayment
+              ? error.message || "Payment could not be completed."
+              : "If the amount was deducted, use Check Payment Status below. Razorpay can take a few moments to confirm UPI payments.",
           variant: "destructive",
         });
       } finally {
@@ -370,6 +389,9 @@ const PricingContent = () => {
             "subscription_id",
             "razorpay_payment_id",
             "razorpay_signature",
+            "razorpay_error_code",
+            "razorpay_error_description",
+            "razorpay_error_reason",
             "productId",
             "billingCycle",
             "chatbotId",
