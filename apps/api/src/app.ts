@@ -159,8 +159,13 @@ app.use("/api", limiter);
    CORS CONFIGURATION (Railway Production Ready)
 ============================================================ */
 
-app.use(
-  cors({
+const shouldBypassCors = (path: string) =>
+  path.startsWith("/api/embed/") ||
+  path.startsWith("/api/cron/") ||
+  path.startsWith("/api/webhooks/") ||
+  path.startsWith("/api/razorpay/checkout-callback");
+
+const corsMiddleware = cors({
     origin: function (origin, callback) {
       // Allow requests with no origin (server-to-server)
       if (!origin) return callback(null, true);
@@ -199,8 +204,15 @@ app.use(
     ],
     optionsSuccessStatus: 200,
     preflightContinue: false,
-  }),
-);
+  });
+
+app.use((req, res, next) => {
+  if (shouldBypassCors(req.path)) {
+    return next();
+  }
+
+  return corsMiddleware(req, res, next);
+});
 
 /* ============================================================
    CLERK AUTHENTICATION

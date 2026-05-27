@@ -68,6 +68,8 @@ interface Product {
 
 type BillingMode = "monthly" | "yearly";
 type PlanType = "chatbot";
+const PENDING_WEB_RAZORPAY_CHECKOUT_KEY = "pending_web_razorpay_checkout";
+const PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS = 30 * 60 * 1000;
 
 // Icon mapping
 const iconMapping: Record<string, any> = {
@@ -354,6 +356,71 @@ const PricingContent = () => {
     };
 
     void processRazorpayRedirectCallback();
+  }, [router, searchParams, userId, waitForWebSubscriptionActivation]);
+
+  useEffect(() => {
+    const recoverPendingRazorpayCheckout = async () => {
+      if (!userId || searchParams.get("razorpay_checkout") === "1") return;
+      if (typeof window === "undefined") return;
+
+      const pendingCheckout = sessionStorage.getItem(
+        PENDING_WEB_RAZORPAY_CHECKOUT_KEY,
+      );
+
+      if (!pendingCheckout) return;
+
+      let parsedCheckout: { subscriptionId?: string; createdAt?: number };
+
+      try {
+        parsedCheckout = JSON.parse(pendingCheckout);
+      } catch {
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+        return;
+      }
+
+      const subscriptionId = parsedCheckout.subscriptionId;
+      const createdAt = parsedCheckout.createdAt || 0;
+
+      if (
+        !subscriptionId ||
+        Date.now() - createdAt > PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS
+      ) {
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+        return;
+      }
+
+      setIsLoading(true);
+
+      try {
+        const activeSubscription =
+          await waitForWebSubscriptionActivation(subscriptionId);
+
+        if (activeSubscription) {
+          sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+          toast({
+            title: "Payment Successful!",
+            description: "Subscription activated successfully",
+          });
+          router.replace("/web");
+          router.refresh();
+          return;
+        }
+
+        toast({
+          title: "Payment Not Completed",
+          description:
+            "We could not confirm a successful payment for the last checkout.",
+          variant: "destructive",
+        });
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+      } catch (error) {
+        console.error("Pending Razorpay checkout recovery error:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void recoverPendingRazorpayCheckout();
   }, [router, searchParams, userId, waitForWebSubscriptionActivation]);
 
   const TAB_LABELS: Record<

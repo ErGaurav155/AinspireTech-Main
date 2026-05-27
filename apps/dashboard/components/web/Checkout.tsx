@@ -74,6 +74,7 @@ type WebsiteFormData = z.infer<ReturnType<typeof createWebsiteFormSchema>>;
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const PENDING_WEB_RAZORPAY_CHECKOUT_KEY = "pending_web_razorpay_checkout";
 
 const isMobileCheckoutDevice = () => {
   if (typeof navigator === "undefined") return false;
@@ -329,6 +330,28 @@ export const Checkout = ({
     });
   }, []);
 
+  const savePendingRazorpayCheckout = useCallback(
+    (subscriptionId: string) => {
+      if (typeof window === "undefined") return;
+
+      sessionStorage.setItem(
+        PENDING_WEB_RAZORPAY_CHECKOUT_KEY,
+        JSON.stringify({
+          subscriptionId,
+          productId,
+          billingCycle,
+          createdAt: Date.now(),
+        }),
+      );
+    },
+    [billingCycle, productId],
+  );
+
+  const clearPendingRazorpayCheckout = useCallback(() => {
+    if (typeof window === "undefined") return;
+    sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+  }, []);
+
   const fetchRequiredData = async (): Promise<boolean> => {
     try {
       const planInfo = await getRazerpayPlanInfo(apiRequest, productId);
@@ -578,6 +601,9 @@ export const Checkout = ({
           websiteUrl: websiteUrlRef.current,
         },
       });
+
+      savePendingRazorpayCheckout(result.subscriptionId);
+
       const callbackUrl = new URL(
         "/api/razorpay/checkout-callback",
         process.env.NEXT_PUBLIC_API_URL || window.location.origin,
@@ -687,6 +713,7 @@ export const Checkout = ({
       }
 
       localStorage.removeItem("referral_code");
+      clearPendingRazorpayCheckout();
       showSuccessToast("Subscription activated successfully!");
 
       setTimeout(() => {

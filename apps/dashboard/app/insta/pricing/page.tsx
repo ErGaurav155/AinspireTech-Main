@@ -68,6 +68,8 @@ interface Subscription {
 const FREE_PLAN_ACCOUNT_LIMIT = 1;
 const CANCELLATION_REASON_PLACEHOLDER = "User requested cancellation";
 const PENDING_INSTA_CHECKOUT_KEY = "pending_insta_checkout";
+const PENDING_INSTA_RAZORPAY_CHECKOUT_KEY = "pending_insta_razorpay_checkout";
+const PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS = 30 * 60 * 1000;
 const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -285,6 +287,32 @@ function PricingWithSearchParams() {
     sessionStorage.removeItem(PENDING_INSTA_CHECKOUT_KEY);
   }, []);
 
+  const savePendingRazorpayCheckout = useCallback(
+    (
+      subscriptionId: string,
+      plan: PricingPlan,
+      cycle: "monthly" | "yearly",
+      price: number,
+    ) => {
+      sessionStorage.setItem(
+        PENDING_INSTA_RAZORPAY_CHECKOUT_KEY,
+        JSON.stringify({
+          subscriptionId,
+          productId: plan.id,
+          billingCycle: cycle,
+          planName: plan.name,
+          price,
+          createdAt: Date.now(),
+        }),
+      );
+    },
+    [],
+  );
+
+  const clearPendingRazorpayCheckout = useCallback(() => {
+    sessionStorage.removeItem(PENDING_INSTA_RAZORPAY_CHECKOUT_KEY);
+  }, []);
+
   const clearInstagramCodeFromUrl = useCallback(() => {
     if (typeof window === "undefined") return;
 
@@ -410,6 +438,7 @@ function PricingWithSearchParams() {
       });
 
       clearPendingCheckout();
+      clearPendingRazorpayCheckout();
       setIsSubscribed(true);
       setCurrentSubscription({
         productId,
@@ -424,6 +453,7 @@ function PricingWithSearchParams() {
     },
     [
       clearPendingCheckout,
+      clearPendingRazorpayCheckout,
       router,
       showToast,
       waitForInstaSubscriptionActivation,
@@ -488,6 +518,8 @@ function PricingWithSearchParams() {
             accountLimit: plan.account,
           },
         });
+
+        savePendingRazorpayCheckout(result.subscriptionId, plan, cycle, price);
 
         const callbackUrl = new URL(
           "/api/razorpay/checkout-callback",
@@ -603,6 +635,7 @@ function PricingWithSearchParams() {
       isInstaAccount,
       loadRazorpayScript,
       redirectToInstagramConnect,
+      savePendingRazorpayCheckout,
       showToast,
       userId,
     ],
@@ -691,6 +724,84 @@ function PricingWithSearchParams() {
     searchParams,
     showToast,
     userId,
+  ]);
+
+  useEffect(() => {
+    const recoverPendingRazorpayCheckout = async () => {
+      if (!userId || searchParams.get("razorpay_checkout") === "1") return;
+      if (typeof window === "undefined") return;
+
+      const pendingCheckout = sessionStorage.getItem(
+        PENDING_INSTA_RAZORPAY_CHECKOUT_KEY,
+      );
+
+      if (!pendingCheckout) return;
+
+      let parsedCheckout: {
+        subscriptionId?: string;
+        productId?: string;
+        billingCycle?: "monthly" | "yearly";
+        planName?: string;
+        price?: number;
+        createdAt?: number;
+      };
+
+      try {
+        parsedCheckout = JSON.parse(pendingCheckout);
+      } catch {
+        clearPendingRazorpayCheckout();
+        return;
+      }
+
+      const subscriptionId = parsedCheckout.subscriptionId;
+      const createdAt = parsedCheckout.createdAt || 0;
+
+      if (
+        !subscriptionId ||
+        Date.now() - createdAt > PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS
+      ) {
+        clearPendingRazorpayCheckout();
+        return;
+      }
+
+      setIsUpgrading(true);
+
+      try {
+        const activeSubscription =
+          await waitForInstaSubscriptionActivation(subscriptionId);
+
+        if (activeSubscription) {
+          await finishWebhookActivatedInstaPayment({
+            subscriptionId,
+            productId: parsedCheckout.productId || "",
+            billingCycle: parsedCheckout.billingCycle || "monthly",
+            planName: parsedCheckout.planName || parsedCheckout.productId || "",
+            price: parsedCheckout.price || 0,
+          });
+          return;
+        }
+
+        showToast(
+          "Payment Not Completed",
+          "We could not confirm a successful payment for the last checkout.",
+          true,
+        );
+        clearPendingRazorpayCheckout();
+      } catch (error) {
+        console.error("Pending Razorpay checkout recovery error:", error);
+      } finally {
+        setIsUpgrading(false);
+      }
+    };
+
+    void recoverPendingRazorpayCheckout();
+  }, [
+    clearPendingRazorpayCheckout,
+    finishWebhookActivatedInstaPayment,
+    searchParams,
+    showToast,
+    userId,
+    waitForInstaSubscriptionActivation,
   ]);
 
   // Fetch user data and subscription info
