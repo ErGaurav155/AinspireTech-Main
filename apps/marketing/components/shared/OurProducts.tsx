@@ -33,7 +33,9 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 
 export function AIVoiceAgentShowcase() {
-  const [activePlatform, setActivePlatform] = useState<"web" | "insta">("web");
+  const [activePlatform, setActivePlatform] = useState<
+    "web" | "insta" | "call"
+  >("web");
   const [openWebDropdown, setOpenWebDropdown] = useState<string | null>(
     "support",
   );
@@ -163,6 +165,45 @@ export function AIVoiceAgentShowcase() {
     },
   };
 
+  const callAssistantTypes = {
+    receptionist: {
+      title: "AI Call Receptionist",
+      description: "Answer missed calls and qualify callers automatically",
+      icon: <Phone className="h-5 w-5" />,
+      features: [
+        "24/7 inbound call answering",
+        "Caller information capture",
+        "Call summaries and transcripts",
+        "Transfer or take-message fallback",
+      ],
+      color: "from-cyan-500 to-emerald-500",
+    },
+    notifications: {
+      title: "Lead Notifications",
+      description: "Send every qualified caller to your team instantly",
+      icon: <MessageSquare className="h-5 w-5" />,
+      features: [
+        "WhatsApp owner alerts",
+        "Email and SMS summaries",
+        "Missed-call notifications",
+        "Team follow-up workflow",
+      ],
+      color: "from-blue-500 to-cyan-500",
+    },
+    appointments: {
+      title: "Appointments and Handoff",
+      description: "Book intent and route hot calls to your team",
+      icon: <Users className="h-5 w-5" />,
+      features: [
+        "Appointment request capture",
+        "Sales callback routing",
+        "CRM and webhook readiness",
+        "Dashboard call operations",
+      ],
+      color: "from-emerald-500 to-green-500",
+    },
+  };
+
   const toggleWebDropdown = (key: string) => {
     const wasOpen = openWebDropdown === key;
     setOpenWebDropdown(wasOpen ? null : key);
@@ -247,6 +288,12 @@ export function AIVoiceAgentShowcase() {
                 label: "Insta Auto",
                 icon: <Instagram className="h-5 w-5" />,
                 gradient: "from-pink-500 to-purple-500",
+              },
+              {
+                id: "call",
+                label: "AI Calls",
+                icon: <Phone className="h-5 w-5" />,
+                gradient: "from-cyan-500 to-emerald-500",
               },
             ].map((tab) => (
               <button
@@ -419,6 +466,54 @@ export function AIVoiceAgentShowcase() {
                     </div>
                   </div>
                 </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {activePlatform === "call" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+              >
+                {Object.entries(callAssistantTypes).map(([key, agentType]) => (
+                  <motion.div
+                    key={key}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className={`${themeStyles.dropdownBg} border ${themeStyles.dropdownBorder} rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${agentType.color} text-white`}
+                    >
+                      {agentType.icon}
+                    </div>
+                    <h3
+                      className={`mt-5 text-lg md:text-xl font-bold ${themeStyles.titleText}`}
+                    >
+                      {agentType.title}
+                    </h3>
+                    <p
+                      className={`mt-2 text-sm ${themeStyles.descriptionText} font-medium font-montserrat`}
+                    >
+                      {agentType.description}
+                    </p>
+                    <div className="mt-5 space-y-3">
+                      {agentType.features.map((feature) => (
+                        <div key={feature} className="flex items-start gap-3">
+                          <div className="mt-1 h-2 w-2 rounded-full bg-cyan-500 flex-shrink-0" />
+                          <span
+                            className={`text-sm ${themeStyles.descriptionText} font-medium font-montserrat`}
+                          >
+                            {feature}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                ))}
               </motion.div>
             )}
           </AnimatePresence>

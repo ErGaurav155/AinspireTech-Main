@@ -25,6 +25,7 @@ import {
   Contact,
   Lock,
   CurrencyIcon,
+  Phone,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -590,6 +591,17 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                   <div className="min-w-0">
                     <p className={localStyles.productLabel}>Web Dashboard</p>
                     <p className={localStyles.productMeta}>Website Chatbot</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/call"
+                  className={localStyles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Phone className={localStyles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={localStyles.productLabel}>Call Dashboard</p>
+                    <p className={localStyles.productMeta}>AI Receptionist</p>
                   </div>
                 </Link>
               </div>

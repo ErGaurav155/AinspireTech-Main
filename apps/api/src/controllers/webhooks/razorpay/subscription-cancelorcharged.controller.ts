@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import CallSubscription from "@/models/call/CallSubscription.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import ReplyLog from "@/models/insta/ReplyLog.model";
@@ -173,6 +174,10 @@ async function handleReferralCancellation(
     }
 
     if (!subscription) {
+      subscription = await CallSubscription.findOne({ subscriptionId });
+    }
+
+    if (!subscription) {
       return;
     }
 
@@ -242,7 +247,26 @@ async function handleSubscriptionEnded(subscriptionId: string) {
       // Handle referral cancellation for web subscription
       await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
     } else {
-      console.warn(`Subscription ${subscriptionId} not found in any model`);
+      const callUpdatedSub = await CallSubscription.findOneAndUpdate(
+        { subscriptionId },
+        {
+          $set: {
+            status: "cancelled",
+            cancelledAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+        { new: true },
+      );
+
+      if (callUpdatedSub) {
+        await handleReferralCancellation(
+          subscriptionId,
+          callUpdatedSub.clerkId,
+        );
+      } else {
+        console.warn(`Subscription ${subscriptionId} not found in any model`);
+      }
     }
   }
 }

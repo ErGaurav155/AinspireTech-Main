@@ -44,6 +44,7 @@ export function NavBar() {
   const navItems = [
     { id: "insta", label: "Insta", href: "/insta" },
     { id: "web", label: "Web", href: "/web" },
+    { id: "call", label: "AI Call", href: "/call" },
     { id: "affiliate", label: "Affiliate", href: "/affiliate" },
     { id: "review", label: "Review", href: "/Review" },
   ];

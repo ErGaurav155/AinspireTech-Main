@@ -14,6 +14,7 @@ import razorpayRoutes from "@/routes/razorpay";
 import scrapeRoutes from "@/routes/scrape";
 import userRoutes from "@/routes/user";
 import miscRoutes from "@/routes/misc";
+import callRoutes from "@/routes/call";
 import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
@@ -29,6 +30,7 @@ router.use("/embed", embedCors, embedRoutes);
 // Protected routes (require Clerk authentication)
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
+router.use("/call", callRoutes);
 router.use("/insta", instaRoutes);
 router.use("/rate-limit", rateLimitRoutes);
 router.use("/razorpay", razorpayRoutes);

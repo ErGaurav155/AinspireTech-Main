@@ -29,6 +29,7 @@ import {
   Coins,
   CreditCard,
   ChartBarStacked,
+  Phone,
 } from "lucide-react";
 import Image from "next/image";
 import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
@@ -762,6 +763,17 @@ export default function WebSidebar({
                     <p className={styles.productMeta}>Website Chatbot</p>
                   </div>
                   <Check className="ml-auto h-4 w-4 text-purple-500" />
+                </Link>
+                <Link
+                  href="/call"
+                  className={styles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <Phone className={styles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={styles.productLabel}>Call Dashboard</p>
+                    <p className={styles.productMeta}>AI Receptionist</p>
+                  </div>
                 </Link>
               </div>
             )}

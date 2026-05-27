@@ -54,10 +54,6 @@ export default async function RootLayout({
         <Suspense fallback={null}>
           <MetaPixel />
         </Suspense>
-
-        <script src="https://cdn.rocketreplai.com/mcq-bot.js" defer>
-          user_3CoBBqMdhu7w6skDlPbB80Ky9Zj,chatbot-education
-        </script>
       </body>
     </html>
   );

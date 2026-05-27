@@ -4,6 +4,7 @@ import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import CallSubscription from "@/models/call/CallSubscription.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
 import Affiliate from "@/models/affiliate/Affiliate";
@@ -30,11 +31,17 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
           clerkId,
           status: "active",
         })
-      : await WebSubscription.findOne({
-          subscriptionId: previousSubscriptionId,
-          clerkId,
-          status: "active",
-        });
+      : previousSubscriptionType === "call"
+        ? await CallSubscription.findOne({
+            subscriptionId: previousSubscriptionId,
+            clerkId,
+            status: "active",
+          })
+        : await WebSubscription.findOne({
+            subscriptionId: previousSubscriptionId,
+            clerkId,
+            status: "active",
+          });
 
   if (!previousSubscription) return;
 
@@ -66,6 +73,11 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
 
   if (previousSubscriptionType === "insta") {
     await InstaSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+  } else if (previousSubscriptionType === "call") {
+    await CallSubscription.findOneAndUpdate(
       { subscriptionId: previousSubscriptionId, clerkId },
       cancellationUpdate,
     );
@@ -113,6 +125,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   if (subscriptionType === "insta") {
     existingSubscription = await InstaSubscription.findOne({
+      subscriptionId: subscriptionData.id,
+    });
+  } else if (subscriptionType === "call") {
+    existingSubscription = await CallSubscription.findOne({
       subscriptionId: subscriptionData.id,
     });
   } else {
@@ -169,6 +185,15 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         },
       );
     }
+  } else if (subscriptionType === "call") {
+    newSubscription = await CallSubscription.create({
+      ...commonData,
+      planType: chatbotType,
+      minutesLimit: Number(notes.minutesLimit) || 1000,
+      numberLimit: Number(notes.numberLimit) || 1,
+      agentLimit: Number(notes.agentLimit) || 3,
+      overageRate: Number(notes.overageRate) || 5,
+    });
   } else {
     newSubscription = await WebSubscription.create({
       ...commonData,
@@ -254,12 +279,24 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       }
 
       const productType =
-        subscriptionType === "insta" ? "insta-automation" : "web-chatbot";
+        subscriptionType === "insta"
+          ? "insta-automation"
+          : subscriptionType === "call"
+            ? "call-assistant"
+            : "web-chatbot";
       const subscriptionModel =
-        subscriptionType === "insta" ? "InstaSubscription" : "WebSubscription";
+        subscriptionType === "insta"
+          ? "InstaSubscription"
+          : subscriptionType === "call"
+            ? "CallSubscription"
+            : "WebSubscription";
       const productName =
         chatbotType ||
-        (subscriptionType === "insta" ? "Instagram Automation" : "Web Chatbot");
+        (subscriptionType === "insta"
+          ? "Instagram Automation"
+          : subscriptionType === "call"
+            ? "AI Call Assistant"
+            : "Web Chatbot");
 
       // Create referral record
       referralRecord = await AffiReferral.create({
@@ -270,7 +307,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         subscriptionModel,
         subscriptionType: billingCycle,
         chatbotType:
-          subscriptionType === "web-chatbot" ? chatbotType : undefined,
+          subscriptionType === "web" ? chatbotType : undefined,
         instaPlan: subscriptionType === "insta" ? chatbotType : undefined,
         subscriptionPrice: Number(subscriptionPrice),
         commissionRate: Number(commissionRate),
@@ -329,7 +366,7 @@ async function handleSubscriptionCharged(
   nextBillingDate: Date,
 ) {
   // Update subscription
-  const [instaUpdate, webUpdate] = await Promise.all([
+  const [instaUpdate, webUpdate, callUpdate] = await Promise.all([
     InstaSubscription.findOneAndUpdate(
       { subscriptionId },
       {
@@ -352,9 +389,20 @@ async function handleSubscriptionCharged(
       },
       { new: true },
     ),
+    CallSubscription.findOneAndUpdate(
+      { subscriptionId },
+      {
+        $set: {
+          status: "active",
+          expiresAt: nextBillingDate,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    ),
   ]);
 
-  const subscription = instaUpdate || webUpdate;
+  const subscription = instaUpdate || webUpdate || callUpdate;
 
   if (subscription) {
     // Find active referral for this subscription
@@ -393,9 +441,11 @@ async function handleSubscriptionCharged(
           period: periodKey,
           productType: referral.productType,
           productName:
-            referral.productType === "web-chatbot"
+            (referral as any).productType === "web-chatbot"
               ? referral.chatbotType || "Web Chatbot"
-              : referral.instaPlan || "Instagram Automation",
+              : (referral as any).productType === "call-assistant"
+                ? referral.chatbotType || "AI Call Assistant"
+                : referral.instaPlan || "Instagram Automation",
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });
@@ -485,7 +535,8 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
       case "subscription.charged": {
         const instaExists = await InstaSubscription.findOne({ subscriptionId });
         const webExists = await WebSubscription.findOne({ subscriptionId });
-        const exists = instaExists || webExists;
+        const callExists = await CallSubscription.findOne({ subscriptionId });
+        const exists = instaExists || webExists || callExists;
         let createdFromWebhook = false;
 
         if (!exists) {

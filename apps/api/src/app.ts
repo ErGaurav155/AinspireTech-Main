@@ -40,6 +40,7 @@ app.use((req, res, next) => {
     req.path.startsWith("/api/embed/") ||
     req.path.startsWith("/api/cron/") ||
     req.path.startsWith("/api/webhooks/") ||
+    req.path.startsWith("/api/call/webhooks/") ||
     req.path.startsWith("/api/razorpay/checkout-callback")
   ) {
     return next();
@@ -151,6 +152,7 @@ const shouldBypassCors = (path: string) =>
   path.startsWith("/api/embed/") ||
   path.startsWith("/api/cron/") ||
   path.startsWith("/api/webhooks/") ||
+  path.startsWith("/api/call/webhooks/") ||
   path.startsWith("/api/razorpay/checkout-callback");
 
 const corsMiddleware = cors({
@@ -214,6 +216,7 @@ app.use((req, res, next) => {
     req.path.startsWith("/api/embed/") ||
     req.path.startsWith("/api/cron/") ||
     req.path.startsWith("/api/webhooks/") ||
+    req.path.startsWith("/api/call/webhooks/") ||
     req.path.startsWith("/api/razorpay/checkout-callback")
   ) {
     return next();

@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles, Play } from "lucide-react";
+import { Phone, Play, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import { useMemo } from "react";
@@ -46,7 +46,7 @@ const ProductShowcase = () => {
               <h3
                 className={`text-3xl md:text-4xl font-bold ${themeStyles.titleColor} mb-4 font-montserrat`}
               >
-                Ready to Transform Your Web/Insta Automation?
+                Ready to Transform Your Web, Insta, and Call Automation?
               </h3>
 
               <p
@@ -71,6 +71,14 @@ const ProductShowcase = () => {
                 >
                   <Play className="mr-2 h-5 w-5" />
                   Insta Automation
+                </Link>
+
+                <Link
+                  href="/call"
+                  className={`${themeStyles.outlineButtonBg} px-8 py-6 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-105`}
+                >
+                  <Phone className="mr-2 h-5 w-5" />
+                  AI Call Assistant
                 </Link>
               </div>
             </div>
