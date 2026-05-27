@@ -707,7 +707,6 @@ export default function ConversationsPage() {
         let convs: Conversation[] = data.conversations || [];
         const tot: number = data.total || 0;
         const more: boolean = data.hasMore || false;
-        console.log("Raw conversations data:", convs);
         // Normalize conversations
         convs = normalizeConversations(convs);
 

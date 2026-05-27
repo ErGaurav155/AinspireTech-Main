@@ -80,7 +80,6 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
 async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionData = payload.subscription?.entity;
   const notes = subscriptionData?.notes || {};
-  console.log("notes:", notes);
 
   const subscriptionType = notes.subscriptionType;
   const clerkId = notes.buyerId;
@@ -96,10 +95,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       : Number.isFinite(entityAmount) && entityAmount > 0
         ? entityAmount / 100
         : 0;
-
-  console.log("subscriptionData:", subscriptionData);
-  console.log("Billing cycle:", billingCycle);
-  console.log("Resolved subscription price:", subscriptionPrice);
 
   // Find or create user
   let user = await User.findOne({ clerkId: clerkId });
@@ -230,14 +225,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     referralCode !== "undefined" &&
     !user.hasUsedReferral
   ) {
-    console.log("Processing referral with code:", referralCode);
-
     const affiliate = await Affiliate.findOne({
       affiliateCode: referralCode,
       status: "active",
     });
-
-    console.log("Found affiliate:", affiliate?._id);
 
     if (affiliate && affiliate.userId !== clerkId.toString()) {
       const commissionRate = affiliate.commissionRate || 0.25;
@@ -293,8 +284,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         nextCommissionDate: expiresAt,
       });
 
-      console.log("Created referral record:", referralRecord._id);
-
       // Calculate commission amount for this period
       const commissionAmount =
         billingCycle === "monthly"
@@ -314,8 +303,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
           subscriptionType: billingCycle,
           status: "pending",
         });
-
-        console.log("Created commission record:", commissionRecord._id);
 
         // Update affiliate earnings
         const currentPending = Number(affiliate.pendingEarnings) || 0;
@@ -370,8 +357,6 @@ async function handleSubscriptionCharged(
   const subscription = instaUpdate || webUpdate;
 
   if (subscription) {
-    console.log(`Subscription ${subscriptionId} charged successfully`);
-
     // Find active referral for this subscription
     const referral = await AffiReferral.findOne({
       subscriptionId: subscription._id.toString(),
@@ -414,10 +399,6 @@ async function handleSubscriptionCharged(
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });
-
-        console.log(
-          `Created commission record for renewal: ${commissionRecord._id}`,
-        );
 
         // Update affiliate pending earnings
         const affiliate = await Affiliate.findOne({
@@ -491,7 +472,6 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
     }
 
     const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    console.log("Webhook event:", body.event);
 
     const event = body.event;
     const payload = body.payload;
@@ -509,7 +489,6 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
         let createdFromWebhook = false;
 
         if (!exists) {
-          console.log("Creating new subscription from webhook");
           await handleWebhookSubscriptionCreate(payload);
           createdFromWebhook = true;
         }
@@ -525,7 +504,6 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
       }
 
       default:
-        console.log(`Unhandled Razorpay event: ${event}`);
         break;
     }
 

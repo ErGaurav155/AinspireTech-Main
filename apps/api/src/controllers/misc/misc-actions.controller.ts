@@ -383,7 +383,6 @@ export const uploadFileController = async (req: Request, res: Response) => {
       });
     }
     const file = req.file;
-    console.log("file:", file);
     // Check if file exists in request
     if (!file) {
       return res.status(400).json({
@@ -406,7 +405,6 @@ export const uploadFileController = async (req: Request, res: Response) => {
       resourceType,
       filename: file.originalname,
     });
-    console.log("Cloudinary upload result:", result);
     return res.status(200).json({
       success: true,
       data: {

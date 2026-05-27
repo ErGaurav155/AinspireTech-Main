@@ -16,11 +16,9 @@ export const verifyInstagramInfoUpdateWebhookController = async (
     const verifyToken = process.env.INSTAGRAM_VERIFY_TOKEN;
 
     if (mode === "subscribe" && token === verifyToken) {
-      console.log("✅ Instagram info update webhook verified");
       return res.status(200).send(challenge);
     }
 
-    console.log("❌ Instagram info update webhook verification failed");
     return res.status(403).json({
       success: false,
       error: "Verification failed",
@@ -92,15 +90,6 @@ export const handleInstagramInfoUpdateWebhookController = async (
         ? signature.substring(7)
         : signature;
 
-      // Log for debugging
-      console.log("Signature verification:", {
-        received: receivedSignature.substring(0, 20) + "...",
-        expected: expectedSignature.substring(0, 20) + "...",
-        rawBodyLength: rawBody.length,
-        rawBodyPreview: rawBody.substring(0, 200),
-        match: receivedSignature === expectedSignature,
-      });
-
       // Compare signatures using timing-safe comparison
       if (
         !crypto.timingSafeEqual(
@@ -115,16 +104,9 @@ export const handleInstagramInfoUpdateWebhookController = async (
           timestamp: new Date().toISOString(),
         });
       }
-
-      console.log("✅ Signature verified for webhook:", webhookId);
     }
 
     const payload = req.body;
-
-    console.log(`📥 Info update webhook received: ${webhookId}`, {
-      object: payload.object,
-      entries: payload.entry?.length,
-    });
 
     // Basic validation
     if (
@@ -132,7 +114,6 @@ export const handleInstagramInfoUpdateWebhookController = async (
       payload.object !== "instagram" ||
       !payload.entry?.length
     ) {
-      console.log("❌ Invalid webhook payload structure");
       return res.status(400).json({
         success: false,
         error: "Invalid payload",
@@ -184,14 +165,10 @@ export const handleInstagramInfoUpdateWebhookController = async (
 
             if (username) {
               updateData.username = username;
-              console.log(
-                `📝 Updating username for ${instagramId}: ${username}`,
-              );
             }
 
             if (profilePictureUrl) {
               updateData.profilePicture = profilePictureUrl;
-              console.log(`📝 Updating profile picture for ${instagramId}`);
             }
 
             try {
@@ -207,9 +184,7 @@ export const handleInstagramInfoUpdateWebhookController = async (
                   username: updatedAccount.username,
                   updated: true,
                 });
-                console.log(`✅ Updated Instagram account: ${instagramId}`);
               } else {
-                console.log(`⚠️ Account not found: ${instagramId}`);
                 updateResults.push({
                   instagramId,
                   updated: false,
@@ -228,7 +203,6 @@ export const handleInstagramInfoUpdateWebhookController = async (
               });
             }
           } else {
-            console.log(`ℹ️ No relevant updates for account: ${instagramId}`);
             updateResults.push({
               instagramId,
               updated: false,
@@ -236,12 +210,6 @@ export const handleInstagramInfoUpdateWebhookController = async (
             });
           }
         }
-
-        console.log(`✅ Webhook ${webhookId} processed:`, {
-          total: updateResults.length,
-          successful: updateResults.filter((r) => r.updated).length,
-          failed: updateResults.filter((r) => !r.updated).length,
-        });
       } catch (error) {
         console.error(`❌ Webhook ${webhookId} processing error:`, error);
       }

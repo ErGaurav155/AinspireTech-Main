@@ -6,8 +6,6 @@ import app from "@/app";
 const PORT = parseInt(process.env.PORT || "3002", 10);
 
 async function startServer() {
-  console.log("🚀 Starting server initialization...");
-
   // IMPORTANT: Start HTTP server immediately for Railway
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log("✅ HTTP Server is listening");

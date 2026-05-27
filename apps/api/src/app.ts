@@ -16,16 +16,6 @@ const app = express();
 // This allows express-rate-limit to correctly read X-Forwarded-For headers
 app.set("trust proxy", 1); // Trust first proxy (Railway/Cloudflare)
 
-console.log("🔐 Clerk initialization...");
-console.log(
-  "Clerk Secret Key:",
-  process.env.CLERK_SECRET_KEY ? "✅ Set" : "❌ Missing",
-);
-console.log(
-  "Clerk Publishable Key:",
-  process.env.CLERK_PUBLISHABLE_KEY ? "✅ Set" : "❌ Missing",
-);
-
 /* ============================================================
    ALLOWED ORIGINS CONFIGURATION
 ============================================================ */
@@ -33,8 +23,6 @@ console.log(
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
   : [];
-
-console.log("🔧 Allowed origins:", allowedOrigins);
 
 /* ============================================================
    GLOBAL ORIGIN CHECK MIDDLEWARE (for ALL routes)
@@ -166,45 +154,45 @@ const shouldBypassCors = (path: string) =>
   path.startsWith("/api/razorpay/checkout-callback");
 
 const corsMiddleware = cors({
-    origin: function (origin, callback) {
-      // Allow requests with no origin (server-to-server)
-      if (!origin) return callback(null, true);
+  origin: function (origin, callback) {
+    // Allow requests with no origin (server-to-server)
+    if (!origin) return callback(null, true);
 
-      // ✅ Allow embed and cron routes from any origin
-      // They have their own authentication via API keys
-      const url = (origin as string) || "";
-      const isEmbedOrCron =
-        url.includes("/api/embed/") || url.includes("/api/cron/");
+    // ✅ Allow embed and cron routes from any origin
+    // They have their own authentication via API keys
+    const url = (origin as string) || "";
+    const isEmbedOrCron =
+      url.includes("/api/embed/") || url.includes("/api/cron/");
 
-      // Always allow embed and cron routes through CORS
-      // Their security is handled by API key validation
-      if (isEmbedOrCron) {
-        return callback(null, true);
-      }
+    // Always allow embed and cron routes through CORS
+    // Their security is handled by API key validation
+    if (isEmbedOrCron) {
+      return callback(null, true);
+    }
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      console.warn("⛔ Blocked CORS origin:", origin);
-      return callback(new Error("Not allowed by CORS"));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "X-Requested-With",
-      "Accept",
-      "Origin",
-      "Cookie",
-      "x-cron-key",
-      "x-api-key",
-      "x-cron-secret",
-    ],
-    optionsSuccessStatus: 200,
-    preflightContinue: false,
-  });
+    console.warn("⛔ Blocked CORS origin:", origin);
+    return callback(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "Cookie",
+    "x-cron-key",
+    "x-api-key",
+    "x-cron-secret",
+  ],
+  optionsSuccessStatus: 200,
+  preflightContinue: false,
+});
 
 app.use((req, res, next) => {
   if (shouldBypassCors(req.path)) {

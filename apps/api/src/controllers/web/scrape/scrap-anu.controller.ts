@@ -228,7 +228,9 @@ class WebScraper {
     return page;
   }
 
-  private async waitForPageToSettle(page: Awaited<ReturnType<Browser["newPage"]>>) {
+  private async waitForPageToSettle(
+    page: Awaited<ReturnType<Browser["newPage"]>>,
+  ) {
     try {
       await page.waitForNetworkIdle({
         idleTime: 1500,
@@ -392,7 +394,10 @@ class WebScraper {
     level: number,
   ): Promise<ScrapedPage | null> {
     const similarityKey = this.getSimilarityKey(url);
-    if (this.visitedUrls.has(url) || this.visitedSimilarityKeys.has(similarityKey)) {
+    if (
+      this.visitedUrls.has(url) ||
+      this.visitedSimilarityKeys.has(similarityKey)
+    ) {
       return null;
     }
     this.visitedUrls.add(url);
@@ -409,7 +414,6 @@ class WebScraper {
         throw new Error("Failed to scrape page data");
       }
 
-      console.log(`✅ Scraped: ${url} (level ${level})`);
       return scrapedData;
     } catch (error) {
       console.error(`❌ Failed to scrape ${url}:`, error);
@@ -492,7 +496,6 @@ class WebScraper {
         this.discoveryScript,
       )) as DiscoveryResult;
 
-      console.log(`🔍 Discovery: ${url} — ${result.links.length} links found`);
       return result;
     } catch (error) {
       console.error(`❌ Failed discovery for ${url}:`, error);
@@ -539,7 +542,6 @@ class WebScraper {
     while (currentLevel <= this.maxLevel) {
       const curr = levelUrls[currentLevel];
       if (!curr?.length) break;
-      console.log(`🔍 Level ${currentLevel}: ${curr.length} pages`);
 
       const results = await this.runWithConcurrency(
         curr,
@@ -575,19 +577,16 @@ class WebScraper {
         if (totalSoFar() >= this.maxPages) break;
       }
 
-      console.log(`🔗 Level ${currentLevel + 1}: ${added} new URLs`);
       currentLevel++;
       if (totalSoFar() >= this.maxPages) break;
     }
 
     const allUrls = Object.values(levelUrls).flat();
     const all = allUrls.slice(0, this.maxPages);
-    console.log(`🎯 Total URLs to scrape: ${all.length}`);
     return all;
   }
 
   async scrapeWebsite(startUrl: string): Promise<ScrapedPage[]> {
-    console.log("🚀 Starting scrape...");
     const urls = await this.discoverAllUrls(startUrl);
     this.visitedUrls.clear();
 
@@ -604,7 +603,6 @@ class WebScraper {
       )
       .map((r) => r.value);
 
-    console.log(`🎉 Done: ${this.scrapedPages.length} pages scraped`);
     return this.scrapedPages;
   }
 }
@@ -684,7 +682,6 @@ export const scrapAnuController = async (req: Request, res: Response) => {
         "--single-process",
       ],
     });
-    console.log("✅ Browser launched");
 
     const scraper = new WebScraper(browser);
     const scrapedPages = await scraper.scrapeWebsite(mainUrl);
@@ -698,7 +695,6 @@ export const scrapAnuController = async (req: Request, res: Response) => {
     }
 
     const fileName = `${domain}_${Date.now()}`;
-    console.log(`✅ Scraped ${scrapedPages.length} pages`);
 
     return res.status(200).json({
       success: true,
@@ -721,7 +717,6 @@ export const scrapAnuController = async (req: Request, res: Response) => {
       try {
         await browser.close();
       } catch {}
-      console.log("🔚 Browser closed");
     }
   }
 };

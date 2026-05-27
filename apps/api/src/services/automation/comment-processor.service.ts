@@ -294,13 +294,6 @@ async function processDMFlow(
   stage: string;
 }> {
   try {
-    console.log(`Processing DM flow for user ${recipientUsername}`, {
-      templateName: template.name,
-      hasAskFollow: template.askFollow?.enabled,
-      hasAskEmail: template.askEmail?.enabled,
-      hasAskPhone: template.askPhone?.enabled,
-    });
-
     if (!(await canSendInstaDM(clerkId, account))) {
       await stopInstaAutomationForDMLimit(account);
       return {
@@ -338,14 +331,6 @@ async function processDMFlow(
       // No gates: send final link directly
       buttonPayload = `GET_ACCESS_${template.mediaId}`;
     }
-
-    console.log(
-      `Sending welcome message to ${recipientUsername} as reply to comment ${commentId}`,
-      {
-        buttonTitle,
-        buttonPayload,
-      },
-    );
 
     // Send welcome message as reply to the comment
     const welcomeSuccess = await sendInstagramDM(

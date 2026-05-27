@@ -40,9 +40,6 @@ export const processCommissionsController = async (
         }
 
         if (!subscriptionActive) {
-          console.log(
-            `Referral ${referral._id}: subscription inactive, marking as cancelled`,
-          );
           referral.status = "cancelled";
           await referral.save();
           await Affiliate.findByIdAndUpdate(referral.affiliateId, {
@@ -71,7 +68,6 @@ export const processCommissionsController = async (
         }
 
         if (commissionAmount <= 0) {
-          console.log(`Referral ${referral._id}: no commission due`);
           continue;
         }
 
@@ -82,7 +78,6 @@ export const processCommissionsController = async (
         });
 
         if (existing) {
-          console.log(`Commission already exists for period ${currentPeriod}`);
           continue;
         }
 

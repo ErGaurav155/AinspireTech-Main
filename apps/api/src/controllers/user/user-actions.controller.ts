@@ -219,8 +219,6 @@ export const updateUserLimitsController = async (
 
       const window = getCurrentWindow();
       await redisHelpers.del(`user:calls:${userId}:${window.key}`);
-
-      console.log(`✅ Cleared Redis cache for user ${userId}`);
     } catch (redisError) {
       console.warn("⚠️ Could not clear Redis cache:", redisError);
       // Continue anyway - this is not critical

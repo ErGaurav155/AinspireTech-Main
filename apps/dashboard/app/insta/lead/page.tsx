@@ -112,7 +112,6 @@ export default function LeadsPage() {
         templateId: templateFilter !== "all" ? templateFilter : undefined,
         search: searchTerm || undefined,
       });
-      console.log("Fetched leads:", response);
 
       setLeads(response.leads || []);
       setTotal(response.total || 0);
@@ -178,7 +177,6 @@ export default function LeadsPage() {
     setIsDeleting(true);
     try {
       const result = await deleteLead(apiRequest, deletingLeadId);
-      console.log("Delete lead result:", result);
       setLeads((prev) => prev.filter((l) => l._id !== deletingLeadId));
       setTotal((prev) => prev - 1);
       toast({

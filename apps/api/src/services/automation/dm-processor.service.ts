@@ -55,10 +55,6 @@ export async function handlePostbackAutomation(
     // mediaId can contain underscores (e.g. dm_12345_abc), so join the rest
     const templateMediaId = parts.slice(2).join("_");
 
-    console.log(
-      `Postback received: action=${action}, sub=${subAction}, mediaId=${templateMediaId}`,
-    );
-
     const template = await InstaReplyTemplate.findOne({
       userId: clerkId,
       accountId: accountId,
@@ -67,7 +63,6 @@ export async function handlePostbackAutomation(
     });
 
     if (!template) {
-      console.log(`Template not found for mediaId: ${templateMediaId}`);
       return { success: false, message: "Template not found" };
     }
 
@@ -473,14 +468,8 @@ async function handleCheckFollowAction(
   startTime: number,
 ): Promise<{ success: boolean; message: string; nextStage?: string }> {
   try {
-    console.log(`Checking follow status for user ${recipientId}`);
-
     const quota = await getInstaQuotaStatus(clerkId, account);
     if (quota.followCheckLimitReached) {
-      console.log(followCheckLimitMessage(), {
-        accountId: account.instagramId,
-        recipientId,
-      });
       await InstaReplyLog.findOneAndUpdate(
         {
           userId: clerkId,
@@ -598,10 +587,6 @@ async function handleVerifyFollowAction(
   try {
     const quota = await getInstaQuotaStatus(clerkId, account);
     if (quota.followCheckLimitReached) {
-      console.log(followCheckLimitMessage(), {
-        accountId: account.instagramId,
-        recipientId,
-      });
       await InstaReplyLog.findOneAndUpdate(
         {
           userId: clerkId,

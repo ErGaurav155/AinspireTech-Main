@@ -7,9 +7,6 @@ export const createWebhookWorkers = (count: number = 5) => {
   const workers: Worker[] = [];
   const connection = redisHelpers.getBullMQConnection();
   if (!connection) {
-    console.log(
-      "⚠️ BullMQ connection not available - skipping worker creation",
-    );
     return [];
   }
   try {
@@ -18,8 +15,6 @@ export const createWebhookWorkers = (count: number = 5) => {
         "webhook-processing",
         async (job: Job) => {
           const { type, payload, webhookId, receivedAt } = job.data;
-
-          console.log(`🔄 [Worker ${i}] Processing ${webhookId}...`);
 
           try {
             let result;

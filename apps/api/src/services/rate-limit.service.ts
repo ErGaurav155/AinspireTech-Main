@@ -99,14 +99,8 @@ export async function isAppLimitReached(): Promise<{
   if (reached && !isAutomationPaused) {
     isAutomationPaused = true;
     lastPauseCheck = Date.now();
-    console.log(
-      `🚨 APP LIMIT REACHED! Automation paused. ${current}/${APP_HOURLY_GLOBAL_LIMIT} calls`,
-    );
   } else if (!reached && isAutomationPaused) {
     isAutomationPaused = false;
-    console.log(
-      `✅ APP LIMIT CLEARED! Automation resumed. ${current}/${APP_HOURLY_GLOBAL_LIMIT} calls`,
-    );
   }
   return {
     reached,
@@ -156,9 +150,6 @@ export async function canMakeCall(
     const globalCallsStr = await redisHelpers.get(`global:calls:${window.key}`);
     const globalCalls = parseInt(globalCallsStr || "0");
     if (globalCalls >= APP_HOURLY_GLOBAL_LIMIT) {
-      console.log(
-        `⏸️ App limit reached (${globalCalls}/${APP_HOURLY_GLOBAL_LIMIT}), queueing webhook`,
-      );
       return {
         allowed: false,
         reason: "app_global_limit_reached",
@@ -173,9 +164,6 @@ export async function canMakeCall(
     );
     const userCalls = parseInt(userCallsStr || "0");
     if (userCalls >= tierLimit) {
-      console.log(
-        `⏸️ User ${clerkId} limit reached (${userCalls}/${tierLimit}), queueing webhook`,
-      );
       return {
         allowed: false,
         reason: "user_limit_reached",
@@ -532,7 +520,6 @@ export async function queueWebhook(data: {
       console.warn("Could not add to Redis queue:", redisError);
     }
 
-    console.log(`📦 Webhook queued: ${jobId} (Reason: ${data.reason})`);
     return jobId;
   } catch (error) {
     console.error("Error queueing webhook:", error);
@@ -554,17 +541,12 @@ export async function processQueuedCalls(limit: number = 100): Promise<{
     failed = 0,
     skipped = 0;
 
-  console.log(`🔄 Starting queue processing for window ${window.label}`);
-
   try {
     let remaining = (await redisHelpers.llen(queueKey)) || 0;
 
     if (remaining === 0) {
-      console.log(`ℹ️ No queued items in Redis for ${window.label}`);
       return await processQueuedCallsFromDatabase(limit);
     }
-
-    console.log(`📋 Found ${remaining} queued items to process`);
 
     for (let i = 0; i < limit && remaining > 0; i++) {
       const item = await redisHelpers.rpop(queueKey);
@@ -586,7 +568,6 @@ export async function processQueuedCalls(limit: number = 100): Promise<{
               },
             );
             processed++;
-            console.log(`✅ Processed queued webhook: ${job.jobId}`);
           } else {
             await handleFailedWebhook(job, result.error);
             failed++;
@@ -594,7 +575,6 @@ export async function processQueuedCalls(limit: number = 100): Promise<{
         } else {
           await redisHelpers.lpush(queueKey, item);
           skipped++;
-          console.log(`⏸️ Skipped webhook ${job.jobId} - limits still reached`);
           break;
         }
       } catch (error) {
@@ -605,9 +585,6 @@ export async function processQueuedCalls(limit: number = 100): Promise<{
       remaining = (await redisHelpers.llen(queueKey)) || 0;
     }
 
-    console.log(
-      `📊 Queue: processed=${processed}, failed=${failed}, skipped=${skipped}, remaining=${remaining}`,
-    );
     return { processed, failed, skipped, remaining };
   } catch (error) {
     console.error("Error in processQueuedCalls:", error);
@@ -630,7 +607,6 @@ async function processQueuedCallsFromDatabase(limit: number = 100) {
 
     if (pendingJobs.length === 0)
       return { processed, failed, skipped, remaining: 0 };
-    console.log(`📋 Found ${pendingJobs.length} queued items in database`);
 
     for (const job of pendingJobs) {
       try {
@@ -679,9 +655,7 @@ async function processQueuedCallsFromDatabase(limit: number = 100) {
     const remaining = await RateLimitQueue.countDocuments({
       status: "pending",
     });
-    console.log(
-      `📊 DB Queue: processed=${processed}, failed=${failed}, skipped=${skipped}, remaining=${remaining}`,
-    );
+
     return { processed, failed, skipped, remaining };
   } catch (error) {
     console.error("Error in database fallback processing:", error);
@@ -719,9 +693,6 @@ async function handleFailedWebhook(job: any, error?: string) {
         queueItem.status = "failed";
         queueItem.errorMessage = error;
         queueItem.processingCompletedAt = new Date();
-        console.log(
-          `❌ Webhook ${job.jobId} permanently failed after ${queueItem.retryCount} retries`,
-        );
       } else {
         console.log(
           `⚠️ Webhook ${job.jobId} failed (retry ${queueItem.retryCount}/${queueItem.maxRetries})`,
@@ -769,7 +740,6 @@ export async function resetHourlyWindow(): Promise<{
   isWindowResetting = true;
   try {
     await connectToDatabase();
-    console.log(`🕐 Starting hourly window reset for ${currentWindow.label}`);
 
     const previousWindowStart = new Date(
       currentWindow.start.getTime() - 60 * 60 * 1000,
@@ -832,7 +802,6 @@ export async function resetHourlyWindow(): Promise<{
       console.warn("Could not clear Redis counters");
     }
 
-    console.log(`✅ Window reset completed for ${currentWindow.label}`);
     return {
       success: true,
       message: `Window reset completed for ${currentWindow.label}`,

@@ -203,7 +203,6 @@ export const createInstaTemplate = (
     },
   };
 
-  console.log("Sending payload to server:", payload);
   return apiRequest("/insta/templates", {
     method: "POST",
     body: JSON.stringify(payload),

@@ -246,14 +246,6 @@ export default function TokenDashboard() {
       };
 
       setUsageData(processedUsage);
-
-      // Debug logging
-      console.log("Token data processed:", {
-        balance: processedBalance,
-        usage: processedUsage,
-        dailyUsageLength: processedUsage.dailyUsage.length,
-        chatbotUsageLength: processedUsage.usageByChatbot.length,
-      });
     } catch (error: any) {
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
       console.error("Error fetching token data:", error);

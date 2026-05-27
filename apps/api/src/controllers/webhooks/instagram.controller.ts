@@ -14,14 +14,10 @@ export const verifyInstagramWebhookController = (
   const token = req.query["hub.verify_token"] as string;
   const challenge = req.query["hub.challenge"] as string;
 
-  console.log("Webhook verification attempt:", { mode, token });
-
   if (mode === "subscribe" && token === process.env.INSTAGRAM_VERIFY_TOKEN) {
-    console.log("✅ Webhook verified successfully");
     return res.status(200).send(challenge);
   }
 
-  console.log("❌ Webhook verification failed");
   return res.status(403).json({
     success: false,
     error: "Verification failed",
@@ -88,15 +84,6 @@ export const handleInstagramWebhookController = async (
         ? signature.substring(7)
         : signature;
 
-      // Log for debugging (only first few chars)
-      console.log("Signature verification:", {
-        received: receivedSignature.substring(0, 20) + "...",
-        expected: expectedSignature.substring(0, 20) + "...",
-        rawBodyLength: rawBody.length,
-        rawBodyPreview: rawBody.substring(0, 200),
-        match: receivedSignature === expectedSignature,
-      });
-
       // Compare signatures using timing-safe comparison
       if (
         !crypto.timingSafeEqual(
@@ -111,17 +98,10 @@ export const handleInstagramWebhookController = async (
           timestamp: new Date().toISOString(),
         });
       }
-
-      console.log("✅ Signature verified successfully");
     }
 
     const payload = req.body;
     const webhookId = `insta_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
-
-    console.log(`📥 Webhook received: ${webhookId}`, {
-      object: payload.object,
-      entries: payload.entry?.length,
-    });
 
     // Basic validation
     if (
@@ -129,7 +109,6 @@ export const handleInstagramWebhookController = async (
       payload.object !== "instagram" ||
       !payload.entry?.length
     ) {
-      console.log("❌ Invalid webhook payload structure");
       return res.status(400).json({
         success: false,
         error: "Invalid payload",
@@ -151,12 +130,6 @@ export const handleInstagramWebhookController = async (
     setImmediate(async () => {
       try {
         const result = await processInstagramWebhook(payload);
-
-        console.log(`✅ Webhook ${webhookId} processed:`, {
-          processed: result.processed,
-          queued: result.queued,
-          errors: result.errors.length,
-        });
 
         if (result.errors.length > 0) {
           console.error(`⚠️ Webhook ${webhookId} errors:`, result.errors);

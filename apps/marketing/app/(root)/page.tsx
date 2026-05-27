@@ -23,7 +23,6 @@ const Home = () => {
     if (ref) {
       localStorage.setItem("referral_code", ref);
       document.cookie = `referral_code=${ref}; path=/; domain=.rocketreplai.com; max-age=604800`;
-      console.log("Referral code stored:", ref);
     }
   }, [searchParams]);
 

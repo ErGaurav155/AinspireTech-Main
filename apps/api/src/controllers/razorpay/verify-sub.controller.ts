@@ -64,7 +64,8 @@ const activateVerifiedSubscription = async ({
 
   await cancelPreviousSubscriptionAfterPayment({
     clerkId: userId,
-    previousSubscriptionId: previousSubscriptionId || notes.previousSubscriptionId,
+    previousSubscriptionId:
+      previousSubscriptionId || notes.previousSubscriptionId,
     previousSubscriptionType:
       previousSubscriptionType || notes.previousSubscriptionType,
   });
@@ -254,7 +255,10 @@ export const verifyRazorpayPaymentController = async (
       const razorpay = getRazorpay();
       const subscription = await razorpay.subscriptions.fetch(subscription_id);
 
-      if (subscription.notes?.buyerId && subscription.notes.buyerId !== userId) {
+      if (
+        subscription.notes?.buyerId &&
+        subscription.notes.buyerId !== userId
+      ) {
         return res.status(403).json({
           success: false,
           error: "Subscription does not belong to this user",
@@ -305,12 +309,6 @@ export const verifyRazorpayPaymentController = async (
     HMAC.update(data, "utf8");
     const generatedSignature = HMAC.digest("hex");
 
-    console.log("Signature verification:", {
-      received: razorpay_signature,
-      generated: generatedSignature,
-      data: data,
-    });
-
     if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({
         success: false,
@@ -333,13 +331,6 @@ export const verifyRazorpayPaymentController = async (
         previousSubscriptionId,
         previousSubscriptionType,
       });
-
-      console.log(
-        "Subscription tokens initialized and record created for user:",
-        userId,
-        "chatbot:",
-        activationResult.chatbotType,
-      );
 
       return res.status(200).json({
         success: true,

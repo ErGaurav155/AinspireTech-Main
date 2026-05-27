@@ -140,8 +140,6 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
           yearlyYears: 3,
           // paymentDetails: null - will be added later
         });
-
-        console.log("✅ User & Affiliate created:", id, affiliateCode);
       } catch (affiliateError) {
         console.error("Error creating affiliate:", affiliateError);
         // Don't fail the whole webhook if affiliate creation fails

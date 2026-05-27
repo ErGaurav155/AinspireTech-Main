@@ -23,11 +23,6 @@ export async function processInstagramWebhook(payload: any): Promise<{
     errors: [] as string[],
   };
 
-  console.log(
-    "Processing Instagram webhook payload:",
-    JSON.stringify(payload, null, 2),
-  );
-
   try {
     await connectToDatabase();
 
@@ -35,13 +30,9 @@ export async function processInstagramWebhook(payload: any): Promise<{
       for (const entry of payload.entry) {
         const instagramBusinessId = entry.id;
 
-        console.log(`Processing entry for account: ${instagramBusinessId}`);
-
         // ── Changes (comments, story mentions) ─────────────────────────────
         if (entry.changes && Array.isArray(entry.changes)) {
           for (const change of entry.changes) {
-            console.log(`Processing change: ${change.field}`);
-
             if (change.field === "comments" || change.field === "comment") {
               const result = await processCommentWebhook(
                 change.value,
@@ -117,11 +108,8 @@ async function processCommentWebhook(
   originalPayload: any,
 ): Promise<{ processed: boolean; queued: boolean; error?: string }> {
   try {
-    console.log("Raw comment data:", JSON.stringify(comment, null, 2));
-
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive || !account.autoReplyEnabled) {
-      console.log(`Account ${accountId} not active or auto-reply disabled`);
       return { processed: false, queued: false };
     }
 
@@ -158,7 +146,6 @@ async function processCommentWebhook(
     }
 
     if (!commentText || commentText.trim() === "") {
-      console.log("Skipping empty comment");
       return { processed: false, queued: false };
     }
 
@@ -185,18 +172,13 @@ async function processCommentWebhook(
         media_id: mediaId,
         media_url: mediaUrl,
       });
-      console.log(`✅ Comment processed immediately: ${commentId}`);
       return { processed: true, queued: false };
     }
 
     if (rateLimitResult.queued) {
-      console.log(`📥 Comment webhook queued: ${commentId}`);
       return { processed: false, queued: true };
     }
 
-    console.log(
-      `⏭️ Comment skipped: ${commentId}, reason: ${rateLimitResult.reason}`,
-    );
     return { processed: false, queued: false, error: rateLimitResult.reason };
   } catch (error) {
     console.error("Error processing comment webhook:", error);
@@ -216,8 +198,6 @@ async function processStoryWebhook(
   originalPayload: any,
 ): Promise<{ processed: boolean; queued: boolean; error?: string }> {
   try {
-    console.log("Raw story data:", JSON.stringify(story, null, 2));
-
     const account = await InstagramAccount.findOne({ instagramId: accountId });
     if (!account || !account.isActive || !account.storyAutomationsEnabled) {
       return { processed: false, queued: false };
@@ -271,7 +251,6 @@ async function processStoryWebhook(
     }
 
     if (rateLimitResult.queued) {
-      console.log(`📥 Story webhook queued: ${storyId}`);
       return { processed: false, queued: true };
     }
 
@@ -312,9 +291,6 @@ async function processMessagingWebhook(
     //    Echoes are copies of messages YOUR bot sent, reflected back as webhooks.
     //    They are NOT messages from users. Treating them as user input is wrong.
     if (message.message?.is_echo === true) {
-      console.log(
-        `⏭️ Skipping echo message (bot sent): "${(message.message?.text || "").substring(0, 80)}"`,
-      );
       return { processed: false, queued: false };
     }
 
@@ -329,9 +305,6 @@ async function processMessagingWebhook(
     //    Real user messages always have sender.id = the user's Instagram-scoped ID,
     //    which is different from the business account ID.
     if (senderId && senderId === accountId) {
-      console.log(
-        `⏭️ Skipping message where sender is the business account (${accountId})`,
-      );
       return { processed: false, queued: false };
     }
 
@@ -339,9 +312,6 @@ async function processMessagingWebhook(
     // These are user responses to your bot's buttons. Never rate-limit them
     // because they are direct user actions, not bulk incoming webhooks.
     if (message.postback) {
-      console.log(
-        `📲 Postback from user ${senderId}: payload="${message.postback.payload}"`,
-      );
       await handlePostbackAutomation(
         accountId,
         account.userId,
@@ -361,10 +331,6 @@ async function processMessagingWebhook(
     //   (b) Ongoing conversations waiting for email/phone input
     if (message.message && message.message.text) {
       const messageText: string = message.message.text;
-
-      console.log(
-        `💬 Incoming message from user ${senderId}: "${messageText.substring(0, 80)}"`,
-      );
 
       // Apply rate limiting for incoming webhooks
       const rateLimitResult = await recordCall(
@@ -397,7 +363,6 @@ async function processMessagingWebhook(
       }
 
       if (rateLimitResult.queued) {
-        console.log(`📥 DM message queued for sender: ${senderId}`);
         return { processed: false, queued: true };
       }
 
@@ -423,13 +388,8 @@ async function processDirectMessageWebhook(
   accountId: string,
 ): Promise<{ processed: boolean; queued: boolean; error?: string }> {
   try {
-    console.log("Raw DM data:", JSON.stringify(dm, null, 2));
-
     // ✅ FIX: Skip echo messages in direct_messages too
     if (dm.message?.is_echo === true) {
-      console.log(
-        `⏭️ Skipping echo direct message (bot sent): "${(dm.message?.text || "").substring(0, 80)}"`,
-      );
       return { processed: false, queued: false };
     }
 
@@ -442,22 +402,14 @@ async function processDirectMessageWebhook(
 
     // ✅ FIX: Skip if sender is the business account itself
     if (senderId && senderId === accountId) {
-      console.log(
-        `⏭️ Skipping direct message where sender is the business account (${accountId})`,
-      );
       return { processed: false, queued: false };
     }
 
     const messageText: string = dm.message?.text || dm.text || "";
 
     if (!messageText || messageText.trim() === "") {
-      console.log("Skipping empty direct DM");
       return { processed: false, queued: false };
     }
-
-    console.log(
-      `💬 Incoming direct message from user ${senderId}: "${messageText.substring(0, 80)}"`,
-    );
 
     const rateLimitResult = await recordCall(
       account.userId,
@@ -486,7 +438,6 @@ async function processDirectMessageWebhook(
     }
 
     if (rateLimitResult.queued) {
-      console.log(`📥 Direct DM queued for sender: ${senderId}`);
       return { processed: false, queued: true };
     }
 

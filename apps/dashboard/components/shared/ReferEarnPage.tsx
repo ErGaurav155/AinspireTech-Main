@@ -150,9 +150,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
             text: "Sign up for RocketReplai and get amazing AI tools!",
             url: affiliateData.affiliateLink,
           });
-        } catch (error) {
-          console.log("Share cancelled");
-        }
+        } catch (error) {}
       } else {
         handleCopyLink();
       }
@@ -486,46 +484,47 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               {affiliateData.referrals
                 .slice(0, 5)
                 .map((referral: AffiliateReferralRecord) => {
-                const display = getReferralDisplay(referral);
-                const iconBgClass =
-                  styles.icon[primaryColor as keyof typeof styles.icon] ||
-                  styles.icon.purple;
-                return (
-                  <div
-                    key={referral._id}
-                    className={`flex items-center justify-between p-4 rounded-xl ${styles.innerCard} ${styles.rowHover}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgClass}`}
-                      >
-                        <span className="text-sm font-semibold">
-                          {display.initial}
-                        </span>
+                  const display = getReferralDisplay(referral);
+                  const iconBgClass =
+                    styles.icon[primaryColor as keyof typeof styles.icon] ||
+                    styles.icon.purple;
+                  return (
+                    <div
+                      key={referral._id}
+                      className={`flex items-center justify-between p-4 rounded-xl ${styles.innerCard} ${styles.rowHover}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center ${iconBgClass}`}
+                        >
+                          <span className="text-sm font-semibold">
+                            {display.initial}
+                          </span>
+                        </div>
+                        <div>
+                          <p className={`font-medium ${styles.text.primary}`}>
+                            {display.name}
+                          </p>
+                          <p className={`text-sm ${styles.text.secondary}`}>
+                            {display.subtitle}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className={`font-medium ${styles.text.primary}`}>
-                          {display.name}
+                      <div className="text-right">
+                        <p className={`font-bold ${styles.text.primary}`}>
+                          ₹
+                          {referral.totalCommissionEarned?.toFixed(2) || "0.00"}
                         </p>
-                        <p className={`text-sm ${styles.text.secondary}`}>
-                          {display.subtitle}
+                        <p
+                          className={`text-sm capitalize ${styles.text.secondary}`}
+                        >
+                          {referral.status} •{" "}
+                          {new Date(referral.createdAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className={`font-bold ${styles.text.primary}`}>
-                        ₹{referral.totalCommissionEarned?.toFixed(2) || "0.00"}
-                      </p>
-                      <p
-                        className={`text-sm capitalize ${styles.text.secondary}`}
-                      >
-                        {referral.status} •{" "}
-                        {new Date(referral.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
             </div>
           )}
         </div>

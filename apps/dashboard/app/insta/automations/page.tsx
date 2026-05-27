@@ -250,7 +250,6 @@ export default function AutomationsPage() {
     async (reset = false) => {
       // Don't fetch if no userId or no selected account
       if (!userId || !selectedAccount?.instagramId) {
-        console.log("Waiting for account selection...");
         return;
       }
 
@@ -260,10 +259,6 @@ export default function AutomationsPage() {
 
       setIsLoading(true);
       try {
-        console.log(
-          "Fetching templates for account:",
-          selectedAccount?.instagramId,
-        );
         const response = (await getInstaTemplates(apiRequest, {
           accountId: selectedAccount?.instagramId,
           filterStatus: "all",
@@ -339,7 +334,6 @@ export default function AutomationsPage() {
 
     // Wait until accounts are loaded and we have a selected account
     if (!isAccLoading && selectedAccount?.instagramId && !hasLoadedInitial) {
-      console.log("Initial load - account ready:", selectedAccount.instagramId);
       setHasLoadedInitial(true);
       fetchTemplates(true);
     }
@@ -355,10 +349,6 @@ export default function AutomationsPage() {
   // Refresh when selected account changes (but not on initial load)
   useEffect(() => {
     if (hasLoadedInitial && selectedAccount?.instagramId && !isAccLoading) {
-      console.log(
-        "Account changed, refreshing templates for:",
-        selectedAccount.instagramId,
-      );
       fetchTemplates(true);
     }
   }, [

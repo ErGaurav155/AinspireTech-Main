@@ -287,15 +287,10 @@ export const createChatbotController = async (req: Request, res: Response) => {
           },
           { upsert: true, new: true },
         );
-        console.log(
-          `✅ Default appointment questions seeded for user ${userId}`,
-        );
       } catch (apptErr) {
         console.error("Failed to seed default appointment questions:", apptErr);
       }
     }
-
-    console.log(`✅ Chatbot created: ${type} for user ${userId}`);
 
     return res.status(201).json({
       success: true,
@@ -625,7 +620,6 @@ export const updateWebsiteKnowledgeController = async (
     );
 
     // Scrape the website
-    console.log(`🕷️ Scraping website: ${url}`);
     const scrapedData = await scrapeSinglePage(url);
 
     // Format data for storage
@@ -651,8 +645,6 @@ export const updateWebsiteKnowledgeController = async (
         },
       },
     );
-
-    console.log(`✅ Knowledge base updated for chatbot ${chatbotId}`);
 
     return res.status(200).json({
       success: true,

@@ -230,8 +230,6 @@ export default function AccountDetailsPage() {
     const contextAccount = findAccountFromContext();
 
     if (contextAccount) {
-      console.log("Found account in context:", contextAccount);
-
       setAccount({
         instagramId: contextAccount.instagramId,
         username: contextAccount.username,
@@ -270,7 +268,6 @@ export default function AccountDetailsPage() {
       setIsLoading(false);
     } else if (!isAccLoading && accounts && accounts.length > 0) {
       // Account not found in context, but there are other accounts
-      console.log("Account not found in context");
       toast({
         title: "Account Not Found",
         description: "The requested account could not be found",
@@ -280,7 +277,6 @@ export default function AccountDetailsPage() {
       router.push("/insta/accounts");
     } else if (!isAccLoading && accounts && accounts.length === 0) {
       // No accounts at all
-      console.log("No accounts found");
       router.push("/insta/accounts");
     }
   }, [

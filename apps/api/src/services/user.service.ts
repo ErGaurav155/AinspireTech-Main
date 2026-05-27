@@ -249,22 +249,9 @@ export async function updateUserLimits(
 
       // Also clear any cached account lists
       await redisHelpers.del(`user:accounts:${userId}`);
-
-      console.log(`✅ Cleared Redis cache for user ${userId}`);
     } catch (redisError) {
       console.warn("Could not clear Redis cache:", redisError);
     }
-
-    console.log(`📊 User ${userId} limits updated:`, {
-      tier,
-      tierLimit,
-      replyLimit,
-      accountLimit,
-      totalAccounts: userAccounts.length,
-      currentWindow: currentWindowStart,
-      futureWindowsUpdated: updated,
-      updatedAt: new Date(),
-    });
 
     return {
       success: true,
@@ -391,11 +378,8 @@ export async function resetFreeRepliesForAllUsers(): Promise<number> {
     if (result.modifiedCount < batchSize) {
       hasMore = false;
     }
-
-    console.log(`Processed batch: ${result.modifiedCount} users`);
   }
 
-  console.log(`Total free coupons reset for ${processedCount} users`);
   return processedCount;
 }
 

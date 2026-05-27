@@ -74,10 +74,6 @@ export async function processFollowUpDMs(): Promise<{
           const elapsed = Date.now() - referenceTime.getTime();
 
           if (elapsed < waitMs) {
-            console.log(
-              `Follow-up ${followUpIndex + 1} for log ${log._id} not yet due. ` +
-                `Elapsed: ${Math.round(elapsed / 60000)}m, Wait: ${followUpMsg.waitTime}${followUpMsg.waitUnit}`,
-            );
             continue;
           }
 
@@ -87,7 +83,6 @@ export async function processFollowUpDMs(): Promise<{
             isActive: true,
           });
           if (!account) {
-            console.log(`Account ${log.accountId} not found or inactive`);
             continue;
           }
 
@@ -171,9 +166,6 @@ export async function processFollowUpDMs(): Promise<{
             if (dmSuccess) {
               await recordInstaDMSent(account);
               results.sent++;
-              console.log(
-                `✅ Follow-up ${newFollowUpCount}/${followUpMessages.length} sent to ${log.commenterUsername || log.commenterUserId}`,
-              );
             } else {
               console.warn(
                 `⚠️ Failed to send follow-up to ${log.commenterUserId}`,
@@ -206,8 +198,5 @@ export async function processFollowUpDMs(): Promise<{
     results.errors.push(error instanceof Error ? error.message : "Fatal error");
   }
 
-  console.log(
-    `Follow-up processing complete: processed=${results.processed}, sent=${results.sent}, errors=${results.errors.length}`,
-  );
   return results;
 }

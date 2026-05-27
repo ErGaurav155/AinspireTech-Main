@@ -165,7 +165,6 @@ export function InstaAccountProvider({
       } else if (Array.isArray(response)) {
         raw = response;
       }
-      console.log("InstaAccountContext: fetched accounts", raw);
       // Map and sort oldest-first so default is the oldest account
       const mapped: InstaAccount[] = raw
         .map(mapAccount)

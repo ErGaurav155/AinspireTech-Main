@@ -46,13 +46,8 @@ export async function handleIncomingMessage(
     }).sort({ createdAt: -1 });
 
     if (!recentLog) {
-      console.log("No context found for incoming message from:", senderId);
       return { success: false, message: "No context found" };
     }
-
-    console.log(
-      `Found active conversation with stage: ${recentLog.dmFlowStage}`,
-    );
 
     const template = await InstaReplyTemplate.findById(recentLog.templateId);
     if (!template) {
@@ -150,8 +145,6 @@ async function handleEmailResponse(
       source: "email_collection",
     });
 
-    console.log(`✅ Email collected for ${senderId}: ${email}`);
-
     // Chain to next step
     const startTime = Date.now();
     const result = await sendNextStepInChain(
@@ -235,8 +228,6 @@ async function handlePhoneResponse(
       source: "phone_collection",
     });
 
-    console.log(`✅ Phone collected for ${senderId}: ${phone}`);
-
     // Chain to next step (always final link after phone)
     const startTime = Date.now();
     const result = await sendNextStepInChain(
@@ -312,13 +303,6 @@ export async function handleIncomingDM(
       (existingLog.dmFlowStage === "waiting_for_email" ||
         existingLog.dmFlowStage === "waiting_for_phone")
     ) {
-      console.log(
-        `Found active conversation in stage "${existingLog.dmFlowStage}" for user ${senderId}`,
-      );
-      console.log(
-        `Processing message as response: "${messageText.substring(0, 50)}..."`,
-      );
-
       const result = await handleIncomingMessage(
         accountId,
         clerkId,
@@ -330,9 +314,6 @@ export async function handleIncomingDM(
 
     // If there's another non-final stage active (like waiting_for_follow), don't start new conversation
     if (existingLog) {
-      console.log(
-        `Existing conversation in stage "${existingLog.dmFlowStage}", skipping new conversation start`,
-      );
       return {
         success: false,
         message: `Active conversation in progress (${existingLog.dmFlowStage})`,
@@ -340,10 +321,6 @@ export async function handleIncomingDM(
       };
     }
 
-    // No existing conversation — start new one
-    console.log(
-      `No active conversation found for user ${senderId}, starting new DM conversation`,
-    );
     return await startNewDMConversation(
       account,
       clerkId,
@@ -380,7 +357,6 @@ async function startNewDMConversation(
     const matchingTemplate = findMatchingDMTemplate(messageText, templates);
 
     if (!matchingTemplate) {
-      console.log(`No matching DM template found for: "${messageText}"`);
       return {
         success: false,
         message: "No matching template",
@@ -479,9 +455,6 @@ async function startNewDMConversation(
       createdAt: new Date(),
     });
 
-    console.log(
-      `✅ New DM conversation started for ${senderId} with template "${matchingTemplate.name}" in stage "${initialStage}"`,
-    );
     await InstaReplyTemplate.findByIdAndUpdate(matchingTemplate._id, {
       $inc: { usageCount: 1 },
       $set: { lastUsed: new Date() },

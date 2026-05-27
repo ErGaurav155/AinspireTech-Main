@@ -176,7 +176,6 @@ export default function AccountsPage() {
       const transformed = transformAccounts(contextAccounts);
       setAccounts(transformed);
       setIsLoading(false);
-      console.log("Accounts loaded from:", transformed);
     } else if (
       !isAccLoading &&
       contextAccounts &&
@@ -204,7 +203,6 @@ export default function AccountsPage() {
         acc.instagramId === accountId ? { ...acc, [field]: value } : acc,
       ),
     );
-    console.log("Accounts loaded from context:", account);
 
     try {
       const settings: any = {};

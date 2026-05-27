@@ -104,10 +104,6 @@ async function deleteAllAccountRelatedData(accountId: string, userId: string) {
     accountId: accountId,
   });
 
-  console.log(
-    `Deleted related data for account ${accountId}: templates=${templatesCount}, logs=${logsCount}, leads=${leadsCount}`,
-  );
-
   return { templatesCount, logsCount, leadsCount };
 }
 
@@ -138,27 +134,9 @@ async function handleInstaAccountLimit(userId: string) {
 
         // Delete the account
         await InstagramAccount.deleteOne({ _id: account._id, userId });
-
-        console.log(
-          `Deleted Instagram account ${account.instagramId} (${account.username}) for user ${userId}`,
-        );
-        console.log(
-          `  - Templates deleted: ${templatesCount}`,
-          `  - Logs deleted: ${logsCount}`,
-          `  - Leads deleted: ${leadsCount}`,
-        );
       }
-
-      console.log(
-        `Cleaned up ${accountsToDelete.length} Instagram accounts for user ${userId}, kept account: ${accountToKeep.instagramId} (${accountToKeep.username})`,
-      );
     } else if (userAccounts.length === 1) {
-      // User has exactly 1 account, keep it but still update user limits
-      console.log(
-        `User ${userId} has 1 Instagram account (${userAccounts[0].username}), keeping it active`,
-      );
     } else {
-      console.log(`User ${userId} has no Instagram accounts to clean up`);
     }
 
     // Update user's account limit to 1 (free plan limit)
@@ -171,8 +149,6 @@ async function handleInstaAccountLimit(userId: string) {
         },
       },
     );
-
-    console.log(`Updated user ${userId} to free plan limits (accountLimit: 1)`);
   } catch (error) {
     console.error(
       `Error cleaning up Instagram accounts for user ${userId}:`,
@@ -197,9 +173,6 @@ async function handleReferralCancellation(
     }
 
     if (!subscription) {
-      console.log(
-        `⚠️ No subscription found for referral cancellation: ${subscriptionId}`,
-      );
       return;
     }
 
@@ -213,16 +186,11 @@ async function handleReferralCancellation(
       // Update referral status to cancelled
       referral.status = "cancelled";
       await referral.save();
-      console.log(`✅ Referral ${referral._id} marked as cancelled`);
 
       // Decrement active referrals count for affiliate
       await Affiliate.findByIdAndUpdate(referral.affiliateId, {
         $inc: { activeReferrals: -1 },
       });
-
-      console.log(
-        `📊 Decremented active referrals for affiliate ${referral.affiliateId}`,
-      );
     } else {
       console.log(
         `ℹ️ No active referral found for subscription ${subscription._id}`,
@@ -250,10 +218,6 @@ async function handleSubscriptionEnded(subscriptionId: string) {
 
   // If it's an Instagram subscription, handle account cleanup and referral cancellation
   if (updatedSub) {
-    console.log(
-      `Instagram subscription ${subscriptionId} ended for user ${updatedSub.clerkId}`,
-    );
-
     // Handle referral cancellation
     await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
 
@@ -275,10 +239,6 @@ async function handleSubscriptionEnded(subscriptionId: string) {
 
     // For web subscriptions, just update the status and handle referral cancellation
     if (updatedSub) {
-      console.log(
-        `Web subscription ${subscriptionId} ended for user ${updatedSub.clerkId}`,
-      );
-
       // Handle referral cancellation for web subscription
       await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
     } else {
@@ -334,12 +294,6 @@ export const razorpaySubsCancelWebhookController = async (
       });
     }
 
-    console.log("🔄 Processing Razorpay webhook:", {
-      event,
-      subscriptionId,
-      timestamp: new Date().toISOString(),
-    });
-
     await connectToDatabase();
 
     // Handle subscription ended events (cancelled, halted, expired)
@@ -351,7 +305,6 @@ export const razorpaySubsCancelWebhookController = async (
     ) {
       await handleSubscriptionEnded(subscriptionId);
     } else {
-      console.log(`ℹ️ Unhandled Razorpay event: ${event}`);
       // Return 200 for unhandled events to avoid retries
       return res.status(200).json({
         success: true,

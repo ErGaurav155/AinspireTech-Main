@@ -225,10 +225,6 @@ async function processStoryDMFlow(
       buttonPayload = `GET_ACCESS_${template.mediaId}`;
     }
 
-    console.log(`Sending story welcome DM to ${recipientUsername}`, {
-      buttonPayload,
-    });
-
     const dmSuccess = await sendInstagramDM(
       account.instagramId,
       account.accessToken,

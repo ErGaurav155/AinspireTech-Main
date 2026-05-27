@@ -9,8 +9,6 @@ export const uploadTextToCloudinary = async (
       throw new Error("CLOUDINARY_CLOUD_NAME is missing");
     }
 
-    console.log("Starting Cloudinary upload for:", fileName);
-
     // For unsigned uploads, we only need cloud name and upload preset
     const formData = new FormData();
 

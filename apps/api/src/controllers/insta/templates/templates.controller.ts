@@ -150,7 +150,6 @@ export const createInstaTemplateController = async (
       followUpDMs,
       isActive,
     } = req.body;
-    console.log("req.body:", req.body);
     // Validation
     if (!userId || !accountId || !name) {
       return res.status(400).json({
