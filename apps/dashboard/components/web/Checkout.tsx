@@ -459,8 +459,12 @@ export const Checkout = ({
     }
   };
 
-  const waitForWebSubscriptionActivation = async (subscriptionId: string) => {
-    for (let attempt = 0; attempt < 20; attempt += 1) {
+  const waitForWebSubscriptionActivation = async (
+    subscriptionId: string,
+    maxAttempts = 20,
+    delayMs = 3000,
+  ) => {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const subscriptions = await getSubscriptions(apiRequest);
       const activeSubscription = subscriptions?.find(
         (subscription: any) =>
@@ -470,7 +474,7 @@ export const Checkout = ({
 
       if (activeSubscription) return activeSubscription;
 
-      await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      await new Promise((resolve) => window.setTimeout(resolve, delayMs));
     }
 
     return null;
@@ -657,12 +661,10 @@ export const Checkout = ({
         },
         modal: {
           ondismiss: async () => {
-            setCurrentStep("subscription-activate");
-            setShowModal(true);
-            setScrapingStatus("Checking payment status...");
-
             const activeSubscription = await waitForWebSubscriptionActivation(
               result.subscriptionId,
+              3,
+              2000,
             );
 
             if (activeSubscription) {

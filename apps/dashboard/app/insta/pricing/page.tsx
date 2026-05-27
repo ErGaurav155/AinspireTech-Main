@@ -381,8 +381,8 @@ function PricingWithSearchParams() {
   );
 
   const waitForInstaSubscriptionActivation = useCallback(
-    async (subscriptionId: string) => {
-      for (let attempt = 0; attempt < 20; attempt += 1) {
+    async (subscriptionId: string, maxAttempts = 20, delayMs = 3000) => {
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const response = await getSubscriptioninfo(apiRequest);
         const activeSubscription = response?.subscriptions?.find(
           (subscription: any) =>
@@ -392,7 +392,7 @@ function PricingWithSearchParams() {
 
         if (activeSubscription) return activeSubscription;
 
-        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+        await new Promise((resolve) => window.setTimeout(resolve, delayMs));
       }
 
       return null;
@@ -598,6 +598,8 @@ function PricingWithSearchParams() {
                 const activeSubscription =
                   await waitForInstaSubscriptionActivation(
                     result.subscriptionId,
+                    3,
+                    2000,
                   );
 
                 if (activeSubscription) {
