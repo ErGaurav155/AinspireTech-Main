@@ -591,7 +591,29 @@ function PricingWithSearchParams() {
               }
             : {}),
           modal: {
-            ondismiss: () => {
+            ondismiss: async () => {
+              setIsUpgrading(true);
+
+              try {
+                const activeSubscription =
+                  await waitForInstaSubscriptionActivation(
+                    result.subscriptionId,
+                  );
+
+                if (activeSubscription) {
+                  await finishWebhookActivatedInstaPayment({
+                    subscriptionId: result.subscriptionId,
+                    productId: plan.id,
+                    billingCycle: cycle,
+                    planName: plan.name,
+                    price,
+                  });
+                  return;
+                }
+              } finally {
+                setIsUpgrading(false);
+              }
+
               showToast(
                 "Payment Not Completed",
                 "Checkout was closed before payment was confirmed.",

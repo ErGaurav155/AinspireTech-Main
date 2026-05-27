@@ -656,7 +656,24 @@ export const Checkout = ({
           await handleChatbotPaymentSuccess(response, result.subscriptionId);
         },
         modal: {
-          ondismiss: () => {
+          ondismiss: async () => {
+            setCurrentStep("subscription-activate");
+            setShowModal(true);
+            setScrapingStatus("Checking payment status...");
+
+            const activeSubscription = await waitForWebSubscriptionActivation(
+              result.subscriptionId,
+            );
+
+            if (activeSubscription) {
+              localStorage.removeItem("referral_code");
+              clearPendingRazorpayCheckout();
+              showSuccessToast("Subscription activated successfully!");
+              window.location.reload();
+              return;
+            }
+
+            setShowModal(false);
             showErrorToast("Checkout was closed before payment was confirmed.");
           },
         },
