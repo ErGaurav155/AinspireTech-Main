@@ -17,6 +17,7 @@ import {
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import { createCallItem, getCallCollection } from "@/lib/services/call-actions.api";
+import CreateCallAssistantGate from "@/components/call/CreateCallAssistantGate";
 
 type CollectionKey =
   | "calls"
@@ -209,6 +210,10 @@ export default function CallCollectionPage({
   };
 
   if (isLoading) return <Spinner label={`Loading ${config.title}...`} />;
+
+  if (!meta.isConfigured) {
+    return <CreateCallAssistantGate onCreated={load} />;
+  }
 
   return (
     <div className={styles.page}>

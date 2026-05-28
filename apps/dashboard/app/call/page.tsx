@@ -29,6 +29,7 @@ import {
 } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import { getCallDashboard } from "@/lib/services/call-actions.api";
+import CreateCallAssistantGate from "@/components/call/CreateCallAssistantGate";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -81,6 +82,10 @@ export default function CallDashboardPage() {
 
   if (loading) return <Spinner label="Loading call dashboard..." />;
 
+  if (!data?.isConfigured) {
+    return <CreateCallAssistantGate onCreated={load} />;
+  }
+
   const overview = data?.overview || {};
   const recentCalls = data?.recentCalls || [];
   const recentLeads = data?.recentLeads || [];
@@ -125,6 +130,20 @@ export default function CallDashboardPage() {
                 Answer missed calls, qualify callers, capture lead details, and
                 notify your team through WhatsApp, SMS, or email.
               </motion.p>
+
+              {data?.subscription?.isFree && (
+                <motion.div
+                  variants={fadeUp}
+                  className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3"
+                >
+                  <p className="font-montserrat text-xs font-semibold text-amber-400">
+                    Free mode: {overview.minutesUsed || 0}/
+                    {overview.minutesLimit || 10} minutes and{" "}
+                    {overview.callsUsed || 0}/{overview.callsLimit || 5} calls
+                    used. Upgrade before the limit to keep the assistant active.
+                  </p>
+                </motion.div>
+              )}
 
               <motion.div variants={fadeUp} className="mt-6 flex flex-wrap gap-3">
                 <Link

@@ -1,10 +1,17 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type CallPlanId = "starter" | "growth" | "enterprise";
+export type CallPlanId = "free" | "starter" | "growth" | "enterprise";
 export type CallStatus = "answered" | "missed" | "transferred" | "voicemail";
 
 export interface ICallAssistantWorkspace extends Document {
   clerkId: string;
+  isConfigured: boolean;
+  owner: {
+    name: string;
+    whatsappNumber: string;
+    smsNumber: string;
+    email: string;
+  };
   organization: {
     name: string;
     industry: string;
@@ -20,6 +27,10 @@ export interface ICallAssistantWorkspace extends Document {
     minutesLimit: number;
     minutesUsed: number;
     overageRate: number;
+    callsLimit: number;
+    callsUsed: number;
+    isFree: boolean;
+    pausedReason?: string;
     nextBillingDate: Date;
   };
   numbers: Array<{
@@ -29,6 +40,9 @@ export interface ICallAssistantWorkspace extends Document {
     type: "local" | "tollfree";
     status: "active" | "pending" | "released";
     provider: "exotel" | "manual";
+    providerNumberId?: string;
+    assignment: "shared_pool" | "dedicated";
+    assignedUntil?: Date;
     createdAt: Date;
   }>;
   calls: Array<{
@@ -41,6 +55,7 @@ export interface ICallAssistantWorkspace extends Document {
     recordingUrl?: string;
     transcriptText?: string;
     summary?: string;
+    providerPayload?: Record<string, any>;
     createdAt: Date;
   }>;
   leads: Array<{
@@ -57,7 +72,10 @@ export interface ICallAssistantWorkspace extends Document {
     name: string;
     language: string;
     greeting: string;
+    behaviorPrompt?: string;
     questions: string[];
+    collectFields: string[];
+    noVoiceTimeoutSec: number;
     fallbackAction: "take_message" | "transfer" | "hangup";
     transferNumber?: string;
     isActive: boolean;
@@ -108,6 +126,13 @@ export interface ICallAssistantWorkspace extends Document {
 const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
   {
     clerkId: { type: String, required: true, unique: true, index: true },
+    isConfigured: { type: Boolean, default: false },
+    owner: {
+      name: { type: String, default: "" },
+      whatsappNumber: { type: String, default: "" },
+      smsNumber: { type: String, default: "" },
+      email: { type: String, default: "" },
+    },
     organization: {
       name: { type: String, default: "My Business" },
       industry: { type: String, default: "Services" },
@@ -117,12 +142,16 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
       timeZone: { type: String, default: "Asia/Kolkata" },
     },
     subscription: {
-      plan: { type: String, enum: ["starter", "growth", "enterprise"], default: "starter" },
+      plan: { type: String, enum: ["free", "starter", "growth", "enterprise"], default: "free" },
       status: { type: String, enum: ["trial", "active", "past_due", "cancelled"], default: "trial" },
       billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
-      minutesLimit: { type: Number, default: 1000 },
+      minutesLimit: { type: Number, default: 10 },
       minutesUsed: { type: Number, default: 0 },
-      overageRate: { type: Number, default: 5 },
+      overageRate: { type: Number, default: 0 },
+      callsLimit: { type: Number, default: 5 },
+      callsUsed: { type: Number, default: 0 },
+      isFree: { type: Boolean, default: true },
+      pausedReason: String,
       nextBillingDate: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
     },
     numbers: [
@@ -133,6 +162,9 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
         type: { type: String, enum: ["local", "tollfree"], default: "local" },
         status: { type: String, enum: ["active", "pending", "released"], default: "pending" },
         provider: { type: String, enum: ["exotel", "manual"], default: "manual" },
+        providerNumberId: String,
+        assignment: { type: String, enum: ["shared_pool", "dedicated"], default: "shared_pool" },
+        assignedUntil: Date,
         createdAt: { type: Date, default: Date.now },
       },
     ],
@@ -147,6 +179,7 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
         recordingUrl: String,
         transcriptText: String,
         summary: String,
+        providerPayload: { type: Schema.Types.Mixed, default: {} },
         createdAt: { type: Date, default: Date.now },
       },
     ],
@@ -167,7 +200,10 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
         name: String,
         language: { type: String, default: "en-IN" },
         greeting: String,
+        behaviorPrompt: String,
         questions: [String],
+        collectFields: [String],
+        noVoiceTimeoutSec: { type: Number, default: 120 },
         fallbackAction: { type: String, enum: ["take_message", "transfer", "hangup"], default: "take_message" },
         transferNumber: String,
         isActive: { type: Boolean, default: true },

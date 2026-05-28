@@ -1,5 +1,5 @@
-import CallCollectionPage from "@/components/call/CallCollectionPage";
+import CallFlowEditorPage from "@/components/call/CallFlowEditorPage";
 
 export default function CallFlowsPage() {
-  return <CallCollectionPage collection="flows" />;
+  return <CallFlowEditorPage />;
 }

@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-
 import useEmblaCarousel from "embla-carousel-react";
 import Autoscroll from "embla-carousel-auto-scroll";
 import { testimonials } from "@rocketreplai/shared";
@@ -64,7 +63,7 @@ export function TestimonialSection() {
   };
 
   return (
-    <section className="w-full pb-10 relative z-10">
+    <section className="w-full p-10 relative z-10">
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <motion.div
