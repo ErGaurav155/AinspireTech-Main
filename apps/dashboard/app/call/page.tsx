@@ -10,7 +10,6 @@ import {
   Bell,
   CheckCircle2,
   Headphones,
-  Phone,
   RefreshCw,
   Rocket,
   Shield,
@@ -128,7 +127,7 @@ export default function CallDashboardPage() {
                 className={`font-montserrat mt-3 max-w-2xl text-sm md:text-base leading-relaxed ${styles.text.secondary}`}
               >
                 Answer missed calls, qualify callers, capture lead details, and
-                notify your team through WhatsApp, SMS, or email.
+                notify the owner through WhatsApp, SMS, or email.
               </motion.p>
 
               {data?.subscription?.isFree && (
@@ -166,14 +165,14 @@ export default function CallDashboardPage() {
                   View Pricing
                 </Link>
                 <Link
-                  href="/call/numbers"
+                  href="/call/settings"
                   className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${
                     isDark
                       ? "border-white/[0.08] text-white/70 hover:bg-white/[0.06]"
                       : "border-gray-200 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  Manage Numbers
+                  Number Settings
                 </Link>
               </motion.div>
 

@@ -189,9 +189,9 @@ export function Navbar({
                   : "text-cyan-700 border-cyan-200 hover:bg-cyan-50"
               } border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
             >
-              <Link href="/call/numbers">
+              <Link href="/call/settings">
                 <Phone className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Numbers</span>
+                <span className="hidden sm:inline">Number Settings</span>
               </Link>
             </Button>
           )}

@@ -2,17 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Bell,
-  CalendarDays,
   CheckCircle2,
   CreditCard,
   GitBranch,
   Headphones,
-  Phone,
-  PlugZap,
   Plus,
   RefreshCw,
-  Users,
 } from "lucide-react";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
@@ -22,12 +17,7 @@ import CreateCallAssistantGate from "@/components/call/CreateCallAssistantGate";
 type CollectionKey =
   | "calls"
   | "leads"
-  | "numbers"
   | "flows"
-  | "notifications"
-  | "integrations"
-  | "appointments"
-  | "team"
   | "invoices";
 
 const CONFIG: Record<
@@ -61,21 +51,6 @@ const CONFIG: Record<
       status: "new",
     },
   },
-  numbers: {
-    title: "Number Management",
-    description: "Manage virtual numbers and Exotel forwarding setup for your AI receptionist.",
-    icon: Phone,
-    addLabel: "Add Number",
-    fields: ["phoneNumber", "label", "countryCode", "type", "status", "provider"],
-    createPayload: {
-      phoneNumber: "+91",
-      label: "New receptionist number",
-      countryCode: "IN",
-      type: "local",
-      status: "pending",
-      provider: "manual",
-    },
-  },
   flows: {
     title: "AI Flow Editor",
     description: "Configure greetings, qualifying questions, language, and fallback actions.",
@@ -89,47 +64,6 @@ const CONFIG: Record<
       questions: ["May I know your name?", "What should the owner call you about?"],
       fallbackAction: "take_message",
       isActive: false,
-    },
-  },
-  notifications: {
-    title: "Notifications",
-    description: "Choose where new call summaries, lead alerts, and missed-call alerts are sent.",
-    icon: Bell,
-    addLabel: "Add Channel",
-    fields: ["channel", "address", "enabled"],
-    createPayload: { channel: "whatsapp", address: "+91", enabled: true },
-  },
-  integrations: {
-    title: "Integrations",
-    description: "Connect Exotel, WhatsApp, calendars, CRMs, or webhooks for the call assistant workflow.",
-    icon: PlugZap,
-    fields: ["label", "type", "status", "updatedAt"],
-  },
-  appointments: {
-    title: "Appointments",
-    description: "Calls that resulted in scheduled visits, demos, or service bookings.",
-    icon: CalendarDays,
-    addLabel: "Add Appointment",
-    fields: ["startsAt", "title", "customerName", "customerPhone", "status"],
-    createPayload: {
-      title: "Callback",
-      customerName: "New customer",
-      customerPhone: "+91",
-      startsAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-      status: "scheduled",
-    },
-  },
-  team: {
-    title: "Team",
-    description: "Invite owners, admins, agents, and viewers to collaborate on call operations.",
-    icon: Users,
-    addLabel: "Invite User",
-    fields: ["name", "email", "role", "status", "createdAt"],
-    createPayload: {
-      name: "New teammate",
-      email: "teammate@example.com",
-      role: "viewer",
-      status: "invited",
     },
   },
   invoices: {

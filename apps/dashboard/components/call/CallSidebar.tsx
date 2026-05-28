@@ -6,10 +6,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import Logo from "@/public/assets/img/logo.png";
 import {
-  BarChart3,
-  Bell,
   Bot,
-  CalendarDays,
   Check,
   ChevronDown,
   CreditCard,
@@ -18,11 +15,8 @@ import {
   Instagram,
   LayoutDashboard,
   Phone,
-  PlugZap,
   Sparkles,
   Settings,
-  Share2,
-  Users,
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
@@ -31,11 +25,6 @@ const NAV_ITEMS = [
   { label: "Overview", href: "/call", icon: LayoutDashboard },
   { label: "Calls & Leads", href: "/call/calls", icon: Headphones },
   { label: "AI Flows", href: "/call/flows", icon: GitBranch },
-  { label: "Numbers", href: "/call/numbers", icon: Phone },
-  { label: "Appointments", href: "/call/appointments", icon: CalendarDays },
-  { label: "Integrations", href: "/call/integrations", icon: PlugZap },
-  { label: "Notifications", href: "/call/notifications", icon: Bell },
-  { label: "Team", href: "/call/team", icon: Users },
   { label: "Pricing", href: "/call/pricing", icon: Sparkles },
   { label: "Billing", href: "/call/billing", icon: CreditCard },
   { label: "Settings", href: "/call/settings", icon: Settings },

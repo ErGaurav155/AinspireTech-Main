@@ -50,7 +50,7 @@ const features = [
   {
     title: "24/7 AI receptionist",
     description:
-      "Answer inbound calls when your team is busy, offline, or handling other customers.",
+      "Answer inbound calls when the owner is busy, offline, or handling customers.",
     icon: Headphones,
   },
   {
@@ -78,9 +78,9 @@ const features = [
     icon: MessageSquareText,
   },
   {
-    title: "Appointments and handoff",
+    title: "Booking intent capture",
     description:
-      "Let the AI gather booking intent and hand off to your team or calendar workflow.",
+      "Let the AI gather booking intent and save it with the caller lead record.",
     icon: CalendarDays,
   },
 ];
@@ -96,7 +96,7 @@ const pricingRows = [
   ["Monthly price", "₹2,999", "₹7,999", "₹19,999"],
   ["Included minutes", "1,000", "3,000", "10,000"],
   ["Virtual numbers", "1", "3", "10"],
-  ["Team agents", "3", "10", "30"],
+  ["Dashboard access", "Owner", "Owner", "Owner"],
   ["Overage", "₹5/min", "₹4/min", "₹3/min"],
   ["Transcripts", "Basic", "Advanced", "Advanced"],
 ];
@@ -110,7 +110,7 @@ const reviews = [
   },
   {
     quote:
-      "The WhatsApp summaries are the best part. My sales team can call back hot leads without listening to every recording.",
+      "The summaries are the best part. I can call back hot leads without listening to every recording.",
     name: "Rohan M.",
     role: "Real estate consultant",
   },
@@ -232,7 +232,7 @@ export default function CallMarketingPage() {
               className={`text-base md:text-lg lg:text-xl leading-relaxed font-montserrat ${themeStyles.muted}`}
             >
               RocketReplai AI Call Assistant answers missed calls, qualifies
-              callers, captures leads, and sends summaries to your team on
+              callers, captures leads, and sends summaries to the owner on
               WhatsApp, SMS, or email.
             </motion.p>
 
@@ -314,7 +314,7 @@ export default function CallMarketingPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <Users className="h-4 w-4 text-blue-400" />
-                <span>Built for SMB teams</span>
+                <span>Built for owner-led SMBs</span>
               </div>
               <div className="flex items-center space-x-2">
                 <Star className="h-4 w-4 text-yellow-400" />
@@ -418,8 +418,7 @@ export default function CallMarketingPage() {
               className={`mt-3 text-base md:text-lg font-montserrat ${themeStyles.muted}`}
             >
               The public page sells the promise, the dashboard handles the work:
-              calls, leads, numbers, flows, billing, notifications, team, and
-              integrations.
+              calls, leads, AI flow, billing, and number settings.
             </p>
           </motion.div>
 
@@ -511,7 +510,7 @@ export default function CallMarketingPage() {
               Pricing comparison
             </h2>
             <p className={`mt-3 font-montserrat ${themeStyles.muted}`}>
-              Three clear plans for call volume, team size, and receptionist
+              Three clear plans for call volume, permanent numbers, and receptionist
               coverage.
             </p>
           </div>
@@ -641,7 +640,7 @@ export default function CallMarketingPage() {
             className={`mt-3 max-w-2xl mx-auto font-montserrat ${themeStyles.muted}`}
           >
             Start with a receptionist flow, connect your number, and capture
-            leads from calls your team used to miss.
+            leads from calls you used to miss.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button

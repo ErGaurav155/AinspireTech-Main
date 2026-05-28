@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Bell,
   CreditCard,
   GitBranch,
   Headphones,
   LayoutDashboard,
-  Phone,
+  Settings,
 } from "lucide-react";
 import { useThemeStyles } from "@rocketreplai/ui";
 
@@ -16,9 +15,8 @@ const ITEMS = [
   { label: "Home", href: "/call", icon: LayoutDashboard },
   { label: "Calls", href: "/call/calls", icon: Headphones },
   { label: "Flows", href: "/call/flows", icon: GitBranch },
-  { label: "Numbers", href: "/call/numbers", icon: Phone },
-  { label: "Alerts", href: "/call/notifications", icon: Bell },
   { label: "Billing", href: "/call/billing", icon: CreditCard },
+  { label: "Settings", href: "/call/settings", icon: Settings },
 ] as const;
 
 export default function CallBottomNavbar() {

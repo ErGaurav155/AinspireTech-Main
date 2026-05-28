@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
+import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import ReplyLog from "@/models/insta/ReplyLog.model";
@@ -14,6 +15,7 @@ import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import AffiReferral from "@/models/affiliate/Referral";
 import Affiliate from "@/models/affiliate/Affiliate";
 import { getCurrentWindow } from "@/services/rate-limit.service";
+import { releaseDedicatedNumbersForClerk } from "@/services/call/call-number-pool.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -263,6 +265,22 @@ async function handleSubscriptionEnded(subscriptionId: string) {
         await handleReferralCancellation(
           subscriptionId,
           callUpdatedSub.clerkId,
+        );
+        await releaseDedicatedNumbersForClerk(callUpdatedSub.clerkId);
+        await CallAssistantWorkspace.findOneAndUpdate(
+          { clerkId: callUpdatedSub.clerkId },
+          {
+            $set: {
+              "subscription.plan": "free",
+              "subscription.status": "trial",
+              "subscription.minutesLimit": 10,
+              "subscription.callsLimit": 5,
+              "subscription.overageRate": 0,
+              "subscription.isFree": true,
+              updatedAt: new Date(),
+            },
+            $pull: { numbers: { assignment: "dedicated" } },
+          },
         );
       } else {
         console.warn(`Subscription ${subscriptionId} not found in any model`);

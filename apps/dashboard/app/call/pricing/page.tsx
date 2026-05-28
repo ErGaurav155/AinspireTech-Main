@@ -64,7 +64,7 @@ const CALL_PLANS = [
       "Everything in Starter",
       "Call transcripts and recordings",
       "Advanced AI flow editor",
-      "Appointments and handoff",
+      "Permanent number search",
       "Priority support",
     ],
   },
@@ -82,7 +82,7 @@ const CALL_PLANS = [
     features: [
       "Everything in Growth",
       "High-volume call operations",
-      "CRM and webhook integrations",
+      "Larger permanent number pool",
       "Dedicated onboarding",
       "SLA support",
     ],
@@ -91,11 +91,11 @@ const CALL_PLANS = [
 
 const comparison = [
   ["Included minutes", "1,000", "3,000", "10,000"],
-  ["Virtual numbers", "1", "3", "10"],
-  ["Team agents", "3", "10", "30"],
+  ["Permanent numbers", "1", "3", "10"],
+  ["Dashboard access", "Owner only", "Owner only", "Owner only"],
   ["Overage", "₹5/min", "₹4/min", "₹3/min"],
   ["Call transcripts", "Basic", "Advanced", "Advanced"],
-  ["Appointments", "", "✓", "✓"],
+  ["Number search", "✓", "✓", "✓"],
   ["Priority support", "", "✓", "✓"],
 ];
 
@@ -187,7 +187,7 @@ export default function CallPricingPage() {
               className={`font-montserrat text-sm md:text-lg max-w-2xl mx-auto ${styles.text.secondary}`}
             >
               Starter, Growth, and Enterprise include receptionist minutes,
-              team access, virtual numbers, and clear overage rates.
+              owner-only dashboard access, permanent numbers, and clear overage rates.
             </p>
 
             <Tabs value="call" className="mt-8">
@@ -305,7 +305,7 @@ export default function CallPricingPage() {
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   {[
                     `${plan.numberLimit} numbers`,
-                    `${plan.agentLimit} agents`,
+                    "Owner-only access",
                     `₹${plan.overageRate}/min`,
                     "Razorpay billing",
                   ].map((item) => (
@@ -388,7 +388,7 @@ export default function CallPricingPage() {
               Plan Comparison
             </h2>
             <p className={`font-montserrat ${styles.text.secondary}`}>
-              Compare call minutes, numbers, team size, and support level.
+              Compare call minutes, permanent numbers, dashboard access, and support level.
             </p>
           </div>
 
@@ -447,7 +447,7 @@ export default function CallPricingPage() {
             {[
               ["Secure payments", "Razorpay subscriptions with UPI and cards"],
               ["Clear overage", "Know extra-minute costs before you scale"],
-              ["Call-ready setup", "Connect numbers, flows, and alerts"],
+              ["Call-ready setup", "Select a number, tune the flow, and capture leads"],
             ].map(([title, body]) => (
               <motion.div
                 key={title}

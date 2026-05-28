@@ -15,7 +15,10 @@ import {
 } from "@/services/call/exotel.service";
 import { sendCallNotifications } from "@/services/call/call-notification.service";
 import {
+  assignDedicatedNumber,
   leaseSharedNumber,
+  listAvailableCallNumbers,
+  releaseDedicatedNumbersForClerk,
   releaseSharedNumber,
 } from "@/services/call/call-number-pool.service";
 import { sendEmail } from "@/services/smtp-mailer.service";
@@ -55,7 +58,7 @@ const plans = [
     overageInr: 4,
     agents: 10,
     numbers: 3,
-    features: ["Flow editor", "Call recordings", "Calendar handoff"],
+    features: ["Flow editor", "Call recordings", "Permanent number search"],
   },
   {
     id: "enterprise",
@@ -67,7 +70,7 @@ const plans = [
     overageInr: 3,
     agents: 30,
     numbers: 10,
-    features: ["High-volume minutes", "Dedicated support", "CRM integrations"],
+    features: ["High-volume minutes", "Dedicated support", "Permanent number pool"],
   },
 ] as const;
 
@@ -83,6 +86,50 @@ const DEFAULT_QUESTIONS = [
   "What is your business name?",
   "Which service or plan are you interested in?",
 ];
+
+const planIdFromSubscription = (planType?: string): "starter" | "growth" | "enterprise" => {
+  if (planType === "call-growth") return "growth";
+  if (planType === "call-enterprise") return "enterprise";
+  return "starter";
+};
+
+async function syncWorkspaceSubscription(workspace: ICallAssistantWorkspace) {
+  const activeSubscription = await CallSubscription.findOne({
+    clerkId: workspace.clerkId,
+    status: "active",
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ expiresAt: -1, createdAt: -1 })
+    .lean();
+
+  if (!activeSubscription) {
+    if (!workspace.subscription.isFree) {
+      await releaseDedicatedNumbersForClerk(workspace.clerkId);
+      workspace.numbers = workspace.numbers.filter(
+        (number) => number.assignment !== "dedicated",
+      ) as any;
+    }
+
+    workspace.subscription.plan = "free";
+    workspace.subscription.status = "trial";
+    workspace.subscription.minutesLimit = 10;
+    workspace.subscription.callsLimit = 5;
+    workspace.subscription.overageRate = 0;
+    workspace.subscription.isFree = true;
+    return workspace;
+  }
+
+  const plan = planIdFromSubscription(activeSubscription.planType);
+  workspace.subscription.plan = plan;
+  workspace.subscription.status = "active";
+  workspace.subscription.billingCycle = activeSubscription.billingCycle;
+  workspace.subscription.minutesLimit = activeSubscription.minutesLimit;
+  workspace.subscription.callsLimit = activeSubscription.minutesLimit;
+  workspace.subscription.overageRate = activeSubscription.overageRate;
+  workspace.subscription.isFree = false;
+  workspace.subscription.nextBillingDate = activeSubscription.expiresAt;
+  return workspace;
+}
 
 async function getOrCreateWorkspace(
   clerkId: string,
@@ -175,6 +222,7 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
 
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
+    await syncWorkspaceSubscription(workspace);
     const calls = workspace.calls || [];
     const leads = workspace.leads || [];
     const answeredCalls = calls.filter((call) => call.status !== "missed");
@@ -185,8 +233,8 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
 
     if (minutesUsed !== workspace.subscription.minutesUsed) {
       workspace.subscription.minutesUsed = minutesUsed;
-      await workspace.save();
     }
+    await workspace.save();
 
     const trends = Array.from({ length: 7 }).map((_, index) => {
       const date = new Date();
@@ -248,15 +296,12 @@ export const getCallCollectionController = async (req: Request, res: Response) =
     const { collection } = req.params;
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
+    await syncWorkspaceSubscription(workspace);
+    await workspace.save();
     const allowed = [
       "calls",
       "leads",
-      "numbers",
       "flows",
-      "notifications",
-      "integrations",
-      "appointments",
-      "team",
       "invoices",
     ];
 
@@ -407,21 +452,6 @@ export const createCallAssistantController = async (req: Request, res: Response)
       ...(ownerEmail ? [{ channel: "email", address: ownerEmail, enabled: true }] : []),
     ] as any;
 
-    const leased = await leaseSharedNumber({ clerkId: userId, minutes: 60 });
-    if (leased && !workspace.numbers.some((num) => num.phoneNumber === leased.phoneNumber)) {
-      workspace.numbers.push({
-        phoneNumber: leased.phoneNumber,
-        label: "Free shared receptionist number",
-        countryCode: leased.countryCode,
-        type: leased.type,
-        status: "active",
-        provider: "exotel",
-        assignment: "shared_pool",
-        assignedUntil: leased.leaseExpiresAt,
-        createdAt: new Date(),
-      } as any);
-    }
-
     workspace.flows = [
       {
         name: "CatchCustomerCall Voice Lead Capture",
@@ -451,20 +481,112 @@ export const createCallAssistantController = async (req: Request, res: Response)
   }
 };
 
+export const getAvailableCallNumbersController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWorkspace(userId);
+    await syncWorkspaceSubscription(workspace);
+    await workspace.save();
+
+    const isFree = workspace.subscription.isFree;
+    const numbers = await listAvailableCallNumbers({
+      tier: isFree ? "free_shared" : "paid_dedicated",
+    });
+
+    return ok(res, {
+      mode: isFree ? "free_preview" : "paid_select",
+      canSelect: !isFree,
+      selectedNumbers: workspace.numbers.filter(
+        (number) => number.assignment === "dedicated",
+      ),
+      numbers: numbers.map((number) => ({
+        id: number._id,
+        phoneNumber: number.phoneNumber,
+        label: number.label,
+        countryCode: number.countryCode,
+        type: number.type,
+        tier: number.tier,
+        status: number.status,
+      })),
+    });
+  } catch (error) {
+    console.error("Call available numbers error:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+
+export const selectDedicatedCallNumberController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    const { phoneNumber } = req.body;
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, error: "phoneNumber is required" });
+    }
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWorkspace(userId);
+    await syncWorkspaceSubscription(workspace);
+
+    if (workspace.subscription.isFree) {
+      await workspace.save();
+      return res.status(403).json({
+        success: false,
+        error: "Permanent numbers are available only on paid plans.",
+      });
+    }
+
+    await releaseDedicatedNumbersForClerk(userId);
+    const assigned = await assignDedicatedNumber({ clerkId: userId, phoneNumber });
+    if (!assigned) {
+      return res.status(409).json({
+        success: false,
+        error: "This number is no longer available. Scan again and select another number.",
+      });
+    }
+
+    workspace.numbers = workspace.numbers.filter(
+      (number) => number.assignment !== "dedicated",
+    ) as any;
+    workspace.numbers.push({
+      phoneNumber: assigned.phoneNumber,
+      label: assigned.label || "Dedicated receptionist number",
+      countryCode: assigned.countryCode,
+      type: assigned.type,
+      status: "active",
+      provider: "exotel",
+      providerNumberId: assigned._id?.toString(),
+      assignment: "dedicated",
+      createdAt: new Date(),
+    } as any);
+
+    await workspace.save();
+    return ok(res, {
+      selectedNumber: workspace.numbers[workspace.numbers.length - 1],
+    });
+  } catch (error) {
+    console.error("Call select number error:", error);
+    return res.status(500).json({ success: false, error: "Internal server error" });
+  }
+};
+
 export const createCallItemController = async (req: Request, res: Response) => {
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
 
     const { collection } = req.params;
-    const allowed = [
-      "numbers",
-      "flows",
-      "notifications",
-      "appointments",
-      "leads",
-      "team",
-    ];
+    const allowed = ["flows", "leads"];
     if (!allowed.includes(collection)) {
       return res.status(400).json({ success: false, error: "Cannot create item in this collection" });
     }
@@ -549,10 +671,12 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
 
     if (ownerId) {
       workspace = await getOrCreateWorkspace(String(ownerId));
+      await syncWorkspaceSubscription(workspace);
     } else if (normalized.virtualNumber) {
       workspace = await CallAssistantWorkspace.findOne({
         "numbers.phoneNumber": normalized.virtualNumber,
       });
+      if (workspace) await syncWorkspaceSubscription(workspace);
     }
 
     if (!workspace) {
@@ -568,6 +692,23 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
         success: false,
         error: "Call assistant is not configured yet",
       });
+    }
+
+    let leasedSharedNumber: Awaited<ReturnType<typeof leaseSharedNumber>> | null = null;
+    if (workspace.subscription.isFree) {
+      leasedSharedNumber = await leaseSharedNumber({
+        clerkId: workspace.clerkId,
+        callSid: normalized.callSid,
+        minutes: 15,
+      });
+
+      if (!leasedSharedNumber) {
+        return res.status(503).json({
+          success: false,
+          error:
+            "No shared AI call assistant number is available right now. Try again later or upgrade for a permanent number.",
+        });
+      }
     }
 
     const projectedMinutes =
@@ -605,34 +746,14 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
         }).catch((error) => console.error("Upgrade email error:", error));
       }
 
+      if (leasedSharedNumber) {
+        await releaseSharedNumber(normalized.callSid);
+      }
+
       return res.status(402).json({
         success: false,
         error: "Free call assistant allowance exceeded. Upgrade required.",
       });
-    }
-
-    if (workspace.subscription.isFree && normalized.virtualNumber) {
-      const leased = await leaseSharedNumber({
-        clerkId: workspace.clerkId,
-        callSid: normalized.callSid,
-        minutes: 15,
-      });
-      if (
-        leased &&
-        !workspace.numbers.some((num) => num.phoneNumber === leased.phoneNumber)
-      ) {
-        workspace.numbers.push({
-          phoneNumber: leased.phoneNumber,
-          label: "Free shared receptionist number",
-          countryCode: leased.countryCode,
-          type: leased.type,
-          status: "active",
-          provider: "exotel",
-          assignment: "shared_pool",
-          assignedUntil: leased.leaseExpiresAt,
-          createdAt: new Date(),
-        } as any);
-      }
     }
 
     const existing = workspace.calls.find(
@@ -641,7 +762,10 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
     const callPayload = {
       callSid: normalized.callSid,
       fromNumber: normalized.fromNumber,
-      toNumber: normalized.virtualNumber || normalized.toNumber,
+      toNumber:
+        leasedSharedNumber?.phoneNumber ||
+        normalized.virtualNumber ||
+        normalized.toNumber,
       direction: normalized.direction,
       status: normalized.status,
       durationSec: normalized.durationSec,

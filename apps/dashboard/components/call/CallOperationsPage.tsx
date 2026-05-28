@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, CalendarDays, Headphones, RefreshCw, Users } from "lucide-react";
+import { Headphones, RefreshCw, Users } from "lucide-react";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import { getCallCollection } from "@/lib/services/call-actions.api";
@@ -19,18 +19,6 @@ const sections = [
     title: "Leads",
     icon: Users,
     fields: ["createdAt", "callerName", "callerPhone", "callerEmail", "interest", "status"],
-  },
-  {
-    key: "appointments",
-    title: "Appointments",
-    icon: CalendarDays,
-    fields: ["startsAt", "title", "customerName", "customerPhone", "status"],
-  },
-  {
-    key: "notifications",
-    title: "Alert Channels",
-    icon: Bell,
-    fields: ["channel", "address", "enabled"],
   },
 ] as const;
 
@@ -89,7 +77,7 @@ export default function CallOperationsPage() {
                 Call Inbox
               </h1>
               <p className={`font-montserrat mt-2 text-sm ${styles.text.secondary}`}>
-                Calls, leads, appointments, and alert channels in one owner-only workspace.
+                Calls and captured leads in one owner-only workspace.
               </p>
             </div>
             <Button onClick={load} variant="outline" className="rounded-xl">

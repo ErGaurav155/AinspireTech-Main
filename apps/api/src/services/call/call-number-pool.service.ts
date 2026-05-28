@@ -2,16 +2,24 @@ import CallNumberPool from "@/models/call/CallNumberPool.model";
 
 const normalize = (phone: string) => phone.replace(/\s+/g, "");
 
-export const seedCallNumberPoolFromEnv = async () => {
-  const numbers = (process.env.EXOTEL_FREE_POOL_NUMBERS || "")
+const splitNumbers = (value = "") =>
+  value
     .split(",")
     .map((item) => normalize(item.trim()))
     .filter(Boolean);
 
-  if (!numbers.length) return;
+export const seedCallNumberPoolFromEnv = async () => {
+  const freeNumbers = splitNumbers(process.env.EXOTEL_FREE_POOL_NUMBERS || "");
+  const paidNumbers = splitNumbers(
+    process.env.EXOTEL_PAID_NUMBER_POOL_NUMBERS ||
+      process.env.EXOTEL_DEDICATED_POOL_NUMBERS ||
+      "",
+  );
+
+  if (!freeNumbers.length && !paidNumbers.length) return;
 
   await Promise.all(
-    numbers.map((phoneNumber) =>
+    freeNumbers.map((phoneNumber) =>
       CallNumberPool.updateOne(
         { phoneNumber },
         {
@@ -28,6 +36,57 @@ export const seedCallNumberPoolFromEnv = async () => {
       ),
     ),
   );
+
+  await Promise.all(
+    paidNumbers.map((phoneNumber) =>
+      CallNumberPool.updateOne(
+        { phoneNumber },
+        {
+          $setOnInsert: {
+            phoneNumber,
+            label: "Dedicated call assistant number",
+            countryCode: "IN",
+            type: "local",
+            tier: "paid_dedicated",
+            status: "available",
+          },
+        },
+        { upsert: true },
+      ),
+    ),
+  );
+};
+
+export const listAvailableCallNumbers = async ({
+  tier,
+}: {
+  tier: "free_shared" | "paid_dedicated";
+}) => {
+  await seedCallNumberPoolFromEnv();
+
+  const now = new Date();
+  await CallNumberPool.updateMany(
+    {
+      tier: "free_shared",
+      status: "leased",
+      leaseExpiresAt: { $lte: now },
+    },
+    {
+      $set: { status: "available" },
+      $unset: {
+        assignedClerkId: "",
+        activeCallSid: "",
+        leaseExpiresAt: "",
+      },
+    },
+  );
+
+  return CallNumberPool.find({
+    tier,
+    status: "available",
+  })
+    .sort({ updatedAt: 1 })
+    .lean();
 };
 
 export const leaseSharedNumber = async ({
@@ -88,8 +147,9 @@ export const assignDedicatedNumber = async ({
 }: {
   clerkId: string;
   phoneNumber: string;
-}) =>
-  CallNumberPool.findOneAndUpdate(
+}) => {
+  await seedCallNumberPoolFromEnv();
+  return CallNumberPool.findOneAndUpdate(
     {
       phoneNumber: normalize(phoneNumber),
       tier: "paid_dedicated",
@@ -103,3 +163,24 @@ export const assignDedicatedNumber = async ({
     },
     { new: true },
   );
+};
+
+export const releaseDedicatedNumbersForClerk = async (clerkId: string) => {
+  if (!clerkId) return;
+
+  await CallNumberPool.updateMany(
+    {
+      assignedClerkId: clerkId,
+      tier: "paid_dedicated",
+      status: "assigned",
+    },
+    {
+      $set: { status: "available" },
+      $unset: {
+        assignedClerkId: "",
+        activeCallSid: "",
+        leaseExpiresAt: "",
+      },
+    },
+  );
+};

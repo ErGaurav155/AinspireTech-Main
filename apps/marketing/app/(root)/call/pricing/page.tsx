@@ -26,14 +26,14 @@ const plans = [
     yearly: 29990,
     minutes: "1,000 min",
     overage: "₹5/min",
-    agents: "3 agents",
+    access: "Owner-only",
     numbers: "1 number",
     highlight: false,
     features: [
       "AI receptionist",
       "Call logs and summaries",
       "Lead capture",
-      "WhatsApp/email alerts",
+      "Owner alerts",
       "Basic flow editor",
     ],
   },
@@ -44,14 +44,14 @@ const plans = [
     yearly: 79990,
     minutes: "3,000 min",
     overage: "₹4/min",
-    agents: "10 agents",
+    access: "Owner-only",
     numbers: "3 numbers",
     highlight: true,
     features: [
       "Everything in Starter",
       "Call transcripts and recordings",
       "Advanced AI flow editor",
-      "Appointments and handoff",
+      "Permanent number search",
       "Priority support",
     ],
   },
@@ -62,13 +62,13 @@ const plans = [
     yearly: 199990,
     minutes: "10,000+ min",
     overage: "₹3/min",
-    agents: "30 agents",
+    access: "Owner-only",
     numbers: "10 numbers",
     highlight: false,
     features: [
       "Everything in Growth",
       "High-volume call operations",
-      "CRM and webhook integrations",
+      "Larger permanent number pool",
       "Dedicated onboarding",
       "SLA support",
     ],
@@ -78,11 +78,11 @@ const plans = [
 const comparison = [
   ["Feature", "Starter", "Growth", "Enterprise"],
   ["Included minutes", "1,000", "3,000", "10,000"],
-  ["Virtual numbers", "1", "3", "10"],
+  ["Permanent numbers", "1", "3", "10"],
   ["AI flow editor", "Basic", "Advanced", "Advanced"],
-  ["WhatsApp alerts", "Yes", "Yes", "Yes"],
+  ["Owner alerts", "Yes", "Yes", "Yes"],
   ["Call transcripts", "", "Yes", "Yes"],
-  ["Appointments", "", "Yes", "Yes"],
+  ["Number search", "Yes", "Yes", "Yes"],
   ["Support", "Email", "Priority", "Dedicated"],
 ];
 
@@ -218,7 +218,7 @@ export default function CallPricingPage() {
               </div>
 
               <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
-                {[plan.minutes, plan.overage, plan.agents, plan.numbers].map((item) => (
+                {[plan.minutes, plan.overage, plan.access, plan.numbers].map((item) => (
                   <div key={item} className={`rounded-2xl border p-3 font-montserrat ${themeStyles.inner}`}>
                     {item}
                   </div>
@@ -253,7 +253,7 @@ export default function CallPricingPage() {
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold">Compare plans</h2>
           <p className={`mt-2 font-montserrat ${themeStyles.muted}`}>
-            Choose based on monthly call volume and team needs.
+            Choose based on monthly call volume and permanent number needs.
           </p>
         </div>
         <motion.div
