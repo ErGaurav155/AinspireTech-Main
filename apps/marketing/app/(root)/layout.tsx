@@ -1,5 +1,6 @@
 import { Footer } from "@/components/shared/Footer";
 import { NavBar } from "@/components/shared/NavBar";
+import { TopPromoBanner } from "@/components/shared/TopPromoBanner";
 import { Toaster } from "@rocketreplai/ui";
 import { Metadata } from "next";
 
@@ -29,7 +30,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
 async function LayoutContent({ children }: { children: React.ReactNode }) {
   return (
-    <main className="no-scrollbar">
+    <main className="marketing-shell no-scrollbar">
+      <TopPromoBanner />
       <NavBar />
       {children}
       <Footer />

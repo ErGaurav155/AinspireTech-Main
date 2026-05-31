@@ -4,11 +4,50 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { Instagram, Network } from "lucide-react";
+import { Instagram, Network, Phone } from "lucide-react";
 import { instagramFeatures, webChatFeatures } from "@rocketreplai/shared";
 
+const aiCallFeatures = [
+  {
+    id: 1,
+    name: "24/7 AI Call Receptionist",
+    description:
+      "Answer missed calls, greet callers, capture intent, and keep your business reachable even outside working hours.",
+    tools: ["Inbound calls", "Lead capture", "Call summaries"],
+    role: "Always-on front desk",
+    link: "/assets/img/customer-support.png",
+  },
+  {
+    id: 2,
+    name: "Lead Qualification From Calls",
+    description:
+      "Ask the right questions on every call and save caller details, service interest, urgency, and follow-up notes.",
+    tools: ["Caller details", "Qualification flow", "Transcripts"],
+    role: "Call-to-lead automation",
+    link: "/assets/img/chatbot.png",
+  },
+  {
+    id: 3,
+    name: "Instant Owner Notifications",
+    description:
+      "Send call outcomes to WhatsApp, SMS, or email so your team can follow up while the lead is still warm.",
+    tools: ["WhatsApp alerts", "SMS updates", "Email summaries"],
+    role: "Fast follow-up system",
+    link: "/assets/img/customer-support.png",
+  },
+  {
+    id: 4,
+    name: "Appointments and Handoff",
+    description:
+      "Collect booking intent, route hot callers to your team, and keep a clean call log inside the dashboard.",
+    tools: ["Booking intent", "Team handoff", "Call logs"],
+    role: "Operational call workflow",
+    link: "/assets/img/chatbot.png",
+  },
+];
+
 function StickyFeaturesSection() {
-  const [activeTab, setActiveTab] = useState<"webchat" | "instagram">(
+  const [activeTab, setActiveTab] = useState<"webchat" | "instagram" | "call">(
     "webchat",
   );
   const { theme, resolvedTheme } = useTheme();
@@ -123,7 +162,11 @@ function StickyFeaturesSection() {
   };
 
   const features =
-    activeTab === "webchat" ? webChatFeatures : instagramFeatures;
+    activeTab === "webchat"
+      ? webChatFeatures
+      : activeTab === "instagram"
+        ? instagramFeatures
+        : aiCallFeatures;
 
   return (
     <motion.div
@@ -168,8 +211,8 @@ function StickyFeaturesSection() {
           viewport={{ once: false }}
           initial="hidden"
         >
-          Set up in minutes and start automating your Instagram Automation/Web
-          Chatbots.
+          Set up in minutes and start automating web chats, Instagram DMs, and
+          customer calls.
         </motion.p>
       </motion.div>
 
@@ -210,6 +253,19 @@ function StickyFeaturesSection() {
               onClick={() => setActiveTab("instagram")}
             >
               <Instagram className="h-5 w-5" /> Insta
+            </motion.button>
+            <motion.button
+              variants={buttonVariants}
+              whileHover="hover"
+              whileTap="tap"
+              className={`flex items-center justify-center gap-2 px-3 py-1 md:px-6 md:py-3 rounded-full font-semibold transition-all duration-300 text-nowrap text-sm ${
+                activeTab === "call"
+                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
+                  : "text-n-4 hover:text-white hover:bg-gray-700/50"
+              }`}
+              onClick={() => setActiveTab("call")}
+            >
+              <Phone className="h-5 w-5" /> Calls
             </motion.button>
           </div>
         </div>

@@ -338,7 +338,7 @@ const ComparisonTable: React.FC = () => {
                     Features
                   </motion.span>
                 </th>
-                <th className="relative text-center py-4 px-6 font-semibold text-[#00F0FF] bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29]">
+                <th className="relative text-center py-4 px-6 font-semibold text-[#00F0FF] bg-gradient-to-r from-[#0ce05d]/20 to-[#054e29]/50">
                   <motion.span
                     variants={titleVariants}
                     whileInView="visible"
@@ -438,7 +438,7 @@ const ComparisonTable: React.FC = () => {
                       {feature.name}
                     </motion.span>
                   </td>
-                  <td className="py-4 px-6 text-center bg-gradient-to-r from-[#0ce05d]/80 to-[#054e29] font-montserrat">
+                  <td className="py-4 px-6 text-center bg-gradient-to-r from-[#0ce05d]/20 to-[#054e29]/50 font-montserrat">
                     {renderFeatureValue(feature.RocketReplai, "RocketReplai")}
                   </td>
                   <td className="py-4 px-6 text-center font-montserrat">

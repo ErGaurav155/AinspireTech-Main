@@ -1,99 +1,62 @@
 "use client";
 
-import { MapPin, Mail } from "lucide-react";
-import MetaImg from "@/public/assets/img/metaImg.png";
+import { Mail, MapPin } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useTheme } from "next-themes";
-import { useEffect, useMemo, useState } from "react";
 import Logo from "@/public/assets/img/logo.png";
+import MetaImg from "@/public/assets/img/metaImg.png";
+
+const productLinks = [
+  { href: "/insta", label: "Insta automation" },
+  { href: "/web", label: "Website chatbots" },
+  { href: "/call", label: "AI calling" },
+  { href: "/affiliate", label: "Affiliate" },
+];
+
+const companyLinks = [
+  { href: "/contactUs", label: "Contact" },
+  { href: "/privacy-policy", label: "Privacy Policy" },
+  { href: "/TermsandCondition", label: "Terms & Conditions" },
+];
 
 export function Footer() {
-  const { theme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  const currentTheme = resolvedTheme || theme || "light";
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      footerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-50/80",
-      borderColor: isDark ? "border-[#00F0FF]/30" : "border-blue-300",
-      lightBorderColor: isDark ? "border-[#00F0FF]/10" : "border-gray-200",
-      logoBg: isDark ? "bg-[#0A0A0A]" : "bg-white",
-      linkText: isDark
-        ? "text-gray-300 hover:text-[#00F0FF]"
-        : "text-n-5 hover:text-[#00F0FF]",
-      titleText: isDark ? "text-white" : "text-n-5",
-      subtitleText: isDark ? "text-gray-300" : "text-n-5",
-      inputBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      inputBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-300",
-      inputText: isDark ? "text-white" : "text-n-5",
-      inputPlaceholder: isDark
-        ? "placeholder-gray-500"
-        : "placeholder-gray-400",
-      iconBg: isDark
-        ? "bg-gradient-to-r from-[#00F0FF]/20 to-[#B026FF]/20"
-        : "bg-gradient-to-r from-[#00F0FF]/10 to-[#B026FF]/10",
-      copyrightText: isDark ? "text-gray-400" : "text-n-4",
-    };
-  }, [currentTheme]);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return (
-      <div className=" bg-transparent  flex items-center justify-center h-full w-full">
-        <div className="w-5 h-5  border-t-transparent  rounded-full animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <footer
-      className={`w-full border-t ${themeStyles.borderColor} ${themeStyles.footerBg}`}
-    >
-      <div
-        className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10  backdrop-blur-sm`}
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          {/* Logo and Navigation */}
-          <div className="flex flex-col md:flex-row items-center md:items-start gap-2 md:gap-5">
-            <div className="flex md:flex-col ">
-              <Link
-                href="/"
-                className="flex-1  flex items-center justify-center "
-              >
-                <Image
-                  alt="Logo"
-                  src={Logo}
-                  width={120}
-                  height={200}
-                  className=" rounded-md"
-                  loading="lazy"
-                />
-              </Link>
-              <div className="flex-1  flex items-center justify-center ">
-                <Image
-                  src={MetaImg}
-                  alt="Meta Tech"
-                  width={120}
-                  height={200}
-                  className=" rounded-md"
-                  loading="lazy"
-                />
-              </div>
-            </div>
-            <ul className="flex flex-wrap flex-row md:flex-col  text-nowrap justify-center md:justify-start gap-4 md:gap-6 font-montserrat">
-              {[
-                { href: "/contactUs", label: "Contact Us" },
-                { href: "/privacy-policy", label: "Privacy Policy" },
-                { href: "/TermsandCondition", label: "Terms & Conditions" },
-              ].map((link, index) => (
-                <li key={index}>
+    <footer className="border-t border-slate-200 bg-white/80 text-slate-600 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="grid gap-10 md:grid-cols-[1.4fr_1fr_1fr_1.2fr]">
+          <div>
+            <Link href="/" className="inline-flex items-center">
+              <Image
+                alt="RocketReplai"
+                src={Logo}
+                className="h-20 w-200 object-contain"
+                loading="lazy"
+              />
+            </Link>
+            <p className=" max-w-sm text-sm leading-6">
+              Simple automation tools for growing conversations, leads, and
+              support without adding busywork.
+            </p>
+            <Image
+              src={MetaImg}
+              alt="Meta Business Partner"
+              width={150}
+              height={60}
+              className="mt-5 h-10 w-auto object-contain opacity-85"
+              loading="lazy"
+            />
+          </div>
+
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950 dark:text-white">
+              Products
+            </h3>
+            <ul className="mt-4 space-y-3 text-sm">
+              {productLinks.map((link) => (
+                <li key={link.href}>
                   <Link
                     href={link.href}
-                    className={`font-light transition-colors duration-300 ${themeStyles.linkText}`}
+                    className="transition hover:text-blue-700 dark:hover:text-blue-300"
                   >
                     {link.label}
                   </Link>
@@ -102,69 +65,52 @@ export function Footer() {
             </ul>
           </div>
 
-          {/* Contact Info */}
-          <div className="flex flex-col items-center md:items-start gap-6">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${themeStyles.iconBg}`}>
-                <MapPin className="text-[#00F0FF] size-5" />
-              </div>
-              <div>
-                <h3 className={`font-bold ${themeStyles.titleText}`}>
-                  Address
-                </h3>
-                <p className={`${themeStyles.subtitleText} font-montserrat`}>
-                  Nashik, IND
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-full ${themeStyles.iconBg}`}>
-                <Mail className="text-[#00F0FF] size-5" />
-              </div>
-              <div>
-                <h3 className={`font-bold ${themeStyles.titleText}`}>
-                  Contact
-                </h3>
-                <a
-                  href="mailto:support@rocketreplai.com"
-                  className={`${themeStyles.subtitleText} hover:text-[#00F0FF] transition-colors duration-300 text-sm md:text-base font-montserrat`}
-                >
-                  support@rocketreplai.com
-                </a>
-              </div>
-            </div>
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950 dark:text-white">
+              Company
+            </h3>
+            <ul className="mt-4 space-y-3 text-sm">
+              {companyLinks.map((link) => (
+                <li key={link.href}>
+                  <Link
+                    href={link.href}
+                    className="transition hover:text-blue-700 dark:hover:text-blue-300"
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
           </div>
 
-          {/* Newsletter */}
-          <div className="flex flex-col items-center md:items-start">
-            <h3 className={`text-xl font-bold ${themeStyles.titleText} mb-4`}>
-              Stay Updated
+          <div>
+            <h3 className="text-sm font-semibold text-slate-950 dark:text-white">
+              Reach us
             </h3>
-            <div className="relative w-full max-w-md">
-              <input
-                type="email"
-                placeholder="Your email address"
-                className={`w-full p-3 rounded-lg ${themeStyles.inputBg} backdrop-blur-sm border ${themeStyles.inputBorder} ${themeStyles.inputText} ${themeStyles.inputPlaceholder} focus:outline-none focus:ring-2 focus:ring-[#00F0FF] font-montserrat`}
-              />
-              <button className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white px-4 py-1.5 rounded-md hover:opacity-90 transition-opacity">
-                Subscribe
-              </button>
+            <div className="mt-4 space-y-4 text-sm">
+              <p className="flex items-center gap-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                  <MapPin className="h-4 w-4" />
+                </span>
+                Nashik, India
+              </p>
+              <a
+                href="mailto:support@rocketreplai.com"
+                className="flex items-center gap-3 transition hover:text-blue-700 dark:hover:text-blue-300"
+              >
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                  <Mail className="h-4 w-4" />
+                </span>
+                support@rocketreplai.com
+              </a>
             </div>
-            <p
-              className={`${themeStyles.subtitleText} text-sm mt-3 font-montserrat`}
-            >
-              Get the latest updates and offers
-            </p>
           </div>
         </div>
 
-        {/* Copyright */}
-        <div
-          className={`mt-10 pt-6 border-t ${themeStyles.lightBorderColor} text-center font-montserrat`}
-        >
-          <p className={themeStyles.copyrightText}>
-            © {new Date().getFullYear()} RocketReplai. All rights reserved.
+        <div className="mt-10 flex flex-col gap-3 border-t border-slate-200 pt-6 text-sm dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+          <p>© {new Date().getFullYear()} RocketReplai. All rights reserved.</p>
+          <p className="text-slate-500 dark:text-slate-400">
+            Built for faster customer conversations.
           </p>
         </div>
       </div>

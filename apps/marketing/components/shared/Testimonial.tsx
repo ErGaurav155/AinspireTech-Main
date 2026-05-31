@@ -5,201 +5,144 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoscroll from "embla-carousel-auto-scroll";
+import { Quote, Star } from "lucide-react";
 import { testimonials } from "@rocketreplai/shared";
 import { Card, CardContent } from "@rocketreplai/ui";
 
+type Testimonial = (typeof testimonials)[number];
+
+function TestimonialCard({ testimonial }: { testimonial: Testimonial }) {
+  return (
+    <Card className="group h-full rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-950/10 dark:border-white/10 dark:bg-white/[0.04] dark:hover:border-blue-400/40">
+      <CardContent className="flex h-full flex-col p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-12 overflow-hidden rounded-full border border-blue-100 bg-blue-50 dark:border-blue-400/20 dark:bg-blue-500/10">
+              <Image
+                src={testimonial.image}
+                alt={testimonial.name}
+                fill
+                sizes="48px"
+                className="object-cover"
+                loading="lazy"
+              />
+            </div>
+            <div>
+              <h4 className="font-bold leading-tight text-slate-950 dark:text-white">
+                {testimonial.title}
+              </h4>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                {testimonial.name}
+              </p>
+            </div>
+          </div>
+          <Quote className="h-5 w-5 shrink-0 text-blue-200 transition group-hover:text-blue-500 dark:text-blue-400/40" />
+        </div>
+
+        <div className="mt-5 flex gap-1 text-amber-400">
+          {Array.from({ length: 5 }).map((_, index) => (
+            <Star key={index} className="h-4 w-4 fill-current" />
+          ))}
+        </div>
+
+        <p className="mt-4 line-clamp-6 flex-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+          {testimonial.text}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TestimonialRow({
+  direction,
+}: {
+  direction: "forward" | "backward";
+}) {
+  const [emblaRef] = useEmblaCarousel(
+    {
+      loop: true,
+    },
+    [
+      Autoscroll({
+        speed: 0.85,
+        stopOnInteraction: false,
+        stopOnMouseEnter: true,
+        direction,
+      }),
+    ],
+  );
+
+  const orderedTestimonials =
+    direction === "forward" ? testimonials : [...testimonials].reverse();
+
+  return (
+    <div ref={emblaRef} className="overflow-hidden">
+      <div className="flex">
+        {orderedTestimonials.map((testimonial) => (
+          <div
+            key={`${direction}-${testimonial.id}`}
+            className="min-w-0 flex-[0_0_88%] p-2 sm:flex-[0_0_58%] lg:flex-[0_0_34%]"
+          >
+            <TestimonialCard testimonial={testimonial} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TestimonialSection() {
-  const themeStyles = React.useMemo(() => {
-    return {
-      cardBg: "bg-card",
-      cardBorder: "border-[#00F0FF]/30 hover:border-[#B026FF]",
-      titleText: "text-foreground",
-      subtitleText: "text-muted-foreground",
-      descriptionText: "text-muted-foreground",
-      sectionText: "text-muted-foreground",
-      avatarBg: "bg-background",
-    };
-  }, []);
-  // Forward scrolling carousel (left to right)
-  const [emblaRefForward] = useEmblaCarousel(
-    {
-      loop: true,
-    },
-    [
-      Autoscroll({
-        speed: 1,
-        stopOnInteraction: false,
-        stopOnMouseEnter: false,
-        direction: "forward",
-      }),
-    ],
-  );
-
-  // Backward scrolling carousel (right to left)
-  const [emblaRefBackward] = useEmblaCarousel(
-    {
-      loop: true,
-    },
-    [
-      Autoscroll({
-        speed: 1,
-        stopOnInteraction: false,
-        stopOnMouseEnter: false,
-        direction: "backward",
-      }),
-    ],
-  );
-
   const titleVariants = {
-    hidden: { opacity: 0, y: 30 },
+    hidden: { opacity: 0, y: 24 },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.5,
         ease: "easeOut",
       },
     },
   };
 
   return (
-    <section className="w-full p-10 relative z-10">
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
+    <section className="relative z-10 w-full px-4 py-16 md:py-24">
+      <div className="mx-auto max-w-7xl">
+        <div className="mx-auto mb-10 max-w-3xl text-center">
           <motion.div
-            className={`inline-flex items-center text-blue-600 border border-blue-400/50} rounded-full px-4 py-1 mb-4`}
+            className="mb-4 inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-sm font-semibold uppercase tracking-widest text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200"
             variants={titleVariants}
             whileInView="visible"
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             initial="hidden"
           >
-            <span className="text-sm font-medium"> CUSTOMER REVIEW</span>
+            Customer Reviews
           </motion.div>
-          <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-            We served over 5000+ customers
-          </h2>
-          <div className="flex justify-center my-6">
-            <div className="w-20 h-1 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-full"></div>
-          </div>
-          <p
-            className={`text-lg ${themeStyles.sectionText} max-w-2xl mx-auto font-montserrat`}
+          <motion.h2
+            className="text-3xl font-extrabold tracking-normal gradient-text-main md:text-5xl"
+            variants={titleVariants}
+            whileInView="visible"
+            viewport={{ once: true }}
+            initial="hidden"
           >
-            We are satisfying our customers every day since couple of Years.
-          </p>
+            Trusted by teams automating customer conversations
+          </motion.h2>
+          <motion.p
+            className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 md:text-lg"
+            variants={titleVariants}
+            whileInView="visible"
+            viewport={{ once: true }}
+            initial="hidden"
+          >
+            Real feedback from founders, creators, and service teams using
+            RocketReplai to respond faster and capture more leads.
+          </motion.p>
         </div>
 
-        {/* Forward Direction Carousel (Left to Right) */}
-        <div className="mb-12">
-          <div ref={emblaRefForward} className="overflow-hidden w-full">
-            <div className="flex">
-              {testimonials.map((testimonial) => (
-                <div
-                  key={testimonial.id}
-                  className="flex-shrink-0 w-full md:w-1/2 lg:w-1/3 p-4"
-                >
-                  <Card
-                    className={`${themeStyles.cardBg} backdrop-blur-sm border ${themeStyles.cardBorder} rounded-xl transition-all`}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col gap-6">
-                        <div className="flex gap-4 items-center">
-                          <div className="relative">
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#B026FF] animate-pulse"></div>
-                            <div
-                              className={`relative w-16 h-16 rounded-full overflow-hidden ${themeStyles.avatarBg} flex items-center justify-center`}
-                            >
-                              <Image
-                                src={testimonial.image}
-                                alt={`Testimonial ${testimonial.id}`}
-                                fill
-                                sizes="100%"
-                                className="rounded-full object-cover"
-                                loading="lazy"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <h4
-                              className={`text-xs md:text-lg font-medium ${themeStyles.titleText}`}
-                            >
-                              {testimonial.title}
-                            </h4>
-                            <span
-                              className={`text-xs md:text-sm ${themeStyles.subtitleText}`}
-                            >
-                              {testimonial.name}
-                            </span>
-                          </div>
-                        </div>
-                        <p
-                          className={`${themeStyles.descriptionText} h-[10rem] overflow-y-auto no-scrollbar font-montserrat`}
-                        >
-                          {testimonial.text}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Backward Direction Carousel (Right to Left) */}
-        <div>
-          <div ref={emblaRefBackward} className="overflow-hidden w-full">
-            <div className="flex">
-              {testimonials.map((testimonial) => (
-                <div
-                  key={testimonial.id}
-                  className="flex-shrink-0 w-full md:w-1/2 lg:w-1/3 p-4"
-                >
-                  <Card
-                    className={`${themeStyles.cardBg} backdrop-blur-sm border ${themeStyles.cardBorder} rounded-xl transition-all`}
-                  >
-                    <CardContent className="p-6">
-                      <div className="flex flex-col gap-6">
-                        <div className="flex gap-4 items-center">
-                          <div className="relative">
-                            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#B026FF] animate-pulse"></div>
-                            <div
-                              className={`relative w-16 h-16 rounded-full overflow-hidden ${themeStyles.avatarBg} flex items-center justify-center`}
-                            >
-                              <Image
-                                src={testimonial.image}
-                                alt={`Testimonial ${testimonial.id}`}
-                                fill
-                                sizes="100%"
-                                className="rounded-full object-cover"
-                                loading="lazy"
-                              />
-                            </div>
-                          </div>
-                          <div>
-                            <h4
-                              className={`text-xs md:text-lg font-medium ${themeStyles.titleText}`}
-                            >
-                              {testimonial.title}
-                            </h4>
-                            <span
-                              className={`text-xs md:text-sm ${themeStyles.subtitleText}`}
-                            >
-                              {testimonial.name}
-                            </span>
-                          </div>
-                        </div>
-                        <p
-                          className={`${themeStyles.descriptionText} h-[10rem] overflow-y-auto no-scrollbar font-montserrat`}
-                        >
-                          {testimonial.text}
-                        </p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="relative space-y-4">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-white to-transparent dark:from-slate-950 md:w-28" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-white to-transparent dark:from-slate-950 md:w-28" />
+          <TestimonialRow direction="forward" />
+          <TestimonialRow direction="backward" />
         </div>
       </div>
     </section>

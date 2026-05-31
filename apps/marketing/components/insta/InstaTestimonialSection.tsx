@@ -10,21 +10,21 @@ const testimonials = [
     name: "Raj Mehta",
     company: "Fashion Boutique",
     content:
-      "Our engagement increased by 300% after implementing InstaReply Pro. Never miss a customer comment again!",
+      "Our engagement increased by 300% after implementing RocketReplai. We never miss a customer comment now.",
     rating: 5,
   },
   {
     name: "Priya Desai",
     company: "Tech Dropshipping",
     content:
-      "The automation is so natural, our followers can't tell it's not us responding personally.",
+      "The automation feels natural, and the DMs reach customers while they are still interested.",
     rating: 5,
   },
   {
     name: "Anil Kumar",
-    company: "Food Blog",
+    company: "Food Brand",
     content:
-      "ROI was positive within the first week. The system pays for itself with increased engagement.",
+      "ROI was positive within the first week. Comment-to-DM links helped us convert more orders.",
     rating: 5,
   },
 ];
@@ -33,24 +33,22 @@ function InstaTestimonialsSection() {
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
 
-  // Theme-based styles
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-50/50",
-      badgeBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
-      titleText: isDark ? "text-white" : "text-n-7",
-      descriptionText: isDark ? "text-gray-300" : "text-n-5",
-      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      cardBorder: isDark ? "border-white/10" : "border-gray-200",
+      textPrimary: isDark ? "text-white" : "text-n-7",
+      textSecondary: isDark ? "text-gray-300" : "text-n-5",
+      textMuted: isDark ? "text-gray-400" : "text-n-5",
+      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-100/50",
+      cardBg: isDark ? "bg-[#0a0a0a]/10" : "bg-white/80",
+      cardBorder: isDark ? "border-white/10" : "border-gray-300",
       cardHoverBorder: isDark
         ? "hover:border-[#258b94]/40"
-        : "hover:border-[#258b94]/60",
-      testimonialText: isDark ? "text-gray-300" : "text-n-4",
-      companyText: isDark ? "text-gray-400" : "text-n-5",
+        : "hover:border-[#00F0FF]/60",
+      badgeBg: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
     };
   }, [currentTheme]);
-  // EXACT same animation variants as FAQ component
+
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
@@ -82,10 +80,7 @@ function InstaTestimonialsSection() {
     hover: {
       y: -8,
       scale: 1.02,
-      borderColor:
-        theme === "dark"
-          ? "rgba(37, 139, 148, 0.4)"
-          : "rgba(37, 139, 148, 0.2)",
+      boxShadow: "0 20px 40px -10px rgba(37, 139, 148, 0.2)",
       transition: {
         duration: 0.3,
         ease: "easeOut",
@@ -105,7 +100,19 @@ function InstaTestimonialsSection() {
     },
   };
 
-  const textVariants = {
+  const itemVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: {
+      opacity: 1,
+      x: 0,
+      transition: {
+        duration: 0.5,
+        ease: "easeOut",
+      },
+    },
+  };
+
+  const contentVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
@@ -119,18 +126,6 @@ function InstaTestimonialsSection() {
   };
 
   const ratingVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const starVariants = {
     hidden: { opacity: 0, scale: 0 },
     visible: {
       opacity: 1,
@@ -140,32 +135,39 @@ function InstaTestimonialsSection() {
         ease: "easeOut",
       },
     },
+    hover: {
+      scale: 1.2,
+      transition: {
+        duration: 0.2,
+      },
+    },
   };
 
   return (
-    <section className={`py-16 bg-transparent ${themeStyles.containerBg}`}>
+    <motion.section
+      className={`py-16 ${themeStyles.textPrimary}`}
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: false, margin: "-100px" }}
+      variants={containerVariants}
+    >
       <motion.div
-        className="text-center mb-12"
-        variants={containerVariants}
-        initial="hidden"
+        className="flex items-center justify-center text-blue-700 mb-4"
+        variants={titleVariants}
         whileInView="visible"
-        viewport={{ once: false, margin: "-100px" }}
+        viewport={{ once: false }}
+        initial="hidden"
       >
-        <motion.div
-          className="flex items-center justify-center text-blue-700 mb-4"
-          variants={titleVariants}
-          whileInView="visible"
-          viewport={{ once: false }}
-          initial="hidden"
+        <span
+          className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBg} rounded-full px-4 py-1`}
         >
-          <span
-            className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-          >
-            CLIENT REVIEW
-          </span>
-        </motion.div>
+          CUSTOMER REVIEW
+        </span>
+      </motion.div>
+
+      <div className="text-center mb-12">
         <motion.h2
-          className={`text-3xl font-bold mb-4 gradient-text-main ${themeStyles.titleText}`}
+          className={`text-3xl font-bold mb-4 gradient-text-main ${themeStyles.textPrimary}`}
           variants={titleVariants}
           whileInView="visible"
           viewport={{ once: false }}
@@ -174,16 +176,16 @@ function InstaTestimonialsSection() {
           What Our Customers Say
         </motion.h2>
         <motion.p
-          className={`text-xl font-montserrat ${themeStyles.descriptionText}`}
-          variants={textVariants}
+          className={`text-xl ${themeStyles.textSecondary} font-montserrat`}
+          variants={itemVariants}
           whileInView="visible"
           viewport={{ once: false }}
           initial="hidden"
         >
-          Join thousands of creators who have transformed their Instagram
-          engagement
+          Join thousands of creators who have transformed Instagram engagement
+          into leads, orders, and conversations.
         </motion.p>
-      </motion.div>
+      </div>
 
       <motion.div
         className={`grid grid-cols-1 md:grid-cols-3 gap-8 mb-16 ${themeStyles.containerBg} backdrop-blur-sm`}
@@ -200,33 +202,30 @@ function InstaTestimonialsSection() {
             whileInView="visible"
             viewport={{ once: false, margin: "-50px" }}
             initial="hidden"
+            className={`h-full border ${themeStyles.cardBorder} rounded-lg ${themeStyles.cardBg} ${themeStyles.cardHoverBorder} transition-colors duration-300`}
           >
-            <Card
-              className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} ${themeStyles.cardHoverBorder} transition-colors duration-300 backdrop-blur-sm h-full`}
-            >
+            <Card className="border-0 bg-transparent shadow-none h-full">
               <CardContent className="p-3 md:p-6">
                 <motion.div
                   className="flex items-center gap-1 mb-4"
-                  variants={ratingVariants}
+                  variants={containerVariants}
+                  initial="hidden"
                   whileInView="visible"
                   viewport={{ once: false }}
-                  initial="hidden"
                 >
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <motion.div
                       key={i}
                       className="h-4 w-4 rounded-full bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]"
-                      variants={starVariants}
-                      whileInView="visible"
-                      viewport={{ once: false }}
-                      initial="hidden"
+                      variants={ratingVariants}
+                      whileHover="hover"
                     />
                   ))}
                 </motion.div>
 
                 <motion.p
-                  className={`mb-4 font-montserrat ${themeStyles.testimonialText}`}
-                  variants={textVariants}
+                  className={`${themeStyles.textSecondary} mb-4 font-montserrat`}
+                  variants={contentVariants}
                   whileInView="visible"
                   viewport={{ once: false }}
                   initial="hidden"
@@ -235,15 +234,15 @@ function InstaTestimonialsSection() {
                 </motion.p>
 
                 <motion.div
-                  variants={ratingVariants}
+                  variants={itemVariants}
                   whileInView="visible"
                   viewport={{ once: false }}
                   initial="hidden"
                 >
-                  <p className={`font-semibold ${themeStyles.titleText}`}>
+                  <p className={`font-semibold ${themeStyles.textPrimary}`}>
                     {testimonial.name}
                   </p>
-                  <p className={`text-sm ${themeStyles.companyText}`}>
+                  <p className={`text-sm ${themeStyles.textMuted}`}>
                     {testimonial.company}
                   </p>
                 </motion.div>
@@ -252,7 +251,7 @@ function InstaTestimonialsSection() {
           </motion.div>
         ))}
       </motion.div>
-    </section>
+    </motion.section>
   );
 }
 

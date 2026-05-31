@@ -623,3 +623,179 @@
 .animate-progress {
   animation: progress 5s linear forwards;
 }
+
+/* Marketing refresh */
+.marketing-shell {
+  min-height: 100vh;
+  color: #0f172a;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(37, 99, 235, 0.11), transparent 34rem),
+    linear-gradient(180deg, #f8fbff 0%, #ffffff 42%, #f8fafc 100%);
+}
+
+.dark .marketing-shell {
+  color: #f8fafc;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(59, 130, 246, 0.18), transparent 34rem),
+    linear-gradient(180deg, #020617 0%, #0f172a 48%, #020617 100%);
+}
+
+.marketing-shell section {
+  position: relative;
+}
+
+.marketing-shell .wrapper,
+.marketing-shell .wrapper2 {
+  color: inherit;
+}
+
+.marketing-shell h1,
+.marketing-shell h2,
+.marketing-shell h3 {
+  letter-spacing: 0;
+  text-wrap: balance;
+}
+
+.marketing-shell h1 {
+  font-weight: 800;
+}
+
+.marketing-shell h2,
+.marketing-shell h3 {
+  font-weight: 750;
+}
+
+.marketing-shell p,
+.marketing-shell li {
+  text-wrap: pretty;
+}
+
+.marketing-shell .gradient-text-main,
+.marketing-shell .gradient-text-cyan,
+.marketing-shell .gradient-text-purple,
+.marketing-shell .gradient-text-pink {
+  background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 55%, #2563eb 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.dark .marketing-shell .gradient-text-main,
+.dark .marketing-shell .gradient-text-cyan,
+.dark .marketing-shell .gradient-text-purple,
+.dark .marketing-shell .gradient-text-pink {
+  background: linear-gradient(135deg, #ffffff 0%, #93c5fd 48%, #60a5fa 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.marketing-shell [class*="from-[#00F0FF]"]:not(.bg-clip-text),
+.marketing-shell [class*="from-[#B026FF]"]:not(.bg-clip-text),
+.marketing-shell [class*="from-[#FF2E9F]"]:not(.bg-clip-text) {
+  background-image: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
+  color: #ffffff;
+}
+
+.marketing-shell [class*="from-[#00F0FF]"]:not(.bg-clip-text) *,
+.marketing-shell [class*="from-[#B026FF]"]:not(.bg-clip-text) *,
+.marketing-shell [class*="from-[#FF2E9F]"]:not(.bg-clip-text) * {
+  color: inherit;
+}
+
+.marketing-shell .hover\:bg-gradient-to-br:hover,
+.marketing-shell .hover\:bg-gradient-to-r:hover {
+  color: #ffffff !important;
+}
+
+.marketing-shell .hover\:bg-gradient-to-br:hover *,
+.marketing-shell .hover\:bg-gradient-to-r:hover * {
+  color: #ffffff !important;
+}
+
+.marketing-shell [class*="from-[#00F0FF]"].text-black,
+.marketing-shell [class*="from-[#B026FF]"].text-black,
+.marketing-shell [class*="from-[#FF2E9F]"].text-black {
+  color: #ffffff !important;
+}
+
+.marketing-shell .text-\[\#00F0FF\],
+.marketing-shell .text-\[\#B026FF\],
+.marketing-shell .text-\[\#FF2E9F\] {
+  color: #2563eb !important;
+}
+
+.dark .marketing-shell .text-\[\#00F0FF\],
+.dark .marketing-shell .text-\[\#B026FF\],
+.dark .marketing-shell .text-\[\#FF2E9F\] {
+  color: #93c5fd !important;
+}
+
+.marketing-shell .border-\[\#00F0FF\],
+.marketing-shell .border-\[\#B026FF\],
+.marketing-shell .border-\[\#FF2E9F\],
+.marketing-shell .border-blue-600,
+.marketing-shell .border-blue-700,
+.marketing-shell .border-blue-800,
+.marketing-shell .border-purple-700 {
+  border-color: rgba(37, 99, 235, 0.26) !important;
+}
+
+.marketing-shell .rounded-3xl {
+  border-radius: 1rem !important;
+}
+
+.marketing-shell .rounded-2xl {
+  border-radius: 0.875rem !important;
+}
+
+.marketing-shell .shadow-2xl,
+.marketing-shell .shadow-xl,
+.marketing-shell .shadow-lg {
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08) !important;
+}
+
+.dark .marketing-shell .shadow-2xl,
+.dark .marketing-shell .shadow-xl,
+.dark .marketing-shell .shadow-lg {
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28) !important;
+}
+
+.marketing-shell .backdrop-blur-2xl,
+.marketing-shell .backdrop-blur-xl,
+.marketing-shell .backdrop-blur-lg {
+  backdrop-filter: blur(16px);
+}
+
+.marketing-shell .blur-3xl,
+.marketing-shell .blur-xl {
+  opacity: 0.16 !important;
+}
+
+.marketing-shell button,
+.marketing-shell a {
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+.marketing-shell button:hover,
+.marketing-shell a:hover {
+  transform: translateY(-1px);
+}
+
+.marketing-shell input,
+.marketing-shell textarea,
+.marketing-shell select {
+  border-radius: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-shell *,
+  .marketing-shell *::before,
+  .marketing-shell *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+}

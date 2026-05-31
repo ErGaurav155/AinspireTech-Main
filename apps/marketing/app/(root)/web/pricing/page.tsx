@@ -74,7 +74,7 @@ const PricingContent = () => {
   }, []);
 
   // State
-  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("yearly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
 
   // Derived state
@@ -386,10 +386,10 @@ const PricingContent = () => {
             <p
               className={`text-xl font-bold ${themeStyles.textMuted} line-through`}
             >
-              ${originalPrice.toFixed(0)}
+              ₹{originalPrice.toFixed(0)}
             </p>
             <p className="text-3xl font-bold text-[#B026FF]">
-              ${displayPrice.toFixed(0)}
+              ₹{displayPrice.toFixed(0)}
               <span className={`text-lg font-medium ${themeStyles.textMuted}`}>
                 /{billingMode === "monthly" ? "mo" : "yr"}
               </span>
@@ -398,7 +398,7 @@ const PricingContent = () => {
 
           {isYearly && (
             <p className="text-center text-green-400 mt-2 font-medium">
-              Save ${(originalPrice - displayPrice).toFixed(0)} annually
+              Save ₹{(originalPrice - displayPrice).toFixed(0)} annually
             </p>
           )}
 

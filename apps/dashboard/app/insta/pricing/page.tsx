@@ -157,7 +157,7 @@ function PricingWithSearchParams() {
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    "monthly",
+    "yearly",
   );
   const [email, setEmail] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -181,7 +181,7 @@ function PricingWithSearchParams() {
   const [pendingPlan, setPendingPlan] = useState<PricingPlan | null>(null);
   const [pendingBillingCycle, setPendingBillingCycle] = useState<
     "monthly" | "yearly"
-  >("monthly");
+  >("yearly");
   const [userAccounts, setUserAccounts] = useState<any[]>([]);
   const [isProcessingChange, setIsProcessingChange] = useState(false);
 
@@ -702,10 +702,10 @@ function PricingWithSearchParams() {
         await finishWebhookActivatedInstaPayment({
           subscriptionId,
           productId,
-          billingCycle: callbackBillingCycle || "monthly",
+          billingCycle: callbackBillingCycle || "yearly",
           planName: plan?.name || productId,
           price:
-            callbackBillingCycle === "yearly"
+            (callbackBillingCycle || "yearly") === "yearly"
               ? plan?.yearlyPrice || 0
               : plan?.monthlyPrice || 0,
         });
@@ -798,7 +798,7 @@ function PricingWithSearchParams() {
           await finishWebhookActivatedInstaPayment({
             subscriptionId,
             productId: parsedCheckout.productId || "",
-            billingCycle: parsedCheckout.billingCycle || "monthly",
+            billingCycle: parsedCheckout.billingCycle || "yearly",
             planName: parsedCheckout.planName || parsedCheckout.productId || "",
             price: parsedCheckout.price || 0,
           });

@@ -1,225 +1,152 @@
 "use client";
+
 import React, { useMemo } from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
-import { Card, CardContent } from "../radix/card";
+import { HelpCircle } from "lucide-react";
+
+const faqData = [
+  {
+    question: "Can I change my plan anytime?",
+    answer:
+      "Yes. You can upgrade, downgrade, or cancel whenever you need. Plan changes are designed to be simple and transparent.",
+  },
+  {
+    question: "What payment methods do you accept?",
+    answer:
+      "RocketReplai supports common online payment methods, including cards, UPI, and other available checkout options.",
+  },
+  {
+    question: "Is there a setup fee?",
+    answer:
+      "No. There are no hidden setup fees. You can create an account and start configuring your automation quickly.",
+  },
+  {
+    question: "Can I cancel my subscription anytime?",
+    answer:
+      "Yes. You can cancel anytime from your account without long contracts or lock-ins.",
+  },
+  {
+    question: "How quickly can I get started?",
+    answer:
+      "Most teams can get started in a few minutes. Connect your account, choose a workflow, and publish your first automation.",
+  },
+];
 
 const Faq = () => {
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
 
-  // Theme-based styles
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-white/50",
-      badgeBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
-      titleText: isDark ? "text-white" : "text-n-7",
-      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      cardBorder: isDark ? "border-[#333]" : "border-gray-200",
-      cardHoverBorder: isDark
-        ? "hover:border-[#258b94]/40"
-        : "hover:border-[#258b94]/60",
-      questionText: isDark ? "text-[#258b94]" : "text-[#1a6b72]",
-      answerText: isDark ? "text-gray-300" : "text-n-5",
-      cardShadow: isDark
-        ? "0 20px 40px -10px rgba(37, 139, 148, 0.2)"
-        : "0 20px 40px -10px rgba(37, 139, 148, 0.1)",
+      badge: isDark
+        ? "border-blue-400/30 bg-blue-500/10 text-blue-200"
+        : "border-blue-200 bg-blue-50 text-blue-700",
+      card: isDark
+        ? "border-white/10 bg-white/[0.04] hover:border-blue-400/40"
+        : "border-slate-200 bg-white hover:border-blue-300",
+      icon: isDark ? "bg-blue-500/10 text-blue-200" : "bg-blue-50 text-blue-700",
+      title: isDark ? "text-white" : "text-slate-950",
+      answer: isDark ? "text-slate-300" : "text-slate-600",
+      muted: isDark ? "text-slate-400" : "text-slate-500",
     };
   }, [currentTheme]);
 
-  // Animation variants - remove 'once: true' to replay on every scroll
   const containerVariants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
+        duration: 0.45,
+        staggerChildren: 0.07,
       },
     },
   };
-  const itemVariants = {
-    hidden: { opacity: 0, y: 50 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
+
   const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
+    hidden: { opacity: 0, y: 22 },
     visible: {
       opacity: 1,
       y: 0,
-      scale: 1,
-      rotateX: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.4,
         ease: "easeOut",
       },
     },
     hover: {
-      y: -8,
-      scale: 1.02,
-      borderColor:
-        theme === "dark"
-          ? "rgba(37, 139, 148, 0.4)"
-          : "rgba(37, 139, 148, 0.2)",
-      boxShadow: themeStyles.cardShadow,
+      y: -6,
       transition: {
-        duration: 0.3,
+        duration: 0.2,
         ease: "easeOut",
       },
     },
   };
-
-  const titleVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const questionVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const answerVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-  };
-
-  const faqData = [
-    {
-      question: "Can I change my plan anytime?",
-      answer:
-        "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.",
-    },
-    {
-      question: "What payment methods do you accept?",
-      answer: "We accept All Payment methods from our customers.",
-    },
-    {
-      question: "Is there a setup fee?",
-      answer:
-        "No, there are no setup fees or hidden costs. You will get free subscription once you create account.",
-    },
-    {
-      question: "Can I cancel subscription anytime?",
-      answer:
-        "Yes, you can cancel your subscription at any time. No questions asked.",
-    },
-    {
-      question: "How quickly can I get started?",
-      answer:
-        "You can be up and running within 5 minutes of subscribing. No technical setup required.",
-    },
-  ];
 
   return (
-    <div>
-      {/* FAQ Section */}
-      <section className={`py-16  rounded`}>
-        <motion.div
-          className=" mx-auto"
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, margin: "-100px" }}
-        >
+    <section className="w-full px-4 py-16 md:py-24">
+      <motion.div
+        className="mx-auto max-w-6xl"
+        variants={containerVariants}
+        initial="hidden"
+        whileInView="visible"
+        viewport={{ once: true, margin: "-100px" }}
+      >
+        <div className="mx-auto mb-10 max-w-3xl text-center">
           <motion.div
-            className="flex items-center justify-center text-blue-700 mb-4"
-            variants={titleVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
+            variants={cardVariants}
+            className={`mb-4 inline-flex items-center rounded-full border px-4 py-1.5 text-sm font-semibold uppercase tracking-widest ${themeStyles.badge}`}
           >
-            <span
-              className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-            >
-              FAQ SECTION
-            </span>
+            <HelpCircle className="mr-2 h-4 w-4" />
+            FAQ
           </motion.div>
-          <motion.div variants={itemVariants} className="mb-4">
-            <h2
-              className={`text-3xl font-bold mb-4 gradient-text-main text-center ${themeStyles.titleText}`}
-            >
-              Frequently Asked Questions
-            </h2>
-          </motion.div>
+          <motion.h2
+            variants={cardVariants}
+            className="text-3xl font-extrabold tracking-normal gradient-text-main md:text-5xl"
+          >
+            Frequently asked questions
+          </motion.h2>
+          <motion.p
+            variants={cardVariants}
+            className={`mx-auto mt-4 max-w-2xl text-base leading-7 md:text-lg ${themeStyles.muted}`}
+          >
+            Everything you need to know before launching your first automation.
+          </motion.p>
+        </div>
 
-          <div
-            className={`grid grid-cols-1 md:grid-cols-2 gap-8 ${themeStyles.containerBg} md:p-5 backdrop-blur-sm rounded-lg`}
-          >
-            {faqData.map((faq, index) => (
-              <motion.div
-                key={index}
-                variants={cardVariants}
-                whileHover="hover"
-                whileInView="visible"
-                viewport={{ once: false, margin: "-50px" }}
-                initial="hidden"
-              >
-                <Card
-                  className={`${themeStyles.cardBg} border ${themeStyles.cardBorder} ${themeStyles.cardHoverBorder} transition-colors duration-300 `}
+        <motion.div
+          variants={containerVariants}
+          className="grid grid-cols-1 gap-4 md:grid-cols-2"
+        >
+          {faqData.map((faq) => (
+            <motion.div
+              key={faq.question}
+              variants={cardVariants}
+              whileHover="hover"
+              className={`group rounded-2xl border p-5 shadow-sm transition-colors duration-300 md:p-6 ${themeStyles.card}`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${themeStyles.icon}`}
                 >
-                  <CardContent className="p-3 md:p-6">
-                    <motion.h3
-                      className={`font-semibold mb-2 ${themeStyles.questionText}`}
-                      variants={questionVariants}
-                      whileInView="visible"
-                      viewport={{ once: false }}
-                      initial="hidden"
-                    >
-                      {faq.question}
-                    </motion.h3>
-                    <motion.p
-                      className={`font-montserrat ${themeStyles.answerText}`}
-                      variants={answerVariants}
-                      whileInView="visible"
-                      viewport={{ once: false }}
-                      initial="hidden"
-                    >
-                      {faq.answer}
-                    </motion.p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
+                  <HelpCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className={`text-lg font-bold ${themeStyles.title}`}>
+                    {faq.question}
+                  </h3>
+                  <p
+                    className={`mt-3 text-sm leading-6 md:text-base ${themeStyles.answer}`}
+                  >
+                    {faq.answer}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
         </motion.div>
-      </section>
-    </div>
+      </motion.div>
+    </section>
   );
 };
 

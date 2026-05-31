@@ -33,12 +33,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
-      url: "https://rocketreplai.com/Review",
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 1,
-    },
-    {
       url: "https://rocketreplai.com/insta/pricing",
       lastModified: new Date(),
       changeFrequency: "weekly",

@@ -279,19 +279,19 @@ export function AIVoiceAgentShowcase() {
             {[
               {
                 id: "web",
-                label: "Web Auto",
+                label: "Web",
                 icon: <MessageSquare className="h-5 w-5" />,
                 gradient: "from-cyan-500 to-blue-500",
               },
               {
                 id: "insta",
-                label: "Insta Auto",
+                label: "Insta",
                 icon: <Instagram className="h-5 w-5" />,
                 gradient: "from-pink-500 to-purple-500",
               },
               {
                 id: "call",
-                label: "AI Calls",
+                label: "Calls",
                 icon: <Phone className="h-5 w-5" />,
                 gradient: "from-cyan-500 to-emerald-500",
               },
@@ -299,7 +299,7 @@ export function AIVoiceAgentShowcase() {
               <button
                 key={tab.id}
                 onClick={() => setActivePlatform(tab.id as any)}
-                className={`flex items-center px-5 md:px-7 py-3 rounded-xl transition-all duration-300 ${
+                className={`flex items-center px-4 md:px-7 py-3 rounded-xl transition-all duration-300 ${
                   activePlatform === tab.id
                     ? `${themeStyles.glowEffect} text-white bg-gradient-to-r ${tab.gradient}`
                     : `${themeStyles.tabText} hover:bg-white/10`

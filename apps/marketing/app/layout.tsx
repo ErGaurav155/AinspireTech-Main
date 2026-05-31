@@ -1,22 +1,17 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Orbitron, Montserrat } from "next/font/google";
+import { Inter } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@rocketreplai/ui";
 // @ts-ignore
 import "./globals.css";
-import StarsBackground from "../../../packages/ui/src/components/shared/StarsBackground";
 import MetaPixel from "@/components/shared/MetaPixel";
 
-const orbitron = Orbitron({
+const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-orbitron",
-});
-
-const montserrat = Montserrat({
-  subsets: ["latin"],
-  variable: "--font-montserrat",
+  variable: "--font-inter",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -41,13 +36,15 @@ export default async function RootLayout({
     <html suppressHydrationWarning lang="en">
       <body
         className={cn(
-          orbitron.variable,
-          montserrat.variable,
-          "font-orbitron min-h-screen bg-background  text-foreground transition-colors duration-300",
+          inter.variable,
+          "font-sans min-h-screen bg-background text-foreground antialiased transition-colors duration-300",
         )}
       >
-        <ThemeProvider>
-          <StarsBackground />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+        >
           <div className="relative z-10">{children}</div>
         </ThemeProvider>
         <SpeedInsights />

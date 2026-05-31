@@ -5,26 +5,18 @@ import { motion } from "framer-motion";
 import {
   MessageCircle,
   Play,
-  AtSign,
   Facebook,
-  Inbox,
-  Calendar,
   BarChart3,
   Workflow,
   MessageSquare,
   Users,
   Zap,
   Rewind,
-  Megaphone,
-  Mail,
-  BookOpen,
-  Gift,
   Shield,
   Infinity,
   Cpu,
-  Clock,
-  Gauge,
   InstagramIcon,
+  ArrowRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -39,28 +31,28 @@ export function FeatureShowcase() {
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-white/40",
-      badgeBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
-      titleText: isDark ? "text-white" : "text-n-8",
-      descriptionText: isDark ? "text-gray-300" : "text-n-5",
-      cardBg: isDark ? "bg-white/10" : "bg-white/90",
-      cardHoverBorder: isDark ? "border-[#258b94]/40" : "border-[#258b94]/60",
-      gradientBg: isDark
-        ? "from-[#00F0FF]/5 to-[#B026FF]/5"
-        : "from-[#00F0FF]/10 to-[#B026FF]/10",
-      filterButtonBg: isDark ? "bg-[#0a0a0a]/10" : "bg-white/80",
+      panelBg: isDark
+        ? "bg-white/[0.035] border-white/10"
+        : "bg-white/75 border-slate-200",
+      badge: isDark
+        ? "border-blue-400/30 bg-blue-500/10 text-blue-200"
+        : "border-blue-200 bg-blue-50 text-blue-700",
+      titleText: isDark ? "text-white" : "text-slate-950",
+      descriptionText: isDark ? "text-slate-300" : "text-slate-600",
+      mutedText: isDark ? "text-slate-400" : "text-slate-500",
+      cardBg: isDark
+        ? "bg-slate-900/70 border-white/10 hover:border-blue-400/40"
+        : "bg-white border-slate-200 hover:border-blue-300",
+      iconBg: isDark
+        ? "bg-blue-500/10 text-blue-200"
+        : "bg-blue-50 text-blue-700",
+      filterButtonBg: isDark ? "bg-white/[0.04]" : "bg-white",
       filterButtonBorder: isDark
-        ? "border-[#00F0FF]/30 text-gray-300 hover:border-[#00F0FF] hover:text-white"
-        : "border-[#00F0FF]/50 text-gray-600 hover:border-[#00F0FF] hover:text-gray-900",
+        ? "border-white/10 text-slate-300 hover:border-blue-400/40 hover:text-white hover:bg-white/[0.07]"
+        : "border-slate-200 text-slate-600 hover:border-blue-200 hover:text-slate-950 hover:bg-blue-50/70",
       categoryBadgeBg: isDark
-        ? "bg-gray-800 text-gray-300"
-        : "bg-gray-200 text-n-5",
-      ctaText: isDark
-        ? "text-[#00F0FF] hover:text-[#B026FF]"
-        : "text-[#00F0FF] hover:text-[#B026FF]",
-      cardHoverEffect: isDark
-        ? "borderColor: 'rgba(37, 139, 148, 0.4)'"
-        : "borderColor: 'rgba(37, 139, 148, 0.2)'",
+        ? "bg-white/[0.06] text-slate-300 border-white/10"
+        : "bg-slate-50 text-slate-600 border-slate-200",
     };
   }, [currentTheme]);
   // EXACT same animation variants as FeatureSection component
@@ -69,8 +61,8 @@ export function FeatureShowcase() {
     visible: {
       opacity: 1,
       transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
+        duration: 0.5,
+        staggerChildren: 0.06,
       },
     },
   };
@@ -78,29 +70,27 @@ export function FeatureShowcase() {
   const cardVariants = {
     hidden: {
       opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
+      y: 22,
+      scale: 0.98,
     },
     visible: {
       opacity: 1,
       y: 0,
       scale: 1,
-      rotateX: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.45,
         ease: "easeOut",
       },
     },
     hover: {
-      y: -8,
-      scale: 1.02,
-      borderColor:
-        theme === "dark"
-          ? "rgba(37, 139, 148, 0.4)"
-          : "rgba(37, 139, 148, 0.2)",
+      y: -6,
+      scale: 1.01,
+      boxShadow:
+        currentTheme === "dark"
+          ? "0 24px 70px -38px rgba(96, 165, 250, 0.65)"
+          : "0 24px 70px -38px rgba(37, 99, 235, 0.45)",
       transition: {
-        duration: 0.3,
+        duration: 0.22,
         ease: "easeOut",
       },
     },
@@ -112,7 +102,7 @@ export function FeatureShowcase() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.6,
+        duration: 0.5,
         ease: "easeOut",
       },
     },
@@ -124,9 +114,8 @@ export function FeatureShowcase() {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.5,
+        duration: 0.4,
         ease: "easeOut",
-        delay: 0.2,
       },
     },
   };
@@ -137,7 +126,7 @@ export function FeatureShowcase() {
       opacity: 1,
       scale: 1,
       transition: {
-        duration: 0.4,
+        duration: 0.3,
         ease: "easeOut",
       },
     },
@@ -276,95 +265,81 @@ export function FeatureShowcase() {
       : features.filter((feature) => feature.category === activeCategory);
 
   return (
-    <section className={`w-full bg-transparent text-foreground py-20`}>
+    <section className="w-full bg-transparent py-16 md:py-24 text-foreground">
       <motion.div
-        className=" mx-auto md:px-4"
+        className="mx-auto max-w-7xl md:px-4"
         variants={containerVariants}
         initial="hidden"
         whileInView="visible"
-        viewport={{ once: false, margin: "-100px" }}
+        viewport={{ once: true, margin: "-100px" }}
       >
         {/* Header */}
         <motion.div
-          className="text-center mb-16"
+          className="mx-auto mb-10 max-w-3xl text-center md:mb-12"
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-100px" }}
+          viewport={{ once: true, margin: "-100px" }}
         >
           <motion.div
-            className={`inline-flex items-center text-blue-700 border ${themeStyles.badgeBorder} rounded-full px-4 py-1 mb-4`}
+            className={`mb-4 inline-flex items-center rounded-full border px-4 py-1.5 ${themeStyles.badge}`}
             variants={titleVariants}
             whileInView="visible"
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             initial="hidden"
           >
-            <span className="text-sm font-medium uppercase tracking-widest">
-              FEATURE SHOWCASE
+            <span className="text-sm font-semibold uppercase tracking-widest">
+              Feature Showcase
             </span>
           </motion.div>
           <motion.h2
-            className="text-3xl font-bold mb-6 gradient-text-main"
+            className="mb-4 text-3xl font-extrabold tracking-normal gradient-text-main md:text-5xl"
             variants={titleVariants}
             whileInView="visible"
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             initial="hidden"
           >
-            Unlock The Full Potential
+            Automations built for every Instagram workflow
           </motion.h2>
           <motion.p
-            className={`text-lg p-2 max-w-3xl mx-auto font-montserrat ${themeStyles.descriptionText}`}
+            className={`mx-auto max-w-2xl text-base leading-7 font-montserrat md:text-lg ${themeStyles.descriptionText}`}
             variants={textVariants}
             whileInView="visible"
-            viewport={{ once: false }}
+            viewport={{ once: true }}
             initial="hidden"
           >
-            Dive deep into RocketReplai capabilities with these standout
-            features, each designed to enhance your experience and streamline
-            your tasks. Discover what sets us apart.
+            Filter by use case and see how RocketReplai turns comments, stories,
+            reels, and accounts into clean automated DM flows.
           </motion.p>
-
-          {/* Divider */}
-          <motion.div
-            className="w-24 h-1 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-full mx-auto mb-12"
-            variants={iconVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          />
         </motion.div>
 
         {/* Category Filters */}
         <motion.div
-          className={`flex flex-wrap justify-center gap-1 md:gap-4 mb-4 md:mb-12 ${themeStyles.containerBg} backdrop-blur-sm p-3 rounded`}
+          className={`mx-auto mb-8 flex max-w-5xl flex-wrap justify-center gap-2 backdrop-blur-xl md:mb-10`}
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          viewport={{ once: true, margin: "-50px" }}
         >
           {categories.map((category) => (
             <motion.button
               key={category.id}
               onClick={() => setActiveCategory(category.id)}
-              className={`px-2 py-1 md:px-6 md:py-3 rounded-full border transition-all ${
-                themeStyles.filterButtonBg
-              } backdrop-blur-sm duration-300 ${
+              className={`inline-flex items-center rounded-xl border px-3 py-2 text-sm font-semibold transition-all duration-200 md:px-4 ${
                 activeCategory === category.id
-                  ? "bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white border-transparent"
-                  : `${themeStyles.filterButtonBorder}`
+                  ? "border-blue-700 bg-blue-700 text-white shadow-sm shadow-blue-700/20"
+                  : `${themeStyles.filterButtonBg} ${themeStyles.filterButtonBorder}`
               }`}
               variants={cardVariants}
               whileInView="visible"
-              viewport={{ once: false, margin: "-50px" }}
+              viewport={{ once: true, margin: "-50px" }}
               initial="hidden"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              whileHover={{ y: -2 }}
+              whileTap={{ scale: 0.98 }}
             >
-              <span className="text-xs md:text-base font-thin md:font-medium">
-                {category.name}
-              </span>
-              <span className="ml-1 md:ml-2 text-sm opacity-80">
-                ({category.count})
+              <span>{category.name}</span>
+              <span className="ml-2 rounded-full bg-current/10 px-2 py-0.5 text-xs opacity-90">
+                {category.count}
               </span>
             </motion.button>
           ))}
@@ -372,103 +347,82 @@ export function FeatureShowcase() {
 
         {/* Features Grid */}
         <motion.div
-          className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 max-w-7xl mx-auto ${themeStyles.containerBg} backdrop-blur-sm md:p-5 rounded`}
+          key={activeCategory}
+          className="mx-auto grid max-w-7xl grid-cols-1 gap-4 md:grid-cols-2 md:gap-5 lg:grid-cols-3"
           variants={containerVariants}
           initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
+          animate="visible"
         >
           {filteredFeatures.map((feature, index) => (
             <motion.div
-              key={index}
-              className={`border ${themeStyles.cardBg} rounded-2xl p-3 group relative overflow-hidden flex flex-col items-start justify-center gap-2 hover:${themeStyles.cardHoverBorder} transition-colors duration-300`}
+              key={`${activeCategory}-${feature.title}`}
+              className={`group relative flex min-h-[210px] flex-col overflow-hidden rounded-2xl border p-5 shadow-sm transition-colors duration-300 md:p-6 ${themeStyles.cardBg}`}
               variants={cardVariants}
               whileHover="hover"
-              whileInView="visible"
-              viewport={{ once: false, margin: "-50px" }}
               initial="hidden"
+              animate="visible"
+              transition={{ delay: index * 0.03 }}
             >
-              {/* Background Gradient Effect */}
-              <div
-                className={`absolute inset-0 bg-gradient-to-br ${themeStyles.gradientBg} opacity-0 group-hover:opacity-100 transition-opacity duration-300`}
-              ></div>
+              <div className="absolute inset-x-0 top-0 h-1 bg-blue-700 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              <div className="absolute -right-14 -top-14 h-32 w-32 rounded-full bg-blue-500/10 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100" />
 
-              <div className="flex items-start justify-center gap-2 relative z-10">
+              <div className="relative z-10 flex flex-1 items-start gap-4">
                 {/* Icon */}
                 <motion.div
-                  className="w-14 h-14 px-3 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-xl flex items-center justify-center mb-6"
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform duration-300 group-hover:scale-105 ${themeStyles.iconBg}`}
                   variants={iconVariants}
-                  whileInView="visible"
-                  viewport={{ once: false }}
                   initial="hidden"
-                  whileHover={{ scale: 1.1 }}
+                  animate="visible"
                 >
-                  <div className="text-white">{feature.icon}</div>
+                  {feature.icon}
                 </motion.div>
 
-                <div className="flex-1">
+                <div className="min-w-0 flex-1">
                   {/* Title */}
                   <motion.h3
-                    className={`text-lg font-medium group-hover:text-[#00F0FF] transition-colors duration-300 mb-2 ${themeStyles.titleText}`}
+                    className={`mb-2 text-lg font-bold leading-snug transition-colors duration-300 group-hover:text-blue-700 dark:group-hover:text-blue-300 ${themeStyles.titleText}`}
                     variants={titleVariants}
-                    whileInView="visible"
-                    viewport={{ once: false }}
                     initial="hidden"
+                    animate="visible"
                   >
                     {feature.title}
                   </motion.h3>
 
                   {/* Description */}
                   <motion.p
-                    className={`text-sm font-montserrat ${themeStyles.descriptionText}`}
+                    className={`text-sm leading-6 font-montserrat ${themeStyles.descriptionText}`}
                     variants={textVariants}
-                    whileInView="visible"
-                    viewport={{ once: false }}
                     initial="hidden"
+                    animate="visible"
                   >
                     {feature.description}
                   </motion.p>
                 </div>
               </div>
 
-              <div className="w-full flex items-center justify-between relative z-10">
+              <div className="relative z-10 mt-6 flex w-full items-center justify-between gap-3">
                 <motion.button
                   onClick={() => {
                     router.push("https://app.rocketreplai.com/sign-in");
                   }}
-                  className={`inline-flex items-center transition-colors duration-300 ${themeStyles.ctaText}`}
+                  className="inline-flex items-center rounded-full text-sm font-semibold text-blue-700 transition-colors duration-300 hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
                   variants={textVariants}
-                  whileInView="visible"
-                  viewport={{ once: false }}
                   initial="hidden"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  animate="visible"
+                  whileHover={{ x: 2 }}
+                  whileTap={{ scale: 0.98 }}
                 >
-                  <span className="text-sm font-medium">Learn more</span>
-                  <svg
-                    className="w-4 h-4 ml-2"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                  Learn more
+                  <ArrowRight className="ml-2 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
                 </motion.button>
 
                 <motion.div
                   variants={iconVariants}
-                  whileInView="visible"
-                  viewport={{ once: false }}
                   initial="hidden"
+                  animate="visible"
                 >
                   <span
-                    className={`text-xs px-2 py-1 rounded-full ${themeStyles.categoryBadgeBg} capitalize`}
+                    className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium capitalize ${themeStyles.categoryBadgeBg}`}
                   >
                     {feature.category}
                   </span>

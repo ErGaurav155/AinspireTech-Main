@@ -59,13 +59,16 @@ function WebFeaturesGrid() {
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      textPrimary: isDark ? "text-white" : "text-n-7",
-      textSecondary: isDark ? "text-gray-300" : "text-n-5",
-      textMuted: isDark ? "text-gray-400" : "text-n-5",
-      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-100/50",
-      cardBg: isDark ? "bg-transparent" : "bg-white/80",
-      iconBg: isDark ? "bg-black/20" : "bg-white/80",
-      badgeBg: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
+      textPrimary: isDark ? "text-white" : "text-slate-950",
+      textSecondary: isDark ? "text-slate-300" : "text-slate-600",
+      containerBg: "bg-transparent",
+      cardBg: isDark
+        ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.07]"
+        : "bg-white border-slate-200 hover:bg-blue-50/60",
+      iconBg: isDark ? "bg-blue-500/10" : "bg-blue-50",
+      badgeBg: isDark
+        ? "border-blue-400/30 bg-blue-500/10 text-blue-200"
+        : "border-blue-200 bg-blue-50 text-blue-700",
     };
   }, [currentTheme]);
 
@@ -101,8 +104,8 @@ function WebFeaturesGrid() {
     hover: {
       y: -8,
       scale: 1.02,
-      borderColor: "rgba(37, 139, 148, 0.4)",
-      boxShadow: "0 20px 40px -10px rgba(37, 139, 148, 0.2)",
+      borderColor: "rgba(37, 99, 235, 0.35)",
+      boxShadow: "0 18px 42px -20px rgba(37, 99, 235, 0.34)",
       transition: {
         duration: 0.3,
         ease: "easeOut",
@@ -159,25 +162,10 @@ function WebFeaturesGrid() {
     },
   };
 
-  const colorClasses = {
-    cyan:
-      theme === "dark"
-        ? "from-[#00F0FF]/10 to-[#00F0FF]/5 border-[#00F0FF]/20 hover:border-[#00F0FF]/40"
-        : "from-[#00F0FF]/20 to-[#00F0FF]/10 border-[#00F0FF]/30 hover:border-[#00F0FF]/60",
-    purple:
-      theme === "dark"
-        ? "from-[#B026FF]/20 to-[#B026FF]/5 border-[#B026FF]/20 hover:border-[#B026FF]/40"
-        : "from-[#B026FF]/20 to-[#B026FF]/10 border-[#B026FF]/30 hover:border-[#B026FF]/60",
-    pink:
-      theme === "dark"
-        ? "from-[#FF2E9F]/20 to-[#FF2E9F]/5 border-[#FF2E9F]/20 hover:border-[#FF2E9F]/40"
-        : "from-[#FF2E9F]/20 to-[#FF2E9F]/10 border-[#FF2E9F]/30 hover:border-[#FF2E9F]/60",
-  };
-
   const iconColors = {
-    cyan: "text-[#00F0FF]",
-    purple: "text-[#B026FF]",
-    pink: "text-[#FF2E9F]",
+    cyan: "text-blue-700 dark:text-blue-300",
+    purple: "text-blue-700 dark:text-blue-300",
+    pink: "text-blue-700 dark:text-blue-300",
   };
 
   return (
@@ -190,7 +178,7 @@ function WebFeaturesGrid() {
         initial="hidden"
       >
         <span
-          className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBg} rounded-full px-4 py-1`}
+          className={`text-sm font-semibold uppercase tracking-widest border ${themeStyles.badgeBg} rounded-full px-4 py-1`}
         >
           CHATBOT FEATURE
         </span>
@@ -225,7 +213,7 @@ function WebFeaturesGrid() {
       >
         {features.map((feature, index) => {
           const Icon = feature.icon;
-          const colorKey = feature.color as keyof typeof colorClasses;
+          const colorKey = feature.color as keyof typeof iconColors;
 
           return (
             <motion.div
@@ -238,15 +226,13 @@ function WebFeaturesGrid() {
               className="h-full min-h-max"
             >
               <Card
-                className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-gradient-to-br ${
-                  colorClasses[feature.color as keyof typeof colorClasses]
-                } ${themeStyles.cardBg} border h-full`}
+                className={`group h-full border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 ${themeStyles.cardBg}`}
               >
                 <CardHeader className="relative overflow-hidden p-6">
                   {/* Animated background effect */}
                   <motion.div
                     className={`absolute inset-0 opacity-0 bg-gradient-to-r from-transparent ${
-                      theme === "dark" ? "via-white/5" : "via-gray-200/20"
+                      theme === "dark" ? "via-white/5" : "via-blue-100/80"
                     } to-transparent`}
                     initial={{ x: -100 }}
                     whileHover={{
@@ -258,7 +244,7 @@ function WebFeaturesGrid() {
 
                   {/* Icon */}
                   <motion.div
-                    className={`h-12 w-12 rounded-lg flex items-center justify-center mb-4 relative z-10 ${themeStyles.iconBg} backdrop-blur-sm`}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 relative z-10 ${themeStyles.iconBg}`}
                     variants={iconVariants}
                     whileInView="visible"
                     viewport={{ once: false }}

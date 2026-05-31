@@ -217,7 +217,7 @@ function InstaHowItWorksSection() {
           initial="hidden"
         >
           {/* Text Content */}
-          <div className="lg:w-1/2 order-2 lg:order-1">
+          <div className="lg:w-1/2 order-1">
             <motion.div
               className={`inline-flex items-center gap-2 font-bold text-sm mb-3 px-3 py-1 rounded-full border ${themeStyles.stepBadgeBorder} ${themeStyles.stepBadgeBg} ${themeStyles.stepBadgeText}`}
               variants={stepVariants}
@@ -252,7 +252,7 @@ function InstaHowItWorksSection() {
 
           {/* Image - 16:9 Ratio */}
           <motion.div
-            className="lg:w-1/2 w-full order-1 lg:order-2"
+            className="lg:w-1/2 w-full order-2"
             variants={imageVariants}
             whileHover="hover"
             whileInView="visible"
@@ -303,7 +303,7 @@ function InstaHowItWorksSection() {
           initial="hidden"
         >
           {/* Text Content */}
-          <div className="lg:w-1/2 order-2 lg:order-1">
+          <div className="lg:w-1/2 order-1">
             <motion.div
               className={`inline-flex items-center gap-2 font-bold text-sm mb-3 px-3 py-1 rounded-full border ${themeStyles.stepBadgeBorder} ${themeStyles.stepBadgeBg} ${themeStyles.stepBadgeText}`}
               variants={stepVariants}
@@ -338,7 +338,7 @@ function InstaHowItWorksSection() {
 
           {/* Image - 16:9 Ratio */}
           <motion.div
-            className="lg:w-1/2 w-full order-1 lg:order-2"
+            className="lg:w-1/2 w-full order-2"
             variants={imageVariants}
             whileHover="hover"
             whileInView="visible"
@@ -389,7 +389,7 @@ function InstaHowItWorksSection() {
           initial="hidden"
         >
           {/* Text Content */}
-          <div className="lg:w-1/2 order-2 lg:order-1">
+          <div className="lg:w-1/2 order-1">
             <motion.div
               className={`inline-flex items-center gap-2 font-bold text-sm mb-3 px-3 py-1 rounded-full border ${themeStyles.stepBadgeBorder} ${themeStyles.stepBadgeBg} ${themeStyles.stepBadgeText}`}
               variants={stepVariants}
@@ -423,7 +423,7 @@ function InstaHowItWorksSection() {
 
           {/* Image - 16:9 Ratio */}
           <motion.div
-            className="lg:w-1/2 w-full order-1 lg:order-2"
+            className="lg:w-1/2 w-full order-2"
             variants={imageVariants}
             whileHover="hover"
             whileInView="visible"

@@ -53,44 +53,27 @@ const features = [
 ];
 
 export function InstaFeaturesGrid() {
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+  const { resolvedTheme } = useTheme();
+  const currentTheme = resolvedTheme || "light";
 
   // Theme-based styles
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark ? "bg-[#0a0a0a]/10" : "bg-gray-50/50",
-      cardBg: isDark ? "bg-[#0a0a0a]/10" : "bg-white/50",
-      titleText: isDark ? "text-white" : "text-n-7",
-      descriptionText: isDark ? "text-gray-300" : "text-n-5",
-      iconBg: isDark
-        ? "bg-gradient-to-br from-white/10 to-white/5"
-        : "bg-gradient-to-br from-gray-100 to-gray-50",
-      cardHoverBorder: isDark
-        ? "borderColor: 'rgba(37, 139, 148, 0.4)', boxShadow: '0 20px 40px -10px rgba(37, 139, 148, 0.2)'"
-        : "borderColor: 'rgba(37, 139, 148, 0.2)', boxShadow: '0 20px 40px -10px rgba(37, 139, 148, 0.1)'",
+      containerBg: "bg-transparent",
+      cardBg: isDark
+        ? "bg-white/[0.04] border-white/10 hover:bg-white/[0.07]"
+        : "bg-white border-slate-200 hover:bg-blue-50/60",
+      titleText: isDark ? "text-white" : "text-slate-950",
+      descriptionText: isDark ? "text-slate-300" : "text-slate-600",
+      iconBg: isDark ? "bg-blue-500/10" : "bg-blue-50",
     };
   }, [currentTheme]);
-  const colorClasses = {
-    cyan:
-      theme === "dark"
-        ? "from-[#00F0FF]/10 to-[#00F0FF]/5 border-[#00F0FF]/20 hover:border-[#00F0FF]/40"
-        : "from-[#00F0FF]/5 to-[#00F0FF]/2 border-[#00F0FF]/30 hover:border-[#00F0FF]/50",
-    purple:
-      theme === "dark"
-        ? "from-[#B026FF]/20 to-[#B026FF]/5 border-[#B026FF]/20 hover:border-[#B026FF]/40"
-        : "from-[#B026FF]/10 to-[#B026FF]/2 border-[#B026FF]/30 hover:border-[#B026FF]/50",
-    pink:
-      theme === "dark"
-        ? "from-[#FF2E9F]/20 to-[#FF2E9F]/5 border-[#FF2E9F]/20 hover:border-[#FF2E9F]/40"
-        : "from-[#FF2E9F]/10 to-[#FF2E9F]/2 border-[#FF2E9F]/30 hover:border-[#FF2E9F]/50",
-  };
 
   const iconColors = {
-    cyan: "text-[#00F0FF]",
-    purple: "text-[#B026FF]",
-    pink: "text-[#FF2E9F]",
+    cyan: "text-blue-700 dark:text-blue-300",
+    purple: "text-blue-700 dark:text-blue-300",
+    pink: "text-blue-700 dark:text-blue-300",
   };
 
   // EXACT same animation variants as FAQ component
@@ -125,14 +108,8 @@ export function InstaFeaturesGrid() {
     hover: {
       y: -8,
       scale: 1.02,
-      borderColor:
-        theme === "dark"
-          ? "rgba(37, 139, 148, 0.4)"
-          : "rgba(37, 139, 148, 0.2)",
-      boxShadow:
-        theme === "dark"
-          ? "0 20px 40px -10px rgba(37, 139, 148, 0.2)"
-          : "0 20px 40px -10px rgba(37, 139, 148, 0.1)",
+      borderColor: "rgba(37, 99, 235, 0.35)",
+      boxShadow: "0 18px 42px -20px rgba(37, 99, 235, 0.34)",
       transition: {
         duration: 0.3,
         ease: "easeOut",
@@ -186,7 +163,7 @@ export function InstaFeaturesGrid() {
         viewport={{ once: false }}
         initial="hidden"
       >
-        <span className="text-sm font-medium uppercase tracking-widest border border-blue-700/30 rounded-full px-4 py-1">
+        <span className="text-sm font-semibold uppercase tracking-widest border border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200 rounded-full px-4 py-1">
           WHY WE
         </span>
       </motion.div>
@@ -220,7 +197,7 @@ export function InstaFeaturesGrid() {
       >
         {features.map((feature, index) => {
           const Icon = feature.icon;
-          const colorKey = feature.color as keyof typeof colorClasses;
+          const colorKey = feature.color as keyof typeof iconColors;
 
           return (
             <motion.div
@@ -232,15 +209,11 @@ export function InstaFeaturesGrid() {
               initial="hidden"
             >
               <Card
-                className={`group hover:shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-gradient-to-br ${
-                  themeStyles.cardBg
-                } ${
-                  colorClasses[feature.color as keyof typeof colorClasses]
-                } border h-full`}
+                className={`group h-full border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-300 ${themeStyles.cardBg}`}
               >
                 <CardHeader className="p-3 md:p-6">
                   <motion.div
-                    className={`h-12 w-12 rounded-lg flex items-center justify-center mb-4 ${themeStyles.iconBg}`}
+                    className={`h-12 w-12 rounded-xl flex items-center justify-center mb-4 ${themeStyles.iconBg}`}
                     variants={iconVariants}
                     whileInView="visible"
                     viewport={{ once: false }}

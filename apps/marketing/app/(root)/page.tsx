@@ -9,7 +9,6 @@ import { BusinessMessagingTemplate } from "@/components/shared/BusinessMessaging
 import StickyScrollFeatures from "@/components/shared/EngagementToolsection";
 import { AIVoiceAgentShowcase } from "@/components/shared/OurProducts";
 import OutProduct from "@/components/shared/product";
-import DiscountBanner from "../../../../packages/ui/src/components/shared/DiscountBanner";
 
 const Home = () => {
   const [mounted, setMounted] = useState(false);
@@ -36,7 +35,6 @@ const Home = () => {
 
   return (
     <div className="flex wrapper2 relative bg-transparent z-10 flex-col gap-1 items-center justify-center">
-      <DiscountBanner />
       <HeroSection />
       <BusinessMessagingTemplate />
       <StickyScrollFeatures />

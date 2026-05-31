@@ -193,22 +193,19 @@ export default function AffiliateLandingPage() {
   const themeStyles = useMemo(() => {
     const isDark = currentTheme === "dark";
     return {
-      containerBg: isDark
-        ? "bg-[#0a0a0a]"
-        : "bg-gradient-to-b from-gray-200 to-gray-50",
-      headerBg: isDark ? "bg-[#0a0a0a]/95" : "bg-white/95",
-      badgeBorder: isDark ? "border-[#00F0FF]/30" : "border-blue-700/30",
-      titleText: isDark ? "text-white" : "text-gray-900",
-      descriptionText: isDark ? "text-gray-300" : "text-gray-600",
+      containerBg: "bg-transparent",
+      badgeBorder: isDark
+        ? "border-blue-400/30 bg-blue-500/10 text-blue-200"
+        : "border-blue-200 bg-blue-50 text-blue-700",
+      titleText: isDark ? "text-white" : "text-slate-950",
+      descriptionText: isDark ? "text-slate-300" : "text-slate-600",
       cardBg: isDark
-        ? "bg-[#1a1a1a]/60 border-white/10"
-        : "bg-white border-gray-200",
-      gradientBg: isDark
-        ? "from-[#00F0FF]/10 via-[#B026FF]/5 to-transparent"
-        : "from-blue-50 via-purple-50 to-transparent",
-      ctaGradient: isDark
-        ? "from-[#00F0FF] via-[#B026FF] to-[#FF2E9F]"
-        : "from-blue-600 via-purple-600 to-pink-600",
+        ? "bg-white/[0.04] border border-white/10 shadow-sm"
+        : "bg-white border border-slate-200 shadow-sm",
+      softCard: isDark
+        ? "bg-white/[0.06] border border-white/10"
+        : "bg-slate-50 border border-slate-200",
+      gradientBg: isDark ? "from-blue-500/10 to-transparent" : "from-blue-50 to-transparent",
     };
   }, [currentTheme]);
   // Theme-based styles
@@ -306,14 +303,12 @@ export default function AffiliateLandingPage() {
   }
 
   return (
-    <div
-      className={`min-h-screen ${themeStyles.containerBg} transition-colors duration-300 relative bg-transparent  z-10`}
-    >
+    <div className={`min-h-screen ${themeStyles.containerBg} relative z-10`}>
       {/* Hero Section */}
-      <section className="p-10 md:p-20 px-4 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#00F0FF]/5 via-transparent to-[#B026FF]/5" />
+      <section className="px-4 py-16 md:py-24 relative overflow-hidden">
+        <div className="absolute inset-x-0 top-0 mx-auto h-80 max-w-5xl rounded-full bg-blue-500/10 blur-3xl" />
 
-        <div className="wrapper2 w-full mx-auto relative">
+        <div className="wrapper2 w-full mx-auto relative max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
@@ -325,10 +320,10 @@ export default function AffiliateLandingPage() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: false }}
-              className="inline-flex items-center px-4 py-2 rounded-full border border-[#00F0FF]/30 bg-gradient-to-r from-[#00F0FF]/10 to-[#B026FF]/10 mb-6"
+              className={`inline-flex items-center px-4 py-2 rounded-full border mb-6 ${themeStyles.badgeBorder}`}
             >
-              <Star className="w-4 h-4 mr-2 text-[#00F0FF]" />
-              <span className="text-sm font-medium bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+              <Star className="w-4 h-4 mr-2" />
+              <span className="text-sm font-semibold">
                 Earn up to $6,000 per referral
               </span>
             </motion.div>
@@ -338,11 +333,9 @@ export default function AffiliateLandingPage() {
               initial="hidden"
               whileInView="visible"
               viewport={{ once: false }}
-              className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
+              className="text-4xl md:text-6xl font-extrabold mb-6 leading-tight tracking-normal"
             >
-              <span className="bg-gradient-to-r from-[#00F0FF] via-[#B026FF] to-[#FF2E9F] bg-clip-text text-transparent">
-                Become an
-              </span>
+              <span className="gradient-text-main">Become an</span>
               <br />
               <span className={themeStyles.titleText}>Affiliate Partner</span>
             </motion.h1>
@@ -370,7 +363,7 @@ export default function AffiliateLandingPage() {
               <Link href="https://app.rocketreplai.com/sign-in">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#00F0FF]/90 text-white px-8 rounded-full"
+                  className="bg-blue-700 hover:bg-blue-800 text-white px-8 rounded-full shadow-sm shadow-blue-700/20"
                 >
                   Start Earning Now <Zap className="ml-2 w-4 h-4" />
                 </Button>
@@ -379,7 +372,7 @@ export default function AffiliateLandingPage() {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="px-8 rounded-full border-[#00F0FF]/50 text-[#00F0FF] hover:bg-[#00F0FF]/10"
+                  className="px-8 rounded-full border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:bg-white/10"
                 >
                   Learn More
                 </Button>
@@ -405,9 +398,7 @@ export default function AffiliateLandingPage() {
                 className={`p-6 rounded-2xl backdrop-blur-sm ${themeStyles.cardBg}`}
               >
                 <div className="flex items-center mb-4">
-                  <div
-                    className={`p-3 rounded-xl bg-gradient-to-br ${stat.gradient}`}
-                  >
+                  <div className="p-3 rounded-xl bg-blue-700">
                     <stat.icon className="w-6 h-6 text-white" />
                   </div>
                 </div>
@@ -429,7 +420,7 @@ export default function AffiliateLandingPage() {
       </section>
       {/* Features Section */}
       <section id="features" className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#00F0FF]/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent" />
         <div className="wrapper2 w-full mx-auto px-4 relative">
           <motion.div
             variants={containerVariants}
@@ -442,9 +433,7 @@ export default function AffiliateLandingPage() {
               variants={titleVariants}
               className="flex items-center justify-center text-blue-700 mb-4"
             >
-              <span
-                className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-              >
+              <span className={`text-sm font-semibold uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}>
                 Why Choose Us
               </span>
             </motion.div>
@@ -455,7 +444,7 @@ export default function AffiliateLandingPage() {
               <span className={themeStyles.titleText}>
                 Powerful Features for{" "}
               </span>
-              <span className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+              <span className="gradient-text-main">
                 Maximum Earnings
               </span>
             </motion.h2>
@@ -485,9 +474,7 @@ export default function AffiliateLandingPage() {
                 className={`rounded-2xl backdrop-blur-sm ${themeStyles.cardBg}`}
               >
                 <div className="p-6">
-                  <div
-                    className={`w-14 h-14 rounded-xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center mb-6`}
-                  >
+                  <div className="w-14 h-14 rounded-xl bg-blue-700 flex items-center justify-center mb-6">
                     <feature.icon className="w-6 h-6 text-white" />
                   </div>
 
@@ -509,7 +496,7 @@ export default function AffiliateLandingPage() {
       </section>
       {/* How It Works */}
       <section id="howitworks" className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#B026FF]/5 via-transparent to-[#00F0FF]/5" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-transparent to-blue-500/5" />
         <div className="wrapper2 w-full mx-auto px-4 relative">
           <motion.div
             variants={containerVariants}
@@ -522,9 +509,7 @@ export default function AffiliateLandingPage() {
               variants={titleVariants}
               className="flex items-center justify-center text-blue-700 mb-4"
             >
-              <span
-                className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-              >
+              <span className={`text-sm font-semibold uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}>
                 Get Started
               </span>
             </motion.div>
@@ -533,7 +518,7 @@ export default function AffiliateLandingPage() {
               className="text-4xl font-bold mb-4"
             >
               <span className={themeStyles.titleText}>Start Earning in </span>
-              <span className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+              <span className="gradient-text-main">
                 4 Simple Steps
               </span>
             </motion.h2>
@@ -561,7 +546,7 @@ export default function AffiliateLandingPage() {
                     className={`p-8 rounded-2xl backdrop-blur-sm ${themeStyles.cardBg} text-center relative z-10`}
                   >
                     <div
-                      className={`w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-full flex items-center justify-center text-white font-bold text-2xl mb-6 mx-auto`}
+                      className="w-16 h-16 bg-blue-700 rounded-full flex items-center justify-center text-white font-bold text-2xl mb-6 mx-auto"
                     >
                       {step.step}
                     </div>
@@ -600,9 +585,7 @@ export default function AffiliateLandingPage() {
               variants={titleVariants}
               className="flex items-center justify-center text-blue-700 mb-4"
             >
-              <span
-                className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-              >
+              <span className={`text-sm font-semibold uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}>
                 Calculate Earnings
               </span>
             </motion.div>
@@ -611,7 +594,7 @@ export default function AffiliateLandingPage() {
               className={`${themeStyles.descriptionText} text-4xl font-bold mb-4`}
             >
               How Much{" "}
-              <span className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+              <span className="gradient-text-main">
                 Can You Earn?
               </span>
             </motion.h2>
@@ -654,9 +637,7 @@ export default function AffiliateLandingPage() {
                             key={type}
                             className="flex items-center font-montserrat"
                           >
-                            <div
-                              className={`w-2 h-2 rounded-full bg-gradient-to-r ${product.gradient} mr-3 `}
-                            />
+                            <div className="w-2 h-2 rounded-full bg-blue-600 mr-3" />
                             <span className={themeStyles.descriptionText}>
                               {type}
                             </span>
@@ -703,7 +684,7 @@ export default function AffiliateLandingPage() {
                   <div>
                     <label className={`block mb-4 ${themeStyles.titleText}`}>
                       Monthly Referrals:{" "}
-                      <span className="text-[#00F0FF] font-bold">
+                      <span className="text-blue-700 dark:text-blue-300 font-bold">
                         {referrals}
                       </span>
                     </label>
@@ -713,7 +694,7 @@ export default function AffiliateLandingPage() {
                       max="50"
                       value={referrals}
                       onChange={(e) => setReferrals(parseInt(e.target.value))}
-                      className="w-full h-3 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-[#00F0FF]"
+                      className="w-full h-3 bg-blue-100 dark:bg-white/10 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:border-4 [&::-webkit-slider-thumb]:border-blue-700"
                     />
                     <div className="flex justify-between mt-2">
                       <span className={themeStyles.descriptionText}>1</span>
@@ -732,11 +713,11 @@ export default function AffiliateLandingPage() {
                           >
                             Monthly Earnings
                           </p>
-                          <p className="text-3xl font-bold text-[#00F0FF]">
+                          <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
                             ${earnings.monthly}
                           </p>
                         </div>
-                        <BarChart3 className="w-8 h-8 text-[#00F0FF]" />
+                        <BarChart3 className="w-8 h-8 text-blue-700 dark:text-blue-300" />
                       </div>
                     </div>
 
@@ -750,11 +731,11 @@ export default function AffiliateLandingPage() {
                           >
                             Yearly Earnings
                           </p>
-                          <p className="text-3xl font-bold text-[#B026FF]">
+                          <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
                             ${earnings.yearly}
                           </p>
                         </div>
-                        <TrendingUp className="w-8 h-8 text-[#B026FF]" />
+                        <TrendingUp className="w-8 h-8 text-blue-700 dark:text-blue-300" />
                       </div>
                     </div>
 
@@ -768,11 +749,11 @@ export default function AffiliateLandingPage() {
                           >
                             3-Year Earnings
                           </p>
-                          <p className="text-3xl font-bold text-[#FF2E9F]">
+                          <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
                             ${earnings.threeYear}
                           </p>
                         </div>
-                        <Target className="w-8 h-8 text-[#FF2E9F]" />
+                        <Target className="w-8 h-8 text-blue-700 dark:text-blue-300" />
                       </div>
                     </div>
                   </div>
@@ -791,15 +772,14 @@ export default function AffiliateLandingPage() {
       </section>
       {/* CTA Section */}
       <section className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF]/10 via-[#B026FF]/10 to-[#FF2E9F]/10" />
+        <div className="absolute inset-0 bg-blue-500/5" />
         <div className="wrapper2 w-full mx-auto px-4 relative">
           <motion.div
             variants={cardVariants}
             whileInView="visible"
             viewport={{ once: false }}
-            className="max-w-5xl mx-auto rounded-3xl p-8 md:p-12 text-center relative overflow-hidden"
+            className="max-w-5xl mx-auto rounded-3xl p-8 md:p-12 text-center relative overflow-hidden border border-blue-200 bg-blue-700 shadow-sm shadow-blue-700/20 dark:border-blue-400/20"
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#00F0FF] via-[#B026FF] to-[#FF2E9F] opacity-90" />
             <div className="relative z-10">
               <h2 className="text-4xl font-bold mb-6 text-white">
                 Ready to Start Earning?
@@ -812,7 +792,7 @@ export default function AffiliateLandingPage() {
                 <Link href="https://app.rocketreplai.com/sign-in">
                   <Button
                     size="lg"
-                    className="bg-white text-gray-900 hover:bg-gray-100 px-12 rounded-full font-semibold"
+                    className="bg-white text-blue-700 hover:bg-blue-50 px-12 rounded-full font-semibold"
                   >
                     Join Free <ChevronRight className="ml-2 w-4 h-4" />
                   </Button>
@@ -821,7 +801,7 @@ export default function AffiliateLandingPage() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className=" text-white bg-[#410c8b]  hover:bg-white/10 px-12 rounded-full"
+                    className="text-white border-white/40 bg-white/10 hover:bg-white/15 px-12 rounded-full"
                   >
                     Read FAQ <HelpCircle className="ml-2 w-4 h-4" />
                   </Button>
@@ -859,7 +839,7 @@ export default function AffiliateLandingPage() {
       </section>
       {/* FAQ Section */}
       <section id="faq" className="py-20 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#B026FF]/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/5 to-transparent" />
         <div className="wrapper2 w-full mx-auto px-4 relative">
           <motion.div
             variants={containerVariants}
@@ -872,9 +852,7 @@ export default function AffiliateLandingPage() {
               variants={titleVariants}
               className="flex items-center justify-center text-blue-700 mb-4"
             >
-              <span
-                className={`text-sm font-medium uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}
-              >
+              <span className={`text-sm font-semibold uppercase tracking-widest border ${themeStyles.badgeBorder} rounded-full px-4 py-1`}>
                 FAQ
               </span>
             </motion.div>
@@ -883,7 +861,7 @@ export default function AffiliateLandingPage() {
               className={`text-4xl font-bold mb-4 ${themeStyles.descriptionText} `}
             >
               Frequently Asked{" "}
-              <span className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+              <span className="gradient-text-main">
                 Questions
               </span>
             </motion.h2>
@@ -913,7 +891,7 @@ export default function AffiliateLandingPage() {
                 <Card className={`backdrop-blur-sm ${themeStyles.cardBg}`}>
                   <CardContent className="p-6">
                     <div className="flex items-start">
-                      <div className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-xl p-3 mr-4">
+                      <div className="bg-blue-700 rounded-xl p-3 mr-4">
                         <HelpCircle className="w-5 h-5 text-white" />
                       </div>
                       <div>
@@ -945,7 +923,7 @@ export default function AffiliateLandingPage() {
             <div className="flex flex-col md:flex-row justify-between items-center">
               <div className="mb-8 md:mb-0 text-center md:text-left">
                 <div className="flex items-center space-x-3 justify-center md:justify-start">
-                  <div className="w-12 h-12 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-xl flex items-center justify-center">
+                  <div className="w-12 h-12 bg-blue-700 rounded-xl flex items-center justify-center">
                     <DollarSign className="w-6 h-6 text-white" />
                   </div>
                   <div>
@@ -953,7 +931,7 @@ export default function AffiliateLandingPage() {
                       className={`text-2xl font-bold ${themeStyles.titleText}`}
                     >
                       Start Earning
-                      <span className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] bg-clip-text text-transparent">
+                      <span className="gradient-text-main">
                         Today
                       </span>
                     </span>
@@ -968,7 +946,7 @@ export default function AffiliateLandingPage() {
               <Link href="https://app.rocketreplai.com/sign-in">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-[#00F0FF] to-[#B026FF] hover:from-[#00F0FF] hover:to-[#B026FF]/90 text-white px-8 rounded-full"
+                  className="bg-blue-700 hover:bg-blue-800 text-white px-8 rounded-full"
                 >
                   Start Earning Now <ChevronRight className="ml-2 w-4 h-4" />
                 </Button>

@@ -112,7 +112,7 @@ export default function CallPricingPage() {
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("yearly");
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

@@ -12,6 +12,7 @@ import {
   CalendarDays,
   CheckCircle2,
   Clock3,
+  HelpCircle,
   Headphones,
   Languages,
   MessageSquareText,
@@ -599,7 +600,13 @@ export default function CallMarketingPage() {
 
         <section className="py-12">
           <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold">FAQ</h2>
+            <div className="mb-4 inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-sm font-semibold uppercase tracking-widest text-blue-700 dark:border-blue-400/30 dark:bg-blue-500/10 dark:text-blue-200">
+              <HelpCircle className="mr-2 h-4 w-4" />
+              FAQ
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold gradient-text-main">
+              Frequently asked questions
+            </h2>
             <p className={`mt-3 font-montserrat ${themeStyles.muted}`}>
               Common questions before setting up an AI receptionist.
             </p>
@@ -611,14 +618,22 @@ export default function CallMarketingPage() {
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
-                className={`rounded-2xl border p-5 ${themeStyles.card}`}
+                whileHover={{ y: -6 }}
+                className={`group rounded-2xl border p-5 shadow-sm transition-colors duration-300 ${themeStyles.card}`}
               >
-                <h3 className="font-bold">{faq.question}</h3>
-                <p
-                  className={`mt-2 font-montserrat text-sm leading-relaxed ${themeStyles.muted}`}
-                >
-                  {faq.answer}
-                </p>
+                <div className="flex items-start gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700 transition-transform duration-300 group-hover:scale-105 dark:bg-blue-500/10 dark:text-blue-200">
+                    <HelpCircle className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold">{faq.question}</h3>
+                    <p
+                      className={`mt-3 font-montserrat text-sm leading-relaxed ${themeStyles.muted}`}
+                    >
+                      {faq.answer}
+                    </p>
+                  </div>
+                </div>
               </motion.div>
             ))}
           </div>

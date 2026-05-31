@@ -89,7 +89,7 @@ const PricingContent = () => {
   // State
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("yearly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);

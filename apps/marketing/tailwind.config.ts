@@ -78,19 +78,10 @@ const config: Config = {
 
       fontFamily: {
         IBMPlex: ["var(--font-ibm-plex)"],
-        sans: [
-          "ui-sans-serif",
-          " system-ui",
-          "sans-serif",
-          "Apple Color Emoji",
-          "Segoe UI Emoji",
-          "Segoe UI Symbol",
-          "Noto Color Emoji",
-          "var(--font-sora)",
-        ],
+        sans: ["var(--font-inter)", ...fontFamily.sans],
         code: "var(--font-code)",
-        orbitron: ["var(--font-orbitron)", ...fontFamily.sans],
-        montserrat: ["var(--font-montserrat)", ...fontFamily.sans],
+        orbitron: ["var(--font-inter)", ...fontFamily.sans],
+        montserrat: ["var(--font-inter)", ...fontFamily.sans],
       },
 
       borderRadius: {

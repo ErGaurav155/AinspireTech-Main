@@ -77,7 +77,7 @@ export default function Pricing() {
   const [mounted, setMounted] = useState(false);
   const currentTheme = resolvedTheme || theme || "light";
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    "monthly",
+    "yearly",
   );
 
   const themeStyles = useMemo((): ThemeStyles => {
