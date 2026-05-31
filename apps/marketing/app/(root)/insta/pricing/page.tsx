@@ -86,8 +86,8 @@ export default function Pricing() {
       textPrimary: isDark ? "text-white" : "text-n-7",
       textSecondary: isDark ? "text-gray-300" : "text-n-5",
       textMuted: isDark ? "text-gray-400" : "text-n-5",
-      cardBg: isDark ? "bg-[#0a0a0a]/60" : "bg-white/80",
-      cardBorder: isDark ? "border-white/10" : "border-gray-200",
+      cardBg: isDark ? "bg-white/[0.04]" : "bg-white",
+      cardBorder: isDark ? "border-white/10" : "border-slate-200",
       dialogBg: isDark ? "bg-[#0a0a0a]/95" : "bg-white/95",
     };
   }, [currentTheme]);
@@ -175,9 +175,9 @@ export default function Pricing() {
         <div className=" flex flex-wrap items-center justify-center gap-5 md:gap-10 w-full max-w-6xl mx-auto">
           {/* Free Plan Card */}
           <div
-            className={` relative mb-10 group rounded-lg backdrop-blur-sm border transition-all duration-300 ${themeStyles.cardBorder} ${themeStyles.cardBg} hover:border-[#FF2E9F] bg-transparent`}
+            className={`relative mb-10 group rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 ${themeStyles.cardBorder} ${themeStyles.cardBg} hover:-translate-y-1 hover:border-blue-300 hover:shadow-xl hover:shadow-blue-950/10 dark:hover:border-blue-400/40`}
           >
-            <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity from-[#FF2E9F]/10 to-transparent"></div>
+            <div className="absolute inset-x-0 top-0 h-1 bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
             <div className="relative z-10 h-full flex flex-col items-center justify-between p-6">
               <div className=" flex flex-col justify-between items-center md:items-start">
                 <h3
@@ -209,7 +209,7 @@ export default function Pricing() {
                 onClick={() =>
                   router.push("https://app.rocketreplai.com/sign-in")
                 }
-                className="flex-[20%] w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#FF2E9F]/80 to-[#FF2E9F] text-black"
+                className="flex-[20%] w-full py-3 rounded-full font-medium transition-colors whitespace-nowrap bg-blue-700 text-white hover:bg-blue-800"
               >
                 Get Started
               </Button>
@@ -222,25 +222,23 @@ export default function Pricing() {
               return (
                 <div
                   key={plan.id}
-                  className={`relative group rounded-lg backdrop-blur-sm border  transition-all duration-300 ${
+                  className={`relative group rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-950/10 ${
                     themeStyles.cardBg
                   } ${
                     plan.popular
-                      ? "scale-105 z-10 border-[#00F0FF]/30 hover:border-[#00F0FF]"
-                      : "border-[#00F0FF]/50 hover:border-[#00F0FF]"
-                  } bg-transparent ${"ring-1 ring-[#00F0FF] ring-opacity-80"}`}
+                      ? "scale-105 z-10 border-blue-300 hover:border-blue-400 dark:border-blue-400/40 dark:hover:border-blue-300"
+                      : "border-blue-200 hover:border-blue-300 dark:border-blue-400/30 dark:hover:border-blue-300"
+                  } ${"ring-1 ring-blue-400/40"}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-3 left-0 right-0 text-center">
-                      <span className="bg-gradient-to-r from-[#00F0FF] to-[#00F0FF]/70 text-black text-sm font-bold py-1 px-4 rounded-full">
+                      <span className="bg-blue-700 text-white text-sm font-bold py-1 px-4 rounded-full shadow-sm shadow-blue-700/20">
                         Most Popular
                       </span>
                     </div>
                   )}
 
-                  <div
-                    className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity from-[#00F0FF]/10 to-transparent`}
-                  ></div>
+                  <div className="absolute inset-x-0 top-0 h-1 bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                   <div className="relative z-10 h-full flex flex-col items-center justify-between p-6">
                     <div className="flex justify-between items-start">
                       <h3
@@ -288,7 +286,7 @@ export default function Pricing() {
                       onClick={() =>
                         router.push("https://app.rocketreplai.com/sign-in")
                       }
-                      className={`w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-gradient-to-r from-[#00F0FF]/80 to-[#00F0FF] text-black`}
+                      className="w-full py-3 rounded-full font-medium hover:opacity-90 transition-opacity whitespace-nowrap bg-blue-700 text-white"
                     >
                       Get Started
                     </Button>
@@ -342,9 +340,9 @@ export default function Pricing() {
                 {comparisonFeatures.map((row, index) => (
                   <tr
                     key={index}
-                    className={`hover:${
-                      theme === "dark" ? "bg-[#1a1a1a]/50" : "bg-gray-100/50"
-                    } font-montserrat text-base`}
+                  className={`font-montserrat text-base ${
+                    theme === "dark" ? "hover:bg-white/[0.04]" : "hover:bg-blue-50/60"
+                  }`}
                   >
                     <td
                       className={`py-4 px-6 font-medium ${themeStyles.textSecondary}`}

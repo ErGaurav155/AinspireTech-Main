@@ -690,19 +690,6 @@
   -webkit-text-fill-color: transparent;
 }
 
-.marketing-shell [class*="from-[#00F0FF]"]:not(.bg-clip-text),
-.marketing-shell [class*="from-[#B026FF]"]:not(.bg-clip-text),
-.marketing-shell [class*="from-[#FF2E9F]"]:not(.bg-clip-text) {
-  background-image: linear-gradient(135deg, #2563eb, #1d4ed8) !important;
-  color: #ffffff;
-}
-
-.marketing-shell [class*="from-[#00F0FF]"]:not(.bg-clip-text) *,
-.marketing-shell [class*="from-[#B026FF]"]:not(.bg-clip-text) *,
-.marketing-shell [class*="from-[#FF2E9F]"]:not(.bg-clip-text) * {
-  color: inherit;
-}
-
 .marketing-shell .hover\:bg-gradient-to-br:hover,
 .marketing-shell .hover\:bg-gradient-to-r:hover {
   color: #ffffff !important;
@@ -713,9 +700,8 @@
   color: #ffffff !important;
 }
 
-.marketing-shell [class*="from-[#00F0FF]"].text-black,
-.marketing-shell [class*="from-[#B026FF]"].text-black,
-.marketing-shell [class*="from-[#FF2E9F]"].text-black {
+.marketing-shell .bg-gradient-to-r.text-black,
+.marketing-shell .bg-gradient-to-br.text-black {
   color: #ffffff !important;
 }
 

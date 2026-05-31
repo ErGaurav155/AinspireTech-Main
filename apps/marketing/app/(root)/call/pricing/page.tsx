@@ -101,14 +101,14 @@ export default function CallPricingPage() {
       muted: isDark ? "text-gray-300" : "text-n-5",
       soft: isDark ? "text-gray-400" : "text-n-4",
       badge: isDark
-        ? "bg-gradient-to-r from-[#00F0FF]/10 to-[#B026FF]/10 border-[#00F0FF]/30"
-        : "bg-gradient-to-r from-[#00F0FF]/20 to-[#B026FF]/20 border-blue-700/30",
+        ? "bg-blue-500/10 border-blue-400/30 text-blue-200"
+        : "bg-blue-50 border-blue-200 text-blue-700",
       card: isDark
-        ? "bg-transparent border-white/10 backdrop-blur-sm"
-        : "bg-white/80 border-gray-200 backdrop-blur-sm",
+        ? "bg-white/[0.04] border-white/10 backdrop-blur-sm"
+        : "bg-white border-slate-200 backdrop-blur-sm",
       inner: isDark
-        ? "bg-gradient-to-br from-white/[0.05] to-white/[0.02] border-white/10"
-        : "bg-gradient-to-br from-gray-50 to-white border-gray-200",
+        ? "bg-white/[0.04] border-white/10"
+        : "bg-slate-50 border-slate-200",
       outline: isDark
         ? "border-[#00F0FF] text-[#00F0FF] hover:bg-[#00F0FF]/10"
         : "border-[#00F0FF] text-n-8 hover:bg-[#00F0FF]/5",
@@ -139,7 +139,7 @@ export default function CallPricingPage() {
           className={`inline-flex items-center rounded-full border px-6 py-3 ${themeStyles.badge}`}
         >
           <CreditCard className="h-5 w-5 text-blue-700 mr-2" />
-          <span className="text-xs md:text-sm font-medium uppercase tracking-widest text-blue-700">
+          <span className="text-xs md:text-sm font-medium uppercase tracking-widest">
             CALL ASSISTANT PRICING
           </span>
         </motion.div>
@@ -186,13 +186,13 @@ export default function CallPricingPage() {
               whileHover={{ y: -8, scale: 1.01 }}
               className={`relative rounded-3xl border p-6 transition-all duration-300 ${
                 plan.highlight
-                  ? "border-[#00F0FF]/60 bg-gradient-to-br from-[#00F0FF]/10 to-[#B026FF]/10 shadow-xl shadow-[#00F0FF]/10"
+                    ? "border-blue-300 bg-blue-50/80 shadow-xl shadow-blue-950/10 dark:border-blue-400/40 dark:bg-blue-500/10 dark:shadow-blue-500/10"
                   : themeStyles.card
               }`}
             >
               {plan.highlight && (
                 <div className="absolute -top-3 left-0 right-0 text-center">
-                  <span className="rounded-full bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] px-4 py-1 text-xs font-black text-black">
+                  <span className="rounded-full bg-blue-700 px-4 py-1 text-xs font-black text-white shadow-sm shadow-blue-700/20">
                     Most popular
                   </span>
                 </div>
@@ -200,7 +200,7 @@ export default function CallPricingPage() {
 
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black">{plan.name}</h2>
-                <div className="h-12 w-12 rounded-2xl bg-gradient-to-r from-[#00F0FF] to-[#B026FF] flex items-center justify-center">
+                <div className="h-12 w-12 rounded-2xl bg-blue-700 flex items-center justify-center">
                   <Phone className="h-6 w-6 text-white" />
                 </div>
               </div>
@@ -228,7 +228,7 @@ export default function CallPricingPage() {
               <ul className="mt-6 space-y-3">
                 {plan.features.map((feature) => (
                   <li key={feature} className={`flex gap-3 text-sm font-montserrat ${themeStyles.muted}`}>
-                    <Check className="h-5 w-5 text-[#00F0FF] flex-shrink-0" />
+                    <Check className="h-5 w-5 text-blue-600 dark:text-blue-300 flex-shrink-0" />
                     <span>{feature}</span>
                   </li>
                 ))}
@@ -237,7 +237,7 @@ export default function CallPricingPage() {
               <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
                 <Button
                   asChild
-                  className="mt-7 w-full rounded-2xl bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] font-bold text-black hover:opacity-90"
+                  className="mt-7 w-full rounded-2xl bg-blue-700 font-bold text-white hover:bg-blue-800"
                 >
                   <Link href={`${dashboardUrl}/call/pricing`}>
                     Get Started <ArrowRight className="ml-2 h-4 w-4" />
@@ -310,7 +310,7 @@ export default function CallPricingPage() {
           launch configuration.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Button asChild className="rounded-2xl bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold">
+          <Button asChild className="rounded-2xl bg-blue-700 text-white font-bold hover:bg-blue-800">
             <Link href="/contactUs">
               Request Setup Help
               <Zap className="ml-2 h-4 w-4" />

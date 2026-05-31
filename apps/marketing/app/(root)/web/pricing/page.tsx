@@ -87,16 +87,14 @@ const PricingContent = () => {
       textPrimary: isDark ? "text-white" : "text-gray-900",
       textSecondary: isDark ? "text-gray-300" : "text-gray-600",
       textMuted: isDark ? "text-gray-400" : "text-gray-500",
-      containerBg: isDark ? "bg-transparent" : "bg-gray-50",
-      cardBg: isDark ? "bg-transparent" : "bg-white/80",
-      cardBorder: isDark ? "border-white/10" : "border-gray-200",
+      containerBg: "bg-transparent",
+      cardBg: isDark ? "bg-white/[0.04]" : "bg-white",
+      cardBorder: isDark ? "border-white/10" : "border-slate-200",
       ctaCardBg: isDark
         ? "bg-gradient-to-br from-[#0a0a0a] to-[#1a1a1a]/90"
         : "bg-gradient-to-br from-white to-gray-100/90",
       ctaCardBorder: isDark ? "border-white/10" : "border-gray-300",
-      iconBg: isDark
-        ? "bg-gradient-to-br from-white/10 to-white/5"
-        : "bg-gradient-to-br from-gray-100 to-gray-200",
+      iconBg: isDark ? "bg-blue-500/10" : "bg-blue-50",
       outlineButtonBorder: isDark
         ? "border-[#B026FF]/30"
         : "border-[#B026FF]/50",
@@ -107,11 +105,9 @@ const PricingContent = () => {
       badgeBg: isDark
         ? "bg-blue-100/10 text-blue-400 border-blue-400/30"
         : "bg-blue-100 text-blue-600 border-blue-300",
-      tableHeaderBg: isDark
-        ? "bg-gradient-to-r from-[#1a1a1a] to-[#2a0b45]"
-        : "bg-gradient-to-r from-gray-100 to-gray-200",
-      tableBorder: isDark ? "border-[#B026FF]/30" : "border-gray-300",
-      tableRowHover: isDark ? "hover:bg-[#1a1a1a]/50" : "hover:bg-gray-100/50",
+      tableHeaderBg: isDark ? "bg-white/[0.06]" : "bg-slate-50",
+      tableBorder: isDark ? "border-white/10" : "border-slate-200",
+      tableRowHover: isDark ? "hover:bg-white/[0.04]" : "hover:bg-blue-50/60",
       saveBadgeBg: isDark
         ? "bg-green-900/20 text-green-400 border-green-400/30"
         : "bg-green-100 text-green-600 border-green-300",
@@ -166,8 +162,8 @@ const PricingContent = () => {
   const getCardStyles = (productId: string) => {
     const isDark = currentTheme === "dark";
     return isDark
-      ? "border-[#FF2E9F]/20 hover:border-[#FF2E9F]"
-      : "border-gray-300 hover:border-[#FF2E9F]";
+      ? "border-white/10 hover:border-blue-400/40"
+      : "border-slate-200 hover:border-blue-300";
   };
 
   const getGradientBg = (productId: string) => {
@@ -282,11 +278,9 @@ const PricingContent = () => {
   // Free Tier Card
   const renderFreeTierCard = () => (
     <Card
-      className={`mb-12 relative group h-full flex flex-col items-center justify-between rounded-lg backdrop-blur-sm border transition-all duration-300 p-5 ${themeStyles.cardBg} ${themeStyles.cardBorder} scale-105 z-10 border-[#2d8246]/30 hover:border-[#2d8246] hover:bg-[#34e468]/5`}
+      className={`mb-12 relative group h-full flex flex-col items-center justify-between rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 p-5 ${themeStyles.cardBg} ${themeStyles.cardBorder} hover:-translate-y-1 hover:border-green-400/50 hover:shadow-xl hover:shadow-green-950/10`}
     >
-      <div
-        className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity from-[#B026FF]/5 to-transparent`}
-      />
+      <div className="absolute inset-x-0 top-0 h-1 bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
       <CardContent className="p-8">
         <div className="flex flex-col md:flex-row items-center justify-between">
           <div className="mb-6 md:mb-0 md:mr-8">
@@ -347,32 +341,28 @@ const PricingContent = () => {
     return (
       <div
         key={product.productId}
-        className={`relative group h-full flex flex-col items-center justify-between rounded-lg backdrop-blur-sm border transition-all duration-300 p-5 ${
+      className={`relative group h-full flex flex-col items-center justify-between rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 p-5 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-950/10 ${
           themeStyles.cardBg
         } ${themeStyles.cardBorder} ${getCardStyles(product.productId)}`}
       >
         {/* Popular Badge */}
         {isMostPopular && (
           <div className="absolute -top-3 left-0 right-0 text-center">
-            <span className="bg-gradient-to-r from-[#B026FF] to-[#FF2E9F] text-white text-sm font-bold py-1 px-4 rounded-full">
+            <span className="bg-blue-700 text-white text-sm font-bold py-1 px-4 rounded-full shadow-sm shadow-blue-700/20">
               Most Popular
             </span>
           </div>
         )}
 
         {/* Gradient Background */}
-        <div
-          className={`absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity ${getGradientBg(
-            product.productId,
-          )} to-transparent`}
-        />
+        <div className="absolute inset-x-0 top-0 h-1 bg-blue-700 opacity-0 group-hover:opacity-100 transition-opacity" />
 
         <div className="flex flex-col items-center gap-3 w-full z-10">
           {Icon && (
             <div
               className={`h-12 w-12 rounded-full ${themeStyles.iconBg} flex items-center justify-center mb-6`}
             >
-              <Icon className={`h-8 w-8 ${themeStyles.textPrimary}`} />
+              <Icon className="h-8 w-8 text-blue-700 dark:text-blue-200" />
             </div>
           )}
 
@@ -388,7 +378,7 @@ const PricingContent = () => {
             >
               ₹{originalPrice.toFixed(0)}
             </p>
-            <p className="text-3xl font-bold text-[#B026FF]">
+            <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
               ₹{displayPrice.toFixed(0)}
               <span className={`text-lg font-medium ${themeStyles.textMuted}`}>
                 /{billingMode === "monthly" ? "mo" : "yr"}
@@ -423,7 +413,7 @@ const PricingContent = () => {
               <span
                 className={`flex-shrink-0 w-5 h-5 mt-1 rounded-full flex items-center justify-center ${
                   inclusion.isIncluded
-                    ? "bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white"
+                    ? "bg-blue-700 text-white"
                     : currentTheme === "dark"
                       ? "bg-gray-700"
                       : "bg-gray-400"
@@ -441,7 +431,7 @@ const PricingContent = () => {
         <div className="w-full mt-3 z-10">
           <Button
             onClick={handleStartAutomation}
-            className="w-full py-3 rounded-full font-bold bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-white hover:opacity-90 transition-opacity"
+            className="w-full py-3 rounded-full font-bold bg-blue-700 text-white hover:bg-blue-800 transition-colors"
           >
             Start Automating
           </Button>
