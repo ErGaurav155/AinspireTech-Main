@@ -178,11 +178,11 @@ export function AIAgentHero() {
   const isDark = currentTheme === "dark";
 
   return (
-    <section className="relative mx-[calc(50%-50vw)] w-screen overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
+    <section className="relative mx-[calc(50%-50vw)] w-[100vw] lg:w-[99.5vw] overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_16%_18%,rgba(0,240,255,0.18),transparent_30%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#ffffff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_20%,rgba(0,240,255,0.14),transparent_30%),linear-gradient(135deg,#06101d_0%,#0b1730_55%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
 
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 pb-10 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[0.95fr_1fr] lg:items-center lg:px-10 lg:py-20 xl:px-16">
+      <div className="relative mx-auto flex flex-col lg:flex-row gap-3 md:gap-5 max-w-7xl px-4 pb-10 pt-8 sm:px-6 sm:pt-14  lg:items-center lg:px-10 lg:py-20 xl:px-16">
         <motion.div
           initial="hidden"
           whileInView="visible"

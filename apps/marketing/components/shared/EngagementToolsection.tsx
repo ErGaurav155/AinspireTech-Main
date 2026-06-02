@@ -4,7 +4,15 @@ import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { Instagram, Network, Phone } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  CheckCircle,
+  Instagram,
+  Network,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 import { instagramFeatures, webChatFeatures } from "@rocketreplai/shared";
 
 const aiCallFeatures = [
@@ -46,121 +54,77 @@ const aiCallFeatures = [
   },
 ];
 
-function StickyFeaturesSection() {
-  const [activeTab, setActiveTab] = useState<"webchat" | "instagram" | "call">(
-    "webchat",
+const tabs = [
+  {
+    id: "webchat",
+    label: "Web",
+    icon: Network,
+    gradient: "from-cyan-400 to-blue-600",
+    accent: "text-blue-600 dark:text-cyan-200",
+  },
+  {
+    id: "instagram",
+    label: "Insta",
+    icon: Instagram,
+    gradient: "from-pink-500 to-fuchsia-600",
+    accent: "text-pink-600 dark:text-pink-200",
+  },
+  {
+    id: "call",
+    label: "Calls",
+    icon: Phone,
+    gradient: "from-blue-500 to-cyan-500",
+    accent: "text-cyan-600 dark:text-cyan-200",
+  },
+] as const;
+
+type TabId = (typeof tabs)[number]["id"];
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 26 },
+  visible: { opacity: 1, y: 0 },
+};
+
+function MiniFlow({ activeTab }: { activeTab: TabId }) {
+  const flow =
+    activeTab === "instagram"
+      ? ["Comment", "Keyword", "DM sent", "Lead saved"]
+      : activeTab === "call"
+        ? ["Incoming call", "AI answers", "Summary", "Owner alert"]
+        : ["Visitor asks", "AI answers", "Source found", "Lead captured"];
+
+  return (
+    <div className="grid gap-2">
+      {flow.map((item, index) => (
+        <motion.div
+          key={item}
+          initial={{ opacity: 0, x: 18 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ delay: index * 0.08, duration: 0.35 }}
+          className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/80 p-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/10"
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-700 text-xs font-black text-white dark:bg-cyan-300 dark:text-slate-950">
+            {index + 1}
+          </div>
+          <span className="text-sm font-bold text-slate-700 dark:text-slate-100">
+            {item}
+          </span>
+          {index === flow.length - 1 && (
+            <CheckCircle className="ml-auto h-4 w-4 fill-emerald-500 text-white" />
+          )}
+        </motion.div>
+      ))}
+    </div>
   );
+}
+
+function StickyFeaturesSection() {
+  const [activeTab, setActiveTab] = useState<TabId>("webchat");
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      tabBorder: isDark ? "border-gray-800" : "border-gray-300",
-      featureText: isDark ? "text-white" : "text-n-5",
-    };
-  }, [currentTheme]);
 
-  // EXACT same animation variants as testimonials component
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
-      },
-    },
-  };
-
-  const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      borderColor: "rgba(37, 139, 148, 0.4)",
-      boxShadow: "0 20px 40px -10px rgba(37, 139, 148, 0.2)",
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const titleVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const textVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-  };
-
-  const iconVariants = {
-    hidden: { opacity: 0, scale: 0 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const buttonVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.4,
-        ease: "easeOut",
-      },
-    },
-    hover: {
-      scale: 1.05,
-      transition: {
-        duration: 0.2,
-        ease: "easeOut",
-      },
-    },
-    tap: {
-      scale: 0.95,
-    },
-  };
-
+  const activeTabConfig = tabs.find((tab) => tab.id === activeTab) || tabs[0];
   const features =
     activeTab === "webchat"
       ? webChatFeatures
@@ -168,255 +132,211 @@ function StickyFeaturesSection() {
         ? instagramFeatures
         : aiCallFeatures;
 
+  const styles = useMemo(() => {
+    const isDark = currentTheme === "dark";
+    return {
+      page: isDark ? "bg-[#07111f] text-white" : "bg-[#f8fbff] text-slate-950",
+      panel: isDark
+        ? "border-white/10 bg-white/[0.07] shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+        : "border-slate-200 bg-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.10)]",
+      muted: isDark ? "text-slate-300" : "text-slate-600",
+      soft: isDark ? "text-slate-400" : "text-slate-500",
+      chip: isDark
+        ? "border-white/10 bg-white/10 text-slate-200"
+        : "border-slate-200 bg-slate-50 text-slate-700",
+    };
+  }, [currentTheme]);
+
   return (
-    <motion.div
+    <section
       id="features"
-      className="relative z-50 py-12 lg:py-24  p-5"
-      variants={containerVariants}
-      initial="hidden"
-      whileInView="visible"
-      viewport={{ once: false, margin: "-100px" }}
+      className={`relative mx-[calc(50%-50vw)] w-[100vw] lg:w-[99vw] overflow-hidden py-14 transition-colors duration-500 sm:py-20 ${styles.page}`}
     >
-      {/* Sticky Header */}
-      <motion.div
-        className="text-center mb-2"
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: false, margin: "-100px" }}
-      >
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_15%_12%,rgba(0,240,255,0.15),transparent_30%),radial-gradient(circle_at_86%_16%,rgba(82, 48, 66, 0.12),transparent_28%)]" />
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-10 xl:px-16">
         <motion.div
-          className={`inline-flex items-center text-blue-600 border border-blue-400/50} rounded-full px-4 py-1 mb-4`}
-          variants={titleVariants}
-          whileInView="visible"
-          viewport={{ once: false }}
           initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ staggerChildren: 0.1 }}
+          className="mx-auto max-w-3xl text-center"
         >
-          <span className="text-sm font-medium"> WHY WE</span>
+          <motion.div
+            variants={fadeUp}
+            className="mx-auto mb-4 inline-flex max-w-max items-center rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700 shadow-sm backdrop-blur dark:border-cyan-300/30 dark:bg-white/10 dark:text-cyan-200"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            Growth workflows
+          </motion.div>
+          <motion.h2
+            variants={fadeUp}
+            className="text-3xl font-black leading-tight sm:text-5xl"
+          >
+            One automation layer for every customer touchpoint.
+          </motion.h2>
+          <motion.p
+            variants={fadeUp}
+            className={`mx-auto mt-4 max-w-2xl text-sm leading-relaxed sm:text-lg ${styles.muted}`}
+          >
+            Switch between web chat, Instagram automation, and AI calls to see
+            how RocketReplai turns attention into qualified follow-up.
+          </motion.p>
         </motion.div>
 
-        <motion.h2
-          className="text-3xl font-bold mb-4 gradient-text-main"
-          variants={titleVariants}
-          whileInView="visible"
-          viewport={{ once: false }}
-          initial="hidden"
-        >
-          Why Choose RocketReplai{" "}
-        </motion.h2>
-        <motion.p
-          className={`text-lg ${themeStyles.featureText} max-w-2xl mx-auto font-montserrat `}
-          variants={textVariants}
-          whileInView="visible"
-          viewport={{ once: false }}
-          initial="hidden"
-        >
-          Set up in minutes and start automating web chats, Instagram DMs, and
-          customer calls.
-        </motion.p>
-      </motion.div>
+        <div className="sticky top-16 z-30 mx-auto mt-8 flex justify-center sm:top-20">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-1 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+            <div className="grid grid-cols-3 gap-1">
+              {tabs.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
 
-      {/* Tabs */}
-      <motion.div
-        className="flex justify-center pt-12 pb-8 sticky top-8 md:top-12 w-full"
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: false, margin: "-50px" }}
-      >
-        <div
-          className={`${themeStyles.tabBorder} backdrop-blur-lg rounded-full p-1 border border-gray-500/80`}
-        >
-          <div className="flex md:space-x-1">
-            <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-              className={` flex items-center justify-center gap-2 px-3 md:px-6 py-1 md:py-3 rounded-full text-sm font-semibold transition-all duration-300 text-nowrap ${
-                activeTab === "webchat"
-                  ? "bg-gradient-to-r from-cyan-600 to-blue-600 text-white"
-                  : "text-n-4 hover:text-white hover:bg-gray-700/50"
-              }`}
-              onClick={() => setActiveTab("webchat")}
-            >
-              <Network className="h-5 w-5" /> Web
-            </motion.button>
-            <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-              className={`flex items-center justify-center gap-2 px-3 py-1 md:px-6 md:py-3 rounded-full font-semibold transition-all duration-300 text-nowrap text-sm ${
-                activeTab === "instagram"
-                  ? "bg-gradient-to-r from-pink-600 to-purple-600 text-white"
-                  : "text-n-4 hover:text-white hover:bg-gray-700/50"
-              }`}
-              onClick={() => setActiveTab("instagram")}
-            >
-              <Instagram className="h-5 w-5" /> Insta
-            </motion.button>
-            <motion.button
-              variants={buttonVariants}
-              whileHover="hover"
-              whileTap="tap"
-              className={`flex items-center justify-center gap-2 px-3 py-1 md:px-6 md:py-3 rounded-full font-semibold transition-all duration-300 text-nowrap text-sm ${
-                activeTab === "call"
-                  ? "bg-gradient-to-r from-blue-600 to-cyan-600 text-white"
-                  : "text-n-4 hover:text-white hover:bg-gray-700/50"
-              }`}
-              onClick={() => setActiveTab("call")}
-            >
-              <Phone className="h-5 w-5" /> Calls
-            </motion.button>
+                return (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`relative flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-black transition-all sm:px-5 sm:py-3 ${
+                      isActive
+                        ? "text-white"
+                        : "text-slate-500 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"
+                    }`}
+                  >
+                    {isActive && (
+                      <motion.span
+                        layoutId="feature-tab-pill"
+                        className={`absolute inset-0 rounded-xl bg-gradient-to-r ${tab.gradient}`}
+                        transition={{
+                          type: "spring",
+                          stiffness: 450,
+                          damping: 34,
+                        }}
+                      />
+                    )}
+                    <Icon className="relative h-4 w-4" />
+                    <span className="relative">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
-      </motion.div>
 
-      {/* Features Cards - New Layout with Image and Text Side by Side */}
-      <motion.div
-        className="pt-12"
-        variants={containerVariants}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: false, margin: "-50px" }}
-      >
-        <div className="flex flex-col gap-12 ">
-          {features.map((feature, index) => (
+        <div className="mt-10 grid gap-6 lg:grid-cols-[0.82fr_1fr] lg:items-start">
+          <div className="sticky top-36 hidden lg:block">
             <motion.div
-              id={`sticky-card-${index + 1}`}
-              key={feature.id}
-              className=" sticky-card w-full mx-auto max-w-6xl sticky top-32 md:top-44 backdrop-blur-2xl bg-gradient-to-t from-[#FF2E9F]/20 to-[#FF2E9F]/5 border-[#FF2E9F]/20 hover:border-[#FF2E9F]/40 rounded-2xl"
-              variants={cardVariants}
-              whileHover="hover"
-              whileInView="visible"
-              viewport={{ once: false, margin: "-50px" }}
-              initial="hidden"
+              key={activeTab}
+              initial={{ opacity: 0, y: 18 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35 }}
+              className={`rounded-[1.6rem] border p-5 backdrop-blur-xl ${styles.panel}`}
             >
               <div
-                className={`flex flex-col ${
-                  index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
-                } gap-4 md:gap-8 items-center justify-between bg-[#0a0a0a]/60 backdrop-blur-sm border border-white/10 rounded-2xl overflow-hidden p-3 md:p-8 hover:border-[#258b94]/40 transition-colors duration-300`}
+                className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-r ${activeTabConfig.gradient} text-white shadow-lg`}
               >
-                {/* Text Content */}
-                <div className="md:w-1/2">
-                  <motion.div
-                    className="flex items-center gap-3 mb-4"
-                    variants={containerVariants}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: false, margin: "-50px" }}
-                  >
-                    <motion.div
-                      className="w-12 h-12 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-xl flex items-center justify-center"
-                      variants={iconVariants}
-                      whileInView="visible"
-                      viewport={{ once: false }}
-                      initial="hidden"
-                    >
-                      <span className="text-white text-lg">✨</span>
-                    </motion.div>
-                    <motion.h3
-                      className=" md:text-2xl font-bold text-white"
-                      variants={titleVariants}
-                      whileInView="visible"
-                      viewport={{ once: false }}
-                      initial="hidden"
-                    >
-                      {feature.name}
-                    </motion.h3>
-                  </motion.div>
-
-                  <motion.p
-                    className="text-sm md:text-base text-gray-300 mb-2 md:mb-6 font-montserrat leading-relaxed"
-                    variants={textVariants}
-                    whileInView="visible"
-                    viewport={{ once: false }}
-                    initial="hidden"
-                  >
-                    {feature.description}
-                  </motion.p>
-
-                  <motion.div
-                    className="flex flex-wrap gap-1 md:gap-2 mb-1 md:mb-4"
-                    variants={containerVariants}
-                    initial="hidden"
-                    whileInView="visible"
-                    viewport={{ once: false, margin: "-50px" }}
-                  >
-                    {feature.tools.map((tool: string, i: number) => (
-                      <motion.span
-                        key={i}
-                        className="px-2 md:px-3 py-1 bg-[#1a1a1a] border border-gray-700 rounded-full text-sm text-gray-300"
-                        variants={iconVariants}
-                        whileInView="visible"
-                        viewport={{ once: false }}
-                        initial="hidden"
-                      >
-                        {tool}
-                      </motion.span>
-                    ))}
-                  </motion.div>
-
-                  <motion.div
-                    variants={textVariants}
-                    whileInView="visible"
-                    viewport={{ once: false }}
-                    initial="hidden"
-                  >
-                    <span className="text-[#00F0FF] font-semibold">
-                      {feature.role}
-                    </span>
-                  </motion.div>
-                </div>
-
-                {/* Image/Visual Content */}
-                <motion.div
-                  className="md:w-1/2 flex justify-center"
-                  variants={cardVariants}
-                  whileHover="hover"
-                  whileInView="visible"
-                  viewport={{ once: false, margin: "-50px" }}
-                  initial="hidden"
-                >
-                  <div className="relative w-full max-w-md aspect-video  rounded-xl overflow-hidden flex items-center justify-center">
-                    {/* Placeholder for feature image - you can replace this with actual images */}
-                    <div className="text-center p-8">
-                      <Image
-                        src={feature.link}
-                        alt={feature.role}
-                        fill
-                        className="object-contain"
-                        loading="lazy"
-                      />
-                    </div>
-                  </div>
-                </motion.div>
+                {activeTab === "webchat" ? (
+                  <Bot className="h-7 w-7" />
+                ) : activeTab === "instagram" ? (
+                  <Instagram className="h-7 w-7" />
+                ) : (
+                  <Phone className="h-7 w-7" />
+                )}
+              </div>
+              <p
+                className={`text-xs font-black uppercase tracking-[0.18em] ${activeTabConfig.accent}`}
+              >
+                {activeTabConfig.label} workflow
+              </p>
+              <h3 className="mt-2 text-3xl font-black">
+                From signal to saved lead.
+              </h3>
+              <p className={`mt-3 text-sm leading-relaxed ${styles.muted}`}>
+                Each workflow captures intent, sends the right response, and
+                keeps your team close to the next action.
+              </p>
+              <div className="mt-6">
+                <MiniFlow activeTab={activeTab} />
               </div>
             </motion.div>
-          ))}
+          </div>
+
+          <div className="space-y-6">
+            {features.map((feature: any, index: number) => (
+              <motion.article
+                key={feature.id}
+                initial={{ opacity: 0, y: 36 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-70px" }}
+                transition={{
+                  duration: 0.45,
+                  delay: Math.min(index * 0.05, 0.18),
+                }}
+                whileHover={{ y: -5 }}
+                className={`group sticky top-36 overflow-hidden rounded-[1.35rem] border p-4 backdrop-blur-xl transition-all duration-300 ${styles.panel}`}
+                style={{ top: `${9 + index * 1.35}rem` }}
+              >
+                <div className="grid gap-5 md:grid-cols-[1fr_0.86fr] md:items-center">
+                  <div>
+                    <div className="mb-4 flex items-center gap-3">
+                      <div
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-r ${activeTabConfig.gradient} text-white`}
+                      >
+                        <span className="text-sm font-black">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                      </div>
+                      <div>
+                        <p
+                          className={`text-xs font-black uppercase tracking-[0.16em] ${styles.soft}`}
+                        >
+                          {feature.role}
+                        </p>
+                        <h3 className="text-xl font-black sm:text-2xl">
+                          {feature.name}
+                        </h3>
+                      </div>
+                    </div>
+                    <p
+                      className={`text-sm leading-relaxed sm:text-base ${styles.muted}`}
+                    >
+                      {feature.description}
+                    </p>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {feature.tools.map((tool: string) => (
+                        <span
+                          key={tool}
+                          className={`rounded-full border px-3 py-1 text-xs font-bold ${styles.chip}`}
+                        >
+                          {tool}
+                        </span>
+                      ))}
+                    </div>
+                    <div
+                      className={`mt-5 inline-flex items-center gap-2 text-sm font-black ${activeTabConfig.accent}`}
+                    >
+                      See workflow
+                      <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                    </div>
+                  </div>
+
+                  <div className="relative min-h-[13rem] overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 dark:border-white/10 dark:bg-slate-950/60">
+                    <div
+                      className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${activeTabConfig.gradient}`}
+                    />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.7),transparent_28%)] opacity-50 dark:opacity-10" />
+                    <Image
+                      src={feature.link}
+                      alt={feature.role}
+                      fill
+                      className="object-contain p-6 transition-transform duration-500 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              </motion.article>
+            ))}
+          </div>
         </div>
-      </motion.div>
-
-      {/* CSS for sticky effect */}
-      <style jsx>{`
-        #sticky-card-1 {
-          --index: 1;
-        }
-        #sticky-card-2 {
-          --index: 2;
-        }
-        #sticky-card-3 {
-          --index: 3;
-        }
-        #sticky-card-4 {
-          --index: 4;
-        }
-
-        .sticky-card {
-          padding-top: calc(var(--index) * 2.5rem);
-          top: calc(var(--index) * 4rem);
-        }
-      `}</style>
-    </motion.div>
+      </div>
+    </section>
   );
 }
 

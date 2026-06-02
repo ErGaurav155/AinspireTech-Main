@@ -1,699 +1,266 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { motion } from "framer-motion";
-import {
-  Zap,
-  Check,
-  BadgeCheck,
-  Bot,
-  Calendar,
-  Rocket,
-  ArrowRight,
-} from "lucide-react";
-import Image from "next/image";
-import Rimg1 from "@/public//assets/img/chatbot.png";
-import Rimg2 from "@/public/assets/img/headingimg.png";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
+import {
+  ArrowRight,
+  Bot,
+  CheckCircle,
+  MessageCircle,
+  PhoneCall,
+  Send,
+  Sparkles,
+  Zap,
+} from "lucide-react";
+
+const products = [
+  {
+    id: "insta",
+    title: "Instagram Automation",
+    eyebrow: "Comments to DMs",
+    href: "/insta",
+    color: "from-pink-400 to-rose-500",
+    icon: MessageCircle,
+    stat: "₹99 first month",
+    line: "Reply to comments, send links, and capture leads automatically.",
+  },
+  {
+    id: "web",
+    title: "Website Chatbots",
+    eyebrow: "Visitors to leads",
+    href: "/web",
+    color: "from-cyan-300 to-blue-500",
+    icon: Bot,
+    stat: "2M tokens included",
+    line: "Answer site visitors with trained, source-aware AI conversations.",
+  },
+  {
+    id: "call",
+    title: "AI Call Assistant",
+    eyebrow: "Calls to summaries",
+    href: "/call",
+    color: "from-violet-400 to-fuchsia-500",
+    icon: PhoneCall,
+    stat: "From ₹2,999/mo",
+    line: "Answer missed calls, qualify callers, and notify your team instantly.",
+  },
+];
+
+const fadeUp = {
+  hidden: { opacity: 0, y: 24 },
+  visible: { opacity: 1, y: 0 },
+};
+
+function ProductOrbit({ activeIndex }: { activeIndex: number }) {
+  const active = products[activeIndex];
+  const Icon = active.icon;
+
+  return (
+    <div className="relative mx-auto w-full max-w-[35rem]">
+      <div className="absolute left-1/2 top-1/2 h-[21rem] w-[21rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-blue-200 bg-white/35 transition-colors duration-500 dark:border-white/10 dark:bg-white/[0.03]" />
+      <div className="absolute left-1/2 top-1/2 h-[15rem] w-[15rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-cyan-300/35 transition-colors duration-500 dark:border-cyan-300/15" />
+
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, rotate: -2 }}
+        whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.55 }}
+        className="relative rounded-[1.6rem] border border-slate-200 bg-white/80 p-4 shadow-[0_24px_70px_rgba(15,23,42,0.13)] backdrop-blur-xl transition-colors duration-500 dark:border-white/10 dark:bg-white/[0.07] dark:shadow-[0_28px_90px_rgba(0,0,0,0.35)]"
+      >
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={active.id}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -14 }}
+            transition={{ duration: 0.35 }}
+            className="rounded-[1.25rem] bg-slate-50 p-4 transition-colors duration-500 dark:bg-slate-950/80"
+          >
+            <div
+              className={`mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${active.color} text-slate-950 shadow-lg`}
+            >
+              <Icon className="h-7 w-7" />
+            </div>
+            <p className="text-xs font-black uppercase tracking-[0.2em] text-blue-700 dark:text-cyan-200">
+              {active.eyebrow}
+            </p>
+            <h2 className="mt-2 text-2xl font-black text-slate-950 dark:text-white">
+              {active.title}
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">
+              {active.line}
+            </p>
+
+            <div className="mt-5 grid gap-3">
+              <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-white/10 dark:shadow-none">
+                <div className="flex items-start gap-3">
+                  <div className="mt-1 h-2 w-2 rounded-full bg-emerald-300" />
+                  <div>
+                    <p className="text-sm font-bold text-slate-950 dark:text-white">
+                      Automation ready
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {active.stat}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-2xl bg-white p-3 shadow-sm dark:bg-white/10 dark:shadow-none">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-300">
+                    Live workflow
+                  </span>
+                  <motion.div
+                    animate={{ x: [0, 8, 0] }}
+                    transition={{
+                      duration: 1.8,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
+                  >
+                    <Send className="h-4 w-4 text-blue-700 dark:text-cyan-200" />
+                  </motion.div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </AnimatePresence>
+      </motion.div>
+
+      {products.map((product, index) => {
+        const MiniIcon = product.icon;
+        const positions = [
+          "-left-2 top-10",
+          "right-0 top-24",
+          "left-8 bottom-4",
+        ];
+
+        return (
+          <motion.div
+            key={product.id}
+            animate={{ y: [0, index % 2 ? 8 : -8, 0] }}
+            transition={{
+              duration: 4 + index * 0.4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+            className={`absolute hidden rounded-2xl border border-slate-200 bg-white/85 p-3 shadow-xl backdrop-blur transition-colors duration-500 sm:block dark:border-white/10 dark:bg-white/[0.09] ${positions[index]}`}
+          >
+            <MiniIcon className="h-5 w-5 text-blue-700 dark:text-cyan-200" />
+            <p className="mt-2 text-xs font-black text-slate-950 dark:text-white">
+              {product.eyebrow}
+            </p>
+          </motion.div>
+        );
+      })}
+
+      <div className="mt-4 flex justify-center gap-4">
+        {products.map((product, index) => (
+          <span
+            key={product.id}
+            className={`h-2 rounded-full transition-all ${
+              activeIndex === index
+                ? "w-8 bg-blue-700 dark:bg-cyan-300"
+                : "w-2 bg-slate-300 dark:bg-white/25"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function HeroSection() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const slides = [<InstagramSection key={0} />, <WebChatbotSection key={1} />];
+  const router = useRouter();
+  const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 7000);
+    const interval = window.setInterval(() => {
+      setActiveIndex((index) => (index + 1) % products.length);
+    }, 3300);
 
-    return () => clearInterval(interval);
-  }, [slides.length]);
+    return () => window.clearInterval(interval);
+  }, []);
 
   return (
-    <section className="text-foreground px-4 sm:px-6 lg:px-8 overflow-hidden">
-      <div className="max-w-7xl mx-auto py-10">
-        <div className="relative">
-          {slides.map((slide, index) => (
-            <div
-              key={index}
-              className={`transition-opacity duration-500 ${
-                currentSlide === index
-                  ? "opacity-100"
-                  : "opacity-0 absolute top-0 left-0 w-full"
-              }`}
+    <section className="relative mx-[calc(50%-50vw)] w-[100vw] lg:w-[99vw] overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#050912] dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(0,112,255,0.14),transparent_30%),radial-gradient(circle_at_82%_16%,rgba(255,46,159,0.10),transparent_28%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#ffffff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(0,240,255,0.18),transparent_30%),radial-gradient(circle_at_82%_16%,rgba(255,46,159,0.16),transparent_28%),linear-gradient(135deg,#050912_0%,#08152b_52%,#04060d_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
+
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-9 px-4 pb-12 pt-10 sm:px-6 sm:pt-8 lg:grid-cols-[0.92fr_1fr] lg:items-center lg:px-10 xl:px-16">
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          transition={{ staggerChildren: 0.1 }}
+          className="mx-auto max-w-2xl text-center lg:mx-0 lg:text-left"
+        >
+          <motion.div
+            variants={fadeUp}
+            className="mx-auto mb-4 inline-flex max-w-max items-center rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700 shadow-sm backdrop-blur transition-colors duration-500 dark:border-cyan-300/20 dark:bg-white/10 dark:text-cyan-200 lg:mx-0"
+          >
+            <Sparkles className="mr-2 h-4 w-4" />
+            AI engagement suite
+          </motion.div>
+
+          <motion.h1
+            variants={fadeUp}
+            className="text-[2.15rem] font-black leading-[1.02] tracking-tight text-slate-950 transition-colors duration-500 sm:text-[3.4rem] md:text-[4.1rem] xl:text-[4.9rem] dark:text-white"
+          >
+            Capture leads from
+            <br />
+            <span className="bg-gradient-to-r from-blue-700 via-cyan-500 to-pink-500 bg-clip-text text-transparent dark:from-cyan-200 dark:via-blue-300 dark:to-pink-300">
+              comments, chats, and calls.
+            </span>
+          </motion.h1>
+
+          <motion.p
+            variants={fadeUp}
+            className="mx-auto mt-5 max-w-xl text-sm leading-relaxed text-slate-700 transition-colors duration-500 sm:text-xl lg:mx-0 dark:text-slate-300"
+          >
+            One platform for Instagram automation, website chatbots, and AI call
+            answering. Less manual follow-up. More qualified conversations.
+          </motion.p>
+
+          <motion.div
+            variants={fadeUp}
+            className="mt-6 grid gap-3 sm:mx-auto sm:max-w-[32rem] sm:grid-cols-2 lg:mx-0"
+          >
+            <button
+              onClick={() =>
+                router.push("https://app.rocketreplai.com/sign-in")
+              }
+              className="rounded-xl bg-blue-700 px-5 py-4 text-sm font-black text-white shadow-[0_14px_28px_rgba(29,78,216,0.24)] transition hover:-translate-y-0.5 hover:bg-blue-800 dark:bg-cyan-300 dark:text-slate-950 dark:shadow-[0_14px_28px_rgba(103,232,249,0.25)] dark:hover:bg-cyan-200"
             >
-              {slide}
-            </div>
-          ))}
-        </div>
+              Start Free
+              <ArrowRight className="ml-2 inline h-5 w-5" />
+            </button>
+            <button
+              onClick={() => router.push("/web/pricing")}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+            >
+              See Pricing
+            </button>
+          </motion.div>
+
+          <motion.div
+            variants={fadeUp}
+            className="mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs text-slate-500 transition-colors duration-500 sm:text-sm lg:justify-start dark:text-slate-300"
+          >
+            {["No credit card", "2M chatbot tokens", "Instant setup"].map(
+              (item) => (
+                <span key={item} className="inline-flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 fill-blue-600 text-white dark:fill-cyan-300 dark:text-slate-950" />
+                  {item}
+                </span>
+              ),
+            )}
+          </motion.div>
+        </motion.div>
+
+        <ProductOrbit activeIndex={activeIndex} />
       </div>
     </section>
-  );
-}
-
-// Instagram Section Component
-function InstagramSection() {
-  const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
-
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      badgeBorder: isDark ? "border-blue-400/30" : "border-blue-400/50",
-      badgeText: isDark ? "text-blue-400" : "text-blue-600",
-      descriptionText: isDark ? "text-gray-300" : "text-n-800",
-      trustBadgeText: isDark ? "text-gray-300" : "text-n-800",
-      featureText: isDark ? "text-gray-300" : "text-n-800",
-      secondaryText: isDark ? "text-gray-400" : "text-n-800",
-      outlineButtonBorder: isDark ? "border-[#00F0FF]" : "border-[#00F0FF]",
-      outlineButtonText: isDark ? "text-[#00F0FF]" : "text-n-800",
-      outlineButtonHover: isDark
-        ? "hover:bg-[#00F0FF]/10"
-        : "hover:bg-[#00F0FF]/5",
-    };
-  }, [currentTheme]);
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
-      },
-    },
-  };
-
-  const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      boxShadow:
-        theme === "dark"
-          ? "0 20px 40px -10px rgba(37, 139, 148, 0.2)"
-          : "0 20px 40px -10px rgba(37, 139, 148, 0.1)",
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const titleVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const badgeVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const textVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-  };
-
-  const featureVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const buttonVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const imageVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  return (
-    <div>
-      {/* Hero Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-12 items-center">
-        {/* Left Column - Text Content */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, margin: "-100px" }}
-        >
-          <motion.div
-            className={`inline-flex items-center ${themeStyles.badgeText} border ${themeStyles.badgeBorder} rounded-full px-4 py-1 mb-4`}
-            variants={badgeVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <Zap className="h-4 w-4 mr-1" />
-            <span className="text-sm font-medium">Instagram Automation</span>
-          </motion.div>
-
-          <motion.h1
-            className="text-2xl md:text-4xl font-bold leading-tight mb-4"
-            variants={titleVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            Reply to Instagram
-            <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-              Comments Automatically
-            </span>
-          </motion.h1>
-
-          <motion.p
-            className={`text-xl ${themeStyles.descriptionText} mb-8 max-w-2xl font-montserrat`}
-            variants={textVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            Auto-Reply Platform for Creators and Brands. Never miss a customer
-            comment again.
-          </motion.p>
-
-          {/* Trust Badges */}
-          <motion.div
-            className="flex flex-col lg:flex-row items-start lg:items-center mb-8 gap-4 font-montserrat"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <motion.div
-              className="flex items-center space-x-2"
-              variants={badgeVariants}
-            >
-              <BadgeCheck className="h-5 w-5 text-[#00F0FF]" />
-              <span className={`text-sm ${themeStyles.trustBadgeText}`}>
-                Meta Tech Provider
-              </span>
-            </motion.div>
-            <motion.div
-              className="flex items-center space-x-2"
-              variants={badgeVariants}
-            >
-              <BadgeCheck className="h-5 w-5 text-[#00F0FF]" />
-              <span className={`text-sm ${themeStyles.trustBadgeText}`}>
-                500+ creators, brands and agencies!
-              </span>
-            </motion.div>
-          </motion.div>
-
-          {/* Feature List */}
-          <motion.div
-            className="space-y-1 md:space-y-3 mb-4 md:mb-8"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            {[
-              "Instant automated replies to comments",
-              "Customizable response templates",
-              "Advanced spam detection",
-              "Multi-account support",
-              "Real-time analytics dashboard",
-            ].map((feature, idx) => (
-              <motion.div
-                key={idx}
-                className="flex items-center"
-                variants={featureVariants}
-              >
-                <Check className="h-5 w-5 text-[#FF2E9F] mr-3" />
-                <span className={`font-montserrat ${themeStyles.featureText}`}>
-                  {feature}
-                </span>
-              </motion.div>
-            ))}
-          </motion.div>
-          <motion.div
-            className="flex flex-col md:flex-row lg:flex-col xl:flex-row gap-4 mb-4"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() =>
-                router.push("https://app.rocketreplai.com/sign-in")
-              }
-              className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-2 md:px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
-            >
-              <Rocket className="h-5 w-5 mr-1 md:mr-2" />
-              Start Automating - Free!
-              <ArrowRight className="h-5 w-5 ml-1 md:ml-2" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => router.push("/web/pricing")}
-              whileTap={{ scale: 0.95 }}
-              className={`border-2 ${themeStyles.outlineButtonBorder} ${themeStyles.outlineButtonText} font-semibold py-2 px-4 rounded-2xl ${themeStyles.outlineButtonHover} transition-all duration-300 flex items-center justify-center`}
-            >
-              <Calendar className="h-5 w-5 mr-2" />
-              View Pricing
-            </motion.button>
-          </motion.div>
-          <motion.p
-            className={`text-sm ${themeStyles.secondaryText} font-montserrat`}
-            variants={textVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            No credit card required • free trial • Cancel anytime
-          </motion.p>
-        </motion.div>
-
-        {/* Right Column - Image */}
-        <motion.div
-          variants={imageVariants}
-          whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
-          initial="hidden"
-          className="relative m-auto w-full aspect-square"
-        >
-          <Image
-            src={Rimg2}
-            alt="Instagram Automation"
-            fill
-            sizes="100%"
-            className="object-cover"
-            loading="lazy"
-          />
-          {/* Decorative elements */}
-          <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] rounded-full opacity-20 blur-xl" />
-          <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-r from-[#FF2E9F] to-[#B026FF] rounded-full opacity-20 blur-xl" />
-        </motion.div>
-      </div>
-    </div>
-  );
-}
-
-// Web Chatbot Section Component
-function WebChatbotSection() {
-  const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
-
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      badgeBorder: isDark ? "border-blue-400/30" : "border-blue-400/50",
-      badgeText: isDark ? "text-blue-400" : "text-blue-600",
-      descriptionText: isDark ? "text-gray-300" : "text-n-800",
-      trustBadgeText: isDark ? "text-gray-300" : "text-n-800",
-      featureText: isDark ? "text-gray-300" : "text-n-800",
-      secondaryText: isDark ? "text-gray-400" : "text-n-800",
-      outlineButtonBorder: isDark ? "border-[#00F0FF]" : "border-[#00F0FF]",
-      outlineButtonText: isDark ? "text-[#00F0FF]" : "text-n-800",
-      outlineButtonHover: isDark
-        ? "hover:bg-[#00F0FF]/10"
-        : "hover:bg-[#00F0FF]/5",
-    };
-  }, [currentTheme]);
-  // Animation variants
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.8,
-        staggerChildren: 0.2,
-      },
-    },
-  };
-
-  const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      boxShadow:
-        theme === "dark"
-          ? "0 20px 40px -10px rgba(37, 139, 148, 0.2)"
-          : "0 20px 40px -10px rgba(37, 139, 148, 0.1)",
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const titleVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const badgeVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const textVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-  };
-
-  const featureVariants = {
-    hidden: { opacity: 0, x: -20 },
-    visible: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const buttonVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut",
-        delay: 0.2,
-      },
-    },
-    hover: {
-      y: -8,
-      scale: 1.02,
-      transition: {
-        duration: 0.3,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  const imageVariants = {
-    hidden: {
-      opacity: 0,
-      y: 60,
-      scale: 0.9,
-      rotateX: -10,
-    },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotateX: 0,
-      transition: {
-        duration: 0.6,
-        ease: "easeOut",
-      },
-    },
-  };
-
-  return (
-    <div>
-      {/* Hero Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-12 items-center">
-        {/* Left Column - Text Content */}
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: false, margin: "-100px" }}
-        >
-          <motion.div
-            className={`inline-flex items-center ${themeStyles.badgeText} border ${themeStyles.badgeBorder} rounded-full px-4 py-1 mb-4`}
-            variants={badgeVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <Bot className="h-4 w-4 mr-1" />
-            <span className="text-sm font-medium"> Website Chatbot</span>
-          </motion.div>
-
-          <motion.h1
-            className="text-2xl md:text-4xl font-bold leading-tight mb-4"
-            variants={titleVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            Engage Website Visitors
-            <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F]">
-              With Smart Chatbots
-            </span>
-          </motion.h1>
-
-          <motion.p
-            className={`text-xl ${themeStyles.descriptionText} mb-8 max-w-2xl font-montserrat`}
-            variants={textVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            AI-powered chatbots that understand customer queries and provide
-            instant responses 24/7.
-          </motion.p>
-
-          {/* Trust Badges */}
-          <motion.div
-            className="flex flex-col lg:flex-row items-start lg:items-center mb-8 gap-4 font-montserrat"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <motion.div
-              className="flex items-center space-x-2 "
-              variants={badgeVariants}
-            >
-              <BadgeCheck className="h-5 w-5 text-[#00F0FF]" />
-              <span className={`text-sm ${themeStyles.trustBadgeText}`}>
-                AI-Powered Responses
-              </span>
-            </motion.div>
-            <motion.div
-              className="flex items-center justify-center gap-1 text-sm"
-              variants={badgeVariants}
-            >
-              <BadgeCheck className="h-5 w-5 text-[#00F0FF]" />
-              <p className={themeStyles.trustBadgeText}>
-                Used by 500+ businesses worldwide!
-              </p>
-            </motion.div>
-          </motion.div>
-
-          {/* Feature List */}
-          <motion.div
-            className="space-y-1 md:space-y-3 mb-4 md:mb-8"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            {[
-              "24/7 customer support automation",
-              "AI-powered natural conversations",
-              "Easy integration with your website",
-              "Lead generation and qualification",
-              "Multi-language support",
-            ].map((feature, idx) => (
-              <motion.div
-                key={idx}
-                className="flex items-center"
-                variants={featureVariants}
-              >
-                <Check className="h-5 w-5 text-[#FF2E9F] mr-3" />
-                <span className={`font-montserrat ${themeStyles.featureText}`}>
-                  {feature}
-                </span>
-              </motion.div>
-            ))}
-          </motion.div>
-          {/* CTA Buttons */}
-          <motion.div
-            className="flex flex-col md:flex-row lg:flex-col xl:flex-row gap-4 mb-4"
-            variants={containerVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            <motion.button
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() =>
-                router.push("https://app.rocketreplai.com/sign-in")
-              }
-              className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-2 md:px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
-            >
-              <Rocket className="h-5 w-5 mr-1 md:mr-2" />
-              Start Automating - Free!
-              <ArrowRight className="h-5 w-5 ml-1 md:ml-2" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              onClick={() => router.push("/insta/pricing")}
-              whileTap={{ scale: 0.95 }}
-              className={`border-2 ${themeStyles.outlineButtonBorder} ${themeStyles.outlineButtonText} font-semibold py-2 px-4 rounded-2xl ${themeStyles.outlineButtonHover} transition-all duration-300 flex items-center justify-center`}
-            >
-              <Calendar className="h-5 w-5 mr-2" />
-              View Pricing
-            </motion.button>
-          </motion.div>
-
-          <motion.p
-            className={`text-sm ${themeStyles.secondaryText} font-montserrat`}
-            variants={textVariants}
-            whileInView="visible"
-            viewport={{ once: false }}
-            initial="hidden"
-          >
-            No coding required • free trial • Setup in minutes
-          </motion.p>
-        </motion.div>
-
-        {/* Right Column - Image */}
-        <motion.div
-          variants={imageVariants}
-          whileInView="visible"
-          viewport={{ once: false, margin: "-50px" }}
-          initial="hidden"
-          className="relative m-auto  w-full aspect-square "
-        >
-          <Image
-            src={Rimg1}
-            alt="AI Chatbot"
-            fill
-            sizes="100%"
-            className="object-cover"
-            loading="lazy"
-          />
-
-          {/* Decorative elements */}
-          <div className="absolute -top-4 -right-4 w-24 h-24 bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] rounded-full opacity-20 blur-xl" />
-          <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-r from-[#FF2E9F] to-[#B026FF] rounded-full opacity-20 blur-xl" />
-        </motion.div>
-      </div>
-    </div>
   );
 }

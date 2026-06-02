@@ -179,7 +179,7 @@ function InstagramPost({ scene }: { scene: HeroScene }) {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: -18, scale: 0.98 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
-      className="relative w-[10.3rem] -rotate-1 rounded-xl bg-white p-1.5 shadow-[0_14px_32px_rgba(15,23,42,0.16)] transition-shadow duration-500 min-[390px]:w-[11.4rem] sm:w-[18rem] sm:rounded-[1.15rem] sm:p-2.5 lg:w-[22rem] dark:shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
+      className="relative w-[10.3rem] -rotate-1 rounded-xl bg-white p-1.5 shadow-[0_14px_32px_rgba(15,23,42,0.16)] transition-shadow duration-500 min-[390px]:w-[11.4rem] sm:w-[15rem] sm:rounded-[1.15rem] sm:p-2.5 lg:w-[18rem] xl:w-[22rem] dark:shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
     >
       <div className="flex items-center justify-between px-1.5 pb-1.5 pt-1 sm:px-2 sm:pb-2">
         <div className="flex items-center gap-1.5 sm:gap-3">
@@ -305,7 +305,7 @@ function HeroMockup({
 
   return (
     <div className="mx-auto w-full max-w-[32rem] lg:max-w-[36rem]">
-      <div className="relative mx-auto grid min-h-[23rem] grid-cols-[minmax(0,1fr)_minmax(7.5rem,0.72fr)] items-start gap-2 min-[390px]:min-h-[25.5rem] sm:min-h-[32rem] sm:grid-cols-[18rem_17rem] sm:gap-4 lg:mx-0 lg:min-h-[35rem] lg:grid-cols-[22rem_19rem]">
+      <div className="relative mx-auto flex  min-h-[23rem]  items-start gap-2 min-[390px]:min-h-[25.5rem] sm:min-h-[32rem]  lg:mx-0 lg:min-h-[35rem] ">
         <div className="relative z-10 justify-self-end sm:justify-self-start">
           <AnimatePresence mode="wait">
             <InstagramPost scene={scene} />
@@ -426,10 +426,10 @@ export function InstagramAutomationHero() {
   );
 
   return (
-    <section className="relative mx-[calc(50%-50vw)] w-screen overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
+    <section className="relative mx-[calc(50%-50vw)] w-[100vw] lg:w-[99.5vw] overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_14%,rgba(30,57,232,0.13),transparent_30%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#fbfdff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_16%,rgba(125,162,255,0.22),transparent_32%),linear-gradient(135deg,#06101d_0%,#0b1730_54%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
-      <div className="relative mx-auto grid max-w-7xl grid-cols-1 px-3 pb-7 pt-3 min-[390px]:px-4 sm:px-6 sm:pb-9 sm:pt-14 lg:grid-cols-[1fr_0.86fr] lg:gap-8 lg:px-10 lg:pt-20 xl:px-16">
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 px-3 pb-7 pt-3 min-[390px]:px-4 sm:px-6 sm:pb-9 sm:pt-4 lg:grid-cols-[1fr_0.86fr] lg:gap-8 lg:px-10 lg:pt-8 xl:px-16">
         <div className="flex flex-col justify-center lg:min-h-[38rem] lg:pl-2">
           <motion.div
             initial={{ opacity: 0, y: 12 }}

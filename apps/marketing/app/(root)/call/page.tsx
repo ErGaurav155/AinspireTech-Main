@@ -297,146 +297,146 @@ export default function CallMarketingPage() {
   }
 
   return (
-    <main className={`min-h-screen max-w-7xl m-auto ${themeStyles.page}`}>
-      <div className="container mx-auto px-4 pb-20">
-        <section className="relative mx-[calc(50%-50vw)] w-screen overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_18%,rgba(0,240,255,0.16),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#ffffff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(0,240,255,0.16),transparent_30%),linear-gradient(135deg,#06101d_0%,#0b1730_55%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
+    <main className={`min-h-screen w-full overflow-x-clip ${themeStyles.page}`}>
+      <section className="relative w-full overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_18%,rgba(0,240,255,0.16),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#ffffff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(0,240,255,0.16),transparent_30%),linear-gradient(135deg,#06101d_0%,#0b1730_55%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
 
-          <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 pb-10 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[0.95fr_1fr] lg:items-center lg:px-10 lg:py-20 xl:px-16">
+        <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 pb-10 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[0.95fr_1fr] lg:items-center lg:px-10 lg:py-20 xl:px-16">
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-80px" }}
+            className="mx-auto max-w-2xl space-y-5 text-center lg:mx-0 lg:text-left"
+          >
             <motion.div
-              variants={stagger}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, margin: "-80px" }}
-              className="mx-auto max-w-2xl space-y-5 text-center lg:mx-0 lg:text-left"
+              variants={fadeUp}
+              className="mx-auto inline-flex max-w-max items-center rounded-full border border-cyan-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700 shadow-sm backdrop-blur dark:border-cyan-300/30 dark:bg-white/10 dark:text-cyan-200 lg:mx-0"
             >
-              <motion.div
-                variants={fadeUp}
-                className="mx-auto inline-flex max-w-max items-center rounded-full border border-cyan-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700 shadow-sm backdrop-blur dark:border-cyan-300/30 dark:bg-white/10 dark:text-cyan-200 lg:mx-0"
-              >
-                AI Call Assistant
-              </motion.div>
+              AI Call Assistant
+            </motion.div>
 
-              <motion.h1
-                variants={fadeUp}
-                className="text-[1.9rem] font-black leading-[1.02] text-slate-950 transition-colors duration-500 sm:text-[3.1rem] md:text-[3.7rem] xl:text-[4.25rem] dark:text-white"
-              >
-                Your business phone,
-                <br />
-                <span className="text-blue-700 dark:text-cyan-200">
-                  answered by AI.
-                </span>
-              </motion.h1>
+            <motion.h1
+              variants={fadeUp}
+              className="text-[1.9rem] font-black leading-[1.02] text-slate-950 transition-colors duration-500 sm:text-[3.1rem] md:text-[3.7rem] xl:text-[4.25rem] dark:text-white"
+            >
+              Your business phone,
+              <br />
+              <span className="text-blue-700 dark:text-cyan-200">
+                answered by AI.
+              </span>
+            </motion.h1>
 
-              <motion.p
-                variants={fadeUp}
-                className="mx-auto max-w-xl text-sm leading-relaxed text-slate-700 transition-colors duration-500 sm:text-xl lg:mx-0 dark:text-slate-200"
-              >
-                RocketReplai answers missed calls, qualifies callers, captures
-                leads, and sends clean summaries to the owner before the next
-                opportunity goes cold.
-              </motion.p>
+            <motion.p
+              variants={fadeUp}
+              className="mx-auto max-w-xl text-sm leading-relaxed text-slate-700 transition-colors duration-500 sm:text-xl lg:mx-0 dark:text-slate-200"
+            >
+              RocketReplai answers missed calls, qualifies callers, captures
+              leads, and sends clean summaries to the owner before the next
+              opportunity goes cold.
+            </motion.p>
 
-              <motion.div
-                variants={fadeUp}
-                className="grid gap-2 font-montserrat sm:grid-cols-2"
-              >
-                {[
-                  {
-                    icon: <PhoneCall className="h-5 w-5" />,
-                    text: "24/7 call answering",
-                  },
-                  {
-                    icon: <Users className="h-5 w-5" />,
-                    text: "Lead capture",
-                  },
-                  {
-                    icon: <Bell className="h-5 w-5" />,
-                    text: "Instant alerts",
-                  },
-                  {
-                    icon: <ShieldCheck className="h-5 w-5" />,
-                    text: "Summaries + transcripts",
-                  },
-                ].map((feature, index) => (
+            <motion.div
+              variants={fadeUp}
+              className="grid gap-2 font-montserrat sm:grid-cols-2"
+            >
+              {[
+                {
+                  icon: <PhoneCall className="h-5 w-5" />,
+                  text: "24/7 call answering",
+                },
+                {
+                  icon: <Users className="h-5 w-5" />,
+                  text: "Lead capture",
+                },
+                {
+                  icon: <Bell className="h-5 w-5" />,
+                  text: "Instant alerts",
+                },
+                {
+                  icon: <ShieldCheck className="h-5 w-5" />,
+                  text: "Summaries + transcripts",
+                },
+              ].map((feature, index) => (
+                <motion.div
+                  key={feature.text}
+                  whileHover={{ y: -3 }}
+                  className="flex items-center rounded-2xl border border-slate-200 bg-white/80 p-3 text-left shadow-sm transition-colors duration-500 dark:border-white/10 dark:bg-white/10"
+                >
                   <motion.div
-                    key={feature.text}
-                    whileHover={{ y: -3 }}
-                    className="flex items-center rounded-2xl border border-slate-200 bg-white/80 p-3 text-left shadow-sm transition-colors duration-500 dark:border-white/10 dark:bg-white/10"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-slate-950 shadow-lg"
                   >
-                    <motion.div
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-slate-950 shadow-lg"
-                    >
-                      {feature.icon}
-                    </motion.div>
-                    <span className="text-sm font-bold text-slate-700 dark:text-slate-100">
-                      {feature.text}
-                    </span>
+                    {feature.icon}
                   </motion.div>
-                ))}
-              </motion.div>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-100">
+                    {feature.text}
+                  </span>
+                </motion.div>
+              ))}
+            </motion.div>
 
-              {/* CTA Buttons */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.9 }}
-                className="grid gap-3 sm:mx-auto sm:max-w-[31rem] sm:grid-cols-2 lg:mx-0"
+            {/* CTA Buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.9 }}
+              className="grid gap-3 sm:mx-auto sm:max-w-[31rem] sm:grid-cols-2 lg:mx-0"
+            >
+              <motion.button
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() =>
+                  router.push("https://app.rocketreplai.com/sign-in")
+                }
+                className="rounded-xl bg-blue-700 px-5 py-4 text-sm font-black text-white shadow-[0_14px_24px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
               >
-                <motion.button
-                  whileHover={{ scale: 1.05, y: -2 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() =>
-                    router.push("https://app.rocketreplai.com/sign-in")
-                  }
-                  className="rounded-xl bg-blue-700 px-5 py-4 text-sm font-black text-white shadow-[0_14px_24px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
-                >
-                  Start Setup <ArrowRight className="ml-2 inline h-5 w-5" />
-                </motion.button>
+                Start Setup <ArrowRight className="ml-2 inline h-5 w-5" />
+              </motion.button>
 
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  onClick={() => router.push("/call/pricing")}
-                  whileTap={{ scale: 0.95 }}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
-                >
-                  View Pricing
-                </motion.button>
-              </motion.div>
-
-              <motion.div
-                variants={fadeUp}
-                className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500 sm:text-sm lg:justify-start dark:text-slate-300"
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                onClick={() => router.push("/call/pricing")}
+                whileTap={{ scale: 0.95 }}
+                className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
               >
-                <div className="flex items-center space-x-2">
-                  <ShieldCheck className="h-4 w-4 text-green-400" />
-                  <span>Secure call records</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Users className="h-4 w-4 text-blue-400" />
-                  <span>Built for owner-led SMBs</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Star className="h-4 w-4 text-yellow-400" />
-                  <span>Front desk automation</span>
-                </div>
-              </motion.div>
+                View Pricing
+              </motion.button>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, x: 28 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
-              transition={{ duration: 0.65, delay: 0.12 }}
-              className="flex items-center justify-center"
+              variants={fadeUp}
+              className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500 sm:text-sm lg:justify-start dark:text-slate-300"
             >
-              <CallHeroVisual themeStyles={themeStyles} />
+              <div className="flex items-center space-x-2">
+                <ShieldCheck className="h-4 w-4 text-green-400" />
+                <span>Secure call records</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Users className="h-4 w-4 text-blue-400" />
+                <span>Built for owner-led SMBs</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Star className="h-4 w-4 text-yellow-400" />
+                <span>Front desk automation</span>
+              </div>
             </motion.div>
-          </div>
-        </section>
+          </motion.div>
 
+          <motion.div
+            initial={{ opacity: 0, x: 28 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, margin: "-80px" }}
+            transition={{ duration: 0.65, delay: 0.12 }}
+            className="flex items-center justify-center"
+          >
+            <CallHeroVisual themeStyles={themeStyles} />
+          </motion.div>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 pb-20">
         <section className="py-12">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
