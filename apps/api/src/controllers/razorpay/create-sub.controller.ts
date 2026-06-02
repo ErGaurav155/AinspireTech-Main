@@ -1,6 +1,38 @@
 import { getRazorpay } from "@/utils/util";
 import { Request, Response } from "express";
 
+const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
+  insta: {
+    "Insta-Automation-Pro": "offer_SwesHPkR1J7vDu",
+  },
+  web: {
+    "chatbot-lead-generation": "offer_Swg8earHCXfe9f",
+    "chatbot-education": "offer_Swg8earHCXfe9f",
+  },
+} as const;
+
+const getMonthlyFirstCycleOfferId = (
+  subscriptionType: string,
+  productId: string,
+  billingCycle: string,
+) => {
+  if (billingCycle !== "monthly") return undefined;
+
+  if (subscriptionType === "insta") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.insta[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.insta
+    ];
+  }
+
+  if (subscriptionType === "web") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.web[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.web
+    ];
+  }
+
+  return undefined;
+};
+
 // POST /api/razorpay/subscription/create - Create Razorpay subscription
 export const createRazorpaySubscriptionController = async (
   req: Request,
@@ -47,6 +79,11 @@ export const createRazorpaySubscriptionController = async (
       });
     }
     const razorpay = getRazorpay();
+    const offerId = getMonthlyFirstCycleOfferId(
+      subscriptionType,
+      productId,
+      billingCycle,
+    );
 
     // Create Razorpay subscription
     let subscription;
@@ -65,7 +102,9 @@ export const createRazorpaySubscriptionController = async (
           billingCycle,
           previousSubscriptionId: previousSubscriptionId || "",
           previousSubscriptionType: previousSubscriptionType || "",
+          offerId: offerId || "",
         },
+        ...(offerId ? { offer_id: offerId } : {}),
       });
     } catch (razorpayError: any) {
       console.error("Razorpay API error:", razorpayError);

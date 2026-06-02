@@ -245,6 +245,7 @@ export default function Dashboard() {
   // Refs
   const isInitialMount = useRef(true);
   const isFetching = useRef(false);
+  const hasShownConnectPrompt = useRef(false);
 
   // Core state
   const [subscriptions, setSubscriptions] = useState<SubscriptionInfo[]>([]);
@@ -265,6 +266,8 @@ export default function Dashboard() {
   const [showAccountLimitDialog, setShowAccountLimitDialog] =
     useState<boolean>(false);
   const [showCancelAccountDialog, setShowCancelAccountDialog] =
+    useState<boolean>(false);
+  const [showConnectAccountDialog, setShowConnectAccountDialog] =
     useState<boolean>(false);
   const [isProcessingDeletion, setIsProcessingDeletion] =
     useState<boolean>(false);
@@ -484,6 +487,22 @@ export default function Dashboard() {
     }
   }, [contextAccounts, isAccLoading, fetchDashboardData]);
 
+  useEffect(() => {
+    if (
+      !isLoaded ||
+      !userId ||
+      isAccLoading ||
+      isLoading ||
+      hasShownConnectPrompt.current ||
+      (contextAccounts?.length ?? 0) > 0
+    ) {
+      return;
+    }
+
+    hasShownConnectPrompt.current = true;
+    setShowConnectAccountDialog(true);
+  }, [contextAccounts?.length, isAccLoading, isLoaded, isLoading, userId]);
+
   // ── Action handlers ───────────────────────────────────────────────────────────
 
   const refresh = useCallback(async () => {
@@ -547,6 +566,7 @@ export default function Dashboard() {
   // ── Derived values for stat cards ─────────────────────────────────────────────
 
   const isPro = subscriptions.length > 0;
+  const hasConnectedAccounts = userAccounts.length > 0;
 
   // Contacts: Show locked for free users, show count with ∞ for pro
   const contactDisplay = isPro
@@ -665,7 +685,7 @@ export default function Dashboard() {
         )}
 
         {/* ── Promo / Early Bird Banner (no subscription) ─────────────────── */}
-        {!isPro && showPromoBanner && (
+        {!isPro && hasConnectedAccounts && showPromoBanner && (
           <div
             className={`relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 rounded-2xl p-5 shadow-lg ${
               isDark ? "shadow-pink-500/30" : "shadow-pink-200/50"
@@ -826,6 +846,123 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+
+        {!isPro && hasConnectedAccounts && (
+          <div
+            className={`relative overflow-hidden rounded-3xl border p-5 md:p-6 ${
+              isDark
+                ? "bg-[#111114] border-white/[0.08]"
+                : "bg-white border-gray-100 shadow-sm"
+            }`}
+          >
+            <div
+              className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-pink-500 via-rose-400 to-amber-300`}
+            />
+            <div className="relative z-10 grid gap-5 lg:grid-cols-[1.3fr_0.7fr] lg:items-center">
+              <div className="flex gap-4">
+                <div
+                  className={`hidden sm:flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl ${
+                    isDark
+                      ? "bg-pink-500/15 text-pink-300"
+                      : "bg-pink-50 text-pink-600"
+                  }`}
+                >
+                  <Crown className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                        isDark
+                          ? "bg-amber-400/10 text-amber-300 border border-amber-400/20"
+                          : "bg-amber-50 text-amber-700 border border-amber-100"
+                      }`}
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      Pro plan
+                    </span>
+                    <span
+                      className={`text-xs font-semibold ${
+                        isDark ? "text-white/45" : "text-gray-500"
+                      }`}
+                    >
+                      {userAccounts.length} Instagram account connected
+                    </span>
+                  </div>
+                  <h2
+                    className={`text-xl md:text-2xl font-black tracking-tight ${
+                      isDark ? "text-white" : "text-gray-900"
+                    }`}
+                  >
+                    Unlock unlimited growth tools for your connected account
+                  </h2>
+                  <p
+                    className={`mt-2 max-w-2xl text-sm leading-relaxed ${
+                      isDark ? "text-white/50" : "text-gray-600"
+                    }`}
+                  >
+                    Move beyond the Free limits with unlimited DMs, lead
+                    collection, follow-up flows, email and phone capture, and up
+                    to 3 Instagram accounts.
+                  </p>
+                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                    {[
+                      { icon: Send, label: "Unlimited DMs" },
+                      { icon: Users, label: "Lead collection" },
+                      { icon: Timer, label: "Follow-up flows" },
+                    ].map(({ icon: Icon, label }) => (
+                      <div
+                        key={label}
+                        className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold ${
+                          isDark
+                            ? "bg-white/[0.04] text-white/70"
+                            : "bg-gray-50 text-gray-700"
+                        }`}
+                      >
+                        <Icon className="h-3.5 w-3.5 text-pink-400" />
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div
+                className={`rounded-2xl p-4 ${
+                  isDark ? "bg-white/[0.04]" : "bg-gray-50"
+                }`}
+              >
+                <div className="flex items-end justify-between gap-3">
+                  <div>
+                    <p
+                      className={`text-xs font-semibold ${
+                        isDark ? "text-white/45" : "text-gray-500"
+                      }`}
+                    >
+                      Insta Pro
+                    </p>
+                    <p
+                      className={`mt-1 text-2xl font-black ${
+                        isDark ? "text-white" : "text-gray-900"
+                      }`}
+                    >
+                      Get Pro
+                    </p>
+                  </div>
+                  <Crown className="h-8 w-8 text-amber-400" />
+                </div>
+                <Button
+                  asChild
+                  className="mt-4 w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 font-bold text-white hover:from-pink-600 hover:to-rose-600"
+                >
+                  <Link href="/insta/pricing">
+                    View Pro Plan
+                    <ChevronRight className="ml-1.5 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Growth Overview ──────────────────────────────────────────────── */}
         <div>
@@ -1104,6 +1241,106 @@ export default function Dashboard() {
       {/* ══════════════════════════════════════════════════════════════════════
           DIALOGS — for user actions
          ══════════════════════════════════════════════════════════════════════ */}
+
+      {showConnectAccountDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-sm">
+          <div
+            className={`relative w-full max-w-lg overflow-hidden rounded-3xl border shadow-2xl ${
+              isDark
+                ? "bg-[#111114] border-white/[0.08] text-white"
+                : "bg-white border-gray-100 text-gray-900"
+            }`}
+          >
+            <button
+              type="button"
+              onClick={() => setShowConnectAccountDialog(false)}
+              aria-label="Close connect account prompt"
+              className={`absolute right-4 top-4 z-10 flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                isDark
+                  ? "bg-white/[0.06] text-white/60 hover:bg-white/[0.1]"
+                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              }`}
+            >
+              <X className="h-4 w-4" />
+            </button>
+
+            <div
+              className={`absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-pink-500 via-rose-400 to-amber-300`}
+            />
+            <div className="p-6 md:p-8">
+              <div
+                className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl ${
+                  isDark
+                    ? "bg-pink-500/15 text-pink-300"
+                    : "bg-pink-50 text-pink-600"
+                }`}
+              >
+                <Instagram className="h-8 w-8" />
+              </div>
+              <h2 className="text-2xl font-black tracking-tight">
+                Connect Instagram first
+              </h2>
+              <p
+                className={`mt-3 text-sm leading-relaxed ${
+                  isDark ? "text-white/55" : "text-gray-600"
+                }`}
+              >
+                Your dashboard becomes useful after one Instagram Business
+                account is connected. Once connected, you can create
+                automations, track replies, and choose the Pro plan from here.
+              </p>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                {[
+                  { icon: Instagram, label: "Connect account" },
+                  { icon: MessageSquare, label: "Create automations" },
+                  { icon: Crown, label: "Unlock Pro" },
+                ].map(({ icon: Icon, label }) => (
+                  <div
+                    key={label}
+                    className={`rounded-2xl p-3 ${
+                      isDark ? "bg-white/[0.04]" : "bg-gray-50"
+                    }`}
+                  >
+                    <Icon className="mb-2 h-4 w-4 text-pink-400" />
+                    <p
+                      className={`text-xs font-bold ${
+                        isDark ? "text-white/75" : "text-gray-700"
+                      }`}
+                    >
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <Button
+                  asChild
+                  className="flex-1 rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 font-bold text-white hover:from-pink-600 hover:to-rose-600"
+                >
+                  <Link href="/insta/accounts/add">
+                    <Instagram className="mr-2 h-4 w-4" />
+                    Connect Instagram
+                  </Link>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowConnectAccountDialog(false)}
+                  className={`flex-1 rounded-xl font-semibold ${
+                    isDark
+                      ? "border-white/[0.08] text-white/70 hover:bg-white/[0.06]"
+                      : "border-gray-200 text-gray-700 hover:bg-gray-50"
+                  }`}
+                >
+                  Maybe Later
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Account Limit Dialog */}
       <AccountLimitDialog
