@@ -27,7 +27,7 @@ export default function Home() {
     );
   }
   return (
-    <div className="min-h-screen max-w-7xl m-auto mt-5">
+    <div className="min-h-screen max-w-7xl m-auto ">
       {/* Hero Section */}
       <div className="container mx-auto px-4 pb-20">
         <InstagramAutomationHero />

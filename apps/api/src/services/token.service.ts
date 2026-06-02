@@ -5,6 +5,8 @@ import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import { sendWebTokenExhaustedEmailToUser } from "@/services/sendEmail.service";
 
+export const SUBSCRIPTION_TOKEN_ALLOWANCE = 2000000;
+
 // Get user's token balance
 export async function getUserTokenBalance(userId: string) {
   await connectToDatabase();
@@ -39,7 +41,7 @@ export async function getUserTokenBalance(userId: string) {
   return tokenBalance;
 }
 
-// Initialize subscription tokens for a chatbot (1 million tokens per month)
+// Initialize subscription tokens for a chatbot.
 export async function initializeSubscriptionTokens(
   userId: string,
   chatbotId: string,
@@ -60,8 +62,7 @@ export async function initializeSubscriptionTokens(
     );
   }
 
-  // Set subscription tokens to 1 million for this chatbot
-  tokenBalance.subscriptionTokens.set(chatbotId, 1000000);
+  tokenBalance.subscriptionTokens.set(chatbotId, SUBSCRIPTION_TOKEN_ALLOWANCE);
 
   // A new paid subscription or billing-cycle switch should restore the
   // chatbot's included token allowance.
@@ -351,7 +352,7 @@ export async function getTokenUsageStats(
   subscriptions.forEach((sub) => {
     subscriptionTokens[sub.chatbotType] = {
       name: sub.chatbotName,
-      tokens: 1000000,
+      tokens: SUBSCRIPTION_TOKEN_ALLOWANCE,
       used: tokenBalance.usedSubscriptionTokens.get(sub.chatbotType) || 0,
     };
   });
@@ -486,7 +487,7 @@ export async function checkLowTokenAlert(userId: string) {
   // Add subscription tokens
   subscriptions.forEach((sub) => {
     const chatbotId = sub.chatbotType;
-    const totalTokens = 1000000;
+    const totalTokens = SUBSCRIPTION_TOKEN_ALLOWANCE;
     const usedTokens = tokenBalance.usedSubscriptionTokens.get(chatbotId) || 0;
     const remainingTokens = Math.max(0, totalTokens - usedTokens);
     totalAvailable += remainingTokens;
@@ -509,7 +510,7 @@ export async function getTokenBalanceSummary(userId: string) {
   const subscriptionTokens: Record<string, any> = {};
   subscriptions.forEach((sub) => {
     const chatbotId = sub.chatbotType;
-    const totalTokens = 1000000;
+    const totalTokens = SUBSCRIPTION_TOKEN_ALLOWANCE;
     const usedTokens = tokenBalance.usedSubscriptionTokens.get(chatbotId) || 0;
     const remainingTokens = Math.max(0, totalTokens - usedTokens);
 
@@ -519,8 +520,8 @@ export async function getTokenBalanceSummary(userId: string) {
       used: usedTokens,
       remaining: remainingTokens,
       display:
-        remainingTokens >= 1000000
-          ? "Unlimited"
+        remainingTokens >= SUBSCRIPTION_TOKEN_ALLOWANCE
+          ? "2,000,000"
           : remainingTokens.toLocaleString(),
     };
   });

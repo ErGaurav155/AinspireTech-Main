@@ -254,7 +254,7 @@ const ComparisonTable: React.FC = () => {
             viewport={{ once: false }}
             initial="hidden"
           >
-            Same features just for 299 INR, switch now
+            Start for 99 INR in your first month, then 499 INR per month
           </motion.p>
 
           <motion.div
@@ -289,7 +289,7 @@ const ComparisonTable: React.FC = () => {
                 <div className="w-2 h-2 rounded-full bg-blue-400"></div>
               </div>
               <span className={`text-lg font-medium ${themeStyles.titleText}`}>
-                399 INR ($3.9) Per month
+                99 INR first month, then 499 INR per month
               </span>
             </motion.div>
           </motion.div>

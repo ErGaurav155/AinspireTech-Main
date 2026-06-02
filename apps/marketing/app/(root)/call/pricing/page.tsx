@@ -88,7 +88,7 @@ const comparison = [
 
 export default function CallPricingPage() {
   const [mounted, setMounted] = useState(false);
-  const [yearly, setYearly] = useState(true);
+  const [yearly, setYearly] = useState(false);
   const { theme, resolvedTheme } = useTheme();
   const currentTheme = resolvedTheme || theme || "light";
 

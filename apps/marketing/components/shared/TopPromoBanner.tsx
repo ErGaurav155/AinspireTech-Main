@@ -9,12 +9,12 @@ const banners = [
   {
     match: "/insta",
     href: "/insta/pricing",
-    text: "Made in India · ManyChat ₹12,999/yr vs RocketReplai only ₹399/mo",
+    text: "Made in India · ManyChat ₹12,999/yr vs RocketReplai ₹99 first month, then ₹499/mo",
   },
   {
     match: "/web",
     href: "/web/pricing",
-    text: "Made in India · Global chatbots from $29/mo vs RocketReplai from $10/mo",
+    text: "Made in India · Global chatbots from $29/mo vs RocketReplai ₹499 first month, then ₹999/mo",
   },
   {
     match: "/call",

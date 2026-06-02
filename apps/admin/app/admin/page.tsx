@@ -111,13 +111,14 @@ type ActiveTab = "overview" | "subscriptions" | "appointments" | "rate-limits";
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const PRICING: Record<string, { monthly: number; yearly: number }> = {
-  "chatbot-customer-support": { monthly: 29, yearly: 290 },
-  "chatbot-e-commerce": { monthly: 49, yearly: 490 },
-  "chatbot-lead-generation": { monthly: 39, yearly: 390 },
-  "chatbot-education": { monthly: 35, yearly: 350 },
-  "Insta-Automation-Starter": { monthly: 19, yearly: 190 },
-  "Insta-Automation-Grow": { monthly: 39, yearly: 390 },
-  "Insta-Automation-Professional": { monthly: 79, yearly: 790 },
+  "chatbot-customer-support": { monthly: 999, yearly: 10788 },
+  "chatbot-e-commerce": { monthly: 999, yearly: 10788 },
+  "chatbot-lead-generation": { monthly: 999, yearly: 10788 },
+  "chatbot-education": { monthly: 999, yearly: 10788 },
+  "Insta-Automation-Pro": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Starter": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Grow": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Professional": { monthly: 499, yearly: 4788 },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -465,7 +466,7 @@ export default function AdminDashboard() {
               iconBg={styles.icon.blue}
               label="Total Revenue"
               icon={<DollarSign className="h-5 w-5 text-blue-400" />}
-              value={`$${analytics?.totalRevenue?.toLocaleString()}`}
+              value={`₹${analytics?.totalRevenue?.toLocaleString()}`}
               badge={
                 <GrowthPill
                   pct={analytics?.revenueGrowth}
@@ -515,10 +516,10 @@ export default function AdminDashboard() {
               iconBg={styles.icon.amber}
               label="Monthly Recurring"
               icon={<CreditCard className="h-5 w-5 text-amber-400" />}
-              value={`$${analytics?.monthlyRecurring}`}
+              value={`₹${analytics?.monthlyRecurring}`}
               sub={
                 <p className={`text-xs mt-1.5 ${styles.text.muted}`}>
-                  Yearly avg: ${analytics?.yearlyRecurring}/mo
+                  Yearly avg: ₹{analytics?.yearlyRecurring}/mo
                 </p>
               }
             />
@@ -561,13 +562,13 @@ export default function AdminDashboard() {
                     icon: <Coins className="h-4 w-4 text-cyan-400" />,
                     bg: styles.icon.cyan,
                     label: "Monthly Recurring",
-                    val: `$${analytics?.monthlyRecurring}`,
+                    val: `₹${analytics?.monthlyRecurring}`,
                   },
                   {
                     icon: <Calendar className="h-4 w-4 text-green-400" />,
                     bg: styles.icon.green,
                     label: "Yearly Recurring",
-                    val: `$${analytics?.yearlyRecurring}`,
+                    val: `₹${analytics?.yearlyRecurring}`,
                   },
                   {
                     icon: <Zap className="h-4 w-4 text-purple-400" />,
@@ -631,7 +632,7 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-3">
                       <StatusBadge status={sub.status} />
                       <span className={`text-xs ${styles.text.secondary}`}>
-                        ${sub.price}/
+                        ₹{sub.price}/
                         {sub.billingCycle === "yearly" ? "yr" : "mo"}
                       </span>
                     </div>
@@ -811,7 +812,7 @@ export default function AdminDashboard() {
                             <span
                               className={`text-sm font-medium ${styles.text.primary}`}
                             >
-                              ${sub.price}
+                              ₹{sub.price}
                               <span
                                 className={`text-xs ml-1 ${styles.text.muted}`}
                               >

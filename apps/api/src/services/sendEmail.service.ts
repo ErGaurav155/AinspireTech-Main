@@ -298,7 +298,7 @@ export const sendWebTokenExhaustedEmailToUser = async ({
       title: "Your chatbot tokens are finished",
       body: `
         <p>Your free 10,000 monthly chatbot tokens have been used${chatbotType ? ` for <strong>${escapeHtml(chatbotType)}</strong>` : ""}.</p>
-        <p>Your chatbot may stop responding until tokens reset.${resetText} Upgrade to a subscription plan to get 1,000,000 included tokens per chatbot each cycle.</p>
+        <p>Your chatbot may stop responding until tokens reset.${resetText} Upgrade to a subscription plan to get 2,000,000 included tokens per chatbot each cycle.</p>
       `,
       actionText: "Upgrade Web Plan",
       actionUrl: `${DASHBOARD_URL}/web/pricing`,

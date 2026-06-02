@@ -15,6 +15,8 @@ interface ThemeStyles {
   dialogBg: string;
 }
 
+const MONTHLY_FIRST_MONTH_PRICE = 99;
+
 // Single Pro Plan Configuration
 const instagramPricingPlans: PricingPlan[] = [
   {
@@ -51,7 +53,11 @@ const freePlanFeatures = [
 
 // Comparison Table Data
 const comparisonFeatures = [
-  { feature: "Pricing", free: "₹0 / Month", pro: "₹399 / Month" },
+  {
+    feature: "Pricing",
+    free: "₹0 / Month",
+    pro: "₹99 first month, then ₹499 / Month",
+  },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
   { feature: "DM Send Limit", free: "1,000 / month", pro: "Unlimited" },
   { feature: "Follow Check Limit", free: "50 / month", pro: "Unlimited" },
@@ -77,7 +83,7 @@ export default function Pricing() {
   const [mounted, setMounted] = useState(false);
   const currentTheme = resolvedTheme || theme || "light";
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    "yearly",
+    "monthly",
   );
 
   const themeStyles = useMemo((): ThemeStyles => {
@@ -165,7 +171,7 @@ export default function Pricing() {
                   : "bg-green-100 text-green-600 border-green-300"
               } text-xs border rounded-full px-3 py-1 md:ml-2`}
             >
-              Save 16%
+              Save 20%
             </div>
           </div>
         </div>
@@ -219,6 +225,11 @@ export default function Pricing() {
           {/* Single Pro Plan Card */}
           <div className=" ">
             {instagramPricingPlans.map((plan) => {
+              const shownPrice =
+                billingCycle === "monthly"
+                  ? MONTHLY_FIRST_MONTH_PRICE
+                  : plan.yearlyPrice / 12;
+
               return (
                 <div
                   key={plan.id}
@@ -254,19 +265,24 @@ export default function Pricing() {
                     </p>
                     <div className="flex items-end mb-6">
                       <span className={`text-3xl font-bold text-[#00F0FF]`}>
-                        ₹{" "}
-                        {billingCycle === "monthly"
-                          ? plan.monthlyPrice.toFixed(0)
-                          : (plan.yearlyPrice / 12).toFixed(0)}
+                        ₹ {shownPrice.toFixed(0)}
                       </span>
                       <span className={themeStyles.textMuted}>
                         /{billingCycle === "monthly" ? "month" : "month"}
                       </span>
                     </div>
 
-                    <p className="text-center text-wrap text-green-400 my-2 font-medium font-montserrat text-base">
-                      Three Months Free On Yearly Plan.
-                    </p>
+                    {billingCycle === "monthly" && (
+                      <p className="text-center text-green-400 my-2 font-medium font-montserrat text-base">
+                        First month ₹99, then ₹{plan.monthlyPrice}/month.
+                      </p>
+                    )}
+
+                    {billingCycle === "yearly" && (
+                      <p className="text-center text-wrap text-green-400 my-2 font-medium font-montserrat text-base">
+                        Yearly saved ₹100/month.
+                      </p>
+                    )}
                     <ul className="space-y-3 mb-8">
                       {plan.features.map((feature, idx) => (
                         <li key={idx} className="flex items-start">
@@ -340,9 +356,11 @@ export default function Pricing() {
                 {comparisonFeatures.map((row, index) => (
                   <tr
                     key={index}
-                  className={`font-montserrat text-base ${
-                    theme === "dark" ? "hover:bg-white/[0.04]" : "hover:bg-blue-50/60"
-                  }`}
+                    className={`font-montserrat text-base ${
+                      theme === "dark"
+                        ? "hover:bg-white/[0.04]"
+                        : "hover:bg-blue-50/60"
+                    }`}
                   >
                     <td
                       className={`py-4 px-6 font-medium ${themeStyles.textSecondary}`}

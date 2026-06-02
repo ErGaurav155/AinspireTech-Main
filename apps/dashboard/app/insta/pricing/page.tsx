@@ -73,6 +73,7 @@ const PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS = 30 * 60 * 1000;
 const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const MONTHLY_FIRST_MONTH_PRICE = 99;
 
 const isMobileCheckoutDevice = () => {
   if (typeof navigator === "undefined") return false;
@@ -127,7 +128,11 @@ const freePlanFeatures = [
 
 // Comparison Table Data
 const comparisonFeatures = [
-  { feature: "Pricing", free: "₹0 / Month", pro: "₹399 / Month" },
+  {
+    feature: "Pricing",
+    free: "₹0 / Month",
+    pro: "₹99 first month, then ₹499 / Month",
+  },
   { feature: "Automations", free: "Unlimited", pro: "Unlimited" },
   { feature: "DM Send Limit", free: "1,000 / month", pro: "Unlimited" },
   { feature: "Follow Check Limit", free: "50 / month", pro: "Unlimited" },
@@ -157,7 +162,7 @@ function PricingWithSearchParams() {
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
-    "yearly",
+    "monthly",
   );
   const [email, setEmail] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
@@ -1328,7 +1333,7 @@ function PricingWithSearchParams() {
             <span
               className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${pageStyles.badgeGreen} ml-2`}
             >
-              Save 16%
+              Save 20%
             </span>
           </div>
         </div>
@@ -1418,6 +1423,8 @@ function PricingWithSearchParams() {
               billingCycle === "monthly"
                 ? plan.monthlyPrice
                 : (plan.yearlyPrice / 12).toFixed(0);
+            const shownPrice =
+              billingCycle === "monthly" ? MONTHLY_FIRST_MONTH_PRICE : price;
 
             return (
               <div
@@ -1457,15 +1464,19 @@ function PricingWithSearchParams() {
                   </div>
 
                   <div className="mb-4">
-                    <p className={pageStyles.priceHighlight}>₹{price}</p>
+                    <p className={pageStyles.priceHighlight}>₹{shownPrice}</p>
                     <p className={styles.text.secondary + " text-sm"}>
-                      per month
+                      {billingCycle === "monthly"
+                        ? `first month, then ₹${plan.monthlyPrice}/month`
+                        : "per month, billed yearly"}
                     </p>
                   </div>
 
                   <p className={pageStyles.tokenBadge}>
                     <Calendar className="h-4 w-4 inline mr-1" />
-                    Three months free on yearly plan
+                    {billingCycle === "yearly"
+                      ? "Yearly works out to ₹399/month"
+                      : "First month offer applies to monthly plan"}
                   </p>
 
                   <ul className="space-y-3 mb-6">

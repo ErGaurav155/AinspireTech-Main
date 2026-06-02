@@ -1,438 +1,513 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import {
-  MessageCircle,
-  Heart,
-  Users,
-  Zap,
-  Rocket,
-  Shield,
-  Star,
   ArrowRight,
-  Calendar,
   CheckCircle,
-  Instagram,
-  Play,
-  ShoppingBag,
+  Heart,
+  MessageCircle,
+  Send,
 } from "lucide-react";
-
 import { useRouter } from "next/navigation";
-import { useTheme } from "next-themes";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 
-// TypingAnimation Component
-const TypingAnimation = ({
-  text,
-  speed = 30,
-  className = "",
-  onComplete,
-  delay = 0,
-}: {
-  text: string;
-  speed?: number;
-  className?: string;
-  onComplete?: () => void;
-  delay?: number;
-}) => {
-  const [displayText, setDisplayText] = useState("");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isComplete, setIsComplete] = useState(false);
-  const startTyping = useCallback(() => {
-    if (currentIndex < text.length) {
-      const timer = setTimeout(() => {
-        setDisplayText((prev) => prev + text[currentIndex]);
-        setCurrentIndex((prev) => prev + 1);
-      }, speed);
-
-      return () => clearTimeout(timer);
-    } else {
-      setIsComplete(true);
-      if (onComplete) onComplete();
-    }
-  }, [currentIndex, onComplete, speed, text]);
-
-  useEffect(() => {
-    if (delay > 0) {
-      const timer = setTimeout(() => {
-        startTyping();
-      }, delay);
-      return () => clearTimeout(timer);
-    } else {
-      startTyping();
-    }
-  }, [delay, startTyping]);
-
-  return (
-    <span className={className}>
-      {displayText}
-      {!isComplete && <span className="animate-pulse">|</span>}
-    </span>
-  );
+type HeroScene = {
+  brand: string;
+  handle: string;
+  avatar: string;
+  image: string;
+  keyword: string;
+  caption: string;
+  button: string;
+  comments: Array<{
+    user: string;
+    avatar: string;
+    keyword: string;
+    time: string;
+    reply: string;
+  }>;
 };
 
-export function InstagramAutomationHero() {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const router = useRouter();
-  const { theme, resolvedTheme } = useTheme();
-  const currentTheme = resolvedTheme || theme || "light";
+const scenes: HeroScene[] = [
+  {
+    brand: "The Plated Story",
+    handle: "the_plated_story",
+    avatar: "TP",
+    image:
+      "https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=900&q=85",
+    keyword: "ORDER",
+    caption: "to get our menu & delivery link",
+    button: "Order Now",
+    comments: [
+      {
+        user: "foodie.raj",
+        avatar: "FR",
+        keyword: "ORDER 😍",
+        time: "1m ago",
+        reply: "Hey Foodie! Here's our menu & order link 👇",
+      },
+      {
+        user: "sara.eats",
+        avatar: "SE",
+        keyword: "ORDER 🍰",
+        time: "Just now",
+        reply: "Hey Sara! Here's our menu & order link 👇",
+      },
+    ],
+  },
+  {
+    brand: "Sculpt Gym",
+    handle: "sculpt_gym",
+    avatar: "SG",
+    image:
+      "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?auto=format&fit=crop&w=900&q=85",
+    keyword: "FIT",
+    caption: "to get your free workout plan",
+    button: "Get Plan",
+    comments: [
+      {
+        user: "alex.lifts",
+        avatar: "AL",
+        keyword: "FIT 💪",
+        time: "3m ago",
+        reply: "Hey Alex! Here's your free workout plan 👇",
+      },
+      {
+        user: "fitgirl.nina",
+        avatar: "FN",
+        keyword: "FIT 🏋️",
+        time: "Just now",
+        reply: "Hey Fitgirl! Here's your free workout plan 👇",
+      },
+    ],
+  },
+  {
+    brand: "Beauty Care",
+    handle: "beauty_care",
+    avatar: "BC",
+    image:
+      "https://images.unsplash.com/photo-1617897903246-719242758050?auto=format&fit=crop&w=900&q=85",
+    keyword: "GLOW",
+    caption: "to get your skincare routine",
+    button: "Get Routine",
+    comments: [
+      {
+        user: "mike.wellness",
+        avatar: "MW",
+        keyword: "GLOW ✨",
+        time: "1m ago",
+        reply: "Hey Mike! Here's your skincare routine 👇",
+      },
+      {
+        user: "skincare.emma",
+        avatar: "SE",
+        keyword: "GLOW 🧴",
+        time: "Just now",
+        reply: "Hey Skincare! Here's your routine 👇",
+      },
+    ],
+  },
+  {
+    brand: "Art Apparel",
+    handle: "art_apparel",
+    avatar: "AA",
+    image:
+      "https://images.unsplash.com/photo-1539008835657-9e8e9680c956?auto=format&fit=crop&w=900&q=85",
+    keyword: "FASHION",
+    caption: "below and I'll DM you the link",
+    button: "Open Link",
+    comments: [
+      {
+        user: "john.deals",
+        avatar: "JD",
+        keyword: "Fashion 🔥",
+        time: "2m ago",
+        reply: "Hey John! Here's your exclusive link 👇",
+      },
+      {
+        user: "thesaraofficial",
+        avatar: "TS",
+        keyword: "Fashion 💕",
+        time: "Just now",
+        reply: "Hey Thesaraofficial! Here's your exclusive link 👇",
+      },
+    ],
+  },
+];
 
-  // Theme-based styles
-  const themeStyles = useMemo(() => {
-    const isDark = currentTheme === "dark";
-    return {
-      badgeBg: isDark
-        ? "bg-gradient-to-r from-[#00F0FF]/10 to-[#B026FF]/10 backdrop-blur-sm border border-blue-600"
-        : "bg-gradient-to-r from-[#00F0FF]/5 to-[#B026FF]/5 backdrop-blur-sm border border-blue-800",
-      titleText: isDark ? "text-white" : "text-n-8",
-      descriptionText: isDark ? "text-gray-300" : "text-n-5",
-      featureText: isDark
-        ? "text-gray-300 group-hover:text-white"
-        : "text-n-5 group-hover:text-gray-900",
-      outlineButtonBorder: isDark
-        ? "border-[#00F0FF] text-[#00F0FF] hover:bg-[#00F0FF]/10"
-        : "border-[#00F0FF] text-n-8 hover:bg-[#00F0FF]/5",
-      trustBadgeText: isDark ? "text-gray-400" : "text-n-4",
-    };
-  }, [currentTheme]);
-  const FeatureItem = ({
-    icon,
-    text,
-    delay,
-  }: {
-    icon: React.ReactNode;
-    text: string;
-    delay: number;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      whileInView={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.6, delay }}
-      whileHover={{ x: 5 }}
-      className="flex items-center group"
+const fadeUp = {
+  hidden: { opacity: 0, y: 28 },
+  visible: { opacity: 1, y: 0 },
+};
+
+function MetaMark() {
+  return (
+    <span className="text-[2rem] font-black leading-none text-[#0a7cff] sm:text-[2.35rem]">
+      ∞
+    </span>
+  );
+}
+
+function Avatar({
+  label,
+  colorful = true,
+}: {
+  label: string;
+  colorful?: boolean;
+}) {
+  return (
+    <div
+      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[8px] font-black sm:h-9 sm:w-9 sm:text-[10px] ${
+        colorful
+          ? "bg-gradient-to-br from-pink-500 via-orange-400 to-blue-500 p-[2px] text-slate-950"
+          : "bg-slate-100 text-slate-400"
+      }`}
     >
-      <motion.div
-        whileHover={{ scale: 1.1, rotate: 5 }}
-        className="w-12 h-12 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-      >
-        {icon}
-      </motion.div>
-      <span
-        className={`transition-colors duration-300 font-medium ${themeStyles.featureText}`}
-      >
-        {text}
+      <span className="flex h-full w-full items-center justify-center rounded-full bg-white">
+        {label}
       </span>
+    </div>
+  );
+}
+
+function InstagramPost({ scene }: { scene: HeroScene }) {
+  return (
+    <motion.div
+      key={`post-${scene.handle}`}
+      initial={{ opacity: 0, x: 24, scale: 0.98 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: -18, scale: 0.98 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+      className="relative w-[10.3rem] -rotate-1 rounded-xl bg-white p-1.5 shadow-[0_14px_32px_rgba(15,23,42,0.16)] transition-shadow duration-500 min-[390px]:w-[11.4rem] sm:w-[18rem] sm:rounded-[1.15rem] sm:p-2.5 lg:w-[22rem] dark:shadow-[0_18px_44px_rgba(0,0,0,0.42)]"
+    >
+      <div className="flex items-center justify-between px-1.5 pb-1.5 pt-1 sm:px-2 sm:pb-2">
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          <Avatar label={scene.avatar} />
+          <span className="text-[10px] font-black uppercase tracking-tight text-slate-950 sm:text-xs">
+            {scene.handle}
+          </span>
+        </div>
+        <span className="text-base font-bold leading-none text-slate-700 sm:text-xl">
+          ...
+        </span>
+      </div>
+
+      <div className="aspect-[0.86] overflow-hidden bg-slate-100">
+        <img
+          src={scene.image}
+          alt={`${scene.brand} Instagram post`}
+          className="h-full w-full object-cover"
+        />
+      </div>
+
+      <div className="px-2 pt-2">
+        <div className="mb-1 flex items-center justify-between">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <Heart className="h-4 w-4 fill-red-500 text-red-500 sm:h-5 sm:w-5" />
+            <MessageCircle className="h-4 w-4 text-slate-950 sm:h-5 sm:w-5" />
+            <Send className="h-4 w-4 text-slate-950 sm:h-5 sm:w-5" />
+          </div>
+          <div className="h-4 w-3 rounded-sm border-2 border-slate-950 border-t-0 sm:h-5 sm:w-4" />
+        </div>
+        <p className="text-[9px] font-semibold text-slate-900 sm:text-xs">
+          447 likes
+        </p>
+        <p className="text-[9px] font-black leading-tight text-slate-950 sm:text-base">
+          <span>{scene.handle}</span> Comment{" "}
+          <span className="text-red-500">"{scene.keyword}"</span>{" "}
+          {scene.caption}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
+
+function CommentCard({
+  comment,
+  compact,
+}: {
+  comment: HeroScene["comments"][number];
+  compact?: boolean;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
+      className={`rotate-1 rounded-lg bg-white shadow-[0_8px_20px_rgba(15,23,42,0.14)] transition-shadow duration-500 sm:rounded-xl dark:shadow-[0_12px_26px_rgba(0,0,0,0.38)] ${
+        compact
+          ? "w-[6.7rem] p-1.5 sm:w-[7.6rem] sm:p-2"
+          : "w-[11rem] p-2 sm:w-[13rem] sm:p-3"
+      }`}
+    >
+      <div className="flex items-start gap-2">
+        <Avatar label={comment.avatar} />
+        <div className="min-w-0">
+          <p className="truncate text-xs font-black leading-tight text-slate-950 sm:text-sm">
+            {comment.user}
+          </p>
+          <p className="text-xs leading-tight text-slate-950 sm:text-sm">
+            {comment.keyword}
+          </p>
+        </div>
+        <span className="ml-auto text-slate-300">♡</span>
+      </div>
+      <p className="mt-1 text-xs text-slate-600 sm:mt-2 sm:text-sm">
+        {comment.time}
+      </p>
+    </motion.div>
+  );
+}
+
+function ReplyCard({
+  scene,
+  comment,
+}: {
+  scene: HeroScene;
+  comment: HeroScene["comments"][number];
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 28 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -12 }}
+      transition={{ duration: 0.4, delay: 0.08, ease: "easeOut" }}
+      className="w-[8.15rem] rotate-1 rounded-lg bg-white p-2 shadow-[0_10px_24px_rgba(15,23,42,0.16)] transition-shadow duration-500 min-[390px]:w-[8.9rem] sm:w-[17rem] sm:rounded-xl sm:p-3 lg:w-[19rem] dark:shadow-[0_14px_30px_rgba(0,0,0,0.42)]"
+    >
+      <div className="flex gap-0 sm:gap-2">
+        <Avatar label={scene.avatar} colorful={false} />
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-black leading-tight text-slate-950 sm:text-sm">
+            {scene.brand}
+          </p>
+          <p className="text-xs leading-tight text-slate-950 sm:text-sm">
+            {comment.reply}
+          </p>
+          <button className="mt-1.5 w-full rounded-md bg-[#1e39e8] px-2 py-1.5 text-xs font-black text-white sm:mt-2 sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm">
+            {scene.button}
+          </button>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+function HeroMockup({
+  scene,
+  activeIndex,
+}: {
+  scene: HeroScene;
+  activeIndex: number;
+}) {
+  const secondComment = scene.comments[1];
+
+  return (
+    <div className="mx-auto w-full max-w-[32rem] lg:max-w-[36rem]">
+      <div className="relative mx-auto grid min-h-[23rem] grid-cols-[minmax(0,1fr)_minmax(7.5rem,0.72fr)] items-start gap-2 min-[390px]:min-h-[25.5rem] sm:min-h-[32rem] sm:grid-cols-[18rem_17rem] sm:gap-4 lg:mx-0 lg:min-h-[35rem] lg:grid-cols-[22rem_19rem]">
+        <div className="relative z-10 justify-self-end sm:justify-self-start">
+          <AnimatePresence mode="wait">
+            <InstagramPost scene={scene} />
+          </AnimatePresence>
+        </div>
+
+        <div className="relative z-20 flex flex-col gap-2 pt-1 sm:gap-3 sm:pt-12 lg:pt-16">
+          <AnimatePresence mode="wait">
+            <CommentCard
+              key={`${scene.handle}-${scene.comments[0].user}`}
+              comment={scene.comments[0]}
+              compact
+            />
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            <ReplyCard
+              key={`${scene.handle}-${scene.comments[0].reply}`}
+              scene={scene}
+              comment={scene.comments[0]}
+            />
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            <CommentCard
+              key={`${scene.handle}-${secondComment.user}`}
+              comment={secondComment}
+              compact
+            />
+          </AnimatePresence>
+          <AnimatePresence mode="wait">
+            <ReplyCard
+              key={`${scene.handle}-${secondComment.reply}`}
+              scene={scene}
+              comment={secondComment}
+            />
+          </AnimatePresence>
+        </div>
+      </div>
+
+      <div className="mt-2 flex justify-center gap-5 sm:mt-4 sm:gap-6">
+        {scenes.map((_, index) => (
+          <button
+            key={index}
+            type="button"
+            aria-label={`Show example ${index + 1}`}
+            className={`h-2 rounded-full transition-all ${
+              activeIndex === index ? "w-7 bg-[#1e39e8]" : "w-2 bg-slate-300"
+            }`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function InstagramAutomationHero() {
+  const router = useRouter();
+  const [activeIndex, setActiveIndex] = useState(0);
+  const activeScene = scenes[activeIndex];
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveIndex((index) => (index + 1) % scenes.length);
+    }, 3600);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const goToSignup = () => {
+    trackMetaEvent("Lead", {
+      content_name: "Instagram hero get free forever",
+      content_category: "marketing_cta",
+    });
+    window.location.href = "https://app.rocketreplai.com/sign-in";
+  };
+
+  const goToPricing = () => {
+    trackMetaEvent("ViewContent", {
+      content_name: "Instagram hero how it works",
+      content_category: "marketing_cta",
+    });
+    router.push("/insta/pricing");
+  };
+
+  const title = (
+    <motion.h1
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+      variants={fadeUp}
+      transition={{ duration: 0.55 }}
+      className="mx-auto max-w-[42rem] text-center text-[1.75rem] font-black leading-[1.02] text-[#101828] transition-colors duration-500 min-[390px]:text-[2rem] sm:text-[2.15rem] md:text-[2.8rem] lg:mx-0 lg:text-left xl:text-[3.45rem] dark:text-white"
+    >
+      Automate Instagram replies.
+      <br />
+      <span className="text-[#1e39e8] dark:text-[#7da2ff]">
+        Grow from every comment.
+      </span>
+    </motion.h1>
+  );
+
+  const body = (
+    <motion.div
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true }}
+      variants={fadeUp}
+      transition={{ duration: 0.55, delay: 0.08 }}
+      className="mx-auto max-w-[43rem] text-center lg:mx-0 lg:text-left"
+    >
+      <p className="text-sm leading-relaxed text-slate-700 transition-colors duration-500 min-[390px]:text-base sm:text-xl sm:leading-[1.45] xl:text-[1.45rem] dark:text-slate-200">
+        RocketReplai watches comment keywords and sends the next step in DM:
+        links, menus, offers, lead magnets, and follow-ups without manual work.
+      </p>
+      <p className="mt-2 text-xs italic text-slate-500 transition-colors duration-500 min-[390px]:text-sm sm:mt-3 sm:text-lg dark:text-slate-400">
+        Built for creators, stores, restaurants, coaches, and local brands.
+      </p>
     </motion.div>
   );
 
   return (
-    <section className="w-full bg-transparent text-foreground pb-20">
-      <div className=" mx-auto md:px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center max-w-7xl mx-auto">
-          {/* Left Column - Content */}
+    <section className="relative mx-[calc(50%-50vw)] w-screen overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_86%_14%,rgba(30,57,232,0.13),transparent_30%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#fbfdff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_82%_16%,rgba(125,162,255,0.22),transparent_32%),linear-gradient(135deg,#06101d_0%,#0b1730_54%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
+      <div className="relative mx-auto grid max-w-7xl grid-cols-1 px-3 pb-7 pt-3 min-[390px]:px-4 sm:px-6 sm:pb-9 sm:pt-14 lg:grid-cols-[1fr_0.86fr] lg:gap-8 lg:px-10 lg:pt-20 xl:px-16">
+        <div className="flex flex-col justify-center lg:min-h-[38rem] lg:pl-2">
           <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 12 }}
             whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            className="space-y-6"
+            viewport={{ once: true }}
+            transition={{ duration: 0.4 }}
+            className="mx-auto mb-4 inline-flex max-w-max items-center rounded-full border border-blue-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-[#1e39e8] shadow-sm backdrop-blur transition-colors duration-500 lg:mx-0 dark:border-blue-400/30 dark:bg-white/10 dark:text-blue-200"
           >
-            {/* Header */}
-            <div className="space-y-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className={`inline-flex items-center ${themeStyles.badgeBg} rounded-full px-6 py-3`}
-              >
-                <Zap className="h-5 w-5 text-blue-800 mr-2" />
-                <span className="text-xs md:text-sm font-medium text-nowrap uppercase tracking-widest text-blue-800">
-                  INSTAGRAM AUTOMATION
-                </span>
-              </motion.div>
+            Instagram Automation
+          </motion.div>
+          <div className="lg:hidden">{title}</div>
 
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className={`text-3xl md:text-4xl font-semibold leading-tight ${themeStyles.titleText}`}
-              >
-                Turn Comments Into
-                <br />
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.5 }}
-                  className="bg-clip-text text-transparent bg-gradient-to-r from-[#00F0FF] via-[#B026FF] to-[#FF2E9F]"
-                >
-                  Paying Customers
-                </motion.span>
-              </motion.h1>
+          <div className="order-2 mt-5 lg:order-none lg:hidden">
+            <HeroMockup scene={activeScene} activeIndex={activeIndex} />
+          </div>
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className={`text-base md:text-lg lg:text-xl leading-relaxed font-montserrat ${themeStyles.descriptionText}`}
-              >
-                Automatically reply to Instagram comments with personalized DMs
-                that convert followers into subscribers and customers. No coding
-                required.
-              </motion.p>
-            </div>
+          <div className="mt-7 hidden lg:block">{title}</div>
+          <div className="order-3 mt-5 lg:order-none lg:mt-6">{body}</div>
 
-            {/* Features List */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.6 }}
-              className="space-y-2 font-montserrat"
+          <motion.div
+            initial={{ opacity: 0, y: 18 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45, delay: 0.16 }}
+            className="order-4 mt-5 grid gap-3 sm:mx-auto sm:w-full sm:max-w-[31rem] sm:grid-cols-2 lg:mx-0 lg:mt-8"
+          >
+            <button
+              onClick={goToSignup}
+              className="rounded-xl bg-[#1e39e8] px-5 py-4 text-sm font-black text-white shadow-[0_14px_24px_rgba(30,57,232,0.28)] transition hover:-translate-y-0.5 hover:bg-[#1730cc] sm:px-6 sm:py-4 dark:bg-[#6f8dff] dark:text-[#06101d] dark:shadow-[0_14px_28px_rgba(111,141,255,0.24)] dark:hover:bg-[#89a5ff]"
             >
-              {[
-                {
-                  icon: <MessageCircle className="h-5 w-5" />,
-                  text: "Auto-reply to comments",
-                },
-                {
-                  icon: <Users className="h-5 w-5" />,
-                  text: "Grow followers automatically",
-                },
-                {
-                  icon: <ShoppingBag className="h-5 w-5" />,
-                  text: "Drive sales with DMs",
-                },
-                {
-                  icon: <CheckCircle className="h-5 w-5" />,
-                  text: "No coding required",
-                },
-              ].map((feature, index) => (
-                <FeatureItem
-                  key={index}
-                  icon={feature.icon}
-                  text={feature.text}
-                  delay={0.7 + index * 0.1}
-                />
-              ))}
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="flex flex-col sm:flex-row gap-4"
+              Get Free Forever
+            </button>
+            <button
+              onClick={goToPricing}
+              className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 sm:px-6 sm:py-4 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
             >
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  trackMetaEvent("Lead", {
-                    content_name: "Instagram hero start free trial",
-                    content_category: "marketing_cta",
-                  });
-                  router.push("https://app.rocketreplai.com/sign-in");
-                }}
-                className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
-              >
-                <Rocket className="h-5 w-5 mr-2" />
-                Start Free Trial
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                onClick={() => {
-                  trackMetaEvent("ViewContent", {
-                    content_name: "Instagram marketing pricing CTA",
-                    content_category: "marketing_cta",
-                  });
-                  router.push("/insta/pricing");
-                }}
-                whileTap={{ scale: 0.95 }}
-                className={`border-2 font-semibold py-2 px-4 md:py-3 md:px-6 rounded-2xl transition-all duration-300 flex items-center justify-center ${themeStyles.outlineButtonBorder}`}
-              >
-                <Calendar className="h-5 w-5 mr-2" />
-                View Pricing
-              </motion.button>
-            </motion.div>
-
-            {/* Trust Badges */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 1.1 }}
-              className={`flex flex-wrap items-center gap-3 md:gap-6 text-sm ${themeStyles.trustBadgeText}`}
-            >
-              <div className="flex items-center space-x-2">
-                <Shield className="h-4 w-4 text-green-400" />
-                <span>Instagram Approved</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-blue-400" />
-                <span>500+ Creators</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Star className="h-4 w-4 text-yellow-400" />
-                <span>4.8/5 Rating</span>
-              </div>
-            </motion.div>
+              See How It Works <ArrowRight className="ml-2 inline h-5 w-5" />
+            </button>
           </motion.div>
 
-          {/* Right Column - Instagram Demo Video */}
           <motion.div
-            whileInView={{ opacity: 1, x: 0, rotateY: 0 }}
-            transition={{
-              duration: 1.2,
-              type: "spring",
-              stiffness: 50,
-              damping: 15,
-            }}
-            className="relative max-w-max mx-auto"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45, delay: 0.22 }}
+            className="order-5 mt-5 flex items-center justify-center gap-2 text-sm font-bold text-slate-500 transition-colors duration-500 sm:text-base lg:justify-start dark:text-slate-300"
           >
-            {/* Main Video Container with Enhanced Animations */}
-            <motion.div
-              initial={{ scale: 0.8, rotate: -2 }}
-              whileInView={{ scale: 1, rotate: 0 }}
-              transition={{
-                duration: 0.8,
-                delay: 0.3,
-                type: "spring",
-                stiffness: 100,
-              }}
-              whileHover={{
-                scale: 1.02,
-                rotate: 0,
-                y: -5,
-                transition: { duration: 0.3 },
-              }}
-              className="relative rounded-3xl overflow-hidden shadow-2xl shadow-[#00F0FF]/20"
-            >
-              {/* Video with 8px crop from top and bottom */}
-              <div className="relative overflow-hidden">
-                <motion.video
-                  ref={videoRef}
-                  src="/assets/InstaVid.mp4"
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  initial={{ scale: 0.8, opacity: 0 }}
-                  whileInView={{ scale: 1, opacity: 1 }}
-                  transition={{ duration: 1, delay: 0.5 }}
-                  className="w-full h-[30rem] md:h-[38rem] max-w-md mx-auto scale-[1.03] -translate-y-1"
-                  style={{
-                    clipPath: "inset(8px 0 8px 0)",
-                    marginTop: "-8px",
-                    marginBottom: "-8px",
-                  }}
-                />
-              </div>
+            <MetaMark />
+            <span>Meta Tech Provider</span>
+          </motion.div>
 
-              {/* Animated Border Glow */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                transition={{ duration: 1, delay: 0.8 }}
-                className="absolute inset-0 rounded-3xl  border-[0.5px] border-transparent bg-gradient-to-r from-[#00F0FF] via-[#B026FF] to-[#FF2E9F] opacity-30"
-                style={{
-                  mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  WebkitMask:
-                    "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-                  maskComposite: "exclude",
-                  WebkitMaskComposite: "xor",
-                  padding: "2px",
-                }}
-              />
-
-              {/* Floating Play Button */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0, y: 20 }}
-                whileInView={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{
-                  duration: 0.6,
-                  delay: 1,
-                  type: "spring",
-                  stiffness: 200,
-                }}
-                whileHover={{
-                  scale: 1.1,
-                  rotate: 5,
-                  transition: { duration: 0.2 },
-                }}
-                className="absolute top-4 right-2 w-16 h-16 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-full flex items-center justify-center shadow-lg cursor-pointer"
-                onClick={() => videoRef.current?.play()}
-              >
-                <Play className="h-5 w-5 text-white ml-0.5 fill-white" />
-              </motion.div>
-
-              {/* Instagram UI Mock Elements */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 1.2 }}
-                className="absolute bottom-4 left-4 right-4 flex justify-between items-center"
-              >
-                <div className="flex space-x-3">
-                  <Heart className="h-5 w-5 text-white" />
-                  <MessageCircle className="h-5 w-5 text-white" />
-                  <Instagram className="h-5 w-5 text-white" />
-                </div>
-                <ShoppingBag className="h-5 w-5 text-white" />
-              </motion.div>
-            </motion.div>
-
-            {/* Enhanced Floating Decorations */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0, y: 20 }}
-              whileInView={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{
-                duration: 0.8,
-                delay: 0.7,
-                type: "spring",
-                stiffness: 150,
-              }}
-              animate={{
-                y: [0, -10, 0],
-                rotate: [0, 5, 0],
-              }}
-              className="absolute -top-6 -right-6 w-10 h-10 bg-[#FF2E9F] rounded-full z-30 shadow-lg shadow-[#FF2E9F]/50"
-            />
-
-            <motion.div
-              initial={{ opacity: 0, scale: 0, y: 20 }}
-              whileInView={{ opacity: 1, scale: 1, y: 0 }}
-              transition={{
-                duration: 0.8,
-                delay: 0.9,
-                type: "spring",
-                stiffness: 150,
-              }}
-              animate={{
-                y: [0, 10, 0],
-                rotate: [0, -5, 0],
-              }}
-              className="absolute -bottom-6 -left-6 w-8 h-8 bg-[#00F0FF] rounded-full z-30 shadow-lg shadow-[#00F0FF]/50"
-            />
-
-            {/* Additional Floating Element */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              transition={{
-                duration: 0.6,
-                delay: 1.1,
-                type: "spring",
-                stiffness: 200,
-              }}
-              animate={{
-                y: [0, -15, 0],
-                x: [0, 5, 0],
-              }}
-              className="absolute -top-4 left-8 w-6 h-6 bg-gradient-to-r from-[#B026FF] to-[#FF2E9F] rounded-full z-20 shadow-lg"
-            />
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45, delay: 0.28 }}
+            className="order-6 mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500 transition-colors duration-500 sm:text-sm lg:justify-start dark:text-slate-300"
+          >
+            {["No credit card required", "Meta Verified", "Instant Setup"].map(
+              (item) => (
+                <span key={item} className="inline-flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 fill-[#2563eb] text-white sm:h-5 sm:w-5" />
+                  {item}
+                </span>
+              ),
+            )}
           </motion.div>
         </div>
+
+        <motion.div
+          initial={{ opacity: 0, x: 28 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.12 }}
+          className="hidden items-center justify-center lg:flex"
+        >
+          <HeroMockup scene={activeScene} activeIndex={activeIndex} />
+        </motion.div>
       </div>
     </section>
   );

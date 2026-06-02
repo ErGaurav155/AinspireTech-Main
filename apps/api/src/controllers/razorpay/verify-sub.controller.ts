@@ -1,6 +1,9 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
-import { initializeSubscriptionTokens } from "@/services/token.service";
+import {
+  initializeSubscriptionTokens,
+  SUBSCRIPTION_TOKEN_ALLOWANCE,
+} from "@/services/token.service";
 import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
@@ -117,7 +120,10 @@ const activateVerifiedSubscription = async ({
     success: true,
     message: "Subscription activated successfully",
     chatbotType: targetChatbotType,
-    subscriptionTokens: currentSubscriptionKind === "web" ? 1000000 : undefined,
+    subscriptionTokens:
+      currentSubscriptionKind === "web"
+        ? SUBSCRIPTION_TOKEN_ALLOWANCE
+        : undefined,
     subscriptionId: subscription_id,
     paymentId: razorpay_payment_id,
   };

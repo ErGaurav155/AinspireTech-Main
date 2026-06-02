@@ -286,11 +286,11 @@ export interface Feature {
 
 export const instagramPricingPlans: PricingPlan[] = [
   {
-    id: "Insta-Automation-Starter",
+    id: "Insta-Automation-Pro",
     name: "Pro Unlimited",
     description: "For new creators",
-    monthlyPrice: 500,
-    yearlyPrice: 5000,
+    monthlyPrice: 499,
+    yearlyPrice: 4788,
     account: 3,
     limit: 5000,
     features: [
@@ -356,7 +356,7 @@ export const productSubscriptionDetails: Record<
     icon: "BotIcon",
     mprice: 999,
     yprice: 10788,
-    original: 23988,
+    original: 11988,
     credits: 550,
     tier: "Pro",
     description: {
@@ -387,7 +387,7 @@ export const productSubscriptionDetails: Record<
     icon: "GraduationCapIcon",
     mprice: 999,
     yprice: 10788,
-    original: 23988,
+    original: 11988,
     credits: 750,
     tier: "Enterprise",
     description: {
@@ -638,7 +638,7 @@ export const features: Feature[] = [
   },
   {
     name: "Plan / Month",
-    RocketReplai: "₹399",
+    RocketReplai: "₹99",
     autoDM: "₹499",
     linkplease: "₹499",
     rapiddm: "₹499",

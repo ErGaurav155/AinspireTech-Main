@@ -102,15 +102,15 @@ interface CombinedSubscription {
   subscriptionId: string;
 }
 
-// Pricing mapping (kept as is)
 const PRICING: Record<string, { monthly: number; yearly: number }> = {
-  "chatbot-customer-support": { monthly: 29, yearly: 290 },
-  "chatbot-e-commerce": { monthly: 49, yearly: 490 },
-  "chatbot-lead-generation": { monthly: 39, yearly: 390 },
-  "chatbot-education": { monthly: 35, yearly: 350 },
-  "Insta-Automation-Starter": { monthly: 19, yearly: 190 },
-  "Insta-Automation-Grow": { monthly: 39, yearly: 390 },
-  "Insta-Automation-Professional": { monthly: 79, yearly: 790 },
+  "chatbot-customer-support": { monthly: 999, yearly: 10788 },
+  "chatbot-e-commerce": { monthly: 999, yearly: 10788 },
+  "chatbot-lead-generation": { monthly: 999, yearly: 10788 },
+  "chatbot-education": { monthly: 999, yearly: 10788 },
+  "Insta-Automation-Pro": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Starter": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Grow": { monthly: 499, yearly: 4788 },
+  "Insta-Automation-Professional": { monthly: 499, yearly: 4788 },
 };
 
 const getPlanDisplayName = (chatbotType: string): string => {
@@ -119,6 +119,7 @@ const getPlanDisplayName = (chatbotType: string): string => {
     "chatbot-e-commerce": "E-Commerce",
     "chatbot-lead-generation": "Lead Generation",
     "chatbot-education": "Education",
+    "Insta-Automation-Pro": "Instagram Pro",
     "Insta-Automation-Starter": "Instagram Starter",
     "Insta-Automation-Grow": "Instagram Grow",
     "Insta-Automation-Professional": "Instagram Pro",
@@ -311,7 +312,7 @@ export default function AdminSubscriptionsPage() {
       Plan: sub.plan,
       Billing: sub.billingCycle,
       Status: sub.status,
-      Price: `$${sub.price}`,
+      Price: `₹${sub.price}`,
       "Start Date": new Date(sub.createdAt).toLocaleDateString(),
       "Expiry Date": new Date(sub.expiresAt).toLocaleDateString(),
       "Subscription ID": sub.subscriptionId,
@@ -519,7 +520,7 @@ export default function AdminSubscriptionsPage() {
                   Monthly Revenue
                 </p>
                 <p className={`text-2xl font-bold ${styles.text.primary}`}>
-                  ${stats.monthlyRevenue}
+                  ₹{stats.monthlyRevenue}
                 </p>
               </div>
               <div
@@ -537,7 +538,7 @@ export default function AdminSubscriptionsPage() {
                   Total Revenue (MRR)
                 </p>
                 <p className={`text-2xl font-bold ${styles.text.primary}`}>
-                  ${stats.totalRevenue}
+                  ₹{stats.totalRevenue}
                 </p>
               </div>
               <div
@@ -719,7 +720,7 @@ export default function AdminSubscriptionsPage() {
                       <span
                         className={`text-sm font-medium ${styles.text.primary}`}
                       >
-                        ${sub.price}
+                        ₹{sub.price}
                         <span className={`text-xs ml-1 ${styles.text.muted}`}>
                           /{sub.billingCycle === "yearly" ? "yr" : "mo"}
                         </span>
@@ -889,7 +890,7 @@ export default function AdminSubscriptionsPage() {
                       <p
                         className={`text-sm font-medium ${styles.text.primary}`}
                       >
-                        ${selectedSubscription.price}
+                        ₹{selectedSubscription.price}
                         <span className={`text-xs ml-1 ${styles.text.muted}`}>
                           /
                           {selectedSubscription.billingCycle === "yearly"

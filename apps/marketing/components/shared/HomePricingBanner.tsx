@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BadgeIndianRupee, Bot, Globe2, Instagram } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeIndianRupee,
+  Bot,
+  Globe2,
+  Instagram,
+} from "lucide-react";
 
 const comparisons = [
   {
@@ -10,7 +16,7 @@ const comparisons = [
     label: "Instagram Automation",
     competitor: "ManyChat",
     competitorPrice: "₹12,999/yr",
-    rocketPrice: "₹399/mo",
+    rocketPrice: "₹99 first month, then ₹499/mo",
     note: "Comment-to-DM automation for Indian brands",
   },
   {
@@ -19,7 +25,7 @@ const comparisons = [
     label: "Website AI Chatbot",
     competitor: "Intercom",
     competitorPrice: "$39/mo",
-    rocketPrice: "from $10/mo",
+    rocketPrice: "₹499 first month, then ₹999/mo",
     note: "Lead capture, support, and forms on your website",
   },
   {
@@ -28,7 +34,7 @@ const comparisons = [
     label: "AI Chat Assistant",
     competitor: "Tidio",
     competitorPrice: "$29/mo",
-    rocketPrice: "from $10/mo",
+    rocketPrice: "₹499 first month, then ₹999/mo",
     note: "Simple chat automation with fast setup",
   },
 ];

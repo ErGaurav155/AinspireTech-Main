@@ -155,6 +155,106 @@ const industries = [
   "Local services",
 ];
 
+function CallHeroVisual({ themeStyles }: { themeStyles: any }) {
+  const signalBars = [34, 58, 82, 48, 70, 40, 86, 62, 38, 74, 52, 68];
+
+  return (
+    <div className="relative mx-auto w-full max-w-[35rem]">
+      <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-cyan-400/20 blur-2xl" />
+      <div className="absolute -right-5 bottom-8 h-32 w-32 rounded-full bg-pink-400/20 blur-2xl" />
+
+      <motion.div
+        initial={{ opacity: 0, y: 24, rotate: 1 }}
+        whileInView={{ opacity: 1, y: 0, rotate: 0 }}
+        viewport={{ once: true }}
+        transition={{ duration: 0.65, ease: "easeOut" }}
+        className={`relative overflow-hidden rounded-[1.6rem] border p-4 shadow-[0_24px_70px_rgba(15,23,42,0.16)] transition-colors duration-500 ${themeStyles.card}`}
+      >
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-cyan-300 via-blue-500 to-pink-400" />
+
+        <div className="rounded-[1.2rem] bg-gradient-to-br from-cyan-300 via-blue-500 to-pink-400 p-4 text-slate-950">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] opacity-70">
+                Incoming call
+              </p>
+              <p className="text-2xl font-black">AI Front Desk</p>
+            </div>
+            <motion.div
+              animate={{ scale: [1, 1.08, 1], rotate: [0, 4, 0] }}
+              transition={{
+                duration: 2.4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-white/30"
+            >
+              <PhoneCall className="h-7 w-7" />
+            </motion.div>
+          </div>
+
+          <div className="mt-6 flex h-24 items-end gap-1.5 rounded-2xl bg-white/35 p-3 backdrop-blur">
+            {signalBars.map((height, index) => (
+              <motion.span
+                key={index}
+                animate={{
+                  height: [
+                    `${height * 0.65}%`,
+                    `${height}%`,
+                    `${height * 0.65}%`,
+                  ],
+                }}
+                transition={{
+                  duration: 1.4,
+                  delay: index * 0.06,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
+                className="w-full rounded-full bg-white/90"
+                style={{ height: `${height}%`, minHeight: 18 }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {[
+            { label: "Caller", value: "Amit Sharma", icon: Users },
+            { label: "Intent", value: "Book appointment", icon: CalendarDays },
+            {
+              label: "Summary",
+              value: "Hot lead, callback",
+              icon: MessageSquareText,
+            },
+            { label: "Alert", value: "WhatsApp sent", icon: Bell },
+          ].map((item) => (
+            <motion.div
+              key={item.label}
+              whileHover={{ y: -4 }}
+              className={`rounded-2xl border p-4 ${themeStyles.inner}`}
+            >
+              <item.icon className="h-5 w-5 text-[#00F0FF]" />
+              <p className={`mt-3 text-xs font-montserrat ${themeStyles.soft}`}>
+                {item.label}
+              </p>
+              <p className="text-sm font-black">{item.value}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+          className={`absolute -right-1 top-24 hidden rounded-2xl border p-3 shadow-xl sm:block ${themeStyles.inner}`}
+        >
+          <Clock3 className="h-5 w-5 text-pink-400" />
+          <p className="mt-2 text-xs font-black">Answered in 2 sec</p>
+        </motion.div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function CallMarketingPage() {
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
@@ -197,212 +297,144 @@ export default function CallMarketingPage() {
   }
 
   return (
-    <main className={`min-h-screen max-w-7xl m-auto mt-5 ${themeStyles.page}`}>
+    <main className={`min-h-screen max-w-7xl m-auto ${themeStyles.page}`}>
       <div className="container mx-auto px-4 pb-20">
-        <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center ">
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: "-80px" }}
-            className="space-y-6"
-          >
-            <motion.div
-              variants={fadeUp}
-              className={`inline-flex items-center rounded-full border px-6 py-3 ${themeStyles.badge}`}
-            >
-              <Sparkles className="h-5 w-5 text-blue-700 mr-2" />
-              <span className="text-xs md:text-sm font-medium uppercase tracking-widest text-blue-700">
-                AI CALL ASSISTANT
-              </span>
-            </motion.div>
+        <section className="relative mx-[calc(50%-50vw)] w-screen overflow-hidden bg-[#f8fbff] text-slate-950 transition-colors duration-500 dark:bg-[#07111f] dark:text-white">
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_84%_18%,rgba(0,240,255,0.16),transparent_32%),linear-gradient(135deg,#f8fbff_0%,#eef4ff_52%,#ffffff_100%)] opacity-100 transition-opacity duration-500 dark:opacity-0" />
+          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(0,240,255,0.16),transparent_30%),linear-gradient(135deg,#06101d_0%,#0b1730_55%,#050912_100%)] opacity-0 transition-opacity duration-500 dark:opacity-100" />
 
-            <motion.h1
-              variants={fadeUp}
-              className={`text-3xl md:text-4xl lg:text-5xl font-semibold leading-tight ${themeStyles.page}`}
-            >
-              Never miss a customer call again.
-              <br />
-              <span className={gradientText}>
-                Turn calls into qualified leads
-              </span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeUp}
-              className={`text-base md:text-lg lg:text-xl leading-relaxed font-montserrat ${themeStyles.muted}`}
-            >
-              RocketReplai AI Call Assistant answers missed calls, qualifies
-              callers, captures leads, and sends summaries to the owner on
-              WhatsApp, SMS, or email.
-            </motion.p>
-
-            <motion.div variants={fadeUp} className="space-y-2 font-montserrat">
-              {[
-                {
-                  icon: <PhoneCall className="h-5 w-5" />,
-                  text: "24/7 inbound answering",
-                },
-                {
-                  icon: <Users className="h-5 w-5" />,
-                  text: "Caller details and lead capture",
-                },
-                {
-                  icon: <Bell className="h-5 w-5" />,
-                  text: "WhatsApp, SMS, and email alerts",
-                },
-                {
-                  icon: <ShieldCheck className="h-5 w-5" />,
-                  text: "Call logs, summaries, and transcripts",
-                },
-              ].map((feature, index) => (
-                <motion.div
-                  key={feature.text}
-                  whileHover={{ x: 5 }}
-                  className="flex items-center group"
-                >
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className="w-12 h-12 bg-gradient-to-r from-[#00F0FF] to-[#B026FF] rounded-2xl flex items-center justify-center mr-4 shadow-lg"
-                  >
-                    {feature.icon}
-                  </motion.div>
-                  <span className={`font-medium ${themeStyles.muted}`}>
-                    {feature.text}
-                  </span>
-                </motion.div>
-              ))}
-            </motion.div>
-
-            {/* CTA Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.9 }}
-              className="flex flex-col sm:flex-row gap-2"
-            >
-              <motion.button
-                whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() =>
-                  router.push("https://app.rocketreplai.com/sign-in")
-                }
-                className="bg-gradient-to-r from-[#00F0FF] to-[#FF2E9F] text-black font-bold py-2 px-4 rounded-2xl hover:shadow-2xl transition-all duration-300 flex items-center justify-center"
-              >
-                <Rocket className="h-5 w-5 mr-2" />
-                Start Free Trial
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </motion.button>
-
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                onClick={() => router.push("/call/pricing")}
-                whileTap={{ scale: 0.95 }}
-                className={`border-2 border-[#00F0FF] ${themeStyles.textpricing} font-semibold py-2 px-4 md:py-3 md:px-6 rounded-2xl hover:bg-[#00F0FF]/10 transition-all duration-300 flex items-center justify-center`}
-              >
-                <Calendar className="h-5 w-5 mr-2" />
-                View Pricing
-              </motion.button>
-            </motion.div>
-
-            <motion.div
-              variants={fadeUp}
-              className={`flex flex-wrap items-center gap-3 md:gap-6 text-sm ${themeStyles.soft}`}
-            >
-              <div className="flex items-center space-x-2">
-                <ShieldCheck className="h-4 w-4 text-green-400" />
-                <span>Secure call records</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Users className="h-4 w-4 text-blue-400" />
-                <span>Built for owner-led SMBs</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Star className="h-4 w-4 text-yellow-400" />
-                <span>Front desk automation</span>
-              </div>
-            </motion.div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.92, rotate: -1 }}
-            whileInView={{ opacity: 1, scale: 1, rotate: 0 }}
-            viewport={{ once: true, margin: "-80px" }}
-            transition={{ duration: 0.85, ease: "easeOut" }}
-            whileHover={{ scale: 1.015, y: -4 }}
-            className={`relative rounded-3xl border p-4 md:p-5 shadow-2xl shadow-[#00F0FF]/10 ${themeStyles.card}`}
-          >
-            <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-transparent via-[#00F0FF] to-transparent" />
-            <div className="rounded-2xl bg-gradient-to-br from-[#00F0FF] via-[#B026FF] to-[#FF2E9F] p-5 text-black">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold opacity-75 font-montserrat">
-                    Live call
-                  </p>
-                  <p className="text-2xl font-black font-montserrat">
-                    AI Receptionist
-                  </p>
-                </div>
-                <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{
-                    duration: 2,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  className="h-14 w-14 rounded-full bg-white/30 flex items-center justify-center"
-                >
-                  <PhoneCall className="h-8 w-8" />
-                </motion.div>
-              </div>
-              <div className="mt-8 rounded-xl bg-white/75 p-4 shadow-sm">
-                <p className="text-sm font-semibold font-montserrat">
-                  Caller: +91 98765 43210
-                </p>
-                <p className="mt-2 text-sm font-montserrat">
-                  "I want to book an appointment and know your pricing."
-                </p>
-              </div>
-            </div>
-
+          <div className="relative mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 pb-10 pt-8 sm:px-6 sm:pt-14 lg:grid-cols-[0.95fr_1fr] lg:items-center lg:px-10 lg:py-20 xl:px-16">
             <motion.div
               variants={stagger}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true }}
-              className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
+              viewport={{ once: true, margin: "-80px" }}
+              className="mx-auto max-w-2xl space-y-5 text-center lg:mx-0 lg:text-left"
             >
-              {[
-                {
-                  label: "Lead saved",
-                  icon: CheckCircle2,
-                  value: "Amit Sharma",
-                },
-                { label: "Duration", icon: Clock3, value: "3m 04s" },
-                {
-                  label: "Language",
-                  icon: Languages,
-                  value: "Hindi + English",
-                },
-                { label: "Notification", icon: Bell, value: "WhatsApp sent" },
-              ].map((item) => (
-                <motion.div
-                  key={item.label}
-                  variants={fadeUp}
-                  whileHover={{ y: -4 }}
-                  className={`rounded-2xl border p-4 ${themeStyles.inner}`}
-                >
-                  <item.icon className="h-5 w-5 text-[#00F0FF]" />
-                  <p
-                    className={`mt-3 text-xs font-montserrat ${themeStyles.soft}`}
+              <motion.div
+                variants={fadeUp}
+                className="mx-auto inline-flex max-w-max items-center rounded-full border border-cyan-200 bg-white/80 px-3 py-1 text-xs font-black uppercase tracking-[0.18em] text-blue-700 shadow-sm backdrop-blur dark:border-cyan-300/30 dark:bg-white/10 dark:text-cyan-200 lg:mx-0"
+              >
+                AI Call Assistant
+              </motion.div>
+
+              <motion.h1
+                variants={fadeUp}
+                className="text-[1.9rem] font-black leading-[1.02] text-slate-950 transition-colors duration-500 sm:text-[3.1rem] md:text-[3.7rem] xl:text-[4.25rem] dark:text-white"
+              >
+                Your business phone,
+                <br />
+                <span className="text-blue-700 dark:text-cyan-200">
+                  answered by AI.
+                </span>
+              </motion.h1>
+
+              <motion.p
+                variants={fadeUp}
+                className="mx-auto max-w-xl text-sm leading-relaxed text-slate-700 transition-colors duration-500 sm:text-xl lg:mx-0 dark:text-slate-200"
+              >
+                RocketReplai answers missed calls, qualifies callers, captures
+                leads, and sends clean summaries to the owner before the next
+                opportunity goes cold.
+              </motion.p>
+
+              <motion.div
+                variants={fadeUp}
+                className="grid gap-2 font-montserrat sm:grid-cols-2"
+              >
+                {[
+                  {
+                    icon: <PhoneCall className="h-5 w-5" />,
+                    text: "24/7 call answering",
+                  },
+                  {
+                    icon: <Users className="h-5 w-5" />,
+                    text: "Lead capture",
+                  },
+                  {
+                    icon: <Bell className="h-5 w-5" />,
+                    text: "Instant alerts",
+                  },
+                  {
+                    icon: <ShieldCheck className="h-5 w-5" />,
+                    text: "Summaries + transcripts",
+                  },
+                ].map((feature, index) => (
+                  <motion.div
+                    key={feature.text}
+                    whileHover={{ y: -3 }}
+                    className="flex items-center rounded-2xl border border-slate-200 bg-white/80 p-3 text-left shadow-sm transition-colors duration-500 dark:border-white/10 dark:bg-white/10"
                   >
-                    {item.label}
-                  </p>
-                  <p className="text-sm font-bold">{item.value}</p>
-                </motion.div>
-              ))}
+                    <motion.div
+                      whileHover={{ scale: 1.1, rotate: 5 }}
+                      className="mr-3 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#B026FF] text-slate-950 shadow-lg"
+                    >
+                      {feature.icon}
+                    </motion.div>
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-100">
+                      {feature.text}
+                    </span>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.9 }}
+                className="grid gap-3 sm:mx-auto sm:max-w-[31rem] sm:grid-cols-2 lg:mx-0"
+              >
+                <motion.button
+                  whileHover={{ scale: 1.05, y: -2 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() =>
+                    router.push("https://app.rocketreplai.com/sign-in")
+                  }
+                  className="rounded-xl bg-blue-700 px-5 py-4 text-sm font-black text-white shadow-[0_14px_24px_rgba(29,78,216,0.25)] transition hover:-translate-y-0.5 hover:bg-blue-800 dark:bg-cyan-300 dark:text-slate-950 dark:hover:bg-cyan-200"
+                >
+                  Start Setup <ArrowRight className="ml-2 inline h-5 w-5" />
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  onClick={() => router.push("/call/pricing")}
+                  whileTap={{ scale: 0.95 }}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-4 text-sm font-black text-slate-900 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15"
+                >
+                  View Pricing
+                </motion.button>
+              </motion.div>
+
+              <motion.div
+                variants={fadeUp}
+                className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs text-slate-500 sm:text-sm lg:justify-start dark:text-slate-300"
+              >
+                <div className="flex items-center space-x-2">
+                  <ShieldCheck className="h-4 w-4 text-green-400" />
+                  <span>Secure call records</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Users className="h-4 w-4 text-blue-400" />
+                  <span>Built for owner-led SMBs</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Star className="h-4 w-4 text-yellow-400" />
+                  <span>Front desk automation</span>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 28 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.65, delay: 0.12 }}
+              className="flex items-center justify-center"
+            >
+              <CallHeroVisual themeStyles={themeStyles} />
+            </motion.div>
+          </div>
         </section>
 
         <section className="py-12">
@@ -511,8 +543,8 @@ export default function CallMarketingPage() {
               Pricing comparison
             </h2>
             <p className={`mt-3 font-montserrat ${themeStyles.muted}`}>
-              Three clear plans for call volume, permanent numbers, and receptionist
-              coverage.
+              Three clear plans for call volume, permanent numbers, and
+              receptionist coverage.
             </p>
           </div>
           <div

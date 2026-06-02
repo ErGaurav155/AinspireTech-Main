@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowRight, Bot, Globe2, Instagram, Phone, Sparkles } from "lucide-react";
+import {
+  ArrowRight,
+  Bot,
+  Globe2,
+  Instagram,
+  Phone,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 
 const products = [
@@ -9,7 +16,7 @@ const products = [
     icon: Instagram,
     title: "Instagram Automation",
     description: "Turn comments, reels, and story replies into instant DMs.",
-    price: "₹399/mo",
+    price: "₹99 then ₹499/mo",
     tag: "Best for creators",
   },
   {
@@ -17,7 +24,7 @@ const products = [
     icon: Globe2,
     title: "Website Chatbot",
     description: "Capture leads and answer visitor questions from your site.",
-    price: "from $10/mo",
+    price: "₹499 then ₹999/mo",
     tag: "Best for websites",
   },
   {

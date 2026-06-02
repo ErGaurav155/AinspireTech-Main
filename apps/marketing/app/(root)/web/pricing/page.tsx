@@ -52,6 +52,7 @@ interface Product {
 
 type BillingMode = "monthly" | "yearly";
 type PlanType = "chatbot";
+const MONTHLY_FIRST_MONTH_PRICE = 499;
 
 // Icon mapping with proper typing
 const iconMapping: Record<string, LucideIcon> = {
@@ -74,7 +75,7 @@ const PricingContent = () => {
   }, []);
 
   // State
-  const [billingMode, setBillingMode] = useState<BillingMode>("yearly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
 
   // Derived state
@@ -148,9 +149,10 @@ const PricingContent = () => {
 
   // Helper functions
   const getProductPrice = (product: Product) => {
-    const price = billingMode === "monthly" ? product.mprice : product.yprice;
+    const price =
+      billingMode === "monthly" ? product.mprice : product.yprice / 12;
     const originalPrice =
-      billingMode === "monthly" ? product.original / 12 : product.original;
+      billingMode === "monthly" ? product.original / 12 : product.original / 12;
 
     return {
       displayPrice: price,
@@ -265,7 +267,7 @@ const PricingContent = () => {
                 <div
                   className={`${themeStyles.saveBadgeBg} text-nowrap text-xs border rounded-full px-3 py-1 md:ml-2`}
                 >
-                  Save 16%
+                  Save 10%
                 </div>
               </div>
             </TabsContent>
@@ -336,12 +338,14 @@ const PricingContent = () => {
   const renderChatbotPricingCard = (product: Product) => {
     const Icon = iconMapping[product.icon];
     const { displayPrice, originalPrice, isYearly } = getProductPrice(product);
+    const shownPrice =
+      billingMode === "monthly" ? MONTHLY_FIRST_MONTH_PRICE : displayPrice;
     const isMostPopular = product.productId === "chatbot-lead-generation";
 
     return (
       <div
         key={product.productId}
-      className={`relative group h-full flex flex-col items-center justify-between rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 p-5 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-950/10 ${
+        className={`relative group h-full flex flex-col items-center justify-between rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 p-5 hover:-translate-y-1 hover:shadow-xl hover:shadow-blue-950/10 ${
           themeStyles.cardBg
         } ${themeStyles.cardBorder} ${getCardStyles(product.productId)}`}
       >
@@ -379,23 +383,30 @@ const PricingContent = () => {
               ₹{originalPrice.toFixed(0)}
             </p>
             <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">
-              ₹{displayPrice.toFixed(0)}
+              ₹{shownPrice.toFixed(0)}
               <span className={`text-lg font-medium ${themeStyles.textMuted}`}>
                 /{billingMode === "monthly" ? "mo" : "yr"}
               </span>
             </p>
           </div>
 
+          {billingMode === "monthly" && (
+            <p className="text-center text-gray-500 mt-2 font-medium">
+              First month ₹499, then ₹{displayPrice.toFixed(0)}/month
+            </p>
+          )}
+
           {isYearly && (
             <p className="text-center text-green-400 mt-2 font-medium">
-              Save ₹{(originalPrice - displayPrice).toFixed(0)} annually
+              Save ₹{(originalPrice - displayPrice).toFixed(0)} annually every
+              month
             </p>
           )}
 
           <p
             className={`text-sm ${themeStyles.textMuted} mb-5 font-montserrat`}
           >
-            Includes 1,000,000 tokens per{" "}
+            Includes 2,000,000 tokens per{" "}
             {billingMode === "monthly" ? "month" : "year"}
           </p>
         </div>
@@ -478,7 +489,7 @@ const PricingContent = () => {
                 {
                   feature: "Tokens Included",
                   free: "10,000/month",
-                  subscription: "1M/month",
+                  subscription: "2M/month",
                 },
                 {
                   feature: "Expiration",

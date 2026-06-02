@@ -257,7 +257,7 @@ export default function TokenDashboard() {
         subscriptionTokens: {
           "lead-generation": {
             name: "Lead Generation",
-            total: 1000000,
+            total: 2000000,
             used: 56000,
             remaining: 944000,
             display: "Unlimited",

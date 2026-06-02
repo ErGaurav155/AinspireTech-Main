@@ -68,6 +68,7 @@ interface Product {
 
 type BillingMode = "monthly" | "yearly";
 type PlanType = "chatbot";
+const MONTHLY_FIRST_MONTH_PRICE = 499;
 const PENDING_WEB_RAZORPAY_CHECKOUT_KEY = "pending_web_razorpay_checkout";
 const PENDING_RAZORPAY_CHECKOUT_MAX_AGE_MS = 30 * 60 * 1000;
 
@@ -89,7 +90,7 @@ const PricingContent = () => {
   // State
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [billingMode, setBillingMode] = useState<BillingMode>("yearly");
+  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
@@ -488,7 +489,7 @@ const PricingContent = () => {
 
           <p className={`text-lg max-w-2xl mx-auto ${styles.text.secondary}`}>
             Choose the best chatbot subscription for your business and get
-            Unlimited tokens per chatbot per cycle.
+            2,000,000 tokens per chatbot per cycle.
           </p>
 
           {/* Tabs */}
@@ -639,7 +640,7 @@ const PricingContent = () => {
                 <span
                   className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${styles.badge.green} ml-2`}
                 >
-                  Save 50%
+                  Save 10%
                 </span>
               </div>
 
@@ -648,6 +649,10 @@ const PricingContent = () => {
                   const Icon = iconMapping[product.icon] || Bot;
                   const { displayPrice, originalPrice, isYearly } =
                     getProductPrice(product);
+                  const shownMonthlyPrice =
+                    billingMode === "monthly"
+                      ? MONTHLY_FIRST_MONTH_PRICE
+                      : displayPrice / 12;
                   const isSubscribed = isProductSubscribed(product.productId);
                   const activeSubscription = getProductSubscription(
                     product.productId,
@@ -728,9 +733,7 @@ const PricingContent = () => {
                             <span
                               className={`text-3xl font-bold ${styles.text.primary}`}
                             >
-                              {billingMode === "monthly"
-                                ? `₹${displayPrice.toFixed(0)}`
-                                : `₹${(displayPrice / 12).toFixed(0)}`}
+                              ₹{shownMonthlyPrice.toFixed(0)}
                             </span>
                             <span
                               className={`text-sm line-through ${styles.text.muted}`}
@@ -741,7 +744,9 @@ const PricingContent = () => {
                             </span>
                           </div>
                           <p className={`text-sm ${styles.text.muted}`}>
-                            per month
+                            {billingMode === "monthly"
+                              ? `first month, then ₹${displayPrice.toFixed(0)}/month`
+                              : "per month, billed yearly"}
                           </p>
                         </div>
 
@@ -749,7 +754,7 @@ const PricingContent = () => {
                           className={`text-sm ${styles.badge.green} inline-flex items-center gap-1 px-3 py-2 mb-4 rounded-md`}
                         >
                           <Calendar className="h-4 w-4" />
-                          Includes Unlimited tokens per{" "}
+                          Includes 2,000,000 tokens per{" "}
                           {billingMode === "monthly" ? "month" : "year"}
                         </p>
 
@@ -927,7 +932,7 @@ const PricingContent = () => {
                       {
                         feature: "Tokens Included",
                         free: "10,000/month",
-                        subscription: "Unlimited/month",
+                        subscription: "2M/month",
                       },
                       {
                         feature: "Expiration",
@@ -1176,7 +1181,7 @@ const PricingContent = () => {
                   }`}
                 >
                   This downgrades the active chatbot plan and removes its
-                  features and unlimited token access.
+                  features and 2,000,000 token access.
                 </p>
                 <Button
                   variant="outline"
