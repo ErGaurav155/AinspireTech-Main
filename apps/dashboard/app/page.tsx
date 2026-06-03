@@ -14,6 +14,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import { storeReferralCode } from "@/lib/referral";
 function ChooseProductContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -21,11 +22,7 @@ function ChooseProductContent() {
   const { styles, isDark } = useThemeStyles();
 
   useEffect(() => {
-    const ref = searchParams.get("ref");
-    if (ref) {
-      localStorage.setItem("referral_code", ref);
-      document.cookie = `referral_code=${ref}; path=/; domain=.rocketreplai.com; max-age=604800`;
-    }
+    storeReferralCode(searchParams.get("ref"));
     setMounted(true);
   }, [searchParams]);
 

@@ -85,6 +85,9 @@ export const getAffiliateDashboardController = async (
       instaReferrals: referrals.filter(
         (r) => r.productType === "insta-automation",
       ).length,
+      callReferrals: referrals.filter(
+        (r) => r.productType === "call-assistant",
+      ).length,
     };
 
     return res.status(200).json({

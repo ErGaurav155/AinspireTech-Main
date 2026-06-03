@@ -9,6 +9,7 @@ import { BusinessMessagingTemplate } from "@/components/shared/BusinessMessaging
 import StickyScrollFeatures from "@/components/shared/EngagementToolsection";
 import { AIVoiceAgentShowcase } from "@/components/shared/OurProducts";
 import OutProduct from "@/components/shared/product";
+import { storeReferralCode } from "@/lib/referral";
 
 const Home = () => {
   const [mounted, setMounted] = useState(false);
@@ -17,12 +18,7 @@ const Home = () => {
   useEffect(() => {
     setMounted(true);
 
-    const ref = searchParams.get("ref");
-
-    if (ref) {
-      localStorage.setItem("referral_code", ref);
-      document.cookie = `referral_code=${ref}; path=/; domain=.rocketreplai.com; max-age=604800`;
-    }
+    storeReferralCode(searchParams.get("ref"));
   }, [searchParams]);
 
   if (!mounted) {

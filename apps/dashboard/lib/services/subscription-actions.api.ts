@@ -35,6 +35,7 @@ export const createRazorpaySubscription = (
       chatbotId?: string | null;
       chatbotName?: string;
       websiteUrl?: string;
+      referralCode?: string;
     };
   },
 ): Promise<any> => {

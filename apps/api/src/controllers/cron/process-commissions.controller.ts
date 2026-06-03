@@ -6,6 +6,7 @@ import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import Affiliate from "@/models/affiliate/Affiliate";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import CallSubscription from "@/models/call/CallSubscription.model";
 
 export const processCommissionsController = async (
   req: Request,
@@ -36,6 +37,9 @@ export const processCommissionsController = async (
           if (sub && sub.status === "active") subscriptionActive = true;
         } else if (referral.subscriptionModel === "InstaSubscription") {
           const sub = await InstaSubscription.findById(referral.subscriptionId);
+          if (sub && sub.status === "active") subscriptionActive = true;
+        } else if (referral.subscriptionModel === "CallSubscription") {
+          const sub = await CallSubscription.findById(referral.subscriptionId);
           if (sub && sub.status === "active") subscriptionActive = true;
         }
 
@@ -92,7 +96,9 @@ export const processCommissionsController = async (
           productName:
             referral.productType === "web-chatbot"
               ? referral.chatbotType || "Web Chatbot"
-              : referral.instaPlan || "Instagram Automation",
+              : referral.productType === "call-assistant"
+                ? referral.chatbotType || "AI Call Assistant"
+                : referral.instaPlan || "Instagram Automation",
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });

@@ -55,6 +55,7 @@ import {
 } from "@/lib/services/subscription-actions.api";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { getStoredReferralCode } from "@/lib/referral";
 
 // Types
 interface Subscription {
@@ -431,7 +432,6 @@ function PricingWithSearchParams() {
         return false;
       }
 
-      localStorage.removeItem("referral_code");
       trackMetaEvent("Purchase", {
         content_name: planName,
         content_category: "instagram_subscription",
@@ -504,7 +504,7 @@ function PricingWithSearchParams() {
           throw new Error("Plan not found");
         }
 
-        const referralCode = localStorage.getItem("referral_code");
+        const referralCode = getStoredReferralCode();
         const result = await createRazorpaySubscription(apiRequest, {
           amount: price,
           razorpayplanId: razorpayPlanId,

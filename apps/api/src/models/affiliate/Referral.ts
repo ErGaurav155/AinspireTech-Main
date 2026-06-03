@@ -4,9 +4,9 @@ import { Schema, model, models, Document, Model } from "mongoose";
 export interface IReferral extends Document {
   affiliateId: string;
   referredUserId: string;
-  productType: "web-chatbot" | "insta-automation";
+  productType: "web-chatbot" | "insta-automation" | "call-assistant";
   subscriptionId: string;
-  subscriptionModel: "WebSubscription" | "InstaSubscription";
+  subscriptionModel: "WebSubscription" | "InstaSubscription" | "CallSubscription";
   subscriptionType: "monthly" | "yearly";
   chatbotType?: string;
   instaPlan?: string;
@@ -39,7 +39,7 @@ const ReferralSchema = new Schema(
     // Product info
     productType: {
       type: String,
-      enum: ["web-chatbot", "insta-automation"],
+      enum: ["web-chatbot", "insta-automation", "call-assistant"],
       required: true,
     },
 
@@ -50,7 +50,7 @@ const ReferralSchema = new Schema(
     },
     subscriptionModel: {
       type: String,
-      enum: ["WebSubscription", "InstaSubscription"],
+      enum: ["WebSubscription", "InstaSubscription", "CallSubscription"],
       required: true,
     },
     subscriptionType: {

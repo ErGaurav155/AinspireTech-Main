@@ -33,6 +33,7 @@ import {
   processScrapedData,
   scrapeWebsite,
 } from "@/lib/services/web-actions.api";
+import { getStoredReferralCode } from "@/lib/referral";
 
 interface CheckoutProps {
   userId: string;
@@ -578,7 +579,7 @@ export const Checkout = ({
         return;
       }
 
-      const referralCode = localStorage.getItem("referral_code");
+      const referralCode = getStoredReferralCode();
       const razorpayPlanId =
         billingCycle === "monthly"
           ? razorpayPlanRef.current?.monthly
@@ -668,7 +669,6 @@ export const Checkout = ({
             );
 
             if (activeSubscription) {
-              localStorage.removeItem("referral_code");
               clearPendingRazorpayCheckout();
               showSuccessToast("Subscription activated successfully!");
               window.location.reload();
@@ -731,7 +731,6 @@ export const Checkout = ({
         return false;
       }
 
-      localStorage.removeItem("referral_code");
       clearPendingRazorpayCheckout();
       showSuccessToast("Subscription activated successfully!");
 

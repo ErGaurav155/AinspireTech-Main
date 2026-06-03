@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Contact, LogIn, Menu, X } from "lucide-react";
 import { Button, ThemeToggle } from "@rocketreplai/ui";
 import Logo from "@/public/assets/img/logo.png";
+import { withReferral } from "@/lib/referral";
 
 const navItems = [
   { id: "insta", label: "Instagram", href: "/insta" },
@@ -29,11 +30,7 @@ export function NavBar() {
   }, []);
 
   const handleSignInClick = () => {
-    const referralCode = localStorage.getItem("referral_code");
-    const dashboardUrl = "https://app.rocketreplai.com";
-    window.location.href = referralCode
-      ? `${dashboardUrl}?ref=${referralCode}`
-      : dashboardUrl;
+    window.location.href = withReferral("https://app.rocketreplai.com");
   };
 
   return (

@@ -7,6 +7,7 @@ import { ThemeProvider } from "@rocketreplai/ui";
 // @ts-ignore
 import "./globals.css";
 import MetaPixel from "@/components/shared/MetaPixel";
+import { ReferralTracker } from "@/components/shared/ReferralTracker";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -49,6 +50,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <SpeedInsights />
         <Suspense fallback={null}>
+          <ReferralTracker />
           <MetaPixel />
         </Suspense>
       </body>

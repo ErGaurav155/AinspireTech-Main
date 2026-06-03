@@ -243,15 +243,17 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
   let referralRecord = null;
 
-  // Handle referral if code exists and user hasn't used referral
+  const normalizedReferralCode =
+    typeof referralCode === "string" ? referralCode.trim() : "";
+
+  // Handle referral per product so one referred customer can credit multiple subscriptions.
   if (
-    referralCode &&
-    referralCode !== "null" &&
-    referralCode !== "undefined" &&
-    !user.hasUsedReferral
+    normalizedReferralCode &&
+    normalizedReferralCode !== "null" &&
+    normalizedReferralCode !== "undefined"
   ) {
     const affiliate = await Affiliate.findOne({
-      affiliateCode: referralCode,
+      affiliateCode: normalizedReferralCode,
       status: "active",
     });
 
@@ -297,6 +299,33 @@ async function handleWebhookSubscriptionCreate(payload: any) {
           : subscriptionType === "call"
             ? "AI Call Assistant"
             : "Web Chatbot");
+
+      const existingReferral = await AffiReferral.findOne({
+        referredUserId: clerkId.toString(),
+        productType,
+        status: "active",
+      });
+
+      if (existingReferral) {
+        existingReferral.subscriptionId = newSubscription._id.toString();
+        existingReferral.subscriptionModel = subscriptionModel;
+        existingReferral.subscriptionType = billingCycle;
+        existingReferral.subscriptionPrice = Number(subscriptionPrice);
+        existingReferral.commissionRate = Number(commissionRate);
+        existingReferral.monthlyCommission = Number(monthlyCommission);
+        existingReferral.yearlyCommission = Number(yearlyCommission);
+        existingReferral.chatbotType =
+          subscriptionType === "web" || subscriptionType === "call"
+            ? chatbotType
+            : undefined;
+        existingReferral.instaPlan =
+          subscriptionType === "insta" ? chatbotType : undefined;
+        existingReferral.nextCommissionDate = expiresAt;
+        await existingReferral.save();
+
+        referralRecord = existingReferral;
+        return { subscription: newSubscription, referral: referralRecord };
+      }
 
       // Create referral record
       referralRecord = await AffiReferral.create({
