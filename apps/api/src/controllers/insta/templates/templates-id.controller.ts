@@ -8,6 +8,29 @@ import {
   getInstaQuotaStatus,
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
+import { getUserTier } from "@/services/rate-limit.service";
+
+const QUICK_REPLY_LIMITS = {
+  free: 5,
+  pro: 10,
+} as const;
+
+const normalizeKeywordList = (value: unknown, limit = Number.MAX_SAFE_INTEGER) => {
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+
+  return Array.from(
+    new Set(
+      list
+        .map((item) => String(item).trim().toLowerCase())
+        .map((item) => item.slice(0, 20))
+        .filter(Boolean),
+    ),
+  ).slice(0, limit);
+};
 
 // GET /api/insta/templates/:templateId - Get single template by ID
 export const getInstaTemplateByIdController = async (
@@ -273,6 +296,18 @@ export const updateInstaTemplateController = async (
             }))
           : [],
       };
+    }
+
+    if (updateData.quickReplyTriggers !== undefined) {
+      const userTier = await getUserTier(userId);
+      const quickReplyLimit =
+        userTier === "pro" ? QUICK_REPLY_LIMITS.pro : QUICK_REPLY_LIMITS.free;
+      const nextAutomationType =
+        updateData.automationType || existingTemplate.automationType;
+      updateFields.quickReplyTriggers =
+        nextAutomationType === "dms"
+          ? normalizeKeywordList(updateData.quickReplyTriggers, quickReplyLimit)
+          : [];
     }
 
     let quotaWarning: string | undefined;

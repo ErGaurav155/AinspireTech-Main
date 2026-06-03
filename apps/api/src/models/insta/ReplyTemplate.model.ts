@@ -77,6 +77,9 @@ export interface IReplyTemplate extends Document {
   // Trigger keywords (empty array = respond to any keyword)
   triggers: string[];
 
+  // Keywords exposed as starter quick reply buttons in new direct DM chats.
+  quickReplyTriggers: string[];
+
   // Legacy follow flag (kept for backwards compat)
   isFollow: boolean;
 
@@ -144,6 +147,7 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
 
     reply: { type: [String], required: true },
     triggers: { type: [String], default: [] },
+    quickReplyTriggers: { type: [String], default: [] },
     isFollow: { type: Boolean, default: false },
 
     delaySeconds: { type: Number, default: 0 },
@@ -280,6 +284,7 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
 ReplyTemplateSchema.index({ userId: 1, mediaId: 1, isActive: 1 });
 ReplyTemplateSchema.index({ accountId: 1, mediaId: 1 });
 ReplyTemplateSchema.index({ triggers: 1 });
+ReplyTemplateSchema.index({ quickReplyTriggers: 1 });
 ReplyTemplateSchema.index({ userId: 1, automationType: 1, isActive: 1 });
 ReplyTemplateSchema.index({ userId: 1, createdAt: -1 });
 

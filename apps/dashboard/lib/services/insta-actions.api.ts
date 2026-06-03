@@ -101,6 +101,7 @@ export const createInstaTemplate = (
     content: ContentItem[];
     reply: string[];
     triggers: string[];
+    quickReplyTriggers?: string[];
     isFollow: boolean;
     priority: number;
     mediaId: string;
@@ -155,6 +156,8 @@ export const createInstaTemplate = (
     content: templateData.content.filter((c) => c.text?.trim() !== ""),
     reply: templateData.reply.filter((r) => r?.trim() !== ""),
     triggers: templateData.triggers?.filter((t) => t?.trim() !== "") || [],
+    quickReplyTriggers:
+      templateData.quickReplyTriggers?.filter((t) => t?.trim() !== "") || [],
     isFollow: templateData.isFollow || false,
     priority: templateData.priority || 5,
     mediaId: templateData.mediaId || "",
@@ -767,6 +770,7 @@ export interface TemplateType {
   content: ContentItem[];
   reply: string[];
   triggers: string[];
+  quickReplyTriggers?: string[];
   isFollow: boolean;
   delaySeconds?: number;
   delayOption?: DelayOption;

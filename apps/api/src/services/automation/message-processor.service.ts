@@ -16,6 +16,8 @@ import {
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
 
+const MAX_INSTAGRAM_QUICK_REPLIES = 13;
+
 /**
  * Handle incoming text message (email or phone response from user).
  * Called when a user's dmFlowStage is "waiting_for_email" or "waiting_for_phone".
@@ -333,6 +335,120 @@ export async function handleIncomingDM(
   }
 }
 
+export async function sendDMStarterQuickReplies(
+  accountId: string,
+  clerkId: string,
+  senderId: string,
+): Promise<{
+  success: boolean;
+  message: string;
+  processed: boolean;
+}> {
+  try {
+    await connectToDatabase();
+
+    const account = await InstagramAccount.findOne({ instagramId: accountId });
+    if (!account || !account.isActive || !account.autoDMEnabled || !senderId) {
+      return {
+        success: false,
+        message: "Account not active or DM disabled",
+        processed: false,
+      };
+    }
+
+    const existingLog = await InstaReplyLog.findOne({
+      userId: clerkId,
+      accountId,
+      commenterUserId: senderId,
+      dmFlowStage: {
+        $in: [
+          "waiting_for_email",
+          "waiting_for_phone",
+          "email_collected",
+          "phone_collected",
+          "waiting_for_follow",
+          "still_waiting_for_follow",
+        ],
+      },
+    }).sort({ createdAt: -1 });
+
+    if (existingLog) {
+      return {
+        success: false,
+        message: "Active conversation already exists",
+        processed: false,
+      };
+    }
+
+    const templates = await InstaReplyTemplate.find({
+      userId: clerkId,
+      accountId: account.instagramId,
+      isActive: true,
+      automationType: "dms",
+      quickReplyTriggers: { $exists: true, $ne: [] },
+    }).sort({ priority: 1 });
+
+    const replies = Array.from(
+      new Set(
+        templates.flatMap((template: any) =>
+          (template.quickReplyTriggers || [])
+            .map((trigger: string) => trigger?.trim().toLowerCase())
+            .filter(Boolean),
+        ),
+      ),
+    ).slice(0, MAX_INSTAGRAM_QUICK_REPLIES);
+
+    if (replies.length === 0) {
+      return {
+        success: false,
+        message: "No starter quick replies configured",
+        processed: false,
+      };
+    }
+
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return {
+        success: false,
+        message: dmLimitMessage(),
+        processed: false,
+      };
+    }
+
+    const sent = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      senderId,
+      {
+        text: "Choose an option to get started:",
+        quick_replies: replies.map((keyword) => ({
+          content_type: "text",
+          title: keyword,
+          payload: `DM_KEYWORD_${keyword}`,
+        })),
+      },
+      false,
+      clerkId,
+      true,
+    );
+
+    if (sent) await recordInstaDMSent(account);
+
+    return {
+      success: sent,
+      message: sent ? "Starter quick replies sent" : "Failed to send quick replies",
+      processed: sent,
+    };
+  } catch (error) {
+    console.error("Error sending DM starter quick replies:", error);
+    return {
+      success: false,
+      message: "Failed to send starter quick replies",
+      processed: false,
+    };
+  }
+}
+
 /**
  * Start a brand-new DM conversation triggered by a keyword.
  */
@@ -487,8 +603,13 @@ function findMatchingDMTemplate(messageText: string, templates: any[]) {
       return template;
     }
 
-    if (template.triggers?.length > 0) {
-      const hasMatch = template.triggers.some((trigger: string) => {
+    const keywordTriggers = [
+      ...(template.triggers || []),
+      ...(template.quickReplyTriggers || []),
+    ];
+
+    if (keywordTriggers.length > 0) {
+      const hasMatch = keywordTriggers.some((trigger: string) => {
         if (!trigger) return false;
         return lowerMessage.includes(trigger.toLowerCase().replace(/\s+/g, ""));
       });

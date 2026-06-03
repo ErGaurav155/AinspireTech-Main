@@ -5,7 +5,10 @@ import { processCommentAutomation } from "@/services/automation/comment-processo
 import { processStoryAutomation } from "@/services/automation/story-processor.service";
 import { handlePostbackAutomation } from "@/services/automation/dm-processor.service";
 import { recordCall } from "@/services/rate-limit.service";
-import { handleIncomingDM } from "@/services/automation/message-processor.service";
+import {
+  handleIncomingDM,
+  sendDMStarterQuickReplies,
+} from "@/services/automation/message-processor.service";
 
 /**
  * Process Instagram webhook — main entry point for all Meta API events.
@@ -408,7 +411,16 @@ async function processDirectMessageWebhook(
     const messageText: string = dm.message?.text || dm.text || "";
 
     if (!messageText || messageText.trim() === "") {
-      return { processed: false, queued: false };
+      const result = await sendDMStarterQuickReplies(
+        accountId,
+        account.userId,
+        senderId,
+      );
+      return {
+        processed: result.processed,
+        queued: false,
+        error: result.success ? undefined : result.message,
+      };
     }
 
     const rateLimitResult = await recordCall(

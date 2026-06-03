@@ -8,6 +8,29 @@ import {
   getInstaQuotaStatus,
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
+import { getUserTier } from "@/services/rate-limit.service";
+
+const QUICK_REPLY_LIMITS = {
+  free: 5,
+  pro: 10,
+} as const;
+
+const normalizeKeywordList = (value: unknown, limit = Number.MAX_SAFE_INTEGER) => {
+  const list = Array.isArray(value)
+    ? value
+    : typeof value === "string"
+      ? value.split(",")
+      : [];
+
+  return Array.from(
+    new Set(
+      list
+        .map((item) => String(item).trim().toLowerCase())
+        .map((item) => item.slice(0, 20))
+        .filter(Boolean),
+    ),
+  ).slice(0, limit);
+};
 
 // GET /api/insta/templates - Get Instagram templates
 export const getInstaTemplatesController = async (
@@ -50,6 +73,7 @@ export const getInstaTemplatesController = async (
         { name: { $regex: search, $options: "i" } },
         { "content.text": { $regex: search, $options: "i" } },
         { triggers: { $regex: search, $options: "i" } },
+        { quickReplyTriggers: { $regex: search, $options: "i" } },
       ];
     }
 
@@ -72,6 +96,7 @@ export const getInstaTemplatesController = async (
       content: template.content,
       reply: template.reply,
       triggers: template.triggers,
+      quickReplyTriggers: template.quickReplyTriggers || [],
       isFollow: template.isFollow,
       priority: template.priority,
       mediaId: template.mediaId,
@@ -135,6 +160,7 @@ export const createInstaTemplateController = async (
       content,
       reply,
       triggers,
+      quickReplyTriggers,
       priority,
       delaySeconds,
       delayOption,
@@ -196,6 +222,13 @@ export const createInstaTemplateController = async (
 
     const quota = await getInstaQuotaStatus(userId, account);
     const forceInactiveForDMLimit = quota.dmLimitReached;
+    const userTier = await getUserTier(userId);
+    const quickReplyLimit =
+      userTier === "pro" ? QUICK_REPLY_LIMITS.pro : QUICK_REPLY_LIMITS.free;
+    const normalizedQuickReplyTriggers =
+      automationType === "dms"
+        ? normalizeKeywordList(quickReplyTriggers, quickReplyLimit)
+        : [];
 
     if (forceInactiveForDMLimit) {
       await stopInstaAutomationForDMLimit(account);
@@ -235,6 +268,7 @@ export const createInstaTemplateController = async (
 
       // Triggers
       triggers: triggers || [],
+      quickReplyTriggers: normalizedQuickReplyTriggers,
 
       // Legacy follow flag
       isFollow: isFollow || false,

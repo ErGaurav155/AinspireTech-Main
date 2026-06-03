@@ -40,6 +40,8 @@ import Link from "next/link";
 
 const FREE_DM_LIMIT = 1000;
 const FREE_FOLLOW_CHECK_LIMIT = 50;
+const FREE_QUICK_REPLY_LIMIT = 5;
+const PRO_QUICK_REPLY_LIMIT = 10;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,6 +71,8 @@ interface AutomationForm {
   anyKeyword: boolean;
   keywords: string[];
   keywordInput: string;
+  quickReplyKeywords: string[];
+  quickReplyKeywordInput: string;
   // DM content (the final link message)
   dmMessage: string;
   dmLinks: { url: string; buttonTitle: string }[];
@@ -117,6 +121,8 @@ const DEFAULT_FORM: AutomationForm = {
   anyKeyword: false,
   keywords: [],
   keywordInput: "",
+  quickReplyKeywords: [],
+  quickReplyKeywordInput: "",
   dmMessage: "",
   dmLinks: [],
   dmMediaUrl: "",
@@ -685,6 +691,8 @@ export default function CreateAutomationPage() {
         anyKeyword: t.anyKeyword || false,
         keywords: t.triggers || [],
         keywordInput: "",
+        quickReplyKeywords: (t as any).quickReplyTriggers || [],
+        quickReplyKeywordInput: "",
         dmMessage: t.content?.[0]?.text || "",
         dmLinks:
           t.content
@@ -809,6 +817,9 @@ export default function CreateAutomationPage() {
   const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
   const followCheckLimitReached =
     !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
+  const quickReplyLimit = isSubscribed
+    ? PRO_QUICK_REPLY_LIMIT
+    : FREE_QUICK_REPLY_LIMIT;
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
 
@@ -839,6 +850,56 @@ export default function CreateAutomationPage() {
 
   const removeKeyword = useCallback((kw: string) => {
     setForm((f) => ({ ...f, keywords: f.keywords.filter((k) => k !== kw) }));
+  }, []);
+
+  const addQuickReplyKeyword = useCallback(() => {
+    if (!form.quickReplyKeywordInput.trim()) return;
+
+    const kw = form.quickReplyKeywordInput.trim().toLowerCase();
+    if (form.quickReplyKeywords.includes(kw)) {
+      setForm((f) => ({ ...f, quickReplyKeywordInput: "" }));
+      return;
+    }
+
+    if (form.quickReplyKeywords.length >= quickReplyLimit) {
+      toast({
+        title: `Quick replies are limited to ${quickReplyLimit}`,
+        description: isSubscribed
+          ? "Pro automations can show up to 10 starter buttons."
+          : "Free automations can show up to 5 starter buttons.",
+        variant: "destructive",
+        duration: 4000,
+      });
+      return;
+    }
+
+    setForm((f) => ({
+      ...f,
+      quickReplyKeywords: [...f.quickReplyKeywords, kw],
+      quickReplyKeywordInput: "",
+    }));
+  }, [
+    form.quickReplyKeywordInput,
+    form.quickReplyKeywords,
+    quickReplyLimit,
+    isSubscribed,
+  ]);
+
+  const handleQuickReplyKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addQuickReplyKeyword();
+      }
+    },
+    [addQuickReplyKeyword],
+  );
+
+  const removeQuickReplyKeyword = useCallback((kw: string) => {
+    setForm((f) => ({
+      ...f,
+      quickReplyKeywords: f.quickReplyKeywords.filter((k) => k !== kw),
+    }));
   }, []);
 
   // Upload DM media to Cloudinary
@@ -1095,6 +1156,10 @@ export default function CreateAutomationPage() {
               : form.anyKeyword
                 ? []
                 : form.keywords.filter(Boolean),
+          quickReplyTriggers:
+            automationType === "dms"
+              ? form.quickReplyKeywords.slice(0, quickReplyLimit)
+              : [],
           isFollow: form.askFollow,
           priority: form.priority,
           mediaId,
@@ -1180,6 +1245,7 @@ export default function CreateAutomationPage() {
       apiRequest,
       router,
       dmLimitReached,
+      quickReplyLimit,
     ],
   );
 
@@ -1600,6 +1666,98 @@ export default function CreateAutomationPage() {
                     </div>
                   )}
                 </>
+              )}
+              {automationType === "dms" && (
+                <div
+                  className={`mt-5 rounded-xl border p-4 ${
+                    isDark
+                      ? "border-white/[0.08] bg-white/[0.03]"
+                      : "border-gray-200 bg-gray-50"
+                  }`}
+                >
+                  <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between mb-3">
+                    <div>
+                      <h4
+                        className={`text-sm font-semibold ${
+                          isDark ? "text-white" : "text-gray-900"
+                        }`}
+                      >
+                        Starter quick reply buttons
+                      </h4>
+                      <p className={`text-xs mt-1 ${S.muted}`}>
+                        Shown only when someone opens your DMs directly before
+                        any conversation starts.
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-medium ${S.muted} whitespace-nowrap`}
+                    >
+                      {form.quickReplyKeywords.length}/{quickReplyLimit}
+                    </span>
+                  </div>
+
+                  <div
+                    className={`flex items-center w-full px-4 py-2.5 rounded-xl text-sm ${
+                      isDark
+                        ? "bg-white/[0.05] border border-white/[0.08] text-white"
+                        : "bg-white border border-gray-200 text-gray-700"
+                    }`}
+                  >
+                    <input
+                      type="text"
+                      placeholder="Add button keyword"
+                      value={form.quickReplyKeywordInput}
+                      maxLength={20}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          quickReplyKeywordInput: e.target.value,
+                        }))
+                      }
+                      onKeyDown={handleQuickReplyKeyDown}
+                      disabled={form.quickReplyKeywords.length >= quickReplyLimit}
+                      className={`w-full bg-transparent border-none text-sm focus:outline-none ${
+                        isDark
+                          ? "text-white placeholder:text-white/25"
+                          : "text-gray-700 placeholder-gray-400"
+                      } ${
+                        form.quickReplyKeywords.length >= quickReplyLimit
+                          ? "opacity-50 cursor-not-allowed"
+                          : ""
+                      }`}
+                    />
+                    {form.quickReplyKeywordInput && (
+                      <button
+                        type="button"
+                        onClick={addQuickReplyKeyword}
+                        className="p-1 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+
+                  {form.quickReplyKeywords.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-3">
+                      {form.quickReplyKeywords.map((kw) => (
+                        <span key={kw} className={S.keywordTag}>
+                          {kw}
+                          <button
+                            type="button"
+                            onClick={() => removeQuickReplyKeyword(kw)}
+                            className={
+                              isDark
+                                ? "text-pink-400/60 hover:text-pink-400"
+                                : "text-pink-400 hover:text-pink-600"
+                            }
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
