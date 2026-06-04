@@ -112,6 +112,16 @@ export async function handlePostbackAutomation(
             startTime,
           );
         break;
+      case "START":
+        if (subAction === "FORM")
+          return await sendDMFlowQuestion(
+            account,
+            clerkId,
+            template,
+            recipientId,
+            0,
+          );
+        break;
       case "GET":
         if (subAction === "ACCESS")
           return await sendFinalLinkDM(
@@ -149,6 +159,75 @@ export async function handlePostbackAutomation(
 
 // ─── Shared helper: determine and send the next step in the chain ─────────────
 
+export function getDMFlowQuestions(template: any) {
+  if (template.dmFlow?.mode !== "collect_form") return [];
+  return Array.isArray(template.dmFlow?.questions)
+    ? template.dmFlow.questions.filter(
+        (question: any) => question?.question && question?.id,
+      )
+    : [];
+}
+
+export function hasDMFlowQuestions(template: any) {
+  return getDMFlowQuestions(template).length > 0;
+}
+
+export async function sendDMFlowQuestion(
+  account: any,
+  clerkId: string,
+  template: any,
+  recipientId: string,
+  questionIndex: number,
+): Promise<{ success: boolean; message: string; nextStage?: string }> {
+  const questions = getDMFlowQuestions(template);
+  const question = questions[questionIndex];
+
+  if (!question) {
+    return sendFinalLinkDM(account, clerkId, template, recipientId, Date.now());
+  }
+
+  if (!(await canSendInstaDM(clerkId, account))) {
+    await stopInstaAutomationForDMLimit(account);
+    return { success: false, message: dmLimitMessage() };
+  }
+
+  const dmSuccess = await sendInstagramDM(
+    account.instagramId,
+    account.accessToken,
+    recipientId,
+    { text: question.question },
+    false,
+    clerkId,
+    false,
+  );
+
+  const nextStage = `waiting_for_form_${questionIndex}`;
+  await InstaReplyLog.findOneAndUpdate(
+    {
+      userId: clerkId,
+      accountId: account.instagramId,
+      commenterUserId: recipientId,
+      dmFlowStage: { $nin: ["final_link", "completed"] },
+    },
+    {
+      $set: {
+        dmFlowStage: nextStage,
+        currentQuestionIndex: questionIndex,
+        updatedAt: new Date(),
+      },
+    },
+    { sort: { createdAt: -1 }, new: true },
+  );
+
+  if (dmSuccess) await recordInstaDMSent(account);
+
+  return {
+    success: dmSuccess,
+    message: dmSuccess ? "Form question sent" : "Failed to send form question",
+    nextStage,
+  };
+}
+
 /**
  * After a gate (follow/email/phone) is passed, decide what comes next.
  * completedStep: what was just completed
@@ -167,9 +246,12 @@ async function sendNextStepInChain(
 }> {
   const hasAskEmail = template.askEmail?.enabled;
   const hasAskPhone = template.askPhone?.enabled;
+  const hasFormQuestions = hasDMFlowQuestions(template);
 
   if (completedStep === "follow") {
-    if (hasAskEmail) {
+    if (hasFormQuestions) {
+      return sendDMFlowQuestion(account, clerkId, template, recipientId, 0);
+    } else if (hasAskEmail) {
       return sendAskEmailMessage(
         account,
         clerkId,
@@ -741,6 +823,7 @@ async function handleLegacyWelcomeAction(
   const hasAskFollow = template.askFollow?.enabled;
   const hasAskEmail = template.askEmail?.enabled;
   const hasAskPhone = template.askPhone?.enabled;
+  const hasFormQuestions = hasDMFlowQuestions(template);
 
   if (hasAskFollow) {
     if (!(await canSendInstaDM(clerkId, account))) {
@@ -784,6 +867,8 @@ async function handleLegacyWelcomeAction(
       message: dmSuccess ? "Follow gate sent" : "Failed",
       nextStage: "waiting_for_follow",
     };
+  } else if (hasFormQuestions) {
+    return sendDMFlowQuestion(account, clerkId, template, recipientId, 0);
   } else if (hasAskEmail) {
     return sendAskEmailMessage(
       account,

@@ -58,6 +58,17 @@ interface FollowUpMessage {
   links: FollowUpLink[];
 }
 
+type DMFlowQuestionType = "text" | "number" | "email" | "phone" | "budget";
+
+interface DMFlowQuestion {
+  id: string;
+  label: string;
+  question: string;
+  type: DMFlowQuestionType;
+  required: boolean;
+  retryMessage: string;
+}
+
 interface AutomationForm {
   name: string;
   accountUsername: string;
@@ -80,6 +91,8 @@ interface AutomationForm {
   dmMediaUrl: string;
   dmMediaType: string;
   dmMediaPublicId: string;
+  dmFlowMode: "send_link" | "collect_form";
+  dmQuestions: DMFlowQuestion[];
   // Welcome message
   welcomeText: string;
   welcomeButtonTitle: string;
@@ -128,6 +141,8 @@ const DEFAULT_FORM: AutomationForm = {
   dmMediaUrl: "",
   dmMediaType: "",
   dmMediaPublicId: "",
+  dmFlowMode: "send_link",
+  dmQuestions: [],
   welcomeText:
     "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
   welcomeButtonTitle: "Send me the link",
@@ -380,11 +395,27 @@ function PhonePreview({
         text: form.followingBtn || "I'm following ✅",
       });
     }
-    if (form.askEmail && form.emailOpeningMessage) {
+    if (form.dmFlowMode === "collect_form" && form.dmQuestions.length > 0) {
+      form.dmQuestions.forEach((question) => {
+        msgs.push({ from: "bot", text: question.question });
+        msgs.push({
+          from: "user",
+          text:
+            question.type === "email"
+              ? "test@gmail.com"
+              : question.type === "phone"
+                ? "+1234567890"
+                : question.type === "budget"
+                  ? "50000"
+                  : "Sample answer",
+        });
+      });
+    }
+    if (form.dmFlowMode === "send_link" && form.askEmail && form.emailOpeningMessage) {
       msgs.push({ from: "bot", text: form.emailOpeningMessage });
       msgs.push({ from: "user", text: "test@gmail.com" });
     }
-    if (form.askPhone && form.phoneOpeningMessage) {
+    if (form.dmFlowMode === "send_link" && form.askPhone && form.phoneOpeningMessage) {
       msgs.push({ from: "bot", text: form.phoneOpeningMessage });
       msgs.push({ from: "user", text: "+1234567890" });
     }
@@ -675,6 +706,7 @@ export default function CreateAutomationPage() {
       const response = await getInstaTemplateById(apiRequest, editId);
       const t = (response?.template || response) as TemplateType & {
         askPhone?: any;
+        dmFlow?: any;
         followUpDMs?: any;
         dmMediaUrl?: string;
         dmMediaType?: string;
@@ -704,6 +736,17 @@ export default function CreateAutomationPage() {
         dmMediaUrl: t.content?.[0]?.mediaUrl || "",
         dmMediaType: t.content?.[0]?.mediaType || "",
         dmMediaPublicId: "",
+        dmFlowMode: t.dmFlow?.mode === "collect_form" ? "collect_form" : "send_link",
+        dmQuestions: Array.isArray(t.dmFlow?.questions)
+          ? t.dmFlow.questions.map((question: any) => ({
+              id: question.id || "",
+              label: question.label || "",
+              question: question.question || "",
+              type: question.type || "text",
+              required: question.required !== false,
+              retryMessage: question.retryMessage || "",
+            }))
+          : [],
         welcomeText:
           t.welcomeMessage?.text ||
           "Hi {{username}}! So glad you're interested 🎉\nClick below and I'll share the link with you in a moment 🧲",
@@ -981,6 +1024,51 @@ export default function CreateAutomationPage() {
     }));
   }, []);
 
+  const addDMQuestion = useCallback(() => {
+    setForm((f) => ({
+      ...f,
+      dmFlowMode: "collect_form",
+      dmQuestions: [
+        ...f.dmQuestions,
+        {
+          id: `question_${f.dmQuestions.length + 1}`,
+          label: `Question ${f.dmQuestions.length + 1}`,
+          question: "",
+          type: "text",
+          required: true,
+          retryMessage: "",
+        },
+      ],
+    }));
+  }, []);
+
+  const updateDMQuestion = useCallback(
+    (index: number, key: keyof DMFlowQuestion, value: any) => {
+      setForm((f) => {
+        const updated = [...f.dmQuestions];
+        updated[index] = { ...updated[index], [key]: value };
+        if (key === "label") {
+          updated[index].id =
+            String(value)
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "_")
+              .replace(/^_+|_+$/g, "")
+              .slice(0, 40) || updated[index].id;
+        }
+        return { ...f, dmQuestions: updated };
+      });
+    },
+    [],
+  );
+
+  const removeDMQuestion = useCallback((index: number) => {
+    setForm((f) => ({
+      ...f,
+      dmQuestions: f.dmQuestions.filter((_, idx) => idx !== index),
+    }));
+  }, []);
+
   const addPublicReply = useCallback(() => {
     setForm((f) => ({ ...f, publicReplies: [...f.publicReplies, ""] }));
     setEditingPublicReplyIndex(form.publicReplies.length);
@@ -1185,16 +1273,36 @@ export default function CreateAutomationPage() {
             followingBtn: form.followingBtn,
           },
           askEmail: {
-            enabled: form.askEmail && isSubscribed,
+            enabled: form.dmFlowMode === "send_link" && form.askEmail && isSubscribed,
             openingMessage: form.emailOpeningMessage,
             retryMessage: form.emailRetryMessage,
             sendDmIfNoEmail: form.emailNoValidAction === "send",
           },
           askPhone: {
-            enabled: form.askPhone && isSubscribed,
+            enabled: form.dmFlowMode === "send_link" && form.askPhone && isSubscribed,
             openingMessage: form.phoneOpeningMessage,
             retryMessage: form.phoneRetryMessage,
             sendDmIfNoPhone: form.phoneNoValidAction === "send",
+          },
+          dmFlow: {
+            mode:
+              form.dmFlowMode === "collect_form" && form.dmQuestions.length > 0
+                ? ("collect_form" as const)
+                : ("send_link" as const),
+            questions: form.dmQuestions
+              .filter((question) => question.question.trim())
+              .map((question) => ({
+                id: question.id,
+                label: question.label,
+                question: question.question,
+                type:
+                  !isSubscribed &&
+                  (question.type === "email" || question.type === "phone")
+                    ? "text"
+                    : question.type,
+                required: question.required,
+                retryMessage: question.retryMessage,
+              })),
           },
           followUpDMs: {
             enabled: form.followUpDMs && isSubscribed,
@@ -1957,6 +2065,131 @@ export default function CreateAutomationPage() {
                   Add Link Button
                 </button>
               )}
+            </div>
+
+            {/* DM Flow */}
+            <div className={S.cardNoPadding}>
+              <div className={S.sectionToggle}>
+                <div>
+                  <span className={S.sectionLabel}>DM Flow</span>
+                  <p className={`text-xs mt-1 ${S.muted}`}>
+                    Choose whether this automation sends a link or collects form answers first.
+                  </p>
+                </div>
+              </div>
+              <div className={S.sectionContent}>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    { value: "send_link", label: "Send link" },
+                    { value: "collect_form", label: "Fill form" },
+                  ].map((mode) => (
+                    <button
+                      key={mode.value}
+                      type="button"
+                      onClick={() =>
+                        setForm((f) => ({
+                          ...f,
+                          dmFlowMode: mode.value as "send_link" | "collect_form",
+                        }))
+                      }
+                      className={S.tagButton(form.dmFlowMode === mode.value)}
+                    >
+                      {mode.label}
+                    </button>
+                  ))}
+                </div>
+
+                {form.dmFlowMode === "collect_form" && (
+                  <div className="mt-4 space-y-4">
+                    {form.dmQuestions.map((question, index) => {
+                      const proOnly =
+                        question.type === "email" || question.type === "phone";
+                      return (
+                        <div
+                          key={`${question.id}-${index}`}
+                          className={`rounded-xl border p-4 ${isDark ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+                        >
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <p className={`text-sm font-medium ${S.label}`}>
+                              Question {index + 1}
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => removeDMQuestion(index)}
+                              className={`${isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-500"}`}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                          <div className="grid gap-3 md:grid-cols-2">
+                            <input
+                              value={question.label}
+                              onChange={(e) =>
+                                updateDMQuestion(index, "label", e.target.value)
+                              }
+                              placeholder="Field label, e.g. Budget"
+                              className={S.input}
+                            />
+                            <select
+                              value={question.type}
+                              onChange={(e) =>
+                                updateDMQuestion(
+                                  index,
+                                  "type",
+                                  e.target.value as DMFlowQuestionType,
+                                )
+                              }
+                              className={S.input}
+                            >
+                              <option value="text">Text</option>
+                              <option value="number">Number</option>
+                              <option value="budget">Budget</option>
+                              <option value="email" disabled={!isSubscribed}>
+                                Email {isSubscribed ? "" : "(Pro)"}
+                              </option>
+                              <option value="phone" disabled={!isSubscribed}>
+                                Phone {isSubscribed ? "" : "(Pro)"}
+                              </option>
+                            </select>
+                          </div>
+                          {proOnly && !isSubscribed && (
+                            <p className="mt-2 text-xs text-amber-500">
+                              Email and phone questions require Pro.
+                            </p>
+                          )}
+                          <textarea
+                            value={question.question}
+                            onChange={(e) =>
+                              updateDMQuestion(index, "question", e.target.value)
+                            }
+                            placeholder="Ask the question users will receive in DM"
+                            rows={2}
+                            maxLength={1000}
+                            className={`mt-3 w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/25" : "border-gray-200 bg-white text-gray-700 placeholder-gray-400"}`}
+                          />
+                          <input
+                            value={question.retryMessage}
+                            onChange={(e) =>
+                              updateDMQuestion(index, "retryMessage", e.target.value)
+                            }
+                            placeholder="Retry message if answer is invalid"
+                            className={`mt-3 ${S.input}`}
+                          />
+                        </div>
+                      );
+                    })}
+
+                    <button
+                      type="button"
+                      onClick={addDMQuestion}
+                      className={S.addLinkTrigger}
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Question
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Public Reply (comments only) */}

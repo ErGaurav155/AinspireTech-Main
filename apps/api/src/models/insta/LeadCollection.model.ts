@@ -13,7 +13,8 @@ export interface ILeadCollection extends Document {
   automationType: "comments" | "stories" | "dms";
   email?: string;
   phone?: string;
-  source: "email_collection" | "phone_collection";
+  formData?: Record<string, unknown>;
+  source: "email_collection" | "phone_collection" | "form_collection";
   createdAt: Date;
   updatedAt: Date;
 }
@@ -35,9 +36,10 @@ const LeadCollectionSchema = new Schema<ILeadCollection>(
     },
     email: { type: String },
     phone: { type: String },
+    formData: { type: Schema.Types.Mixed, default: {} },
     source: {
       type: String,
-      enum: ["email_collection", "phone_collection"],
+      enum: ["email_collection", "phone_collection", "form_collection"],
       required: true,
     },
   },

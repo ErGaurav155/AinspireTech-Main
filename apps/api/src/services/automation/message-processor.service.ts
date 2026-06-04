@@ -6,7 +6,9 @@ import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
 import {
+  getDMFlowQuestions,
   sendFinalLinkDM,
+  sendDMFlowQuestion,
   sendNextStepInChain,
 } from "@/services/automation/dm-processor.service";
 import {
@@ -19,8 +21,7 @@ import {
 const MAX_INSTAGRAM_QUICK_REPLIES = 13;
 
 /**
- * Handle incoming text message (email or phone response from user).
- * Called when a user's dmFlowStage is "waiting_for_email" or "waiting_for_phone".
+ * Handle incoming text message for email, phone, or custom form responses.
  */
 export async function handleIncomingMessage(
   accountId: string,
@@ -44,7 +45,10 @@ export async function handleIncomingMessage(
       userId: clerkId,
       accountId: accountId,
       commenterUserId: senderId,
-      dmFlowStage: { $in: ["waiting_for_email", "waiting_for_phone"] },
+      $or: [
+        { dmFlowStage: { $in: ["waiting_for_email", "waiting_for_phone"] } },
+        { dmFlowStage: /^waiting_for_form_\d+$/ },
+      ],
     }).sort({ createdAt: -1 });
 
     if (!recentLog) {
@@ -67,6 +71,15 @@ export async function handleIncomingMessage(
       );
     } else if (recentLog.dmFlowStage === "waiting_for_phone") {
       return await handlePhoneResponse(
+        account,
+        clerkId,
+        template,
+        senderId,
+        messageText,
+        recentLog,
+      );
+    } else if (/^waiting_for_form_\d+$/.test(recentLog.dmFlowStage || "")) {
+      return await handleFormQuestionResponse(
         account,
         clerkId,
         template,
@@ -255,6 +268,122 @@ async function handlePhoneResponse(
   }
 }
 
+function validateFormAnswer(question: any, answer: string) {
+  const value = answer.trim();
+  if (question.required && !value) return false;
+  if (!value) return true;
+  if (question.type === "email") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if (question.type === "phone") return /^[+]?[\d\s()-]{8,20}$/.test(value);
+  if (question.type === "number" || question.type === "budget") {
+    return !Number.isNaN(Number(value.replace(/[,\s₹$]/g, "")));
+  }
+  return true;
+}
+
+async function handleFormQuestionResponse(
+  account: any,
+  clerkId: string,
+  template: any,
+  senderId: string,
+  answer: string,
+  log: any,
+): Promise<{ success: boolean; message: string }> {
+  try {
+    const questions = getDMFlowQuestions(template);
+    const questionIndex = Number(log.currentQuestionIndex || 0);
+    const question = questions[questionIndex];
+
+    if (!question) {
+      return await sendFinalLinkDM(account, clerkId, template, senderId, Date.now());
+    }
+
+    if (!validateFormAnswer(question, answer)) {
+      if (!(await canSendInstaDM(clerkId, account))) {
+        await stopInstaAutomationForDMLimit(account);
+        return { success: false, message: dmLimitMessage() };
+      }
+
+      const retrySuccess = await sendInstagramDM(
+        account.instagramId,
+        account.accessToken,
+        senderId,
+        {
+          text:
+            question.retryMessage ||
+            `Please enter a valid ${question.label || "answer"}.`,
+        },
+        false,
+        clerkId,
+        false,
+      );
+      if (retrySuccess) await recordInstaDMSent(account);
+      return {
+        success: retrySuccess,
+        message: retrySuccess ? "Retry message sent" : "Failed to send retry",
+      };
+    }
+
+    const nextResponses = {
+      ...(log.formResponses || {}),
+      [question.id]: {
+        label: question.label,
+        type: question.type,
+        answer: answer.trim(),
+      },
+    };
+
+    log.formResponses = nextResponses;
+    log.currentQuestionIndex = questionIndex + 1;
+    if (question.type === "email") log.emailCollected = answer.trim();
+    if (question.type === "phone") log.phoneCollected = answer.trim();
+    await log.save();
+
+    if (questionIndex + 1 < questions.length) {
+      const result = await sendDMFlowQuestion(
+        account,
+        clerkId,
+        template,
+        senderId,
+        questionIndex + 1,
+      );
+      return { success: result.success, message: result.message };
+    }
+
+    await InstaLeadCollection.create({
+      userId: clerkId,
+      accountId: account.instagramId,
+      accountUsername: account.username,
+      templateId: log.templateId,
+      templateName: log.templateName || "Unknown",
+      commenterUserId: senderId,
+      commenterUsername: log.commenterUsername || "unknown",
+      mediaId: log.mediaId || "",
+      automationType: log.automationType || "comments",
+      email: log.emailCollected,
+      phone: log.phoneCollected,
+      formData: nextResponses,
+      source: "form_collection",
+    });
+
+    const result = await sendFinalLinkDM(
+      account,
+      clerkId,
+      template,
+      senderId,
+      Date.now(),
+    );
+    if (result.nextStage) {
+      await InstaReplyLog.findByIdAndUpdate(log._id, {
+        dmFlowStage: result.nextStage,
+      });
+    }
+    return result;
+  } catch (error) {
+    console.error("Error handling form response:", error);
+    return { success: false, message: "Failed to handle form response" };
+  }
+}
+
 /**
  * FIXED: Handle incoming DM — properly delegates to handleIncomingMessage
  * when conversation is waiting for email/phone
@@ -287,23 +416,29 @@ export async function handleIncomingDM(
       userId: clerkId,
       accountId: accountId,
       commenterUserId: senderId,
-      dmFlowStage: {
-        $in: [
-          "waiting_for_email",
-          "waiting_for_phone",
-          "email_collected",
-          "phone_collected",
-          "waiting_for_follow",
-          "still_waiting_for_follow",
-        ],
-      },
+      $or: [
+        {
+          dmFlowStage: {
+            $in: [
+              "waiting_for_email",
+              "waiting_for_phone",
+              "email_collected",
+              "phone_collected",
+              "waiting_for_follow",
+              "still_waiting_for_follow",
+            ],
+          },
+        },
+        { dmFlowStage: /^waiting_for_form_\d+$/ },
+      ],
     }).sort({ createdAt: -1 });
 
     // If we have an active conversation waiting for input, delegate to handleIncomingMessage
     if (
       existingLog &&
       (existingLog.dmFlowStage === "waiting_for_email" ||
-        existingLog.dmFlowStage === "waiting_for_phone")
+        existingLog.dmFlowStage === "waiting_for_phone" ||
+        /^waiting_for_form_\d+$/.test(existingLog.dmFlowStage || ""))
     ) {
       const result = await handleIncomingMessage(
         accountId,
@@ -360,16 +495,21 @@ export async function sendDMStarterQuickReplies(
       userId: clerkId,
       accountId,
       commenterUserId: senderId,
-      dmFlowStage: {
-        $in: [
-          "waiting_for_email",
-          "waiting_for_phone",
-          "email_collected",
-          "phone_collected",
-          "waiting_for_follow",
-          "still_waiting_for_follow",
-        ],
-      },
+      $or: [
+        {
+          dmFlowStage: {
+            $in: [
+              "waiting_for_email",
+              "waiting_for_phone",
+              "email_collected",
+              "phone_collected",
+              "waiting_for_follow",
+              "still_waiting_for_follow",
+            ],
+          },
+        },
+        { dmFlowStage: /^waiting_for_form_\d+$/ },
+      ],
     }).sort({ createdAt: -1 });
 
     if (existingLog) {
@@ -483,6 +623,7 @@ async function startNewDMConversation(
     const hasAskFollow = matchingTemplate.askFollow?.enabled;
     const hasAskEmail = matchingTemplate.askEmail?.enabled;
     const hasAskPhone = matchingTemplate.askPhone?.enabled;
+    const hasFormQuestions = getDMFlowQuestions(matchingTemplate).length > 0;
 
     // Determine button payload using same priority as comment/story processors
     let buttonPayload = "";
@@ -491,6 +632,9 @@ async function startNewDMConversation(
     if (hasAskFollow) {
       buttonPayload = `CHECK_FOLLOW_${matchingTemplate.mediaId}`;
       initialStage = "waiting_for_follow";
+    } else if (hasFormQuestions) {
+      buttonPayload = `START_FORM_${matchingTemplate.mediaId}`;
+      initialStage = "welcome";
     } else if (hasAskEmail) {
       buttonPayload = `ASK_EMAIL_${matchingTemplate.mediaId}`;
       initialStage = "waiting_for_email";

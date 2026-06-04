@@ -8,6 +8,7 @@ import {
   canSendInstaDM,
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
+import { hasDMFlowQuestions } from "@/services/automation/dm-processor.service";
 
 interface InstagramStory {
   id: string;
@@ -207,6 +208,7 @@ async function processStoryDMFlow(
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
+    const hasFormQuestions = hasDMFlowQuestions(template);
 
     const welcomeText = template.welcomeMessage.text.replace(
       /\{\{username\}\}/g,
@@ -217,6 +219,8 @@ async function processStoryDMFlow(
     let buttonPayload = "";
     if (hasAskFollow) {
       buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+    } else if (hasFormQuestions) {
+      buttonPayload = `START_FORM_${template.mediaId}`;
     } else if (hasAskEmail) {
       buttonPayload = `ASK_EMAIL_${template.mediaId}`;
     } else if (hasAskPhone) {
@@ -256,7 +260,7 @@ async function processStoryDMFlow(
       dmSent: dmSuccess,
       followChecked: false,
       userFollows: undefined,
-      linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
+      linkSent: !hasAskFollow && !hasFormQuestions && !hasAskEmail && !hasAskPhone,
       stage: "welcome",
     };
   } catch (error) {

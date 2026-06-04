@@ -57,6 +57,27 @@ export interface IFollowUpDMs {
   messages: IFollowUpMessage[];
 }
 
+export type IDMFlowQuestionType =
+  | "text"
+  | "number"
+  | "email"
+  | "phone"
+  | "budget";
+
+export interface IDMFlowQuestion {
+  id: string;
+  label: string;
+  question: string;
+  type: IDMFlowQuestionType;
+  required: boolean;
+  retryMessage?: string;
+}
+
+export interface IDMFlow {
+  mode: "send_link" | "collect_form";
+  questions: IDMFlowQuestion[];
+}
+
 export interface IReplyTemplate extends Document {
   userId: string;
   accountId: string;
@@ -118,6 +139,7 @@ export interface IReplyTemplate extends Document {
   askFollow: IAskFollow;
   askEmail: IAskEmail;
   askPhone: IAskPhone;
+  dmFlow: IDMFlow;
   followUpDMs: IFollowUpDMs;
 
   createdAt: Date;
@@ -254,6 +276,28 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
         default: "Please enter a correct phone number, e.g. +1234567890",
       },
       sendDmIfNoPhone: { type: Boolean, default: true },
+    },
+
+    dmFlow: {
+      mode: {
+        type: String,
+        enum: ["send_link", "collect_form"],
+        default: "send_link",
+      },
+      questions: [
+        {
+          id: { type: String, default: "" },
+          label: { type: String, default: "" },
+          question: { type: String, default: "" },
+          type: {
+            type: String,
+            enum: ["text", "number", "email", "phone", "budget"],
+            default: "text",
+          },
+          required: { type: Boolean, default: true },
+          retryMessage: { type: String, default: "" },
+        },
+      ],
     },
 
     followUpDMs: {

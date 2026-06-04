@@ -32,6 +32,58 @@ const normalizeKeywordList = (value: unknown, limit = Number.MAX_SAFE_INTEGER) =
   ).slice(0, limit);
 };
 
+const PRO_ONLY_QUESTION_TYPES = new Set(["email", "phone"]);
+
+const normalizeDMFlow = (value: any, userTier: string) => {
+  const mode = value?.mode === "collect_form" ? "collect_form" : "send_link";
+  const rawQuestions = Array.isArray(value?.questions) ? value.questions : [];
+  const questions =
+    mode === "collect_form"
+      ? rawQuestions
+          .map((question: any, index: number) => {
+            const type = ["text", "number", "email", "phone", "budget"].includes(
+              question?.type,
+            )
+              ? question.type
+              : "text";
+
+            if (userTier !== "pro" && PRO_ONLY_QUESTION_TYPES.has(type)) {
+              return null;
+            }
+
+            const label =
+              String(question?.label || question?.id || `Question ${index + 1}`)
+                .trim()
+                .slice(0, 40) || `Question ${index + 1}`;
+
+            return {
+              id:
+                String(question?.id || label)
+                  .trim()
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "_")
+                  .replace(/^_+|_+$/g, "")
+                  .slice(0, 40) || `question_${index + 1}`,
+              label,
+              question:
+                String(question?.question || `Please share ${label}`)
+                  .trim()
+                  .slice(0, 1000) || `Please share ${label}`,
+              type,
+              required: question?.required !== false,
+              retryMessage: String(question?.retryMessage || "").trim().slice(0, 500),
+            };
+          })
+          .filter(Boolean)
+          .slice(0, userTier === "pro" ? 10 : 5)
+      : [];
+
+  return {
+    mode: questions.length > 0 ? mode : "send_link",
+    questions,
+  };
+};
+
 // GET /api/insta/templates - Get Instagram templates
 export const getInstaTemplatesController = async (
   req: Request,
@@ -117,6 +169,7 @@ export const getInstaTemplatesController = async (
       askEmail: template.askEmail,
       askPhone: template.askPhone,
       followUpDMs: template.followUpDMs,
+      dmFlow: template.dmFlow,
     }));
 
     return res.status(200).json({
@@ -173,6 +226,7 @@ export const createInstaTemplateController = async (
       askFollow,
       askEmail,
       askPhone,
+      dmFlow,
       followUpDMs,
       isActive,
     } = req.body;
@@ -229,6 +283,7 @@ export const createInstaTemplateController = async (
       automationType === "dms"
         ? normalizeKeywordList(quickReplyTriggers, quickReplyLimit)
         : [];
+    const normalizedDMFlow = normalizeDMFlow(dmFlow, userTier);
 
     if (forceInactiveForDMLimit) {
       await stopInstaAutomationForDMLimit(account);
@@ -343,6 +398,8 @@ export const createInstaTemplateController = async (
         retryMessage: "Please enter a correct phone number, e.g. +1234567890",
         sendDmIfNoPhone: true,
       },
+
+      dmFlow: normalizedDMFlow,
 
       // Follow-up DMs
       followUpDMs: followUpDMs || {

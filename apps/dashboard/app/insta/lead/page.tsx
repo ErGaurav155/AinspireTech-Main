@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Mail,
   Phone,
+  FileText,
   Search,
   Download,
   Trash2,
@@ -45,6 +46,7 @@ const SOURCE_TYPES = [
   { value: "all", label: "All Sources" },
   { value: "email_collection", label: "Email" },
   { value: "phone_collection", label: "Phone" },
+  { value: "form_collection", label: "Forms" },
 ];
 
 export default function LeadsPage() {
@@ -60,7 +62,7 @@ export default function LeadsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState<
-    "all" | "email_collection" | "phone_collection"
+    "all" | "email_collection" | "phone_collection" | "form_collection"
   >("all");
   const [automationTypeFilter, setAutomationTypeFilter] = useState<
     "all" | "comments" | "stories" | "dms"
@@ -293,6 +295,7 @@ export default function LeadsPage() {
   const phoneCount = leads.filter(
     (l) => l.source === "phone_collection",
   ).length;
+  const formCount = leads.filter((l) => l.source === "form_collection").length;
   const commentsCount = leads.filter(
     (l) => l.automationType === "comments",
   ).length;
@@ -396,6 +399,12 @@ export default function LeadsPage() {
                 value: phoneCount,
                 icon: <Phone className="h-5 w-5" />,
                 color: "green",
+              },
+              {
+                label: "Forms",
+                value: formCount,
+                icon: <FileText className="h-5 w-5" />,
+                color: "purple",
               },
               {
                 label: "Comments",
@@ -614,6 +623,19 @@ export default function LeadsPage() {
                               >
                                 {lead.email}
                               </span>
+                            </div>
+                          ) : lead.source === "form_collection" ? (
+                            <div className="space-y-1">
+                              {Object.values(lead.formData || {})
+                                .slice(0, 3)
+                                .map((item: any, index) => (
+                                  <p
+                                    key={index}
+                                    className={`text-xs ${isDark ? "text-purple-300" : "text-purple-600"}`}
+                                  >
+                                    {item.label}: {item.answer}
+                                  </p>
+                                ))}
                             </div>
                           ) : (
                             <div className="flex items-center gap-1.5">

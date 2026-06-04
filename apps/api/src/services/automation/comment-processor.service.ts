@@ -11,6 +11,7 @@ import {
   canSendInstaDM,
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
+import { hasDMFlowQuestions } from "@/services/automation/dm-processor.service";
 
 interface InstagramComment {
   id: string;
@@ -313,6 +314,7 @@ async function processDMFlow(
     const hasAskFollow = template.askFollow?.enabled;
     const hasAskEmail = template.askEmail?.enabled;
     const hasAskPhone = template.askPhone?.enabled;
+    const hasFormQuestions = hasDMFlowQuestions(template);
 
     // ✅ FIXED: Priority is askFollow > askEmail > askPhone > direct link
     let buttonPayload = "";
@@ -321,6 +323,8 @@ async function processDMFlow(
     if (hasAskFollow) {
       // First gate: check follow
       buttonPayload = `CHECK_FOLLOW_${template.mediaId}`;
+    } else if (hasFormQuestions) {
+      buttonPayload = `START_FORM_${template.mediaId}`;
     } else if (hasAskEmail) {
       // First gate: ask email
       buttonPayload = `ASK_EMAIL_${template.mediaId}`;
@@ -369,7 +373,7 @@ async function processDMFlow(
       dmSent: welcomeSuccess,
       followChecked: false,
       userFollows: undefined,
-      linkSent: !hasAskFollow && !hasAskEmail && !hasAskPhone,
+      linkSent: !hasAskFollow && !hasFormQuestions && !hasAskEmail && !hasAskPhone,
       stage: "welcome",
     };
   } catch (error) {

@@ -358,6 +358,20 @@ async function processMessagingWebhook(
           senderId,
           messageText,
         );
+        if (!result.processed && result.message === "No matching template") {
+          const quickReplyResult = await sendDMStarterQuickReplies(
+            accountId,
+            account.userId,
+            senderId,
+          );
+          return {
+            processed: quickReplyResult.processed,
+            queued: false,
+            error: quickReplyResult.success
+              ? undefined
+              : quickReplyResult.message,
+          };
+        }
         return {
           processed: result.processed,
           queued: false,
@@ -442,6 +456,18 @@ async function processDirectMessageWebhook(
         senderId,
         messageText,
       );
+      if (!result.processed && result.message === "No matching template") {
+        const quickReplyResult = await sendDMStarterQuickReplies(
+          accountId,
+          account.userId,
+          senderId,
+        );
+        return {
+          processed: quickReplyResult.processed,
+          queued: false,
+          error: quickReplyResult.success ? undefined : quickReplyResult.message,
+        };
+      }
       return {
         processed: result.processed,
         queued: false,

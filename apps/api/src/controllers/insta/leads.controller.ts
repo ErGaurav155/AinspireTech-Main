@@ -156,20 +156,29 @@ export const exportLeadsController = async (req: Request, res: Response) => {
       "Username",
       "User ID",
       "Source",
+      "Form Answers",
       "Template Name",
       "Account ID",
       "Collected At",
     ];
 
-    const rows = leads.map((lead) => [
-      lead.email || "",
-      lead.phone || "",
-      lead.userId || "",
-      lead.source || "",
-      lead.templateName || "",
-      lead.accountId || "",
-      lead.createdAt ? new Date(lead.createdAt).toISOString() : "",
-    ]);
+    const rows = leads.map((lead) => {
+      const formAnswers = Object.values((lead as any).formData || {})
+        .map((item: any) => `${item.label || "Question"}: ${item.answer || ""}`)
+        .join(" | ");
+
+      return [
+        lead.email || "",
+        lead.phone || "",
+        lead.commenterUsername || "",
+        lead.commenterUserId || "",
+        lead.source || "",
+        formAnswers,
+        lead.templateName || "",
+        lead.accountId || "",
+        lead.createdAt ? new Date(lead.createdAt).toISOString() : "",
+      ];
+    });
 
     const csvContent = [
       headers.join(","),

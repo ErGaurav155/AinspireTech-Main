@@ -136,6 +136,17 @@ export const createInstaTemplate = (
       retryMessage: string;
       sendDmIfNoPhone: boolean;
     };
+    dmFlow?: {
+      mode: "send_link" | "collect_form";
+      questions: Array<{
+        id: string;
+        label: string;
+        question: string;
+        type: "text" | "number" | "email" | "phone" | "budget";
+        required: boolean;
+        retryMessage?: string;
+      }>;
+    };
     followUpDMs?: {
       enabled: boolean;
       messages: Array<{
@@ -199,6 +210,10 @@ export const createInstaTemplate = (
         "Hey there! I'm so happy you're here. Thank you so much for your interest 🤩 . I'll need your phone number first. Please share it in the chat.",
       retryMessage: "Please enter a correct phone number, e.g. +1234567890",
       sendDmIfNoPhone: true,
+    },
+    dmFlow: templateData.dmFlow || {
+      mode: "send_link",
+      questions: [],
     },
     followUpDMs: templateData.followUpDMs || {
       enabled: false,
@@ -267,6 +282,14 @@ export interface LeadItem {
   automationType: "comments" | "stories" | "dms";
   email?: string;
   phone?: string;
+  formData?: Record<
+    string,
+    {
+      label?: string;
+      type?: string;
+      answer?: string;
+    }
+  >;
   source: string;
   createdAt: string;
   updatedAt: string;
@@ -740,6 +763,22 @@ export interface AskPhoneConfig {
   sendDmIfNoPhone: boolean;
 }
 
+export type DMFlowQuestionType = "text" | "number" | "email" | "phone" | "budget";
+
+export interface DMFlowQuestionConfig {
+  id: string;
+  label: string;
+  question: string;
+  type: DMFlowQuestionType;
+  required: boolean;
+  retryMessage?: string;
+}
+
+export interface DMFlowConfig {
+  mode: "send_link" | "collect_form";
+  questions: DMFlowQuestionConfig[];
+}
+
 export interface FollowUpLink {
   url: string;
   buttonTitle: string;
@@ -788,6 +827,7 @@ export interface TemplateType {
   askFollow?: AskFollowConfig;
   askEmail?: AskEmailConfig;
   askPhone?: AskPhoneConfig;
+  dmFlow?: DMFlowConfig;
   followUpDMs?: FollowUpDMsConfig;
   createdAt: string;
   updatedAt: string;

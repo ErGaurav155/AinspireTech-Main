@@ -30,6 +30,8 @@ export interface IReplyLog extends Document {
   // Email/Phone collection
   emailCollected?: string;
   phoneCollected?: string;
+  formResponses?: Record<string, unknown>;
+  currentQuestionIndex?: number;
 
   // Link tracking
   linkSent?: boolean;
@@ -88,6 +90,8 @@ const ReplyLogSchema = new Schema<IReplyLog>(
 
     emailCollected: { type: String },
     phoneCollected: { type: String },
+    formResponses: { type: Schema.Types.Mixed, default: {} },
+    currentQuestionIndex: { type: Number, default: 0 },
 
     linkSent: { type: Boolean, default: false },
 
