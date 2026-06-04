@@ -44,10 +44,45 @@ export const getAffiliateDashboardController = async (
       });
     }
 
-    // Get referrals with subscription details
-    const referrals = await Referral.find({ affiliateId: affiliate._id })
-      .populate("referredUserId", "name email")
-      .sort({ createdAt: -1 });
+    // Get referrals with user details. referredUserId is stored as a string and
+    // can be either a Clerk id or a Mongo user id, so populate() is unreliable.
+    const rawReferrals = await Referral.find({ affiliateId: affiliate._id })
+      .sort({ createdAt: -1 })
+      .lean();
+    const referredUserIds = rawReferrals
+      .map((referral) => String(referral.referredUserId || ""))
+      .filter(Boolean);
+    const referredUsers = await User.find({
+      $or: [{ clerkId: { $in: referredUserIds } }, { _id: { $in: referredUserIds } }],
+    })
+      .select("_id clerkId email firstName lastName username")
+      .lean();
+    const userById = new Map<string, any>();
+    referredUsers.forEach((referredUser) => {
+      userById.set(String(referredUser._id), referredUser);
+      userById.set(String(referredUser.clerkId), referredUser);
+    });
+    const commissionTotalsByReferral = await CommissionRecord.aggregate([
+      {
+        $match: {
+          affiliateId: affiliate._id.toString(),
+          referralId: { $in: rawReferrals.map((referral) => referral._id.toString()) },
+        },
+      },
+      { $group: { _id: "$referralId", total: { $sum: "$amount" } } },
+    ]);
+    const commissionTotalByReferralId = new Map(
+      commissionTotalsByReferral.map((item) => [String(item._id), item.total || 0]),
+    );
+    const referrals = rawReferrals.map((referral) => ({
+      ...referral,
+      totalCommissionEarned: Math.max(
+        Number(referral.totalCommissionEarned) || 0,
+        commissionTotalByReferralId.get(referral._id.toString()) || 0,
+      ),
+      referredUserId:
+        userById.get(String(referral.referredUserId)) || referral.referredUserId,
+    }));
 
     // Get commission records for current month
     const currentDate = new Date();
@@ -72,7 +107,9 @@ export const getAffiliateDashboardController = async (
     const stats = {
       totalReferrals: affiliate.totalReferrals || 0,
       activeReferrals: affiliate.activeReferrals || 0,
-      totalEarnings: affiliate.totalEarnings || 0,
+      // User-facing total earned means owner-approved/paid earnings.
+      totalEarnings: affiliate.paidEarnings || 0,
+      generatedEarnings: affiliate.totalEarnings || 0,
       pendingEarnings: affiliate.pendingEarnings || 0,
       paidEarnings: affiliate.paidEarnings || 0,
       monthlyEarnings: monthlyCommissions.reduce(

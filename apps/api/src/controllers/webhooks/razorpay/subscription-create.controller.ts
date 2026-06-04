@@ -379,6 +379,9 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         affiliate.totalReferrals = Number(affiliate.totalReferrals) + 1;
         affiliate.activeReferrals = Number(affiliate.activeReferrals) + 1;
         await affiliate.save();
+
+        referralRecord.totalCommissionEarned = Number(commissionAmount);
+        await referralRecord.save();
       }
 
       user.referredBy = affiliate._id.toString();

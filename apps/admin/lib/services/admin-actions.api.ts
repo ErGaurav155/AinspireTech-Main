@@ -81,6 +81,17 @@ export interface AdminAffiliateSummary {
   userId?: string;
   affiliateCode?: string;
   totalEarnings?: number;
+  generatedEarnings?: number;
+  pendingEarnings?: number;
+  paidEarnings?: number;
+  user?: {
+    _id?: string;
+    clerkId?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+    username?: string;
+  };
 }
 
 export interface PayoutRecord {

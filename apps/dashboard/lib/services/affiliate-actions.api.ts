@@ -85,6 +85,7 @@ export interface AffiliateDashboardStats {
   totalEarnings: number;
   pendingEarnings: number;
   paidEarnings: number;
+  generatedEarnings?: number;
   monthlyEarnings: number;
   webChatbotReferrals: number;
   instaReferrals: number;

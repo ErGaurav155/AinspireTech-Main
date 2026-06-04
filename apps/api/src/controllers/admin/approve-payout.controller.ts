@@ -4,6 +4,7 @@ import { connectToDatabase } from "@/config/database.config";
 import AffiPayout from "@/models/affiliate/Payout";
 import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import Affiliate from "@/models/affiliate/Affiliate";
+import User from "@/models/user.model";
 
 // POST /api/admin/payouts/:payoutId
 export const approvePayoutController = async (req: Request, res: Response) => {
@@ -99,9 +100,44 @@ export const listPayoutsController = async (req: Request, res: Response) => {
     const filter: any = {};
     if (status) filter.status = status;
 
-    const payouts = await AffiPayout.find(filter)
-      .populate("affiliateId", "userId affiliateCode totalEarnings")
-      .sort({ createdAt: -1 });
+    const rawPayouts = await AffiPayout.find(filter).sort({ createdAt: -1 }).lean();
+    const affiliateIds = rawPayouts
+      .map((payout) => String(payout.affiliateId || ""))
+      .filter(Boolean);
+    const affiliates = await Affiliate.find({ _id: { $in: affiliateIds } })
+      .select("userId affiliateCode totalEarnings pendingEarnings paidEarnings")
+      .lean();
+    const affiliateUserIds = affiliates
+      .map((affiliate) => String(affiliate.userId || ""))
+      .filter(Boolean);
+    const users = await User.find({
+      $or: [{ clerkId: { $in: affiliateUserIds } }, { _id: { $in: affiliateUserIds } }],
+    })
+      .select("_id clerkId email firstName lastName username")
+      .lean();
+    const userById = new Map<string, any>();
+    users.forEach((user) => {
+      userById.set(String(user._id), user);
+      userById.set(String(user.clerkId), user);
+    });
+    const affiliateById = new Map(
+      affiliates.map((affiliate) => {
+        const user = userById.get(String(affiliate.userId));
+        return [
+          String(affiliate._id),
+          {
+            ...affiliate,
+            totalEarnings: affiliate.paidEarnings || 0,
+            generatedEarnings: affiliate.totalEarnings || 0,
+            user,
+          },
+        ];
+      }),
+    );
+    const payouts = rawPayouts.map((payout) => ({
+      ...payout,
+      affiliateId: affiliateById.get(String(payout.affiliateId)) || payout.affiliateId,
+    }));
 
     return res.status(200).json({
       success: true,

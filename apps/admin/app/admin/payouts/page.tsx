@@ -45,6 +45,29 @@ function getAffiliateSummary(affiliateId: PayoutRecord["affiliateId"]) {
   return affiliateId as AdminAffiliateSummary;
 }
 
+function getAffiliateDisplayName(affiliate?: AdminAffiliateSummary | null) {
+  if (!affiliate) return "Affiliate";
+  const userName = [
+    affiliate.user?.firstName,
+    affiliate.user?.lastName,
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  return (
+    affiliate.affiliateCode ||
+    userName ||
+    affiliate.user?.username ||
+    affiliate.user?.email ||
+    "Affiliate"
+  );
+}
+
+function getAffiliateUserLine(affiliate?: AdminAffiliateSummary | null) {
+  if (!affiliate) return "—";
+  return affiliate.user?.email || affiliate.user?.clerkId || affiliate.userId || "—";
+}
+
 function StatusBadge({ status }: { status: PayoutStatus }) {
   const map: Record<PayoutStatus, { label: string; cls: string; icon: ReactNode }> = {
     processing: {
@@ -158,7 +181,9 @@ export default function AdminPayoutsPage() {
         payout.paymentDetails?.upiId?.toLowerCase().includes(query) ||
         payout.paymentDetails?.paypalEmail?.toLowerCase().includes(query) ||
         affiliate?.userId?.toLowerCase().includes(query) ||
-        affiliate?.affiliateCode?.toLowerCase().includes(query);
+        affiliate?.affiliateCode?.toLowerCase().includes(query) ||
+        affiliate?.user?.email?.toLowerCase().includes(query) ||
+        affiliate?.user?.username?.toLowerCase().includes(query);
 
       return matchesStatus && matchesSearch;
     });
@@ -374,10 +399,11 @@ export default function AdminPayoutsPage() {
                       <td className="px-6 py-4">
                         <div>
                           <p className={`text-sm font-medium ${styles.text.primary}`}>
-                            {affiliate?.affiliateCode || "Affiliate"}
+                            {getAffiliateDisplayName(affiliate)}
                           </p>
                           <p className={`text-xs ${styles.text.muted}`}>
-                            {affiliate?.userId || String(payout.affiliateId)}
+                            {getAffiliateUserLine(affiliate) ||
+                              String(payout.affiliateId)}
                           </p>
                         </div>
                       </td>
@@ -452,10 +478,10 @@ export default function AdminPayoutsPage() {
                     Code: {getAffiliateSummary(selectedPayout.affiliateId)?.affiliateCode || "—"}
                   </p>
                   <p className={`text-sm ${styles.text.secondary}`}>
-                    User ID: {getAffiliateSummary(selectedPayout.affiliateId)?.userId || "—"}
+                    User: {getAffiliateUserLine(getAffiliateSummary(selectedPayout.affiliateId))}
                   </p>
                   <p className={`text-sm ${styles.text.secondary}`}>
-                    Total earnings: ₹
+                    Total earned: ₹
                     {(getAffiliateSummary(selectedPayout.affiliateId)?.totalEarnings || 0).toLocaleString()}
                   </p>
                 </div>
