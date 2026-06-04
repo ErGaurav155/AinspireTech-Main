@@ -30,6 +30,7 @@ export const createRazorpaySubscription = (
       accountLimit?: number;
       minutesLimit?: number;
       numberLimit?: number;
+      concurrentCallLimit?: number;
       agentLimit?: number;
       overageRate?: number;
       chatbotId?: string | null;

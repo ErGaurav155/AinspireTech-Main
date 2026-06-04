@@ -15,7 +15,6 @@ import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import AffiReferral from "@/models/affiliate/Referral";
 import Affiliate from "@/models/affiliate/Affiliate";
 import { getCurrentWindow } from "@/services/rate-limit.service";
-import { releaseDedicatedNumbersForClerk } from "@/services/call/call-number-pool.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -266,7 +265,6 @@ async function handleSubscriptionEnded(subscriptionId: string) {
           subscriptionId,
           callUpdatedSub.clerkId,
         );
-        await releaseDedicatedNumbersForClerk(callUpdatedSub.clerkId);
         await CallAssistantWorkspace.findOneAndUpdate(
           { clerkId: callUpdatedSub.clerkId },
           {
@@ -274,12 +272,12 @@ async function handleSubscriptionEnded(subscriptionId: string) {
               "subscription.plan": "free",
               "subscription.status": "trial",
               "subscription.minutesLimit": 10,
-              "subscription.callsLimit": 5,
+              "subscription.callsLimit": 10,
+              "subscription.concurrentCallLimit": 1,
               "subscription.overageRate": 0,
               "subscription.isFree": true,
               updatedAt: new Date(),
             },
-            $pull: { numbers: { assignment: "dedicated" } },
           },
         );
       } else {

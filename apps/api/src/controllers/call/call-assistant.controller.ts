@@ -14,13 +14,6 @@ import {
   verifyExotelWebhookSecret,
 } from "@/services/call/exotel.service";
 import { sendCallNotifications } from "@/services/call/call-notification.service";
-import {
-  assignDedicatedNumber,
-  leaseSharedNumber,
-  listAvailableCallNumbers,
-  releaseDedicatedNumbersForClerk,
-  releaseSharedNumber,
-} from "@/services/call/call-number-pool.service";
 import { sendEmail } from "@/services/smtp-mailer.service";
 
 const plans = [
@@ -30,47 +23,26 @@ const plans = [
     priceInr: 0,
     priceUsd: 0,
     minutes: 10,
-    calls: 5,
+    calls: 10,
+    concurrentCalls: 1,
     overageInr: 0,
     agents: 1,
     numbers: 0,
-    features: ["Shared number pool", "10 minutes or 5 calls", "Upgrade reminder"],
+    features: ["10 inbound minutes", "1 concurrent inbound call", "Upgrade reminder"],
   },
   {
-    id: "starter",
-    name: "Starter",
-    priceInr: 2999,
+    id: "business",
+    name: "Business",
+    priceInr: 1999,
     priceUsd: 49,
-    minutes: 1000,
-    calls: 1000,
+    yearlyInr: 19990,
+    minutes: 200,
+    calls: 999999,
+    concurrentCalls: 3,
     overageInr: 5,
     agents: 3,
-    numbers: 1,
-    features: ["AI receptionist", "Lead capture", "WhatsApp alerts"],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    priceInr: 7999,
-    priceUsd: 199,
-    minutes: 3000,
-    calls: 3000,
-    overageInr: 4,
-    agents: 10,
-    numbers: 3,
-    features: ["Flow editor", "Call recordings", "Permanent number search"],
-  },
-  {
-    id: "enterprise",
-    name: "Enterprise",
-    priceInr: 19999,
-    priceUsd: 299,
-    minutes: 10000,
-    calls: 999999,
-    overageInr: 3,
-    agents: 30,
-    numbers: 10,
-    features: ["High-volume minutes", "Dedicated support", "Permanent number pool"],
+    numbers: 0,
+    features: ["200 inbound minutes", "3 concurrent inbound calls", "Lead capture"],
   },
 ] as const;
 
@@ -78,7 +50,7 @@ const daysFromNow = (days: number) =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
 const DEFAULT_BEHAVIOR_PROMPT =
-  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Starter 2999/month for 1000 minutes, Growth 7999/month for 3000 minutes, Enterprise 19999/month for 10000 minutes. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
+  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed inbound calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Free includes 10 minutes and 1 concurrent inbound call. Business is 1999 rupees monthly or 19990 rupees yearly with 200 minutes and 3 concurrent inbound calls. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
 
 const DEFAULT_QUESTIONS = [
   "May I know your name?",
@@ -87,10 +59,37 @@ const DEFAULT_QUESTIONS = [
   "Which service or plan are you interested in?",
 ];
 
-const planIdFromSubscription = (planType?: string): "starter" | "growth" | "enterprise" => {
-  if (planType === "call-growth") return "growth";
-  if (planType === "call-enterprise") return "enterprise";
-  return "starter";
+const planIdFromSubscription = (planType?: string): "business" => {
+  // Legacy paid call plans should continue to behave as paid Business.
+  return "business";
+};
+
+const isTerminalCallState = (state?: string) =>
+  [
+    "completed",
+    "terminal",
+    "finished",
+    "failed",
+    "busy",
+    "no-answer",
+    "no_answer",
+    "missed",
+  ].includes(String(state || "").toLowerCase());
+
+const countActiveInboundCalls = (
+  workspace: ICallAssistantWorkspace,
+  currentCallSid: string,
+) => {
+  const activeSince = Date.now() - 30 * 60 * 1000;
+  return (workspace.calls || []).filter((call: any) => {
+    if (call.callSid === currentCallSid) return false;
+    if (call.direction !== "inbound") return false;
+    if (call.status === "missed" || call.status === "voicemail") return false;
+    if (isTerminalCallState(call.callState || call.providerPayload?.CallState || call.providerPayload?.Status)) {
+      return false;
+    }
+    return new Date(call.createdAt).getTime() >= activeSince;
+  }).length;
 };
 
 async function syncWorkspaceSubscription(workspace: ICallAssistantWorkspace) {
@@ -103,17 +102,11 @@ async function syncWorkspaceSubscription(workspace: ICallAssistantWorkspace) {
     .lean();
 
   if (!activeSubscription) {
-    if (!workspace.subscription.isFree) {
-      await releaseDedicatedNumbersForClerk(workspace.clerkId);
-      workspace.numbers = workspace.numbers.filter(
-        (number) => number.assignment !== "dedicated",
-      ) as any;
-    }
-
     workspace.subscription.plan = "free";
     workspace.subscription.status = "trial";
     workspace.subscription.minutesLimit = 10;
-    workspace.subscription.callsLimit = 5;
+    workspace.subscription.callsLimit = 10;
+    workspace.subscription.concurrentCallLimit = 1;
     workspace.subscription.overageRate = 0;
     workspace.subscription.isFree = true;
     return workspace;
@@ -123,8 +116,10 @@ async function syncWorkspaceSubscription(workspace: ICallAssistantWorkspace) {
   workspace.subscription.plan = plan;
   workspace.subscription.status = "active";
   workspace.subscription.billingCycle = activeSubscription.billingCycle;
-  workspace.subscription.minutesLimit = activeSubscription.minutesLimit;
-  workspace.subscription.callsLimit = activeSubscription.minutesLimit;
+  workspace.subscription.minutesLimit = activeSubscription.minutesLimit || 200;
+  workspace.subscription.callsLimit = 999999;
+  workspace.subscription.concurrentCallLimit =
+    activeSubscription.concurrentCallLimit || activeSubscription.numberLimit || 3;
   workspace.subscription.overageRate = activeSubscription.overageRate;
   workspace.subscription.isFree = false;
   workspace.subscription.nextBillingDate = activeSubscription.expiresAt;
@@ -161,8 +156,9 @@ async function getOrCreateWorkspace(
       minutesLimit: 10,
       minutesUsed: 0,
       overageRate: 0,
-      callsLimit: 5,
+      callsLimit: 10,
       callsUsed: 0,
+      concurrentCallLimit: 1,
       isFree: true,
       nextBillingDate: daysFromNow(7),
     },
@@ -264,7 +260,9 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
         callsUsed,
         callsLimit: workspace.subscription.callsLimit,
         activeFlows: workspace.flows.filter((flow) => flow.isActive).length,
-        activeNumbers: workspace.numbers.filter((num) => num.status === "active").length,
+        concurrentCallLimit: workspace.subscription.concurrentCallLimit || 1,
+        activeInboundCalls: countActiveInboundCalls(workspace, ""),
+        activeNumbers: 0,
       },
       organization: workspace.organization,
       owner: workspace.owner,
@@ -400,6 +398,7 @@ export const updateCallWorkspaceController = async (req: Request, res: Response)
       workspace.subscription.plan = plan.id;
       workspace.subscription.minutesLimit = plan.minutes;
       workspace.subscription.callsLimit = plan.calls;
+      workspace.subscription.concurrentCallLimit = plan.concurrentCalls;
       workspace.subscription.overageRate = plan.overageInr;
       workspace.subscription.isFree = plan.id === "free";
       workspace.subscription.status = "active";
@@ -494,26 +493,13 @@ export const getAvailableCallNumbersController = async (
     await syncWorkspaceSubscription(workspace);
     await workspace.save();
 
-    const isFree = workspace.subscription.isFree;
-    const numbers = await listAvailableCallNumbers({
-      tier: isFree ? "free_shared" : "paid_dedicated",
-    });
-
     return ok(res, {
-      mode: isFree ? "free_preview" : "paid_select",
-      canSelect: !isFree,
-      selectedNumbers: workspace.numbers.filter(
-        (number) => number.assignment === "dedicated",
-      ),
-      numbers: numbers.map((number) => ({
-        id: number._id,
-        phoneNumber: number.phoneNumber,
-        label: number.label,
-        countryCode: number.countryCode,
-        type: number.type,
-        tier: number.tier,
-        status: number.status,
-      })),
+      mode: "inbound_only",
+      canSelect: false,
+      selectedNumbers: [],
+      numbers: [],
+      message:
+        "Number allocation is disabled. Route inbound Exotel calls to the workspace webhook with clerkId/userId.",
     });
   } catch (error) {
     console.error("Call available numbers error:", error);
@@ -538,41 +524,11 @@ export const selectDedicatedCallNumberController = async (
     const workspace = await getOrCreateWorkspace(userId);
     await syncWorkspaceSubscription(workspace);
 
-    if (workspace.subscription.isFree) {
-      await workspace.save();
-      return res.status(403).json({
-        success: false,
-        error: "Permanent numbers are available only on paid plans.",
-      });
-    }
-
-    await releaseDedicatedNumbersForClerk(userId);
-    const assigned = await assignDedicatedNumber({ clerkId: userId, phoneNumber });
-    if (!assigned) {
-      return res.status(409).json({
-        success: false,
-        error: "This number is no longer available. Scan again and select another number.",
-      });
-    }
-
-    workspace.numbers = workspace.numbers.filter(
-      (number) => number.assignment !== "dedicated",
-    ) as any;
-    workspace.numbers.push({
-      phoneNumber: assigned.phoneNumber,
-      label: assigned.label || "Dedicated receptionist number",
-      countryCode: assigned.countryCode,
-      type: assigned.type,
-      status: "active",
-      provider: "exotel",
-      providerNumberId: assigned._id?.toString(),
-      assignment: "dedicated",
-      createdAt: new Date(),
-    } as any);
-
     await workspace.save();
-    return ok(res, {
-      selectedNumber: workspace.numbers[workspace.numbers.length - 1],
+    return res.status(410).json({
+      success: false,
+      error:
+        "Permanent number selection has been removed. Use inbound webhook routing instead.",
     });
   } catch (error) {
     console.error("Call select number error:", error);
@@ -672,18 +628,20 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
     if (ownerId) {
       workspace = await getOrCreateWorkspace(String(ownerId));
       await syncWorkspaceSubscription(workspace);
-    } else if (normalized.virtualNumber) {
-      workspace = await CallAssistantWorkspace.findOne({
-        "numbers.phoneNumber": normalized.virtualNumber,
-      });
-      if (workspace) await syncWorkspaceSubscription(workspace);
     }
 
     if (!workspace) {
       return res.status(404).json({
         success: false,
         error:
-          "No call workspace found. Pass clerkId/userId in the webhook URL or add the Exotel virtual number in Number Management.",
+          "No call workspace found. Pass clerkId/userId/ownerId in the inbound Exotel webhook URL.",
+      });
+    }
+
+    if (normalized.direction !== "inbound") {
+      return res.status(400).json({
+        success: false,
+        error: "Only inbound calls are supported right now.",
       });
     }
 
@@ -694,21 +652,17 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
       });
     }
 
-    let leasedSharedNumber: Awaited<ReturnType<typeof leaseSharedNumber>> | null = null;
-    if (workspace.subscription.isFree) {
-      leasedSharedNumber = await leaseSharedNumber({
-        clerkId: workspace.clerkId,
-        callSid: normalized.callSid,
-        minutes: 15,
-      });
+    const activeInboundCalls = countActiveInboundCalls(
+      workspace,
+      normalized.callSid,
+    );
+    const concurrentLimit = workspace.subscription.concurrentCallLimit || 1;
 
-      if (!leasedSharedNumber) {
-        return res.status(503).json({
-          success: false,
-          error:
-            "No shared AI call assistant number is available right now. Try again later or upgrade for a permanent number.",
-        });
-      }
+    if (!isTerminalCallState(normalized.callState) && activeInboundCalls >= concurrentLimit) {
+      return res.status(429).json({
+        success: false,
+        error: `Concurrent inbound call limit reached (${concurrentLimit}).`,
+      });
     }
 
     const projectedMinutes =
@@ -716,20 +670,10 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
         workspace.calls.reduce((sum, call) => sum + (call.durationSec || 0), 0) /
           60,
       ) + Math.ceil(normalized.durationSec / 60);
-    const projectedCalls = workspace.calls.some(
-      (call) => call.callSid === normalized.callSid,
-    )
-      ? workspace.calls.length
-      : workspace.calls.length + 1;
-
-    if (
-      workspace.subscription.isFree &&
-      (projectedMinutes > workspace.subscription.minutesLimit ||
-        projectedCalls > workspace.subscription.callsLimit)
-    ) {
+    if (projectedMinutes > workspace.subscription.minutesLimit) {
       workspace.subscription.status = "cancelled";
       workspace.subscription.pausedReason =
-        "Free call assistant allowance exceeded. Upgrade required.";
+        "Call assistant minute allowance exceeded. Upgrade required.";
       await workspace.save();
 
       if (workspace.owner?.email) {
@@ -739,20 +683,16 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
           html: `
             <div style="font-family: Arial, sans-serif; padding: 20px;">
               <h2>Your free AI Call Assistant limit is complete</h2>
-              <p>Your free plan includes ${workspace.subscription.minutesLimit} minutes or ${workspace.subscription.callsLimit} calls.</p>
+              <p>Your plan includes ${workspace.subscription.minutesLimit} inbound minutes.</p>
               <p>Please upgrade to continue answering calls automatically.</p>
             </div>
           `,
         }).catch((error) => console.error("Upgrade email error:", error));
       }
 
-      if (leasedSharedNumber) {
-        await releaseSharedNumber(normalized.callSid);
-      }
-
       return res.status(402).json({
         success: false,
-        error: "Free call assistant allowance exceeded. Upgrade required.",
+        error: "Call assistant minute allowance exceeded. Upgrade required.",
       });
     }
 
@@ -763,11 +703,11 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
       callSid: normalized.callSid,
       fromNumber: normalized.fromNumber,
       toNumber:
-        leasedSharedNumber?.phoneNumber ||
         normalized.virtualNumber ||
         normalized.toNumber,
       direction: normalized.direction,
       status: normalized.status,
+      callState: normalized.callState,
       durationSec: normalized.durationSec,
       recordingUrl: normalized.recordingUrl,
       transcriptText: normalized.transcriptText,
@@ -810,13 +750,6 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
     );
     workspace.subscription.callsUsed = workspace.calls.length;
     await workspace.save();
-
-    const state = String(normalized.callState || "").toLowerCase();
-    if (["completed", "terminal", "finished"].includes(state)) {
-      releaseSharedNumber(normalized.callSid).catch((error) => {
-        console.error("Shared number release error:", error);
-      });
-    }
 
     sendCallNotifications({
       channels: workspace.notifications,

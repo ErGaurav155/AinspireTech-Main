@@ -189,9 +189,12 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     newSubscription = await CallSubscription.create({
       ...commonData,
       planType: chatbotType,
-      minutesLimit: Number(notes.minutesLimit) || 1000,
-      numberLimit: Number(notes.numberLimit) || 1,
-      agentLimit: Number(notes.agentLimit) || 3,
+      minutesLimit: Number(notes.minutesLimit) || 200,
+      numberLimit:
+        Number(notes.concurrentCallLimit) || Number(notes.numberLimit) || 3,
+      concurrentCallLimit:
+        Number(notes.concurrentCallLimit) || Number(notes.numberLimit) || 3,
+      agentLimit: Number(notes.agentLimit) || 1,
       overageRate: Number(notes.overageRate) || 5,
     });
   } else {

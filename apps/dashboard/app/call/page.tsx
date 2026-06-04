@@ -138,8 +138,9 @@ export default function CallDashboardPage() {
                   <p className="font-montserrat text-xs font-semibold text-amber-400">
                     Free mode: {overview.minutesUsed || 0}/
                     {overview.minutesLimit || 10} minutes and{" "}
-                    {overview.callsUsed || 0}/{overview.callsLimit || 5} calls
-                    used. Upgrade before the limit to keep the assistant active.
+                    {overview.activeInboundCalls || 0}/
+                    {overview.concurrentCallLimit || 1} concurrent inbound calls
+                    active. Upgrade before the limit to keep the assistant active.
                   </p>
                 </motion.div>
               )}
@@ -172,7 +173,7 @@ export default function CallDashboardPage() {
                       : "border-gray-200 text-gray-700 hover:bg-gray-50"
                   }`}
                 >
-                  Number Settings
+                  Routing Settings
                 </Link>
               </motion.div>
 

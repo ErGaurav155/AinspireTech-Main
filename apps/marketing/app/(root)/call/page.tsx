@@ -87,19 +87,21 @@ const features = [
 ];
 
 const steps = [
-  "Forward missed calls or a virtual number to RocketReplai",
+  "Route inbound calls from your phone provider to RocketReplai",
   "The AI receptionist answers with your business script",
   "Caller details are saved as a lead with transcript and summary",
   "You get notified on WhatsApp, SMS, or email instantly",
 ];
 
 const pricingRows = [
-  ["Monthly price", "₹2,999", "₹7,999", "₹19,999"],
-  ["Included minutes", "1,000", "3,000", "10,000"],
-  ["Virtual numbers", "1", "3", "10"],
-  ["Dashboard access", "Owner", "Owner", "Owner"],
-  ["Overage", "₹5/min", "₹4/min", "₹3/min"],
-  ["Transcripts", "Basic", "Advanced", "Advanced"],
+  ["Monthly price", "₹0", "₹1,999"],
+  ["Yearly price", "₹0", "₹19,990"],
+  ["Included minutes", "10", "200"],
+  ["Concurrent inbound calls", "1", "3"],
+  ["Inbound calls", "Yes", "Yes"],
+  ["Outbound calls", "No", "No"],
+  ["Dashboard access", "Owner", "Owner"],
+  ["Lead capture", "Yes", "Yes"],
 ];
 
 const reviews = [
@@ -127,7 +129,7 @@ const faqs = [
   {
     question: "Can I use my existing business number?",
     answer:
-      "Yes. You can forward missed calls from your existing number or use a dedicated virtual number once telephony setup is complete.",
+      "Yes. Use your existing phone provider and route inbound calls to the RocketReplai call webhook. We do not allocate new phone numbers.",
   },
   {
     question: "Which languages can the assistant support?",
@@ -451,7 +453,7 @@ export default function CallMarketingPage() {
               className={`mt-3 text-base md:text-lg font-montserrat ${themeStyles.muted}`}
             >
               The public page sells the promise, the dashboard handles the work:
-              calls, leads, AI flow, billing, and number settings.
+              calls, leads, AI flow, billing, and inbound routing settings.
             </p>
           </motion.div>
 
@@ -543,7 +545,7 @@ export default function CallMarketingPage() {
               Pricing comparison
             </h2>
             <p className={`mt-3 font-montserrat ${themeStyles.muted}`}>
-              Three clear plans for call volume, permanent numbers, and
+              Two clear plans for inbound minutes, concurrent calls, and
               receptionist coverage.
             </p>
           </div>
@@ -557,7 +559,7 @@ export default function CallMarketingPage() {
                 }
               >
                 <tr>
-                  {["Feature", "Starter", "Growth", "Enterprise"].map(
+                  {["Feature", "Free", "Business"].map(
                     (heading) => (
                       <th
                         key={heading}
@@ -687,7 +689,7 @@ export default function CallMarketingPage() {
             className={`mt-3 max-w-2xl mx-auto font-montserrat ${themeStyles.muted}`}
           >
             Start with a receptionist flow, connect your number, and capture
-            leads from calls you used to miss.
+            leads from inbound calls you used to miss.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <Button

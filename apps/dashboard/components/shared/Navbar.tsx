@@ -191,7 +191,7 @@ export function Navbar({
             >
               <Link href="/call/settings">
                 <Phone className="h-3.5 w-3.5 sm:mr-1.5" />
-                <span className="hidden sm:inline">Number Settings</span>
+                <span className="hidden sm:inline">Routing Settings</span>
               </Link>
             </Button>
           )}

@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type CallPlanId = "free" | "starter" | "growth" | "enterprise";
+export type CallPlanId = "free" | "business" | "starter" | "growth" | "enterprise";
 export type CallStatus = "answered" | "missed" | "transferred" | "voicemail";
 
 export interface ICallAssistantWorkspace extends Document {
@@ -29,6 +29,7 @@ export interface ICallAssistantWorkspace extends Document {
     overageRate: number;
     callsLimit: number;
     callsUsed: number;
+    concurrentCallLimit: number;
     isFree: boolean;
     pausedReason?: string;
     nextBillingDate: Date;
@@ -51,6 +52,7 @@ export interface ICallAssistantWorkspace extends Document {
     toNumber: string;
     direction: "inbound" | "outbound";
     status: CallStatus;
+    callState?: string;
     durationSec: number;
     recordingUrl?: string;
     transcriptText?: string;
@@ -142,7 +144,7 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
       timeZone: { type: String, default: "Asia/Kolkata" },
     },
     subscription: {
-      plan: { type: String, enum: ["free", "starter", "growth", "enterprise"], default: "free" },
+      plan: { type: String, enum: ["free", "business", "starter", "growth", "enterprise"], default: "free" },
       status: { type: String, enum: ["trial", "active", "past_due", "cancelled"], default: "trial" },
       billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
       minutesLimit: { type: Number, default: 10 },
@@ -150,6 +152,7 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
       overageRate: { type: Number, default: 0 },
       callsLimit: { type: Number, default: 5 },
       callsUsed: { type: Number, default: 0 },
+      concurrentCallLimit: { type: Number, default: 1 },
       isFree: { type: Boolean, default: true },
       pausedReason: String,
       nextBillingDate: { type: Date, default: () => new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
@@ -175,6 +178,7 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
         toNumber: String,
         direction: { type: String, enum: ["inbound", "outbound"], default: "inbound" },
         status: { type: String, enum: ["answered", "missed", "transferred", "voicemail"], default: "answered" },
+        callState: String,
         durationSec: { type: Number, default: 0 },
         recordingUrl: String,
         transcriptText: String,

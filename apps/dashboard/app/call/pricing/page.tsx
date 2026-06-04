@@ -31,72 +31,52 @@ type BillingMode = "monthly" | "yearly";
 
 const CALL_PLANS = [
   {
-    id: "call-starter",
-    name: "Starter",
-    monthly: 2999,
-    yearly: 29990,
-    originalMonthly: 3999,
-    minutesLimit: 1000,
-    numberLimit: 1,
-    agentLimit: 3,
-    overageRate: 5,
+    id: "free",
+    name: "Free",
+    monthly: 0,
+    yearly: 0,
+    originalMonthly: 0,
+    minutesLimit: 10,
+    concurrentCallLimit: 1,
+    agentLimit: 1,
+    overageRate: 0,
     popular: false,
     features: [
-      "AI receptionist",
+      "10 inbound call minutes",
+      "1 concurrent inbound call",
+      "AI receptionist flow",
       "Lead capture from calls",
-      "WhatsApp and email alerts",
-      "Basic AI flow editor",
-      "Call logs and summaries",
+      "Owner dashboard access",
     ],
   },
   {
-    id: "call-growth",
-    name: "Growth",
-    monthly: 7999,
-    yearly: 79990,
-    originalMonthly: 9999,
-    minutesLimit: 3000,
-    numberLimit: 3,
-    agentLimit: 10,
-    overageRate: 4,
+    id: "call-business",
+    name: "Business",
+    monthly: 1999,
+    yearly: 19990,
+    originalMonthly: 2499,
+    minutesLimit: 200,
+    concurrentCallLimit: 3,
+    agentLimit: 1,
+    overageRate: 5,
     popular: true,
     features: [
-      "Everything in Starter",
-      "Call transcripts and recordings",
-      "Advanced AI flow editor",
-      "Permanent number search",
+      "200 inbound call minutes",
+      "3 concurrent inbound calls",
+      "Call transcripts and summaries",
+      "WhatsApp and email alerts",
       "Priority support",
-    ],
-  },
-  {
-    id: "call-enterprise",
-    name: "Enterprise",
-    monthly: 19999,
-    yearly: 199990,
-    originalMonthly: 24999,
-    minutesLimit: 10000,
-    numberLimit: 10,
-    agentLimit: 30,
-    overageRate: 3,
-    popular: false,
-    features: [
-      "Everything in Growth",
-      "High-volume call operations",
-      "Larger permanent number pool",
-      "Dedicated onboarding",
-      "SLA support",
     ],
   },
 ] as const;
 
 const comparison = [
-  ["Included minutes", "1,000", "3,000", "10,000"],
-  ["Permanent numbers", "1", "3", "10"],
-  ["Dashboard access", "Owner only", "Owner only", "Owner only"],
-  ["Overage", "₹5/min", "₹4/min", "₹3/min"],
-  ["Call transcripts", "Basic", "Advanced", "Advanced"],
-  ["Number search", "✓", "✓", "✓"],
-  ["Priority support", "", "✓", "✓"],
+  ["Included minutes", "10", "200"],
+  ["Concurrent inbound calls", "1", "3"],
+  ["Inbound calls", "✓", "✓"],
+  ["Outbound calls", "", ""],
+  ["Dashboard access", "Owner only", "Owner only"],
+  ["Priority support", "", "✓"],
 ];
 
 const fadeUp = {
@@ -186,8 +166,8 @@ export default function CallPricingPage() {
             <p
               className={`font-montserrat text-sm md:text-lg max-w-2xl mx-auto ${styles.text.secondary}`}
             >
-              Starter, Growth, and Enterprise include receptionist minutes,
-              owner-only dashboard access, permanent numbers, and clear overage rates.
+              Free starts with 10 inbound minutes. Business gives 200 inbound
+              minutes and handles up to 3 calls at the same time.
             </p>
 
             <Tabs value="call" className="mt-8">
@@ -236,7 +216,7 @@ export default function CallPricingPage() {
           </div>
         </motion.section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {CALL_PLANS.map((plan, index) => {
             const price =
               billingMode === "monthly" ? plan.monthly : plan.yearly;
@@ -288,11 +268,13 @@ export default function CallPricingPage() {
 
                 <div className="mt-6">
                   <div className="flex flex-wrap items-end gap-3">
-                    <p
-                      className={`text-xl font-bold line-through ${styles.text.muted}`}
-                    >
-                      ₹{originalPrice.toLocaleString("en-IN")}
-                    </p>
+                    {originalPrice > price && (
+                      <p
+                        className={`text-xl font-bold line-through ${styles.text.muted}`}
+                      >
+                        ₹{originalPrice.toLocaleString("en-IN")}
+                      </p>
+                    )}
                     <p className={`text-4xl font-black ${gradientText}`}>
                       ₹{price.toLocaleString("en-IN")}
                     </p>
@@ -304,9 +286,9 @@ export default function CallPricingPage() {
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
                   {[
-                    `${plan.numberLimit} numbers`,
+                    `${plan.concurrentCallLimit} concurrent`,
                     "Owner-only access",
-                    `₹${plan.overageRate}/min`,
+                    plan.overageRate ? `₹${plan.overageRate}/min` : "No overage",
                     "Razorpay billing",
                   ].map((item) => (
                     <div
@@ -344,7 +326,14 @@ export default function CallPricingPage() {
                     </Button>
                   </SignedOut>
                   <SignedIn>
-                    {isCurrent ? (
+                    {plan.id === "free" ? (
+                      <Button
+                        disabled
+                        className="w-full rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white opacity-80"
+                      >
+                        Included by default
+                      </Button>
+                    ) : isCurrent ? (
                       <Button
                         disabled
                         className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white opacity-80"
@@ -359,7 +348,7 @@ export default function CallPricingPage() {
                         billingCycle={billingMode}
                         amount={price}
                         minutesLimit={plan.minutesLimit}
-                        numberLimit={plan.numberLimit}
+                        concurrentCallLimit={plan.concurrentCallLimit}
                         agentLimit={plan.agentLimit}
                         overageRate={plan.overageRate}
                         previousSubscriptionId={
@@ -388,7 +377,7 @@ export default function CallPricingPage() {
               Plan Comparison
             </h2>
             <p className={`font-montserrat ${styles.text.secondary}`}>
-              Compare call minutes, permanent numbers, dashboard access, and support level.
+              Compare inbound minutes, concurrent calls, and dashboard access.
             </p>
           </div>
 
@@ -397,7 +386,7 @@ export default function CallPricingPage() {
               <table className="w-full">
                 <thead className={isDark ? "bg-white/[0.04]" : "bg-gray-50"}>
                   <tr>
-                    {["Feature", "Starter", "Growth", "Enterprise"].map(
+                    {["Feature", "Free", "Business"].map(
                       (heading) => (
                         <th
                           key={heading}
@@ -447,7 +436,7 @@ export default function CallPricingPage() {
             {[
               ["Secure payments", "Razorpay subscriptions with UPI and cards"],
               ["Clear overage", "Know extra-minute costs before you scale"],
-              ["Call-ready setup", "Select a number, tune the flow, and capture leads"],
+              ["Call-ready setup", "Connect inbound routing, tune the flow, and capture leads"],
             ].map(([title, body]) => (
               <motion.div
                 key={title}

@@ -8,7 +8,7 @@ import { useApi } from "@/lib/useApi";
 import { createCallAssistant } from "@/lib/services/call-actions.api";
 
 const DEFAULT_PROMPT =
-  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Starter 2999/month for 1000 minutes, Growth 7999/month for 3000 minutes, Enterprise 19999/month for 10000 minutes. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
+  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed inbound calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Free includes 10 minutes and 1 concurrent inbound call. Business is 1999 rupees monthly or 19990 rupees yearly with 200 minutes and 3 concurrent inbound calls. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
 
 const SUGGESTED_QUESTIONS = [
   "May I know your name?",
@@ -96,9 +96,9 @@ export default function CreateCallAssistantGate({
                 Build your AI receptionist before opening the dashboard.
               </h1>
               <p className={`font-montserrat mt-4 text-sm leading-relaxed ${styles.text.secondary}`}>
-                Free mode starts with 10 minutes or 5 calls on the shared number
-                pool. When the limit finishes, calls pause and the owner gets an
-                upgrade email.
+                Free mode starts with 10 inbound minutes and 1 concurrent call.
+                When the minute limit finishes, calls pause and the owner gets
+                an upgrade email.
               </p>
               <div className="mt-6 grid gap-3">
                 {[

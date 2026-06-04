@@ -21,18 +21,6 @@ export const createCallAssistant = (
 export const getCallExotelConfig = (apiRequest: ApiRequestFn) =>
   apiRequest("/call/exotel/config", { method: "GET" });
 
-export const getAvailableCallNumbers = (apiRequest: ApiRequestFn) =>
-  apiRequest("/call/numbers/available", { method: "GET" });
-
-export const selectDedicatedCallNumber = (
-  apiRequest: ApiRequestFn,
-  payload: { phoneNumber: string },
-) =>
-  apiRequest("/call/numbers/select", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
 export const sendCallSms = (
   apiRequest: ApiRequestFn,
   payload: { to: string; body: string },

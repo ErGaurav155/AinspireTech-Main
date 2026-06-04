@@ -2,13 +2,14 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface ICallSubscription extends Document {
   clerkId: string;
-  planType: "call-starter" | "call-growth" | "call-enterprise";
+  planType: "call-business" | "call-starter" | "call-growth" | "call-enterprise";
   subscriptionId: string;
   plan: string;
   billingCycle: "monthly" | "yearly";
   status: "active" | "cancelled" | "expired";
   minutesLimit: number;
   numberLimit: number;
+  concurrentCallLimit: number;
   agentLimit: number;
   overageRate: number;
   createdAt: Date;
@@ -23,7 +24,7 @@ const CallSubscriptionSchema = new Schema<ICallSubscription>(
     planType: {
       type: String,
       required: true,
-      enum: ["call-starter", "call-growth", "call-enterprise"],
+      enum: ["call-business", "call-starter", "call-growth", "call-enterprise"],
     },
     subscriptionId: { type: String, required: true, unique: true },
     plan: { type: String, required: true },
@@ -38,7 +39,8 @@ const CallSubscriptionSchema = new Schema<ICallSubscription>(
       default: "active",
     },
     minutesLimit: { type: Number, default: 1000 },
-    numberLimit: { type: Number, default: 1 },
+    numberLimit: { type: Number, default: 3 },
+    concurrentCallLimit: { type: Number, default: 3 },
     agentLimit: { type: Number, default: 3 },
     overageRate: { type: Number, default: 5 },
     expiresAt: { type: Date, required: true },

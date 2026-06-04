@@ -21,7 +21,7 @@ interface CallCheckoutProps {
   billingCycle: "monthly" | "yearly";
   amount: number;
   minutesLimit: number;
-  numberLimit: number;
+  concurrentCallLimit: number;
   agentLimit: number;
   overageRate: number;
   buttonText?: string;
@@ -34,7 +34,7 @@ export function CallCheckout({
   billingCycle,
   amount,
   minutesLimit,
-  numberLimit,
+  concurrentCallLimit,
   agentLimit,
   overageRate,
   buttonText = "Subscribe",
@@ -109,7 +109,8 @@ export function CallCheckout({
           previousSubscriptionType: previousSubscriptionId ? "call" : undefined,
           email: user?.primaryEmailAddress?.emailAddress || "",
           minutesLimit,
-          numberLimit,
+          numberLimit: concurrentCallLimit,
+          concurrentCallLimit,
           agentLimit,
           overageRate,
           referralCode: referralCode || "",
@@ -132,7 +133,8 @@ export function CallCheckout({
           buyerId: userId,
           billingCycle,
           minutesLimit,
-          numberLimit,
+          numberLimit: concurrentCallLimit,
+          concurrentCallLimit,
           agentLimit,
           overageRate,
         },
