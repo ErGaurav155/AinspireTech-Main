@@ -33,7 +33,7 @@ import {
   processScrapedData,
   scrapeWebsite,
 } from "@/lib/services/web-actions.api";
-import { getStoredReferralCode } from "@/lib/referral";
+import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 interface CheckoutProps {
   userId: string;
@@ -732,6 +732,7 @@ export const Checkout = ({
       }
 
       clearPendingRazorpayCheckout();
+      clearStoredReferralCode();
       showSuccessToast("Subscription activated successfully!");
 
       setTimeout(() => {

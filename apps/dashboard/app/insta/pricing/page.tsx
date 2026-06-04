@@ -55,7 +55,7 @@ import {
 } from "@/lib/services/subscription-actions.api";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
-import { getStoredReferralCode } from "@/lib/referral";
+import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 // Types
 interface Subscription {
@@ -444,6 +444,7 @@ function PricingWithSearchParams() {
 
       clearPendingCheckout();
       clearPendingRazorpayCheckout();
+      clearStoredReferralCode();
       setIsSubscribed(true);
       setCurrentSubscription({
         productId,

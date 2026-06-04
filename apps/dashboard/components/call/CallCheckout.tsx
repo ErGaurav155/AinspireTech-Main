@@ -10,7 +10,7 @@ import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
-import { getStoredReferralCode } from "@/lib/referral";
+import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -139,6 +139,7 @@ export function CallCheckout({
           overageRate,
         },
         handler: () => {
+          clearStoredReferralCode();
           toast({
             title: "Payment received",
             description:

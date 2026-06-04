@@ -29,12 +29,39 @@ export const getStoredReferralCode = () => {
   return cookieReferral ? decodeURIComponent(cookieReferral) : null;
 };
 
+const clearReferralStorageVariants = () => {
+  if (typeof window === "undefined") return;
+
+  Object.keys(window.localStorage).forEach((key) => {
+    if (
+      key === REFERRAL_STORAGE_KEY ||
+      key.startsWith(`${REFERRAL_STORAGE_KEY}-`) ||
+      key.startsWith("referral-code")
+    ) {
+      window.localStorage.removeItem(key);
+    }
+  });
+};
+
+const expireReferralCookies = () => {
+  if (typeof document === "undefined") return;
+
+  document.cookie = `${REFERRAL_STORAGE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+
+  if (window.location.hostname.endsWith("rocketreplai.com")) {
+    document.cookie = `${REFERRAL_STORAGE_KEY}=; path=/; domain=.rocketreplai.com; max-age=0; SameSite=Lax`;
+    document.cookie = `${REFERRAL_STORAGE_KEY}=; path=/; domain=${window.location.hostname}; max-age=0; SameSite=Lax`;
+  }
+};
+
 export const storeReferralCode = (value: string | null) => {
   if (typeof window === "undefined") return null;
 
   const referralCode = cleanReferralCode(value);
   if (!referralCode) return null;
 
+  clearReferralStorageVariants();
+  expireReferralCookies();
   window.localStorage.setItem(REFERRAL_STORAGE_KEY, referralCode);
 
   const encodedReferral = encodeURIComponent(referralCode);
