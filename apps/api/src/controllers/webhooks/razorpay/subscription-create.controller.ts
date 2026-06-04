@@ -358,7 +358,16 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
       if (commissionAmount > 0) {
         const periodKey = new Date().toISOString().slice(0, 7);
-        const commissionRecord = await AffiCommissionRecord.create({
+        const existingCommission = await AffiCommissionRecord.findOne({
+          referralId: referralRecord._id.toString(),
+          period: periodKey,
+        });
+
+        if (existingCommission) {
+          return { subscription: newSubscription, referral: referralRecord };
+        }
+
+        await AffiCommissionRecord.create({
           affiliateId: affiliate._id.toString(),
           referralId: referralRecord._id.toString(),
           referredUserId: clerkId.toString(),
@@ -465,7 +474,16 @@ async function handleSubscriptionCharged(
 
       if (commissionAmount > 0) {
         const periodKey = new Date().toISOString().slice(0, 7);
-        const commissionRecord = await AffiCommissionRecord.create({
+        const existingCommission = await AffiCommissionRecord.findOne({
+          referralId: referral._id.toString(),
+          period: periodKey,
+        });
+
+        if (existingCommission) {
+          return { subscription, referral };
+        }
+
+        await AffiCommissionRecord.create({
           affiliateId: referral.affiliateId,
           referralId: referral._id.toString(),
           referredUserId: referral.referredUserId,

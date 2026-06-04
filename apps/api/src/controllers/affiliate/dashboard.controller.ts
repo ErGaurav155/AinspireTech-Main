@@ -6,6 +6,7 @@ import Payout from "@/models/affiliate/Payout";
 import Referral from "@/models/affiliate/Referral";
 import User from "@/models/user.model";
 import { getAuth } from "@clerk/express";
+import mongoose from "mongoose";
 
 // GET /api/affiliates/dashboard - Get affiliate dashboard data
 export const getAffiliateDashboardController = async (
@@ -52,8 +53,16 @@ export const getAffiliateDashboardController = async (
     const referredUserIds = rawReferrals
       .map((referral) => String(referral.referredUserId || ""))
       .filter(Boolean);
+    const referredMongoUserIds = referredUserIds.filter((id) =>
+      mongoose.isValidObjectId(id),
+    );
     const referredUsers = await User.find({
-      $or: [{ clerkId: { $in: referredUserIds } }, { _id: { $in: referredUserIds } }],
+      $or: [
+        { clerkId: { $in: referredUserIds } },
+        ...(referredMongoUserIds.length > 0
+          ? [{ _id: { $in: referredMongoUserIds } }]
+          : []),
+      ],
     })
       .select("_id clerkId email firstName lastName username")
       .lean();

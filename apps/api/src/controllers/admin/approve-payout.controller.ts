@@ -5,6 +5,7 @@ import AffiPayout from "@/models/affiliate/Payout";
 import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import Affiliate from "@/models/affiliate/Affiliate";
 import User from "@/models/user.model";
+import mongoose from "mongoose";
 
 // POST /api/admin/payouts/:payoutId
 export const approvePayoutController = async (req: Request, res: Response) => {
@@ -103,15 +104,25 @@ export const listPayoutsController = async (req: Request, res: Response) => {
     const rawPayouts = await AffiPayout.find(filter).sort({ createdAt: -1 }).lean();
     const affiliateIds = rawPayouts
       .map((payout) => String(payout.affiliateId || ""))
-      .filter(Boolean);
-    const affiliates = await Affiliate.find({ _id: { $in: affiliateIds } })
+      .filter((id) => mongoose.isValidObjectId(id));
+    const affiliates = affiliateIds.length
+      ? await Affiliate.find({ _id: { $in: affiliateIds } })
       .select("userId affiliateCode totalEarnings pendingEarnings paidEarnings")
-      .lean();
+          .lean()
+      : [];
     const affiliateUserIds = affiliates
       .map((affiliate) => String(affiliate.userId || ""))
       .filter(Boolean);
+    const affiliateMongoUserIds = affiliateUserIds.filter((id) =>
+      mongoose.isValidObjectId(id),
+    );
     const users = await User.find({
-      $or: [{ clerkId: { $in: affiliateUserIds } }, { _id: { $in: affiliateUserIds } }],
+      $or: [
+        { clerkId: { $in: affiliateUserIds } },
+        ...(affiliateMongoUserIds.length > 0
+          ? [{ _id: { $in: affiliateMongoUserIds } }]
+          : []),
+      ],
     })
       .select("_id clerkId email firstName lastName username")
       .lean();
