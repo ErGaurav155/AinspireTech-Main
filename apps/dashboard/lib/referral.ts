@@ -12,12 +12,17 @@ const cleanReferralCode = (value: string | null) => {
 const getCookieReferralCode = () => {
   if (typeof document === "undefined") return null;
 
-  const value = document.cookie
+  const values = document.cookie
     .split("; ")
-    .find((row) => row.startsWith(`${REFERRAL_STORAGE_KEY}=`))
-    ?.split("=")
-    .slice(1)
-    .join("=");
+    .filter((row) => row.startsWith(`${REFERRAL_STORAGE_KEY}=`))
+    .map((row) =>
+      row
+        .split("=")
+        .slice(1)
+        .join("="),
+    )
+    .filter(Boolean);
+  const value = values[values.length - 1];
 
   return value ? cleanReferralCode(decodeURIComponent(value)) : null;
 };
@@ -50,17 +55,25 @@ const expireReferralCookies = () => {
 export const getStoredReferralCode = () => {
   if (typeof window === "undefined") return null;
 
+  const cookieReferral = getCookieReferralCode();
+  if (cookieReferral) {
+    const localReferral = cleanReferralCode(
+      window.localStorage.getItem(REFERRAL_STORAGE_KEY),
+    );
+
+    if (localReferral !== cookieReferral) {
+      clearReferralStorageVariants();
+      window.localStorage.setItem(REFERRAL_STORAGE_KEY, cookieReferral);
+    }
+
+    return cookieReferral;
+  }
+
   const localReferral = cleanReferralCode(
     window.localStorage.getItem(REFERRAL_STORAGE_KEY),
   );
   if (localReferral) return localReferral;
-
-  const cookieReferral = getCookieReferralCode();
-  if (cookieReferral) {
-    window.localStorage.setItem(REFERRAL_STORAGE_KEY, cookieReferral);
-  }
-
-  return cookieReferral;
+  return null;
 };
 
 export const storeReferralCode = (value: string | null) => {

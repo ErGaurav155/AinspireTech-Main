@@ -12,21 +12,40 @@ const cleanReferralCode = (value: string | null) => {
 export const getStoredReferralCode = () => {
   if (typeof window === "undefined") return null;
 
+  const cookieValues = document.cookie
+    .split("; ")
+    .filter((row) => row.startsWith(`${REFERRAL_STORAGE_KEY}=`))
+    .map((row) =>
+      row
+        .split("=")
+        .slice(1)
+        .join("="),
+    )
+    .filter(Boolean);
+  const cookieReferral = cleanReferralCode(
+    cookieValues.length
+      ? decodeURIComponent(cookieValues[cookieValues.length - 1])
+      : null,
+  );
+
+  if (cookieReferral) {
+    const localReferral = cleanReferralCode(
+      window.localStorage.getItem(REFERRAL_STORAGE_KEY),
+    );
+
+    if (localReferral !== cookieReferral) {
+      clearReferralStorageVariants();
+      window.localStorage.setItem(REFERRAL_STORAGE_KEY, cookieReferral);
+    }
+
+    return cookieReferral;
+  }
+
   const localReferral = cleanReferralCode(
     window.localStorage.getItem(REFERRAL_STORAGE_KEY),
   );
   if (localReferral) return localReferral;
-
-  const cookieReferral = cleanReferralCode(
-    document.cookie
-      .split("; ")
-      .find((row) => row.startsWith(`${REFERRAL_STORAGE_KEY}=`))
-      ?.split("=")
-      .slice(1)
-      .join("=") || null,
-  );
-
-  return cookieReferral ? decodeURIComponent(cookieReferral) : null;
+  return null;
 };
 
 const clearReferralStorageVariants = () => {
@@ -83,9 +102,7 @@ export const withReferral = (href: string) => {
 
   try {
     const url = new URL(href, window.location.href);
-    if (!url.searchParams.has("ref")) {
-      url.searchParams.set("ref", referralCode);
-    }
+    url.searchParams.set("ref", referralCode);
     return url.toString();
   } catch {
     return href;
