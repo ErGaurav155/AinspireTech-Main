@@ -564,7 +564,6 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               label="Your referral journey starts here"
             />
           )}
-
           {affiliateData?.referrals && affiliateData.referrals.length > 0 && (
             <div className="space-y-4">
               {affiliateData.referrals

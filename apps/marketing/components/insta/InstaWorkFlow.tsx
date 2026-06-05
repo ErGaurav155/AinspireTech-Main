@@ -286,7 +286,6 @@ function InstaHowItWorksSection() {
                     quality={90}
                   />
                 </div>
-                {/* Subtle gradient overlay */}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent pointer-events-none" />
               </motion.div>
             </div>
