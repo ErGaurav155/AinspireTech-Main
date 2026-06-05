@@ -111,6 +111,16 @@ export const getAffiliateDashboardController = async (
     const payoutHistory = await Payout.find({ affiliateId: affiliate._id })
       .sort({ createdAt: -1 })
       .limit(10);
+    const payoutTotals = await Payout.aggregate([
+      { $match: { affiliateId: affiliate._id.toString() } },
+      { $group: { _id: "$status", total: { $sum: "$amount" }, count: { $sum: 1 } } },
+    ]);
+    const payoutTotalByStatus = new Map(
+      payoutTotals.map((item) => [
+        String(item._id),
+        { total: Number(item.total) || 0, count: Number(item.count) || 0 },
+      ]),
+    );
 
     // Calculate stats
     const stats = {
@@ -121,6 +131,11 @@ export const getAffiliateDashboardController = async (
       generatedEarnings: affiliate.totalEarnings || 0,
       pendingEarnings: affiliate.pendingEarnings || 0,
       paidEarnings: affiliate.paidEarnings || 0,
+      requestedPayouts: payoutTotalByStatus.get("processing")?.total || 0,
+      completedPayouts: payoutTotalByStatus.get("completed")?.total || 0,
+      failedPayouts: payoutTotalByStatus.get("failed")?.total || 0,
+      requestedPayoutCount: payoutTotalByStatus.get("processing")?.count || 0,
+      completedPayoutCount: payoutTotalByStatus.get("completed")?.count || 0,
       monthlyEarnings: monthlyCommissions.reduce(
         (sum, c) => sum + (c.amount || 0),
         0,

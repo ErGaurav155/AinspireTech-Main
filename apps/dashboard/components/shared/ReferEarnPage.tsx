@@ -406,7 +406,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
           {[
             {
               label: "Signups",
@@ -426,6 +426,18 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               label: "Available Balance",
               value: stats?.pendingEarnings
                 ? `₹${stats.pendingEarnings.toFixed(2)}`
+                : "₹0.00",
+            },
+            {
+              label: "Requested",
+              value: stats?.requestedPayouts
+                ? `₹${stats.requestedPayouts.toFixed(2)}`
+                : "₹0.00",
+            },
+            {
+              label: "Completed",
+              value: stats?.completedPayouts
+                ? `₹${stats.completedPayouts.toFixed(2)}`
                 : "₹0.00",
             },
           ].map((stat, index) => (
@@ -463,6 +475,80 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
             Go to payout
             <ArrowRight className="w-4 h-4" />
           </button>
+        </div>
+
+        {/* Payout Requests */}
+        <div className={`${styles.card} p-6 md:p-8 mb-6`}>
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+            <div>
+              <h3 className={`text-lg font-semibold ${styles.text.primary}`}>
+                Payout Requests
+              </h3>
+              <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                Requested commission stays here until admin marks it completed.
+              </p>
+            </div>
+            <div className={`rounded-xl px-4 py-2 text-sm ${styles.innerCard}`}>
+              <span className={styles.text.secondary}>Requested total: </span>
+              <span className={`font-bold ${styles.text.primary}`}>
+                ₹{(stats?.requestedPayouts || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+
+          {(!affiliateData?.payoutHistory ||
+            affiliateData.payoutHistory.length === 0) && (
+            <EmptyState
+              icon={<CreditCard className="h-8 w-8" />}
+              label="No payout requests yet"
+            />
+          )}
+
+          {affiliateData?.payoutHistory &&
+            affiliateData.payoutHistory.length > 0 && (
+              <div className="space-y-3">
+                {affiliateData.payoutHistory.slice(0, 5).map((payout) => {
+                  const statusStyles =
+                    payout.status === "completed"
+                      ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-500"
+                      : payout.status === "failed"
+                        ? "border-red-500/20 bg-red-500/10 text-red-500"
+                        : "border-amber-500/20 bg-amber-500/10 text-amber-500";
+                  const statusLabel =
+                    payout.status === "completed"
+                      ? "Completed"
+                      : payout.status === "failed"
+                        ? "Failed"
+                        : "Requested";
+                  const statusDate =
+                    payout.status === "completed" && payout.completedAt
+                      ? payout.completedAt
+                      : payout.createdAt;
+
+                  return (
+                    <div
+                      key={payout._id}
+                      className={`flex items-center justify-between gap-4 rounded-xl p-4 ${styles.innerCard} ${styles.rowHover}`}
+                    >
+                      <div>
+                        <p className={`font-bold ${styles.text.primary}`}>
+                          ₹{payout.amount.toFixed(2)}
+                        </p>
+                        <p className={`text-sm ${styles.text.secondary}`}>
+                          {payout.paymentMethod.toUpperCase()} •{" "}
+                          {new Date(statusDate).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold ${statusStyles}`}
+                      >
+                        {statusLabel}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
         </div>
 
         {/* Referral Activity */}

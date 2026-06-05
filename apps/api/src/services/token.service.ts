@@ -11,20 +11,22 @@ export const SUBSCRIPTION_TOKEN_ALLOWANCE = 2000000;
 export async function getUserTokenBalance(userId: string) {
   await connectToDatabase();
 
-  let tokenBalance = await TokenBalance.findOne({ userId });
-
-  if (!tokenBalance) {
-    tokenBalance = await TokenBalance.create({
-      userId,
-      freeTokens: 10000,
-      subscriptionTokens: new Map(),
-      usedFreeTokens: 0,
-      usedSubscriptionTokens: new Map(),
-      totalTokensUsed: 0,
-      lastResetAt: new Date(),
-      nextResetAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    });
-  }
+  const tokenBalance = await TokenBalance.findOneAndUpdate(
+    { userId },
+    {
+      $setOnInsert: {
+        userId,
+        freeTokens: 10000,
+        subscriptionTokens: new Map(),
+        usedFreeTokens: 0,
+        usedSubscriptionTokens: new Map(),
+        totalTokensUsed: 0,
+        lastResetAt: new Date(),
+        nextResetAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    },
+    { new: true, upsert: true },
+  );
 
   // Ensure Maps are properly initialized (MongoDB may return plain objects)
   if (!(tokenBalance.subscriptionTokens instanceof Map)) {

@@ -109,16 +109,47 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         : 0;
 
   // Find or create user
+  const buyerEmail = (subscriptionData.email || notes.email || `${clerkId}@temp.com`).toLowerCase();
   let user = await User.findOne({ clerkId: clerkId });
   if (!user) {
-    user = await User.create({
-      clerkId: clerkId,
-      email: subscriptionData.email || `${clerkId}@temp.com`,
-      totalReplies: 0,
-      replyLimit: 200,
-      accountLimit: 1,
-      hasUsedReferral: false,
-    });
+    try {
+      user = await User.findOneAndUpdate(
+        { clerkId },
+        {
+          $set: {
+            clerkId,
+            email: buyerEmail,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            totalReplies: 0,
+            replyLimit: 200,
+            accountLimit: 1,
+            hasUsedReferral: false,
+            createdAt: new Date(),
+          },
+        },
+        { new: true, upsert: true },
+      );
+    } catch (error: any) {
+      if (error?.code !== 11000) throw error;
+
+      user = await User.findOneAndUpdate(
+        { email: buyerEmail },
+        {
+          $set: {
+            clerkId,
+            email: buyerEmail,
+            updatedAt: new Date(),
+          },
+        },
+        { new: true },
+      );
+    }
+  }
+
+  if (!user) {
+    throw new Error(`Could not resolve user for Clerk id ${clerkId}`);
   }
 
   let existingSubscription = null;

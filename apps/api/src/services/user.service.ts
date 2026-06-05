@@ -68,8 +68,42 @@ export interface UserLimitsUpdateResult {
 // CREATE
 export async function createUser(user: CreateUserParams) {
   await connectToDatabase();
-  const newUser = await User.create(user);
-  return newUser;
+
+  const normalizedEmail = user.email?.toLowerCase();
+  const update = {
+    clerkId: user.clerkId,
+    email: normalizedEmail,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    updatedAt: new Date(),
+  };
+
+  try {
+    return await User.findOneAndUpdate(
+      { clerkId: user.clerkId },
+      {
+        $set: update,
+        $setOnInsert: {
+          totalReplies: 0,
+          replyLimit: 200,
+          accountLimit: 1,
+          hasUsedReferral: false,
+          createdAt: new Date(),
+        },
+      },
+      { new: true, upsert: true },
+    );
+  } catch (error: any) {
+    if (error?.code !== 11000 || !normalizedEmail) {
+      throw error;
+    }
+
+    return User.findOneAndUpdate(
+      { email: normalizedEmail },
+      { $set: update },
+      { new: true },
+    );
+  }
 }
 
 // READ

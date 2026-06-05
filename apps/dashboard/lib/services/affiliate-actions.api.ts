@@ -43,7 +43,7 @@ export interface AffiliateReferralRecord {
         lastName?: string;
         name?: string;
       };
-  productType: "web-chatbot" | "insta-automation";
+  productType: "web-chatbot" | "insta-automation" | "call-assistant";
   subscriptionId: string;
   subscriptionModel: "WebSubscription" | "InstaSubscription";
   subscriptionType: "monthly" | "yearly";
@@ -86,9 +86,15 @@ export interface AffiliateDashboardStats {
   pendingEarnings: number;
   paidEarnings: number;
   generatedEarnings?: number;
+  requestedPayouts?: number;
+  completedPayouts?: number;
+  failedPayouts?: number;
+  requestedPayoutCount?: number;
+  completedPayoutCount?: number;
   monthlyEarnings: number;
   webChatbotReferrals: number;
   instaReferrals: number;
+  callReferrals?: number;
 }
 
 export interface AffiliateDashboardData {
