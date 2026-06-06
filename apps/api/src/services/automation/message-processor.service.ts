@@ -393,6 +393,7 @@ export async function handleIncomingDM(
   clerkId: string,
   senderId: string,
   messageText: string,
+  options: { autoStartForm?: boolean } = {},
 ): Promise<{
   success: boolean;
   message: string;
@@ -463,6 +464,7 @@ export async function handleIncomingDM(
       clerkId,
       senderId,
       messageText,
+      options,
     );
   } catch (error) {
     console.error("Error handling incoming DM:", error);
@@ -597,6 +599,7 @@ async function startNewDMConversation(
   clerkId: string,
   senderId: string,
   messageText: string,
+  options: { autoStartForm?: boolean } = {},
 ): Promise<{
   success: boolean;
   message: string;
@@ -628,6 +631,9 @@ async function startNewDMConversation(
     // Determine button payload using same priority as comment/story processors
     let buttonPayload = "";
     let initialStage = "welcome";
+
+    const shouldAutoStartForm =
+      options.autoStartForm && hasFormQuestions && !hasAskFollow;
 
     if (hasAskFollow) {
       buttonPayload = `CHECK_FOLLOW_${matchingTemplate.mediaId}`;
@@ -664,22 +670,24 @@ async function startNewDMConversation(
       account.instagramId,
       account.accessToken,
       senderId,
-      {
-        attachment: {
-          type: "template",
-          payload: {
-            template_type: "button",
-            text: welcomeText,
-            buttons: [
-              {
-                type: "postback",
-                title: matchingTemplate.welcomeMessage.buttonTitle,
-                payload: buttonPayload,
+      shouldAutoStartForm
+        ? { text: welcomeText }
+        : {
+            attachment: {
+              type: "template",
+              payload: {
+                template_type: "button",
+                text: welcomeText,
+                buttons: [
+                  {
+                    type: "postback",
+                    title: matchingTemplate.welcomeMessage.buttonTitle,
+                    payload: buttonPayload,
+                  },
+                ],
               },
-            ],
+            },
           },
-        },
-      },
       false,
       clerkId,
       true, // isWelcomeDM = true
@@ -719,6 +727,24 @@ async function startNewDMConversation(
       $inc: { usageCount: 1 },
       $set: { lastUsed: new Date() },
     });
+
+    if (shouldAutoStartForm) {
+      const questionResult = await sendDMFlowQuestion(
+        account,
+        clerkId,
+        matchingTemplate,
+        senderId,
+        0,
+      );
+      return {
+        success: questionResult.success,
+        message: questionResult.success
+          ? "Welcome and first question sent"
+          : questionResult.message,
+        processed: true,
+      };
+    }
+
     return {
       success: true,
       message: "Welcome message sent",
@@ -738,7 +764,7 @@ async function startNewDMConversation(
  * Find matching template by trigger keywords.
  */
 function findMatchingDMTemplate(messageText: string, templates: any[]) {
-  const lowerMessage = messageText.toLowerCase();
+  const normalizedMessage = messageText.toLowerCase().replace(/\s+/g, "");
 
   for (const template of templates) {
     if (!template.isActive) continue;
@@ -755,7 +781,9 @@ function findMatchingDMTemplate(messageText: string, templates: any[]) {
     if (keywordTriggers.length > 0) {
       const hasMatch = keywordTriggers.some((trigger: string) => {
         if (!trigger) return false;
-        return lowerMessage.includes(trigger.toLowerCase().replace(/\s+/g, ""));
+        return normalizedMessage.includes(
+          trigger.toLowerCase().replace(/\s+/g, ""),
+        );
       });
       if (hasMatch) return template;
     }

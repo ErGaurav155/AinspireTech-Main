@@ -367,8 +367,13 @@ async function processMessagingWebhook(
           account.userId,
           senderId,
           messageText,
+          { autoStartForm: Boolean(quickReplyKeyword) },
         );
-        if (!result.processed && result.message === "No matching template") {
+        if (
+          !quickReplyKeyword &&
+          !result.processed &&
+          result.message === "No matching template"
+        ) {
           const quickReplyResult = await sendDMStarterQuickReplies(
             accountId,
             account.userId,
@@ -469,8 +474,13 @@ async function processDirectMessageWebhook(
         account.userId,
         senderId,
         messageText,
+        { autoStartForm: Boolean(quickReplyKeyword) },
       );
-      if (!result.processed && result.message === "No matching template") {
+      if (
+        !quickReplyKeyword &&
+        !result.processed &&
+        result.message === "No matching template"
+      ) {
         const quickReplyResult = await sendDMStarterQuickReplies(
           accountId,
           account.userId,
