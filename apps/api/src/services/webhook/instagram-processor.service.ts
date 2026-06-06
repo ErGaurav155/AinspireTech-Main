@@ -10,6 +10,11 @@ import {
   sendDMStarterQuickReplies,
 } from "@/services/automation/message-processor.service";
 
+function getQuickReplyKeyword(payload?: string) {
+  if (!payload || !payload.startsWith("DM_KEYWORD_")) return "";
+  return payload.replace("DM_KEYWORD_", "").trim();
+}
+
 /**
  * Process Instagram webhook — main entry point for all Meta API events.
  */
@@ -332,8 +337,13 @@ async function processMessagingWebhook(
     // This handles both:
     //   (a) New conversations triggered by keyword (e.g. "link", "start")
     //   (b) Ongoing conversations waiting for email/phone input
-    if (message.message && message.message.text) {
-      const messageText: string = message.message.text;
+    const quickReplyKeyword = getQuickReplyKeyword(
+      message.message?.quick_reply?.payload,
+    );
+    const incomingText = quickReplyKeyword || message.message?.text || "";
+
+    if (incomingText) {
+      const messageText: string = incomingText;
 
       // Apply rate limiting for incoming webhooks
       const rateLimitResult = await recordCall(
@@ -422,7 +432,11 @@ async function processDirectMessageWebhook(
       return { processed: false, queued: false };
     }
 
-    const messageText: string = dm.message?.text || dm.text || "";
+    const quickReplyKeyword = getQuickReplyKeyword(
+      dm.message?.quick_reply?.payload || dm.quick_reply?.payload,
+    );
+    const messageText: string =
+      quickReplyKeyword || dm.message?.text || dm.text || "";
 
     if (!messageText || messageText.trim() === "") {
       const result = await sendDMStarterQuickReplies(
@@ -465,7 +479,9 @@ async function processDirectMessageWebhook(
         return {
           processed: quickReplyResult.processed,
           queued: false,
-          error: quickReplyResult.success ? undefined : quickReplyResult.message,
+          error: quickReplyResult.success
+            ? undefined
+            : quickReplyResult.message,
         };
       }
       return {

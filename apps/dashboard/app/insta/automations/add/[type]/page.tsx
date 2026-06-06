@@ -411,11 +411,19 @@ function PhonePreview({
         });
       });
     }
-    if (form.dmFlowMode === "send_link" && form.askEmail && form.emailOpeningMessage) {
+    if (
+      form.dmFlowMode === "send_link" &&
+      form.askEmail &&
+      form.emailOpeningMessage
+    ) {
       msgs.push({ from: "bot", text: form.emailOpeningMessage });
       msgs.push({ from: "user", text: "test@gmail.com" });
     }
-    if (form.dmFlowMode === "send_link" && form.askPhone && form.phoneOpeningMessage) {
+    if (
+      form.dmFlowMode === "send_link" &&
+      form.askPhone &&
+      form.phoneOpeningMessage
+    ) {
       msgs.push({ from: "bot", text: form.phoneOpeningMessage });
       msgs.push({ from: "user", text: "+1234567890" });
     }
@@ -736,7 +744,8 @@ export default function CreateAutomationPage() {
         dmMediaUrl: t.content?.[0]?.mediaUrl || "",
         dmMediaType: t.content?.[0]?.mediaType || "",
         dmMediaPublicId: "",
-        dmFlowMode: t.dmFlow?.mode === "collect_form" ? "collect_form" : "send_link",
+        dmFlowMode:
+          t.dmFlow?.mode === "collect_form" ? "collect_form" : "send_link",
         dmQuestions: Array.isArray(t.dmFlow?.questions)
           ? t.dmFlow.questions.map((question: any) => ({
               id: question.id || "",
@@ -1273,36 +1282,49 @@ export default function CreateAutomationPage() {
             followingBtn: form.followingBtn,
           },
           askEmail: {
-            enabled: form.dmFlowMode === "send_link" && form.askEmail && isSubscribed,
+            enabled:
+              automationType === "dms" &&
+              form.dmFlowMode === "send_link" &&
+              form.askEmail &&
+              isSubscribed,
             openingMessage: form.emailOpeningMessage,
             retryMessage: form.emailRetryMessage,
             sendDmIfNoEmail: form.emailNoValidAction === "send",
           },
           askPhone: {
-            enabled: form.dmFlowMode === "send_link" && form.askPhone && isSubscribed,
+            enabled:
+              automationType === "dms" &&
+              form.dmFlowMode === "send_link" &&
+              form.askPhone &&
+              isSubscribed,
             openingMessage: form.phoneOpeningMessage,
             retryMessage: form.phoneRetryMessage,
             sendDmIfNoPhone: form.phoneNoValidAction === "send",
           },
           dmFlow: {
             mode:
-              form.dmFlowMode === "collect_form" && form.dmQuestions.length > 0
+              automationType === "dms" &&
+              form.dmFlowMode === "collect_form" &&
+              form.dmQuestions.length > 0
                 ? ("collect_form" as const)
                 : ("send_link" as const),
-            questions: form.dmQuestions
-              .filter((question) => question.question.trim())
-              .map((question) => ({
-                id: question.id,
-                label: question.label,
-                question: question.question,
-                type:
-                  !isSubscribed &&
-                  (question.type === "email" || question.type === "phone")
-                    ? "text"
-                    : question.type,
-                required: question.required,
-                retryMessage: question.retryMessage,
-              })),
+            questions:
+              automationType === "dms"
+                ? form.dmQuestions
+                    .filter((question) => question.question.trim())
+                    .map((question) => ({
+                      id: question.id,
+                      label: question.label,
+                      question: question.question,
+                      type:
+                        !isSubscribed &&
+                        (question.type === "email" || question.type === "phone")
+                          ? "text"
+                          : question.type,
+                      required: question.required,
+                      retryMessage: question.retryMessage,
+                    }))
+                : [],
           },
           followUpDMs: {
             enabled: form.followUpDMs && isSubscribed,
@@ -1311,7 +1333,11 @@ export default function CreateAutomationPage() {
         };
 
         if (isEditMode && editId) {
-          const result: any = await updateTemplate(apiRequest, editId, payload as any);
+          const result: any = await updateTemplate(
+            apiRequest,
+            editId,
+            payload as any,
+          );
           toast({
             title: result?.data?.warning || "Automation updated!",
             variant: result?.data?.warning ? "destructive" : undefined,
@@ -1460,7 +1486,9 @@ export default function CreateAutomationPage() {
             <button
               onClick={() => handleSave(true)}
               disabled={isSaving || isGoingLive || dmLimitReached}
-              className={S.goLiveButton(isSaving || isGoingLive || dmLimitReached)}
+              className={S.goLiveButton(
+                isSaving || isGoingLive || dmLimitReached,
+              )}
             >
               <Activity className="h-4 w-4" />
               {isGoingLive
@@ -1823,7 +1851,9 @@ export default function CreateAutomationPage() {
                         }))
                       }
                       onKeyDown={handleQuickReplyKeyDown}
-                      disabled={form.quickReplyKeywords.length >= quickReplyLimit}
+                      disabled={
+                        form.quickReplyKeywords.length >= quickReplyLimit
+                      }
                       className={`w-full bg-transparent border-none text-sm focus:outline-none ${
                         isDark
                           ? "text-white placeholder:text-white/25"
@@ -2068,129 +2098,147 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* DM Flow */}
-            <div className={S.cardNoPadding}>
-              <div className={S.sectionToggle}>
-                <div>
-                  <span className={S.sectionLabel}>DM Flow</span>
-                  <p className={`text-xs mt-1 ${S.muted}`}>
-                    Choose whether this automation sends a link or collects form answers first.
-                  </p>
+            {automationType === "dms" && (
+              <div className={S.cardNoPadding}>
+                <div className={S.sectionToggle}>
+                  <div>
+                    <span className={S.sectionLabel}>DM Flow</span>
+                    <p className={`text-xs mt-1 ${S.muted}`}>
+                      Choose whether this automation sends a link or collects
+                      form answers first.
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className={S.sectionContent}>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: "send_link", label: "Send link" },
-                    { value: "collect_form", label: "Fill form" },
-                  ].map((mode) => (
-                    <button
-                      key={mode.value}
-                      type="button"
-                      onClick={() =>
-                        setForm((f) => ({
-                          ...f,
-                          dmFlowMode: mode.value as "send_link" | "collect_form",
-                        }))
-                      }
-                      className={S.tagButton(form.dmFlowMode === mode.value)}
-                    >
-                      {mode.label}
-                    </button>
-                  ))}
-                </div>
+                <div className={S.sectionContent}>
+                  <div className="flex flex-wrap gap-2">
+                    {[
+                      { value: "send_link", label: "Send link" },
+                      { value: "collect_form", label: "Fill form" },
+                    ].map((mode) => (
+                      <button
+                        key={mode.value}
+                        type="button"
+                        onClick={() =>
+                          setForm((f) => ({
+                            ...f,
+                            dmFlowMode: mode.value as
+                              | "send_link"
+                              | "collect_form",
+                          }))
+                        }
+                        className={S.tagButton(form.dmFlowMode === mode.value)}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
 
-                {form.dmFlowMode === "collect_form" && (
-                  <div className="mt-4 space-y-4">
-                    {form.dmQuestions.map((question, index) => {
-                      const proOnly =
-                        question.type === "email" || question.type === "phone";
-                      return (
-                        <div
-                          key={`${question.id}-${index}`}
-                          className={`rounded-xl border p-4 ${isDark ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
-                        >
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <p className={`text-sm font-medium ${S.label}`}>
-                              Question {index + 1}
-                            </p>
-                            <button
-                              type="button"
-                              onClick={() => removeDMQuestion(index)}
-                              className={`${isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-500"}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                          <div className="grid gap-3 md:grid-cols-2">
-                            <input
-                              value={question.label}
-                              onChange={(e) =>
-                                updateDMQuestion(index, "label", e.target.value)
-                              }
-                              placeholder="Field label, e.g. Budget"
-                              className={S.input}
-                            />
-                            <select
-                              value={question.type}
+                  {form.dmFlowMode === "collect_form" && (
+                    <div className="mt-4 space-y-4">
+                      {form.dmQuestions.map((question, index) => {
+                        const proOnly =
+                          question.type === "email" ||
+                          question.type === "phone";
+                        return (
+                          <div
+                            key={`${question.id}-${index}`}
+                            className={`rounded-xl border p-4 ${isDark ? "border-white/[0.08] bg-white/[0.03]" : "border-gray-200 bg-gray-50"}`}
+                          >
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <p className={`text-sm font-medium ${S.label}`}>
+                                Question {index + 1}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => removeDMQuestion(index)}
+                                className={`${isDark ? "text-white/40 hover:text-red-400" : "text-gray-400 hover:text-red-500"}`}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <input
+                                value={question.label}
+                                onChange={(e) =>
+                                  updateDMQuestion(
+                                    index,
+                                    "label",
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Field label, e.g. Budget"
+                                className={S.input}
+                              />
+                              <select
+                                value={question.type}
+                                onChange={(e) =>
+                                  updateDMQuestion(
+                                    index,
+                                    "type",
+                                    e.target.value as DMFlowQuestionType,
+                                  )
+                                }
+                                className={S.input}
+                              >
+                                <option value="text">Text</option>
+                                <option value="number">Number</option>
+                                <option value="budget">Budget</option>
+                                <option value="email" disabled={!isSubscribed}>
+                                  Email {isSubscribed ? "" : "(Pro)"}
+                                </option>
+                                <option value="phone" disabled={!isSubscribed}>
+                                  Phone {isSubscribed ? "" : "(Pro)"}
+                                </option>
+                              </select>
+                            </div>
+                            {proOnly && !isSubscribed && (
+                              <p className="mt-2 text-xs text-amber-500">
+                                Email and phone questions require Pro.
+                              </p>
+                            )}
+                            <textarea
+                              value={question.question}
                               onChange={(e) =>
                                 updateDMQuestion(
                                   index,
-                                  "type",
-                                  e.target.value as DMFlowQuestionType,
+                                  "question",
+                                  e.target.value,
                                 )
                               }
-                              className={S.input}
-                            >
-                              <option value="text">Text</option>
-                              <option value="number">Number</option>
-                              <option value="budget">Budget</option>
-                              <option value="email" disabled={!isSubscribed}>
-                                Email {isSubscribed ? "" : "(Pro)"}
-                              </option>
-                              <option value="phone" disabled={!isSubscribed}>
-                                Phone {isSubscribed ? "" : "(Pro)"}
-                              </option>
-                            </select>
+                              placeholder="Ask the question users will receive in DM"
+                              rows={2}
+                              maxLength={1000}
+                              className={`mt-3 w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/25" : "border-gray-200 bg-white text-gray-700 placeholder-gray-400"}`}
+                            />
+                            <input
+                              value={question.retryMessage}
+                              onChange={(e) =>
+                                updateDMQuestion(
+                                  index,
+                                  "retryMessage",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="Retry message if answer is invalid"
+                              className={`mt-3 ${S.input}`}
+                            />
                           </div>
-                          {proOnly && !isSubscribed && (
-                            <p className="mt-2 text-xs text-amber-500">
-                              Email and phone questions require Pro.
-                            </p>
-                          )}
-                          <textarea
-                            value={question.question}
-                            onChange={(e) =>
-                              updateDMQuestion(index, "question", e.target.value)
-                            }
-                            placeholder="Ask the question users will receive in DM"
-                            rows={2}
-                            maxLength={1000}
-                            className={`mt-3 w-full rounded-xl border px-4 py-3 text-sm outline-none ${isDark ? "border-white/[0.08] bg-white/[0.05] text-white placeholder:text-white/25" : "border-gray-200 bg-white text-gray-700 placeholder-gray-400"}`}
-                          />
-                          <input
-                            value={question.retryMessage}
-                            onChange={(e) =>
-                              updateDMQuestion(index, "retryMessage", e.target.value)
-                            }
-                            placeholder="Retry message if answer is invalid"
-                            className={`mt-3 ${S.input}`}
-                          />
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
 
-                    <button
-                      type="button"
-                      onClick={addDMQuestion}
-                      className={S.addLinkTrigger}
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add Question
-                    </button>
-                  </div>
-                )}
+                      <button
+                        type="button"
+                        onClick={addDMQuestion}
+                        className={S.addLinkTrigger}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Question
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Public Reply (comments only) */}
             {automationType === "comments" && (
@@ -2369,289 +2417,293 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            {/* Ask Email — all types */}
-            <div className={S.cardNoPadding}>
-              <div className={S.sectionToggle}>
-                <div className="flex items-center gap-2">
-                  <span className={S.sectionLabel}>
-                    Ask To Share Their Email
-                  </span>
-                  <Info className={S.sectionInfoIcon} />
-                  <Crown className={S.crownIcon} />
+            {/* Ask Email — direct DMs only */}
+            {automationType === "dms" && (
+              <div className={S.cardNoPadding}>
+                <div className={S.sectionToggle}>
+                  <div className="flex items-center gap-2">
+                    <span className={S.sectionLabel}>
+                      Ask To Share Their Email
+                    </span>
+                    <Info className={S.sectionInfoIcon} />
+                    <Crown className={S.crownIcon} />
+                  </div>
+                  {isSubscribed ? (
+                    <Toggle
+                      checked={form.askEmail}
+                      onChange={(v) => setForm((f) => ({ ...f, askEmail: v }))}
+                      isDark={isDark}
+                    />
+                  ) : (
+                    <div className={S.lockedBadge}>
+                      <Lock className="h-3 w-3" />
+                      Pro
+                    </div>
+                  )}
                 </div>
-                {isSubscribed ? (
-                  <Toggle
-                    checked={form.askEmail}
-                    onChange={(v) => setForm((f) => ({ ...f, askEmail: v }))}
-                    isDark={isDark}
-                  />
-                ) : (
-                  <div className={S.lockedBadge}>
-                    <Lock className="h-3 w-3" />
-                    Pro
+                {isSubscribed && form.askEmail && (
+                  <div className={S.sectionContent}>
+                    <div>
+                      <p className={`text-xs font-medium mb-2 ${S.label}`}>
+                        Opening Message:
+                      </p>
+                      <div
+                        className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
+                      >
+                        <textarea
+                          value={form.emailOpeningMessage}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              emailOpeningMessage: e.target.value,
+                            }))
+                          }
+                          maxLength={1000}
+                          rows={3}
+                          className={S.textarea}
+                        />
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
+                          <CharCounter
+                            current={form.emailOpeningMessage.length}
+                            max={1000}
+                            isDark={isDark}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs font-medium mb-2 ${S.label}`}>
+                        Retry Message (if invalid email):
+                      </p>
+                      <div
+                        className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
+                      >
+                        <textarea
+                          value={form.emailRetryMessage}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              emailRetryMessage: e.target.value,
+                            }))
+                          }
+                          maxLength={500}
+                          rows={2}
+                          className={S.textarea}
+                        />
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
+                          <CharCounter
+                            current={form.emailRetryMessage.length}
+                            max={500}
+                            isDark={isDark}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-2 ${S.muted}`}>
+                        After 3 failed attempts:
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              emailNoValidAction: "send",
+                            }))
+                          }
+                          className={S.tagButton(
+                            form.emailNoValidAction === "send",
+                          )}
+                        >
+                          Send DM anyway
+                        </button>
+                        <button
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              emailNoValidAction: "nosend",
+                            }))
+                          }
+                          className={S.tagButton(
+                            form.emailNoValidAction === "nosend",
+                          )}
+                        >
+                          Do not send
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!isSubscribed && (
+                  <div className={S.sectionContent}>
+                    <div
+                      className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
+                    >
+                      <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                      <p className="text-sm mb-3">
+                        Ask users for email before sending DMs
+                      </p>
+                      <Link href="/insta/pricing">
+                        <Button
+                          size="sm"
+                          className="bg-pink-500 hover:bg-pink-600"
+                        >
+                          Upgrade to Pro
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
-              {isSubscribed && form.askEmail && (
-                <div className={S.sectionContent}>
-                  <div>
-                    <p className={`text-xs font-medium mb-2 ${S.label}`}>
-                      Opening Message:
-                    </p>
-                    <div
-                      className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
-                    >
-                      <textarea
-                        value={form.emailOpeningMessage}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            emailOpeningMessage: e.target.value,
-                          }))
-                        }
-                        maxLength={1000}
-                        rows={3}
-                        className={S.textarea}
-                      />
-                      <div
-                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
-                      >
-                        <CharCounter
-                          current={form.emailOpeningMessage.length}
-                          max={1000}
-                          isDark={isDark}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-xs font-medium mb-2 ${S.label}`}>
-                      Retry Message (if invalid email):
-                    </p>
-                    <div
-                      className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
-                    >
-                      <textarea
-                        value={form.emailRetryMessage}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            emailRetryMessage: e.target.value,
-                          }))
-                        }
-                        maxLength={500}
-                        rows={2}
-                        className={S.textarea}
-                      />
-                      <div
-                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
-                      >
-                        <CharCounter
-                          current={form.emailRetryMessage.length}
-                          max={500}
-                          isDark={isDark}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-xs mb-2 ${S.muted}`}>
-                      After 3 failed attempts:
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setForm((f) => ({
-                            ...f,
-                            emailNoValidAction: "send",
-                          }))
-                        }
-                        className={S.tagButton(
-                          form.emailNoValidAction === "send",
-                        )}
-                      >
-                        Send DM anyway
-                      </button>
-                      <button
-                        onClick={() =>
-                          setForm((f) => ({
-                            ...f,
-                            emailNoValidAction: "nosend",
-                          }))
-                        }
-                        className={S.tagButton(
-                          form.emailNoValidAction === "nosend",
-                        )}
-                      >
-                        Do not send
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!isSubscribed && (
-                <div className={S.sectionContent}>
-                  <div
-                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
-                  >
-                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-                    <p className="text-sm mb-3">
-                      Ask users for email before sending DMs
-                    </p>
-                    <Link href="/insta/pricing">
-                      <Button
-                        size="sm"
-                        className="bg-pink-500 hover:bg-pink-600"
-                      >
-                        Upgrade to Pro
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
 
-            {/* Ask Phone — all types */}
-            <div className={S.cardNoPadding}>
-              <div className={S.sectionToggle}>
-                <div className="flex items-center gap-2">
-                  <span className={S.sectionLabel}>
-                    Ask To Share Their Phone
-                  </span>
-                  <Info className={S.sectionInfoIcon} />
-                  <Crown className={S.crownIcon} />
+            {/* Ask Phone — direct DMs only */}
+            {automationType === "dms" && (
+              <div className={S.cardNoPadding}>
+                <div className={S.sectionToggle}>
+                  <div className="flex items-center gap-2">
+                    <span className={S.sectionLabel}>
+                      Ask To Share Their Phone
+                    </span>
+                    <Info className={S.sectionInfoIcon} />
+                    <Crown className={S.crownIcon} />
+                  </div>
+                  {isSubscribed ? (
+                    <Toggle
+                      checked={form.askPhone}
+                      onChange={(v) => setForm((f) => ({ ...f, askPhone: v }))}
+                      isDark={isDark}
+                    />
+                  ) : (
+                    <div className={S.lockedBadge}>
+                      <Lock className="h-3 w-3" />
+                      Pro
+                    </div>
+                  )}
                 </div>
-                {isSubscribed ? (
-                  <Toggle
-                    checked={form.askPhone}
-                    onChange={(v) => setForm((f) => ({ ...f, askPhone: v }))}
-                    isDark={isDark}
-                  />
-                ) : (
-                  <div className={S.lockedBadge}>
-                    <Lock className="h-3 w-3" />
-                    Pro
+                {isSubscribed && form.askPhone && (
+                  <div className={S.sectionContent}>
+                    <div>
+                      <p className={`text-xs font-medium mb-2 ${S.label}`}>
+                        Opening Message:
+                      </p>
+                      <div
+                        className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
+                      >
+                        <textarea
+                          value={form.phoneOpeningMessage}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              phoneOpeningMessage: e.target.value,
+                            }))
+                          }
+                          maxLength={1000}
+                          rows={3}
+                          className={S.textarea}
+                        />
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
+                          <CharCounter
+                            current={form.phoneOpeningMessage.length}
+                            max={1000}
+                            isDark={isDark}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs font-medium mb-2 ${S.label}`}>
+                        Retry Message (if invalid phone):
+                      </p>
+                      <div
+                        className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
+                      >
+                        <textarea
+                          value={form.phoneRetryMessage}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              phoneRetryMessage: e.target.value,
+                            }))
+                          }
+                          maxLength={500}
+                          rows={2}
+                          className={S.textarea}
+                        />
+                        <div
+                          className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
+                        >
+                          <CharCounter
+                            current={form.phoneRetryMessage.length}
+                            max={500}
+                            isDark={isDark}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div>
+                      <p className={`text-xs mb-2 ${S.muted}`}>
+                        After 3 failed attempts:
+                      </p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              phoneNoValidAction: "send",
+                            }))
+                          }
+                          className={S.tagButton(
+                            form.phoneNoValidAction === "send",
+                          )}
+                        >
+                          Send DM anyway
+                        </button>
+                        <button
+                          onClick={() =>
+                            setForm((f) => ({
+                              ...f,
+                              phoneNoValidAction: "nosend",
+                            }))
+                          }
+                          className={S.tagButton(
+                            form.phoneNoValidAction === "nosend",
+                          )}
+                        >
+                          Do not send
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {!isSubscribed && (
+                  <div className={S.sectionContent}>
+                    <div
+                      className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
+                    >
+                      <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
+                      <p className="text-sm mb-3">
+                        Ask users for phone before sending DMs
+                      </p>
+                      <Link href="/insta/pricing">
+                        <Button
+                          size="sm"
+                          className="bg-pink-500 hover:bg-pink-600"
+                        >
+                          Upgrade to Pro
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 )}
               </div>
-              {isSubscribed && form.askPhone && (
-                <div className={S.sectionContent}>
-                  <div>
-                    <p className={`text-xs font-medium mb-2 ${S.label}`}>
-                      Opening Message:
-                    </p>
-                    <div
-                      className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
-                    >
-                      <textarea
-                        value={form.phoneOpeningMessage}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            phoneOpeningMessage: e.target.value,
-                          }))
-                        }
-                        maxLength={1000}
-                        rows={3}
-                        className={S.textarea}
-                      />
-                      <div
-                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
-                      >
-                        <CharCounter
-                          current={form.phoneOpeningMessage.length}
-                          max={1000}
-                          isDark={isDark}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-xs font-medium mb-2 ${S.label}`}>
-                      Retry Message (if invalid phone):
-                    </p>
-                    <div
-                      className={`border rounded-xl overflow-hidden ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
-                    >
-                      <textarea
-                        value={form.phoneRetryMessage}
-                        onChange={(e) =>
-                          setForm((f) => ({
-                            ...f,
-                            phoneRetryMessage: e.target.value,
-                          }))
-                        }
-                        maxLength={500}
-                        rows={2}
-                        className={S.textarea}
-                      />
-                      <div
-                        className={`flex items-center px-4 py-2 border-t ${isDark ? "border-white/[0.06]" : "border-gray-100"}`}
-                      >
-                        <CharCounter
-                          current={form.phoneRetryMessage.length}
-                          max={500}
-                          isDark={isDark}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div>
-                    <p className={`text-xs mb-2 ${S.muted}`}>
-                      After 3 failed attempts:
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          setForm((f) => ({
-                            ...f,
-                            phoneNoValidAction: "send",
-                          }))
-                        }
-                        className={S.tagButton(
-                          form.phoneNoValidAction === "send",
-                        )}
-                      >
-                        Send DM anyway
-                      </button>
-                      <button
-                        onClick={() =>
-                          setForm((f) => ({
-                            ...f,
-                            phoneNoValidAction: "nosend",
-                          }))
-                        }
-                        className={S.tagButton(
-                          form.phoneNoValidAction === "nosend",
-                        )}
-                      >
-                        Do not send
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {!isSubscribed && (
-                <div className={S.sectionContent}>
-                  <div
-                    className={`text-center py-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
-                  >
-                    <Crown className="h-8 w-8 mx-auto mb-2 text-yellow-400" />
-                    <p className="text-sm mb-3">
-                      Ask users for phone before sending DMs
-                    </p>
-                    <Link href="/insta/pricing">
-                      <Button
-                        size="sm"
-                        className="bg-pink-500 hover:bg-pink-600"
-                      >
-                        Upgrade to Pro
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
 
             {/* Follow-Up DMs — all types */}
             <div className={S.cardNoPadding}>
@@ -2932,6 +2984,31 @@ export default function CreateAutomationPage() {
                   </div>
                 </div>
               )}
+            </div>
+
+            <div className={`${S.actionBar} flex-wrap gap-3 justify-end`}>
+              <button
+                onClick={() => handleSave(false)}
+                disabled={isSaving || isGoingLive}
+                className={S.saveButton(isSaving || isGoingLive)}
+              >
+                <Bookmark className="h-4 w-4" />
+                {isSaving ? "Saving..." : isEditMode ? "Update" : "Save"}
+              </button>
+              <button
+                onClick={() => handleSave(true)}
+                disabled={isSaving || isGoingLive || dmLimitReached}
+                className={S.goLiveButton(
+                  isSaving || isGoingLive || dmLimitReached,
+                )}
+              >
+                <Activity className="h-4 w-4" />
+                {isGoingLive
+                  ? "Going Live..."
+                  : isEditMode
+                    ? "Update & Go Live"
+                    : "Go Live"}
+              </button>
             </div>
 
             <div className="h-8" />
