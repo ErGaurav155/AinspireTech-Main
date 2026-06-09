@@ -2106,20 +2106,23 @@ export default function ChatWidget({
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: isMobile ? "100dvh" : "100vh",
         background:
           "linear-gradient(135deg, #eff6ff 0%, #f5f3ff 50%, #fce7f3 100%)",
         display: "flex",
-        alignItems: "center",
+        alignItems: isMobile ? "stretch" : "center",
         justifyContent: "center",
         padding: isMobile ? 0 : 16,
+        overflowY: isMobile ? "auto" : "hidden",
+        WebkitOverflowScrolling: "touch",
       }}
     >
       <div
         style={{
           width: "100%",
           maxWidth: isMobile ? "100%" : 480,
-          height: isMobile ? "100vh" : "min(700px, 92vh)",
+          minHeight: isMobile ? "100dvh" : undefined,
+          height: isMobile ? "auto" : "min(700px, 92vh)",
           borderRadius: isMobile ? 0 : 24,
           overflow: "hidden",
           boxShadow: isMobile ? "none" : "0 25px 70px rgba(0,0,0,0.14)",

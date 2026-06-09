@@ -193,11 +193,13 @@ export const Checkout = ({
     }
     switch (currentStep) {
       case "weblink":
-        return "Configure your chatbot details";
+        return isEducationChatbot
+          ? "Configure your MCQ chatbot details"
+          : "Add your website details before subscription";
       case "chatbot-create":
         return "We're creating your chatbot";
       case "scraping":
-        return "Training chatbot with your website data";
+        return "Training can take 1-2 minutes. Please do not close this window";
       case "subscription-activate":
         return "Finalizing your subscription";
       default:
@@ -229,11 +231,15 @@ export const Checkout = ({
     }
     switch (currentStep) {
       case "weblink":
-        return "Enter your website and chatbot details";
+        return isEducationChatbot
+          ? "Enter your MCQ chatbot details"
+          : "Enter your live website URL. We will scan public pages to train your chatbot.";
       case "chatbot-create":
-        return "We're setting up your chatbot instance";
+        return isEducationChatbot
+          ? "We're setting up your chatbot instance"
+          : "We're creating your chatbot. Website scraping will start next and may take 1-2 minutes.";
       case "scraping":
-        return "Training chatbot with your website data";
+        return "Please wait while we scrape and process your website. This may take 1-2 minutes, please do not close this window.";
       case "subscription-activate":
         return "Finalizing your subscription activation";
       default:
@@ -394,7 +400,9 @@ export const Checkout = ({
 
   const processScraping = async (websiteUrl: string, chatbotId: string) => {
     try {
-      setScrapingStatus("Checking if website is already scraped...");
+      setScrapingStatus(
+        "Checking your website before scraping. Please do not close this window.",
+      );
 
       const checkWebsiteScraped = await checkAndPrepareScrape(apiRequest, {
         userId: userId,
@@ -403,11 +411,13 @@ export const Checkout = ({
       });
 
       if (checkWebsiteScraped.alreadyScrapped) {
-        setScrapingStatus("Website already scraped, skipping...");
+        setScrapingStatus("Website already scraped, continuing setup...");
         return true;
       }
       if (checkWebsiteScraped.success) {
-        setScrapingStatus("Scraping website...");
+        setScrapingStatus(
+          "Scraping website. This might take 1-2 minutes, please do not close this window.",
+        );
 
         const scrapeResult = await scrapeWebsite(
           apiRequest,
@@ -415,12 +425,14 @@ export const Checkout = ({
           chatbotId,
         );
         if (scrapeResult.alreadyScrapped) {
-          setScrapingStatus("Website already scraped, skipping...");
+          setScrapingStatus("Website already scraped, continuing setup...");
           return true;
         }
 
         if (scrapeResult.success) {
-          setScrapingStatus("Processing scraped data...");
+          setScrapingStatus(
+            "Processing scraped data. Please keep this window open.",
+          );
 
           const processResult = await processScrapedData(
             apiRequest,
@@ -446,7 +458,7 @@ export const Checkout = ({
 
   const createChatbot = async (data: WebsiteFormData) => {
     try {
-      setScrapingStatus("Creating chatbot...");
+      setScrapingStatus("Creating chatbot. Please keep this window open...");
 
       const result = await createWebChatbot(apiRequest, {
         name: data.chatbotName,
@@ -514,7 +526,7 @@ export const Checkout = ({
       setShowModal(true);
       setCurrentStep("weblink");
     } else {
-      // For new non-education chatbot purchases, show the modal with weblink form
+      // For new lead chatbot purchases, show the pricing-page modal with website form
       setShowModal(true);
       setCurrentStep("weblink");
     }
@@ -540,7 +552,7 @@ export const Checkout = ({
         } else {
           // For non-education chatbots, proceed with scraping
           setScrapingStatus(
-            "Chatbot created successfully! Preparing for scraping...",
+            "Chatbot created. Starting website scraping now. This might take 1-2 minutes, please do not close this window.",
           );
 
           // Step 2: Process scraping (only for non-education chatbots)
@@ -851,7 +863,7 @@ export const Checkout = ({
                     <Bot className="h-4 w-4 mr-2" />
                     {isEducationChatbot
                       ? "Education chatbot is designed for MCQ-based learning and doesn't require website scraping"
-                      : "Each chatbot type can only be created once per account"}
+                      : "Website scraping may take 1-2 minutes. Please do not close this window after you submit."}
                   </p>
                 </div>
               </div>
