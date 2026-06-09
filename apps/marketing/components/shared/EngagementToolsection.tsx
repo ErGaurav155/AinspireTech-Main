@@ -32,7 +32,7 @@ const aiCallFeatures = [
       "Ask the right questions on every call and save caller details, service interest, urgency, and follow-up notes.",
     tools: ["Caller details", "Qualification flow", "Transcripts"],
     role: "Call-to-lead automation",
-    link: "/assets/img/chatbot.png",
+    link: "/assets/img/lead-capture.png",
   },
   {
     id: 3,
@@ -50,7 +50,7 @@ const aiCallFeatures = [
       "Collect booking intent, route hot callers to your team, and keep a clean call log inside the dashboard.",
     tools: ["Booking intent", "Team handoff", "Call logs"],
     role: "Operational call workflow",
-    link: "/assets/img/chatbot.png",
+    link: "/assets/img/lead-capture.png",
   },
 ];
 

@@ -206,7 +206,7 @@ export default function HeroSection() {
 
           <motion.h1
             variants={fadeUp}
-            className="text-[2.15rem] font-black leading-[1.02] tracking-tight text-slate-950 transition-colors duration-500 sm:text-[3.4rem] md:text-[4.1rem] xl:text-[4.9rem] dark:text-white"
+            className="text-[1.75rem] font-black leading-[1.02] tracking-tight text-slate-950 transition-colors duration-500 sm:text-[2.15rem] md:text-[2.8rem] xl:text-[3.45rem] dark:text-white"
           >
             Capture leads from
             <br />

@@ -1,6 +1,5 @@
 "use client";
 import { motion } from "framer-motion";
-import MetaImg from "@/public/assets/img/metaImg.png";
 import {
   MessageCircle,
   Heart,
@@ -71,16 +70,6 @@ export function BusinessMessagingTemplate() {
 
   return (
     <section className="w-full bg-transparent  py-20 space-y-4 md:space-y-8">
-      <div className="flex items-center justify-center w-full">
-        <Image
-          src={MetaImg}
-          alt="Meta Tech"
-          width={220}
-          height={800}
-          className="object-cover rounded-md"
-          loading="lazy"
-        />
-      </div>
       <div className="flex flex-col gap-6 items-center max-w-7xl mx-auto px-4 ">
         {/* Left Column - Content */}
         <motion.div
