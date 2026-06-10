@@ -393,9 +393,6 @@ const PricingContent = () => {
         return;
       }
 
-      setIsLoading(true);
-      setIsConfirmingPayment(true);
-
       try {
         const activeSubscription =
           await waitForWebSubscriptionActivation(subscriptionId);
@@ -420,9 +417,6 @@ const PricingContent = () => {
         sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
       } catch (error) {
         console.error("Pending Razorpay checkout recovery error:", error);
-      } finally {
-        setIsLoading(false);
-        setIsConfirmingPayment(false);
       }
     };
 
