@@ -695,6 +695,12 @@ export const Checkout = ({
         handler: async (response: any) => {
           await handleChatbotPaymentSuccess(response, result.subscriptionId);
         },
+        ...(isMobileCheckoutDevice()
+          ? {
+              callback_url: callbackUrl.toString(),
+              redirect: true,
+            }
+          : {}),
         modal: {
           ondismiss: async () => {
             const activeSubscription = await waitForWebSubscriptionActivation(
@@ -714,12 +720,6 @@ export const Checkout = ({
             showErrorToast("Checkout was closed before payment was confirmed.");
           },
         },
-        ...(isMobileCheckoutDevice()
-          ? {
-              callback_url: callbackUrl.toString(),
-              redirect: true,
-            }
-          : {}),
         theme: { color: "#EC4899" },
       };
 

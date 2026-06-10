@@ -80,6 +80,29 @@ const iconMapping: Record<string, any> = {
   MessageCircle: MessageCircle,
 };
 
+const clearRazorpayCallbackParams = () => {
+  if (typeof window === "undefined") return;
+
+  const params = new URLSearchParams(window.location.search);
+  [
+    "razorpay_checkout",
+    "checkoutKind",
+    "subscription_id",
+    "razorpay_payment_id",
+    "razorpay_signature",
+    "productId",
+    "billingCycle",
+    "chatbotId",
+    "previousSubscriptionId",
+    "previousSubscriptionType",
+  ].forEach((param) => params.delete(param));
+
+  const nextUrl = params.toString()
+    ? `${window.location.pathname}?${params.toString()}`
+    : window.location.pathname;
+  window.history.replaceState(null, "", nextUrl);
+};
+
 const PricingContent = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -91,6 +114,8 @@ const PricingContent = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
+  const [confirmingPaymentProductId, setConfirmingPaymentProductId] =
+    useState<string | null>(null);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
@@ -294,17 +319,19 @@ const PricingContent = () => {
       }
 
       const subscriptionId = searchParams.get("subscription_id");
+      const razorpayPaymentId = searchParams.get("razorpay_payment_id");
+      const razorpaySignature = searchParams.get("razorpay_signature");
+      const callbackProductId = searchParams.get("productId");
 
       if (!subscriptionId) return;
 
+      clearRazorpayCallbackParams();
       setIsLoading(true);
       setIsConfirmingPayment(true);
+      setConfirmingPaymentProductId(callbackProductId);
 
       try {
-        if (
-          !searchParams.get("razorpay_payment_id") ||
-          !searchParams.get("razorpay_signature")
-        ) {
+        if (!razorpayPaymentId || !razorpaySignature) {
           throw new Error("Payment was not completed");
         }
 
@@ -337,25 +364,7 @@ const PricingContent = () => {
       } finally {
         setIsLoading(false);
         setIsConfirmingPayment(false);
-        if (typeof window !== "undefined" && isRazorpayCallback) {
-          const params = new URLSearchParams(window.location.search);
-          [
-            "razorpay_checkout",
-            "checkoutKind",
-            "subscription_id",
-            "razorpay_payment_id",
-            "razorpay_signature",
-            "productId",
-            "billingCycle",
-            "chatbotId",
-            "previousSubscriptionId",
-            "previousSubscriptionType",
-          ].forEach((param) => params.delete(param));
-          const nextUrl = params.toString()
-            ? `${window.location.pathname}?${params.toString()}`
-            : window.location.pathname;
-          router.replace(nextUrl, { scroll: false });
-        }
+        setConfirmingPaymentProductId(null);
       }
     };
 
@@ -394,8 +403,12 @@ const PricingContent = () => {
       }
 
       try {
-        const activeSubscription =
-          await waitForWebSubscriptionActivation(subscriptionId);
+        const subscriptionsResponse = await getSubscriptions(apiRequest);
+        const activeSubscription = subscriptionsResponse?.find(
+          (subscription: any) =>
+            subscription.subscriptionId === subscriptionId &&
+            subscription.status === "active",
+        );
 
         if (activeSubscription) {
           sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
@@ -421,7 +434,7 @@ const PricingContent = () => {
     };
 
     void recoverPendingRazorpayCheckout();
-  }, [router, searchParams, userId, waitForWebSubscriptionActivation]);
+  }, [apiRequest, router, searchParams, userId]);
 
   const TAB_LABELS: Record<
     PlanType,
@@ -658,6 +671,9 @@ const PricingContent = () => {
                   );
                   const isSameBillingCycle =
                     activeSubscription?.billingCycle === billingMode;
+                  const isConfirmingThisProduct =
+                    isConfirmingPayment &&
+                    confirmingPaymentProductId === product.productId;
                   const hasCreated = isAccountDataLoading
                     ? false
                     : hasChatbotCreated(product.productId);
@@ -806,7 +822,15 @@ const PricingContent = () => {
                           </Button>
                         </SignedOut>
                         <SignedIn>
-                          {isAccountDataLoading ? (
+                          {isConfirmingThisProduct ? (
+                            <Button
+                              disabled
+                              className="w-full py-3 rounded-xl font-medium bg-gradient-to-r from-pink-500 to-rose-500 text-white opacity-70 cursor-not-allowed"
+                            >
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Processing...
+                            </Button>
+                          ) : isAccountDataLoading ? (
                             <Button
                               disabled
                               className="w-full py-3 rounded-xl font-medium bg-gradient-to-r from-pink-500 to-rose-500 text-white opacity-70 cursor-not-allowed"
@@ -876,7 +900,7 @@ const PricingContent = () => {
                               billingCycle={billingMode}
                               amount={displayPrice}
                               chatbotCreated={hasCreated}
-                              isConfirmingPayment={isConfirmingPayment}
+                              isConfirmingPayment={isConfirmingThisProduct}
                             />
                           )}
                         </SignedIn>
@@ -1148,7 +1172,11 @@ const PricingContent = () => {
                       }
                       previousSubscriptionType="web"
                       buttonText="Switch Plan"
-                      isConfirmingPayment={isConfirmingPayment}
+                      isConfirmingPayment={
+                        isConfirmingPayment &&
+                        confirmingPaymentProductId ===
+                          subscriptionChangeTarget.product.productId
+                      }
                     />
                   ) : (
                     <Button
