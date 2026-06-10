@@ -703,21 +703,29 @@ export const Checkout = ({
           : {}),
         modal: {
           ondismiss: async () => {
-            const activeSubscription = await waitForWebSubscriptionActivation(
-              result.subscriptionId,
-              3,
-              2000,
-            );
+            setProcessing(true);
 
-            if (activeSubscription) {
-              clearPendingRazorpayCheckout();
-              showSuccessToast("Subscription activated successfully!");
-              window.location.reload();
-              return;
+            try {
+              const activeSubscription = await waitForWebSubscriptionActivation(
+                result.subscriptionId,
+                3,
+                2000,
+              );
+
+              if (activeSubscription) {
+                clearPendingRazorpayCheckout();
+                showSuccessToast("Subscription activated successfully!");
+                window.location.reload();
+                return;
+              }
+
+              setShowModal(false);
+              showErrorToast(
+                "Checkout was closed before payment was confirmed.",
+              );
+            } finally {
+              setProcessing(false);
             }
-
-            setShowModal(false);
-            showErrorToast("Checkout was closed before payment was confirmed.");
           },
         },
         theme: { color: "#EC4899" },
