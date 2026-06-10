@@ -3,11 +3,14 @@ import { Request, Response } from "express";
 
 const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   insta: {
-    "Insta-Automation-Pro": "offer_SwesHPkR1J7vDu",
+    "Insta-Automation-Pro": "offer_Szopjsx9O1ZR64",
+    //  "offer_SwesHPkR1J7vDu",
   },
   web: {
-    "chatbot-lead-generation": "offer_Swg8earHCXfe9f",
-    "chatbot-education": "offer_Swg8earHCXfe9f",
+    "chatbot-lead-generation": "offer_Szopjsx9O1ZR64",
+    //  "offer_Swg8earHCXfe9f",
+    "chatbot-education": "offer_Szopjsx9O1ZR64",
+    //  "offer_Swg8earHCXfe9f",
   },
 } as const;
 
