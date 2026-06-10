@@ -75,6 +75,20 @@ const PROCESSED_INSTA_OAUTH_CODE_PREFIX = "processed_insta_oauth_code:";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 const MONTHLY_FIRST_MONTH_PRICE = 99;
+const DASHBOARD_ORIGIN = "https://app.rocketreplai.com";
+
+const getDashboardReturnUrl = (path: string) => {
+  if (typeof window === "undefined") return new URL(path, DASHBOARD_ORIGIN);
+
+  const isLocalDashboard =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  return new URL(
+    path,
+    isLocalDashboard ? window.location.origin : DASHBOARD_ORIGIN,
+  );
+};
 
 const isMobileCheckoutDevice = () => {
   if (typeof navigator === "undefined") return false;
@@ -531,7 +545,10 @@ function PricingWithSearchParams() {
           "/api/razorpay/checkout-callback",
           process.env.NEXT_PUBLIC_API_URL || window.location.origin,
         );
-        callbackUrl.searchParams.set("returnTo", "/insta/pricing");
+        callbackUrl.searchParams.set(
+          "returnTo",
+          getDashboardReturnUrl("/insta/pricing").toString(),
+        );
         callbackUrl.searchParams.set("kind", "insta");
         callbackUrl.searchParams.set("subscriptionId", result.subscriptionId);
         callbackUrl.searchParams.set("productId", plan.id);
@@ -894,9 +911,9 @@ function PricingWithSearchParams() {
           activeProductId &&
           shouldProcessInstagramCode
         ) {
-        const connected = await connectInstagramAccount(activeProductId);
-        hasConnectedAccount = connected;
-        setIsInstaAccount(connected);
+          const connected = await connectInstagramAccount(activeProductId);
+          hasConnectedAccount = connected;
+          setIsInstaAccount(connected);
         } else {
           setIsInstaAccount(hasAccounts);
         }

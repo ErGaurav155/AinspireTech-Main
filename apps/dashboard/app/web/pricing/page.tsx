@@ -90,6 +90,7 @@ const PricingContent = () => {
   // State
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
@@ -105,7 +106,7 @@ const PricingContent = () => {
     amount: number;
     chatbotCreated: boolean;
   } | null>(null);
-  const isAccountDataLoading = !isLoaded || isLoading;
+  const isAccountDataLoading = !isLoaded || (isLoading && !isConfirmingPayment);
   const products = useMemo(() => Object.values(productSubscriptionDetails), []);
   // Fetch subscriptions and user chatbots
   useEffect(() => {
@@ -297,6 +298,7 @@ const PricingContent = () => {
       if (!subscriptionId) return;
 
       setIsLoading(true);
+      setIsConfirmingPayment(true);
 
       try {
         if (
@@ -334,6 +336,7 @@ const PricingContent = () => {
         });
       } finally {
         setIsLoading(false);
+        setIsConfirmingPayment(false);
         if (typeof window !== "undefined" && isRazorpayCallback) {
           const params = new URLSearchParams(window.location.search);
           [
@@ -391,6 +394,7 @@ const PricingContent = () => {
       }
 
       setIsLoading(true);
+      setIsConfirmingPayment(true);
 
       try {
         const activeSubscription =
@@ -418,6 +422,7 @@ const PricingContent = () => {
         console.error("Pending Razorpay checkout recovery error:", error);
       } finally {
         setIsLoading(false);
+        setIsConfirmingPayment(false);
       }
     };
 
@@ -877,6 +882,7 @@ const PricingContent = () => {
                               billingCycle={billingMode}
                               amount={displayPrice}
                               chatbotCreated={hasCreated}
+                              isConfirmingPayment={isConfirmingPayment}
                             />
                           )}
                         </SignedIn>
@@ -1148,6 +1154,7 @@ const PricingContent = () => {
                       }
                       previousSubscriptionType="web"
                       buttonText="Switch Plan"
+                      isConfirmingPayment={isConfirmingPayment}
                     />
                   ) : (
                     <Button

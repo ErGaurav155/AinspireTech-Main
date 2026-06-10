@@ -44,6 +44,7 @@ interface CheckoutProps {
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
   buttonText?: string;
+  isConfirmingPayment?: boolean;
 }
 
 type CheckoutStep =
@@ -76,6 +77,20 @@ type WebsiteFormData = z.infer<ReturnType<typeof createWebsiteFormSchema>>;
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 const PENDING_WEB_RAZORPAY_CHECKOUT_KEY = "pending_web_razorpay_checkout";
+const DASHBOARD_ORIGIN = "https://app.rocketreplai.com";
+
+const getDashboardReturnUrl = (path: string) => {
+  if (typeof window === "undefined") return new URL(path, DASHBOARD_ORIGIN);
+
+  const isLocalDashboard =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1";
+
+  return new URL(
+    path,
+    isLocalDashboard ? window.location.origin : DASHBOARD_ORIGIN,
+  );
+};
 
 const isMobileCheckoutDevice = () => {
   if (typeof navigator === "undefined") return false;
@@ -93,6 +108,7 @@ export const Checkout = ({
   previousSubscriptionId,
   previousSubscriptionType,
   buttonText,
+  isConfirmingPayment = false,
 }: CheckoutProps) => {
   const router = useRouter();
   const { styles, isDark } = useThemeStyles();
@@ -148,6 +164,10 @@ export const Checkout = ({
   };
 
   const getButtonText = () => {
+    if (isConfirmingPayment) {
+      return "Checking Payment...";
+    }
+
     if (buttonText) {
       return buttonText;
     }
@@ -625,7 +645,10 @@ export const Checkout = ({
         "/api/razorpay/checkout-callback",
         process.env.NEXT_PUBLIC_API_URL || window.location.origin,
       );
-      callbackUrl.searchParams.set("returnTo", "/web/pricing");
+      callbackUrl.searchParams.set(
+        "returnTo",
+        getDashboardReturnUrl("/web/pricing").toString(),
+      );
       callbackUrl.searchParams.set("kind", "web");
       callbackUrl.searchParams.set("subscriptionId", result.subscriptionId);
       callbackUrl.searchParams.set("productId", productId);
@@ -1017,14 +1040,21 @@ export const Checkout = ({
       <form onSubmit={handleCheckout} className="w-full">
         <Button
           type="submit"
-          disabled={isSubmitting || processing || productId === "free-tier"}
+          disabled={
+            isSubmitting ||
+            processing ||
+            isConfirmingPayment ||
+            productId === "free-tier"
+          }
           className={`w-full py-3 rounded-xl font-medium hover:opacity-90 transition-opacity bg-gradient-to-r ${getButtonGradient()} text-white`}
         >
           <span className="flex items-center justify-center gap-2">
-            {processing || isSubmitting ? (
+            {processing || isSubmitting || isConfirmingPayment ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                {getProcessingButtonText()}
+                {isConfirmingPayment
+                  ? "Checking Payment..."
+                  : getProcessingButtonText()}
               </>
             ) : (
               <>
