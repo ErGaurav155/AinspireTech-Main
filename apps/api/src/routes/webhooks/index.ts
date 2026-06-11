@@ -8,6 +8,10 @@ import {
   handleInstagramInfoUpdateWebhookController,
   verifyInstagramInfoUpdateWebhookController,
 } from "@/controllers/webhooks/infoupdate.controller";
+import {
+  handleWhatsAppWebhookController,
+  verifyWhatsAppWebhookController,
+} from "@/controllers/webhooks/whatsapp.controller";
 
 import { razorpaySubsCancelWebhookController } from "@/controllers/webhooks/razorpay/subscription-cancelorcharged.controller";
 import { razorpaySubsCreateOrChargeWebhookController } from "@/controllers/webhooks/razorpay/subscription-create.controller";
@@ -30,6 +34,12 @@ router.post(
   "/instagram/infoupdate",
   handleInstagramInfoUpdateWebhookController,
 );
+
+//whatsapp
+// GET /api/webhooks/whatsapp - Verify Meta WhatsApp webhook subscription
+router.get("/whatsapp", verifyWhatsAppWebhookController);
+// POST /api/webhooks/whatsapp - Handle WhatsApp Cloud API webhooks
+router.post("/whatsapp", handleWhatsAppWebhookController);
 
 //razorpay
 // POST /api/webhooks/subscription/create - Create subscription

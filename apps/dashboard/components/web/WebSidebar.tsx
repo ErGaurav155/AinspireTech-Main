@@ -30,6 +30,7 @@ import {
   CreditCard,
   ChartBarStacked,
   Phone,
+  MessageCircle as WhatsAppIcon,
 } from "lucide-react";
 import Image from "next/image";
 import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
@@ -773,6 +774,17 @@ export default function WebSidebar({
                   <div className="min-w-0">
                     <p className={styles.productLabel}>Call Dashboard</p>
                     <p className={styles.productMeta}>AI Receptionist</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/whatsapp"
+                  className={styles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <WhatsAppIcon className={styles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={styles.productLabel}>WhatsApp Dashboard</p>
+                    <p className={styles.productMeta}>Business Automation</p>
                   </div>
                 </Link>
               </div>

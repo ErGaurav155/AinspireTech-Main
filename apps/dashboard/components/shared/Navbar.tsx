@@ -11,6 +11,7 @@ import {
   ChevronRight,
   HandshakeIcon,
   Phone,
+  MessageCircle,
 } from "lucide-react";
 import {
   BreadcrumbsDefault,
@@ -22,7 +23,7 @@ import { UserButton } from "@clerk/nextjs";
 interface NavbarProps {
   onSidebarToggle?: () => void;
   isSidebarOpen?: boolean;
-  dashboardType?: "web" | "insta" | "call";
+  dashboardType?: "web" | "insta" | "call" | "whatsapp";
 }
 
 export function Navbar({
@@ -39,6 +40,8 @@ export function Navbar({
     dashboardType === "web" || pathname?.startsWith("/web");
   const isCallDashboard =
     dashboardType === "call" || pathname?.startsWith("/call");
+  const isWhatsAppDashboard =
+    dashboardType === "whatsapp" || pathname?.startsWith("/whatsapp");
 
   const getChatbotType = () => {
     if (pathname?.includes("/lead-generation")) return "lead-generation";
@@ -67,7 +70,10 @@ export function Navbar({
       <div className="flex h-16 items-center justify-between w-full px-4 md:px-6">
         <div className="flex items-center gap-1">
           {/* Sidebar Toggle Button */}
-          {(isWebDashboard || isInstaDashboard || isCallDashboard) &&
+          {(isWebDashboard ||
+            isInstaDashboard ||
+            isCallDashboard ||
+            isWhatsAppDashboard) &&
             onSidebarToggle && (
             <Button
               variant="ghost"
@@ -105,6 +111,8 @@ export function Navbar({
                 ? "from-pink-500 to-rose-500"
                 : isCallDashboard
                   ? "from-cyan-500 to-emerald-500"
+                  : isWhatsAppDashboard
+                    ? "from-emerald-500 to-teal-500"
                 : "from-purple-500 to-pink-500"
             } text-white px-3 md:px-4 py-1.5 rounded-full hover:opacity-90 transition-opacity shadow-sm ${
               !isDark && `shadow-${isInstaDashboard ? "pink" : "purple"}-200`
@@ -192,6 +200,23 @@ export function Navbar({
               <Link href="/call/settings">
                 <Phone className="h-3.5 w-3.5 sm:mr-1.5" />
                 <span className="hidden sm:inline">Routing Settings</span>
+              </Link>
+            </Button>
+          )}
+          {isWhatsAppDashboard && (
+            <Button
+              variant="ghost"
+              size="sm"
+              asChild
+              className={`text-xs font-semibold ${
+                isDark
+                  ? "text-emerald-300 border-emerald-500/30 hover:bg-white/[0.06]"
+                  : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+              } border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
+            >
+              <Link href="/whatsapp/settings">
+                <MessageCircle className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Meta Setup</span>
               </Link>
             </Button>
           )}

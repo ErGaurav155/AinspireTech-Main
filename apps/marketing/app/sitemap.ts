@@ -27,6 +27,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
+      url: "https://rocketreplai.com/whatsapp",
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 1,
+    },
+    {
       url: "https://rocketreplai.com/affiliate",
       lastModified: new Date(),
       changeFrequency: "weekly",
@@ -46,6 +52,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     {
       url: "https://rocketreplai.com/call/pricing",
+      lastModified: new Date(),
+      changeFrequency: "weekly",
+      priority: 1,
+    },
+    {
+      url: "https://rocketreplai.com/whatsapp/pricing",
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,

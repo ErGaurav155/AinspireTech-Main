@@ -12,6 +12,7 @@ import {
   Target,
   MessageCircle,
   TrendingUp,
+  Phone,
 } from "lucide-react";
 import { Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import { storeReferralCode } from "@/lib/referral";
@@ -26,11 +27,15 @@ function ChooseProductContent() {
     setMounted(true);
   }, [searchParams]);
 
-  const handleSelectProduct = (product: "web-chatbot" | "insta-automation") => {
+  const handleSelectProduct = (
+    product: "web-chatbot" | "insta-automation" | "whatsapp-automation",
+  ) => {
     if (product === "web-chatbot") {
       router.push("/web");
-    } else {
+    } else if (product === "insta-automation") {
       router.push("/insta");
+    } else {
+      router.push("/whatsapp");
     }
   };
 
@@ -85,7 +90,7 @@ function ChooseProductContent() {
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Web Chatbot Card */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -224,6 +229,64 @@ function ChooseProductContent() {
                 className={`w-full ${styles.button.primary} py-6 text-base font-medium group-hover:shadow-lg transition-all`}
               >
                 Start with Instagram
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* WhatsApp Automation Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className={`${styles.card} p-8 rounded-3xl cursor-pointer group relative overflow-hidden`}
+            onClick={() => handleSelectProduct("whatsapp-automation")}
+          >
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <Phone className="w-8 h-8 text-white" />
+                </div>
+
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Admin Beta
+                </span>
+              </div>
+
+              <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
+                WhatsApp Automation
+              </h2>
+
+              <p className={`${styles.text.secondary} mb-6`}>
+                Build WhatsApp Business agents for lead qualification, shared
+                inbox, broadcasts, templates, and compliant customer journeys.
+              </p>
+
+              <div className="space-y-3 mb-8">
+                {[
+                  { icon: MessageCircle, text: "AI sales and support agents" },
+                  { icon: Target, text: "Segments and opt-in controls" },
+                  { icon: TrendingUp, text: "Broadcast analytics" },
+                  { icon: Sparkles, text: "Template approval workspace" },
+                  { icon: Zap, text: "Meta setup checklist" },
+                ].map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-3 w-3 text-emerald-500" />
+                      </div>
+                      <span className={`text-sm ${styles.text.secondary}`}>
+                        {feature.text}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-6 text-base font-medium group-hover:shadow-lg transition-all hover:from-emerald-600 hover:to-teal-600">
+                Open WhatsApp Beta
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>

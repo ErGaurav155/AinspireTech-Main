@@ -15,6 +15,7 @@ import scrapeRoutes from "@/routes/scrape";
 import userRoutes from "@/routes/user";
 import miscRoutes from "@/routes/misc";
 import callRoutes from "@/routes/call";
+import whatsappRoutes from "@/routes/whatsapp";
 import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
@@ -31,6 +32,7 @@ router.use("/embed", embedCors, embedRoutes);
 router.use("/admin", adminRoutes);
 router.use("/affiliates", affiliateRoutes);
 router.use("/call", callRoutes);
+router.use("/whatsapp", whatsappRoutes);
 router.use("/insta", instaRoutes);
 router.use("/rate-limit", rateLimitRoutes);
 router.use("/razorpay", razorpayRoutes);

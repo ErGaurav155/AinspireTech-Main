@@ -7,36 +7,45 @@ import { usePathname } from "next/navigation";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Bot,
+  CalendarCheck,
   Check,
   ChevronDown,
   CreditCard,
-  GitBranch,
+  FileText,
   Headphones,
   Instagram,
   LayoutDashboard,
   MessageCircle,
   Phone,
-  Sparkles,
+  Send,
   Settings,
+  Users,
+  Workflow,
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 const NAV_ITEMS = [
-  { label: "Overview", href: "/call", icon: LayoutDashboard },
-  { label: "Calls & Leads", href: "/call/calls", icon: Headphones },
-  { label: "AI Flows", href: "/call/flows", icon: GitBranch },
-  { label: "Pricing", href: "/call/pricing", icon: Sparkles },
-  { label: "Billing", href: "/call/billing", icon: CreditCard },
-  { label: "Settings", href: "/call/settings", icon: Settings },
+  { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
+  { label: "Inbox", href: "/whatsapp/inbox", icon: Headphones },
+  { label: "AI Agents", href: "/whatsapp/agents", icon: Workflow },
+  { label: "Broadcasts", href: "/whatsapp/broadcasts", icon: Send },
+  { label: "Appointments", href: "/whatsapp/appointments", icon: CalendarCheck },
+  { label: "Templates", href: "/whatsapp/templates", icon: FileText },
+  { label: "Contacts", href: "/whatsapp/contacts", icon: Users },
+  { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
+  { label: "Settings", href: "/whatsapp/settings", icon: Settings },
 ] as const;
 
-interface CallSidebarProps {
+interface WhatsAppSidebarProps {
   isOpen: boolean;
   onToggle: () => void;
 }
 
-export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
+export default function WhatsAppSidebar({
+  isOpen,
+  onToggle,
+}: WhatsAppSidebarProps) {
   const pathname = usePathname();
   const { isDark } = useThemeStyles();
   const [isProductOpen, setIsProductOpen] = useState(false);
@@ -59,16 +68,16 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
         isDark
           ? `flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group ${
               active
-                ? "bg-cyan-500/10 text-cyan-300"
+                ? "bg-emerald-500/10 text-emerald-300"
                 : "text-white/45 hover:bg-white/[0.06] hover:text-white/75"
             }`
           : `flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group ${
               active
-                ? "bg-cyan-50 text-cyan-700 shadow-sm"
+                ? "bg-emerald-50 text-emerald-700 shadow-sm"
                 : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
             }`,
       navIcon: (active: boolean) =>
-        `h-[18px] w-[18px] flex-shrink-0 ${active ? "text-cyan-500" : ""}`,
+        `h-[18px] w-[18px] flex-shrink-0 ${active ? "text-emerald-500" : ""}`,
       productSwitcher: isDark
         ? "relative rounded-xl border border-white/[0.08] bg-white/[0.04] shadow-lg backdrop-blur-3xl"
         : "relative rounded-xl border border-gray-100 bg-gray-50 shadow-lg",
@@ -82,8 +91,8 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
         `flex items-center gap-3 px-3 py-2.5 transition-colors ${
           active
             ? isDark
-              ? "bg-cyan-500/12 text-cyan-300"
-              : "bg-white text-cyan-700 shadow-sm"
+              ? "bg-emerald-500/12 text-emerald-300"
+              : "bg-white text-emerald-700 shadow-sm"
             : isDark
               ? "text-white/60 hover:bg-white/[0.06] hover:text-white/75"
               : "text-gray-500 hover:bg-white hover:text-gray-800"
@@ -93,7 +102,9 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
   );
 
   const isActive = (href: string) =>
-    pathname === href || (href !== "/call" && pathname.startsWith(href));
+    pathname === href || (href !== "/whatsapp" && pathname.startsWith(href));
+
+  const productMetaClass = isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400";
 
   return (
     <>
@@ -107,9 +118,9 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
           <X className={isDark ? "h-4 w-4 text-white/60" : "h-4 w-4 text-gray-600"} />
         </button>
 
-        <div className="flex flex-col h-full relative z-10">
+        <div className="flex h-full flex-col relative z-10">
           <div className={styles.logoContainer}>
-            <Link href="/call" className="flex items-center">
+            <Link href="/whatsapp" className="flex items-center">
               <Image alt="Logo" src={Logo} className="object-cover h-14 w-full" />
             </Link>
           </div>
@@ -118,24 +129,24 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
             <div
               className={`rounded-xl p-3 border ${
                 isDark
-                  ? "bg-cyan-500/10 border-cyan-500/20"
-                  : "bg-cyan-50 border-cyan-100"
+                  ? "bg-emerald-500/10 border-emerald-500/20"
+                  : "bg-emerald-50 border-emerald-100"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-white">
-                  <Phone className="h-4 w-4" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+                  <MessageCircle className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
                   <p className={isDark ? "text-sm font-bold text-white" : "text-sm font-bold text-gray-900"}>
-                    AI Call Assistant
+                    WhatsApp Automation
                   </p>
                   <p className={isDark ? "text-xs text-white/45" : "text-xs text-gray-500"}>
-                    24/7 receptionist
+                    Business agents
                   </p>
                 </div>
-                <Badge className="ml-auto bg-cyan-500 text-white text-[10px] rounded-full">
-                  NEW
+                <Badge className="ml-auto bg-emerald-500 text-white text-[10px] rounded-full">
+                  ADMIN
                 </Badge>
               </div>
             </div>
@@ -158,7 +169,7 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                     <Icon className={styles.navIcon(active)} />
                     <span className="text-sm font-medium">{item.label}</span>
                   </div>
-                  {active && <div className="w-1 h-6 rounded-full bg-cyan-500" />}
+                  {active && <div className="w-1 h-6 rounded-full bg-emerald-500" />}
                 </Link>
               );
             })}
@@ -172,38 +183,30 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                     <Instagram className="h-4 w-4" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">Insta Dashboard</p>
-                      <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                        Instagram Automation
-                      </p>
+                      <p className={productMetaClass}>Instagram Automation</p>
                     </div>
                   </Link>
                   <Link href="/web" className={styles.productOption(false)}>
                     <Bot className="h-4 w-4" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">Web Dashboard</p>
-                      <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                        Website Chatbot
-                      </p>
+                      <p className={productMetaClass}>Website Chatbot</p>
                     </div>
                   </Link>
-                  <Link href="/call" className={styles.productOption(true)}>
-                    <Phone className="h-4 w-4 text-cyan-500" />
+                  <Link href="/call" className={styles.productOption(false)}>
+                    <Phone className="h-4 w-4" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">Call Dashboard</p>
-                      <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                        AI Receptionist
-                      </p>
+                      <p className={productMetaClass}>AI Receptionist</p>
                     </div>
-                    <Check className="ml-auto h-4 w-4 text-cyan-500" />
                   </Link>
-                  <Link href="/whatsapp" className={styles.productOption(false)}>
-                    <MessageCircle className="h-4 w-4" />
+                  <Link href="/whatsapp" className={styles.productOption(true)}>
+                    <MessageCircle className="h-4 w-4 text-emerald-500" />
                     <div className="min-w-0">
                       <p className="text-sm font-semibold">WhatsApp Dashboard</p>
-                      <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                        Business Automation
-                      </p>
+                      <p className={productMetaClass}>Business Automation</p>
                     </div>
+                    <Check className="ml-auto h-4 w-4 text-emerald-500" />
                   </Link>
                 </div>
               )}
@@ -213,12 +216,10 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                 onClick={() => setIsProductOpen((v) => !v)}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <Phone className="h-4 w-4 text-cyan-500" />
+                  <MessageCircle className="h-4 w-4 text-emerald-500" />
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold">Call Dashboard</p>
-                    <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                      AI Receptionist
-                    </p>
+                    <p className="text-sm font-semibold">WhatsApp Dashboard</p>
+                    <p className={productMetaClass}>Business Automation</p>
                   </div>
                 </div>
                 <ChevronDown className="h-4 w-4 text-gray-400" />

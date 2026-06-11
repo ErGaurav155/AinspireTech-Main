@@ -26,6 +26,7 @@ import {
   Lock,
   CurrencyIcon,
   Phone,
+  MessageCircle as WhatsAppIcon,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -602,6 +603,21 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                   <div className="min-w-0">
                     <p className={localStyles.productLabel}>Call Dashboard</p>
                     <p className={localStyles.productMeta}>AI Receptionist</p>
+                  </div>
+                </Link>
+                <Link
+                  href="/whatsapp"
+                  className={localStyles.productOption(false)}
+                  onClick={() => setIsProductOpen(false)}
+                >
+                  <WhatsAppIcon className={localStyles.productIcon(false)} />
+                  <div className="min-w-0">
+                    <p className={localStyles.productLabel}>
+                      WhatsApp Dashboard
+                    </p>
+                    <p className={localStyles.productMeta}>
+                      Business Automation
+                    </p>
                   </div>
                 </Link>
               </div>
