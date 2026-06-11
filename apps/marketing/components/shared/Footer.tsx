@@ -10,6 +10,7 @@ const productLinks = [
   { href: "/insta", label: "Insta automation" },
   { href: "/web", label: "Website chatbots" },
   { href: "/call", label: "AI calling" },
+  { href: "/whatsapp", label: "WhatsApp automation" },
   { href: "/affiliate", label: "Affiliate" },
 ];
 

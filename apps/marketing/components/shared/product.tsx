@@ -5,6 +5,7 @@ import {
   Bot,
   Globe2,
   Instagram,
+  MessageCircle,
   Phone,
   Sparkles,
 } from "lucide-react";
@@ -35,6 +36,14 @@ const products = [
     price: "from ₹2,999/mo",
     tag: "Best for local business",
   },
+  {
+    href: "/whatsapp",
+    icon: MessageCircle,
+    title: "WhatsApp Automation",
+    description: "Automate replies, lead capture, broadcasts, and appointments.",
+    price: "from ₹1,999/mo",
+    tag: "Best for clinics & teams",
+  },
 ];
 
 const ProductShowcase = () => {
@@ -50,12 +59,12 @@ const ProductShowcase = () => {
             Choose the automation that fits your growth channel
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600 dark:text-slate-300 md:text-lg">
-            Start with one product or combine Instagram, website chat, and AI
-            calls into one customer conversation engine.
+            Start with one product or combine Instagram, website chat, AI
+            calls, and WhatsApp into one customer conversation engine.
           </p>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3 md:gap-5">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 md:gap-5">
           {products.map((product) => (
             <Link
               key={product.title}

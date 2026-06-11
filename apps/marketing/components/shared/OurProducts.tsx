@@ -34,7 +34,7 @@ import { useTheme } from "next-themes";
 
 export function AIVoiceAgentShowcase() {
   const [activePlatform, setActivePlatform] = useState<
-    "web" | "insta" | "call"
+    "web" | "insta" | "call" | "whatsapp"
   >("web");
   const [openWebDropdown, setOpenWebDropdown] = useState<string | null>(
     "support",
@@ -204,6 +204,45 @@ export function AIVoiceAgentShowcase() {
     },
   };
 
+  const whatsappAutomationTypes = {
+    replies: {
+      title: "AI WhatsApp Reply Agent",
+      description: "Answer customer questions and qualify leads instantly",
+      icon: <MessageCircle className="h-5 w-5" />,
+      features: [
+        "FAQ and product auto-replies",
+        "Lead qualification questions",
+        "Human handoff readiness",
+        "Conversation labels and notes",
+      ],
+      color: "from-emerald-500 to-teal-500",
+    },
+    appointments: {
+      title: "Appointment Booking",
+      description: "Capture appointment intent and preferred visit slots",
+      icon: <Users className="h-5 w-5" />,
+      features: [
+        "Name, phone, service, and time capture",
+        "Clinic and consultation workflows",
+        "Urgent request routing",
+        "Dashboard appointment queue",
+      ],
+      color: "from-teal-500 to-cyan-500",
+    },
+    broadcasts: {
+      title: "Broadcasts and Templates",
+      description: "Reach opted-in customers with compliant campaigns",
+      icon: <Zap className="h-5 w-5" />,
+      features: [
+        "Template-based campaigns",
+        "Audience segments",
+        "Delivery and read analytics",
+        "Opt-out friendly messaging",
+      ],
+      color: "from-green-500 to-emerald-500",
+    },
+  };
+
   const toggleWebDropdown = (key: string) => {
     const wasOpen = openWebDropdown === key;
     setOpenWebDropdown(wasOpen ? null : key);
@@ -294,6 +333,12 @@ export function AIVoiceAgentShowcase() {
                 label: "Calls",
                 icon: <Phone className="h-5 w-5" />,
                 gradient: "from-cyan-500 to-emerald-500",
+              },
+              {
+                id: "whatsapp",
+                label: "WhatsApp",
+                icon: <MessageCircle className="h-5 w-5" />,
+                gradient: "from-emerald-500 to-teal-500",
               },
             ].map((tab) => (
               <button
@@ -514,6 +559,56 @@ export function AIVoiceAgentShowcase() {
                     </div>
                   </motion.div>
                 ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {activePlatform === "whatsapp" && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+              >
+                {Object.entries(whatsappAutomationTypes).map(
+                  ([key, automation]) => (
+                    <motion.div
+                      key={key}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`${themeStyles.dropdownBg} border ${themeStyles.dropdownBorder} rounded-2xl p-5 md:p-6 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl`}
+                    >
+                      <div
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gradient-to-r ${automation.color} text-white`}
+                      >
+                        {automation.icon}
+                      </div>
+                      <h3
+                        className={`mt-5 text-lg md:text-xl font-bold ${themeStyles.titleText}`}
+                      >
+                        {automation.title}
+                      </h3>
+                      <p
+                        className={`mt-2 text-sm ${themeStyles.descriptionText} font-medium font-montserrat`}
+                      >
+                        {automation.description}
+                      </p>
+                      <div className="mt-5 space-y-3">
+                        {automation.features.map((feature) => (
+                          <div key={feature} className="flex items-start gap-3">
+                            <div className="mt-1 h-2 w-2 rounded-full bg-emerald-500 flex-shrink-0" />
+                            <span
+                              className={`text-sm ${themeStyles.descriptionText} font-medium font-montserrat`}
+                            >
+                              {feature}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  ),
+                )}
               </motion.div>
             )}
           </AnimatePresence>

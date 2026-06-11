@@ -13,6 +13,7 @@ const navItems = [
   { id: "insta", label: "Instagram", href: "/insta" },
   { id: "web", label: "Websites", href: "/web" },
   { id: "call", label: "AI Calls", href: "/call" },
+  { id: "whatsapp", label: "WhatsApp", href: "/whatsapp" },
   { id: "affiliate", label: "Affiliate", href: "/affiliate" },
 ];
 
