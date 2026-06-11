@@ -10,7 +10,6 @@ export function proxy(request: NextRequest) {
     "/admin",
     "/web/UserDashboard",
     "/insta/accounts",
-    "/whatsapp",
   ];
 
   if (dashboardPaths.some((path) => url.pathname.startsWith(path))) {
