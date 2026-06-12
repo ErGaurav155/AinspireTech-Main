@@ -234,6 +234,17 @@ export const createWhatsAppCollectionItemController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (
+      collection === "agents" &&
+      workspace.agents.length >= workspace.subscription.agentsLimit
+    ) {
+      return res.status(403).json({
+        success: false,
+        error: `Your WhatsApp plan includes ${workspace.subscription.agentsLimit} AI agents.`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     (workspace[collection] as any[]).push({
       ...req.body,
       createdAt: new Date(),

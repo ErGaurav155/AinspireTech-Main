@@ -7,53 +7,19 @@ import WhatsAppWorkspace, {
 export const whatsappPlans = [
   {
     id: "launch",
-    name: "Launch",
+    name: "WhatsApp Automation",
     priceInr: 1999,
     yearlyInr: 19990,
     messageLimit: 10000,
     numbersLimit: 1,
-    seatsLimit: 2,
-    agentsLimit: 2,
+    seatsLimit: 1,
+    agentsLimit: 3,
     features: [
-      "1 WhatsApp Business number",
-      "AI FAQ and lead capture agent",
-      "Shared inbox with 2 seats",
-      "Template tracker",
-      "Basic broadcasts",
-    ],
-  },
-  {
-    id: "growth",
-    name: "Growth",
-    priceInr: 4999,
-    yearlyInr: 49990,
-    messageLimit: 50000,
-    numbersLimit: 3,
-    seatsLimit: 8,
-    agentsLimit: 5,
-    features: [
-      "3 WhatsApp Business numbers",
-      "Sales, support, and reactivation agents",
-      "Shared inbox with 8 seats",
-      "Segments and drip journeys",
-      "Priority support",
-    ],
-  },
-  {
-    id: "scale",
-    name: "Scale",
-    priceInr: 12999,
-    yearlyInr: 129990,
-    messageLimit: 200000,
-    numbersLimit: 10,
-    seatsLimit: 999,
-    agentsLimit: 20,
-    features: [
-      "10 WhatsApp Business numbers",
-      "Custom workflows",
-      "Unlimited inbox seats",
-      "CRM and webhook integrations",
-      "SLA monitoring",
+      "1 connected WhatsApp number",
+      "1 team inbox",
+      "3 AI agents",
+      "Templates and broadcast tracker",
+      "Contacts, appointments, and basic analytics",
     ],
   },
 ] as const;
@@ -84,7 +50,15 @@ export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
 
 export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
   let workspace = await WhatsAppWorkspace.findOne({ clerkId });
-  if (workspace) return workspace;
+  if (workspace) {
+    const plan = whatsappPlans[0];
+    workspace.subscription.plan = plan.id;
+    workspace.subscription.messageLimit = plan.messageLimit;
+    workspace.subscription.numbersLimit = plan.numbersLimit;
+    workspace.subscription.seatsLimit = plan.seatsLimit;
+    workspace.subscription.agentsLimit = plan.agentsLimit;
+    return workspace;
+  }
 
   workspace = await WhatsAppWorkspace.create({
     clerkId,
@@ -106,8 +80,8 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       messageLimit: 10000,
       messagesUsed: 0,
       numbersLimit: 1,
-      seatsLimit: 2,
-      agentsLimit: 2,
+      seatsLimit: 1,
+      agentsLimit: 3,
       nextBillingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
     appointmentConfig: {

@@ -73,45 +73,18 @@ type WhatsAppDashboardData = {
 
 const plans = [
   {
-    name: "Launch",
+    id: "launch",
+    name: "WhatsApp Automation",
     price: "INR 1,999",
     period: "/month",
-    badge: "Starter",
+    badge: "Simple plan",
     limit: "10k business-initiated messages",
     features: [
-      "1 WhatsApp Business number",
-      "AI FAQ and lead capture agent",
-      "Shared inbox with 2 seats",
+      "1 connected WhatsApp number",
+      "1 team inbox",
+      "3 AI agents",
       "Template sync and approvals tracker",
-      "Basic broadcasts and click tracking",
-    ],
-  },
-  {
-    name: "Growth",
-    price: "INR 4,999",
-    period: "/month",
-    badge: "Recommended",
-    limit: "50k business-initiated messages",
-    features: [
-      "3 WhatsApp Business numbers",
-      "Sales, support, and reactivation agents",
-      "Shared inbox with 8 seats",
-      "Segments, drip journeys, and reminders",
-      "Advanced analytics and priority support",
-    ],
-  },
-  {
-    name: "Scale",
-    price: "INR 12,999",
-    period: "/month",
-    badge: "Ops",
-    limit: "200k business-initiated messages",
-    features: [
-      "10 WhatsApp Business numbers",
-      "Custom agent workflows and handoff rules",
-      "Unlimited inbox seats",
-      "Webhook, CRM, and catalog integrations",
-      "SLA monitoring and compliance review",
+      "Broadcast tracker, appointments, contacts, and analytics",
     ],
   },
 ];
@@ -1122,12 +1095,12 @@ function Pricing({
           differently from paid template sends.
         </p>
       </div>
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(280px,0.28fr)]">
         {plans.map((plan) => (
-          <div key={plan.name} className={`rounded-2xl border ${cardClass} p-5 ${plan.badge === "Recommended" ? "ring-2 ring-emerald-400/50" : ""}`}>
+          <div key={plan.name} className={`rounded-2xl border ${cardClass} p-5 ring-2 ring-emerald-400/40`}>
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-black">{plan.name}</h3>
-              <Badge className={plan.badge === "Recommended" ? "bg-emerald-500 text-white" : "bg-white/[0.08] text-gray-500 dark:text-white/70"}>
+              <Badge className="bg-emerald-500 text-white">
                 {plan.badge}
               </Badge>
             </div>
@@ -1147,23 +1120,38 @@ function Pricing({
               ))}
             </ul>
             <Button
-              disabled={savingPlan === plan.name.toLowerCase()}
+              disabled={savingPlan === plan.id}
               onClick={async () => {
-                const planId = plan.name.toLowerCase();
-                setSavingPlan(planId);
-                await onPlanSelect(planId);
+                setSavingPlan(plan.id);
+                await onPlanSelect(plan.id);
                 setSavingPlan("");
               }}
               className="mt-6 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
             >
-              {currentPlan === plan.name.toLowerCase()
+              {currentPlan === plan.id
                 ? "Current Plan"
-                : savingPlan === plan.name.toLowerCase()
+                : savingPlan === plan.id
                   ? "Saving..."
                   : "Configure Plan"}
             </Button>
           </div>
         ))}
+        <div className={`rounded-2xl border ${cardClass} p-5`}>
+          <h3 className="text-lg font-black">Plan limits</h3>
+          <div className="mt-5 space-y-3">
+            {[
+              ["Numbers", "1"],
+              ["Inbox", "1"],
+              ["AI agents", "3"],
+              ["Messages", "10k/mo"],
+            ].map(([label, value]) => (
+              <div key={label} className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-2.5">
+                <span className="text-sm text-gray-500 dark:text-white/55">{label}</span>
+                <span className="font-black text-emerald-400">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
