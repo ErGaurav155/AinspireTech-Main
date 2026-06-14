@@ -122,7 +122,8 @@ const limiter = rateLimit({
       req.path === "/health" ||
       req.path === "/" ||
       req.path.startsWith("/api/embed/") ||
-      req.path.startsWith("/api/cron/")
+      req.path.startsWith("/api/cron/") ||
+      req.path.startsWith("/api/webhooks/")
     );
   },
   // ✅ Fix: Add key generator that works with trust proxy
@@ -191,6 +192,7 @@ const corsMiddleware = cors({
     "x-cron-key",
     "x-api-key",
     "x-cron-secret",
+    "x-hub-signature-256",
   ],
   optionsSuccessStatus: 200,
   preflightContinue: false,

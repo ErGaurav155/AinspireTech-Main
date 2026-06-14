@@ -334,16 +334,39 @@ const buildAppointmentReply = ({
 export async function processWhatsAppWebhook(payload: any) {
   const changes = payload?.entry?.flatMap((entry: any) => entry.changes || []) || [];
   const results: string[] = [];
+  console.info("[whatsapp:process] Processing webhook payload", {
+    entries: payload?.entry?.length || 0,
+    changes: changes.length,
+  });
 
   for (const change of changes) {
     const value = change.value || {};
     const phoneNumberId = value.metadata?.phone_number_id;
-    if (!phoneNumberId) continue;
+    if (!phoneNumberId) {
+      console.warn("[whatsapp:process] Skipping change without phone number ID");
+      continue;
+    }
 
     const workspace = await WhatsAppWorkspace.findOne({
       "meta.phoneNumberId": phoneNumberId,
     });
-    if (!workspace) continue;
+    if (!workspace) {
+      console.warn("[whatsapp:process] No workspace found for phone number ID", {
+        phoneNumberId,
+      });
+      continue;
+    }
+
+    console.info("[whatsapp:process] Workspace matched", {
+      phoneNumberId,
+      workspaceId: String(workspace._id),
+      inboundMessages: value.messages?.length || 0,
+      statuses: value.statuses?.length || 0,
+      isConfigured: workspace.isConfigured,
+      activeAgents: workspace.agents.filter(
+        (agent) => agent.isActive && agent.status === "live",
+      ).length,
+    });
 
     for (const message of value.messages || []) {
       const waId = message.from;
@@ -515,6 +538,13 @@ export async function processWhatsAppWebhook(payload: any) {
     }
 
     await workspace.save();
+    console.info("[whatsapp:process] Workspace saved", {
+      workspaceId: String(workspace._id),
+      contacts: workspace.contacts.length,
+      conversations: workspace.conversations.length,
+      appointments: workspace.appointments.length,
+      messagesUsed: workspace.subscription.messagesUsed,
+    });
   }
 
   return { processedMessageIds: results };
