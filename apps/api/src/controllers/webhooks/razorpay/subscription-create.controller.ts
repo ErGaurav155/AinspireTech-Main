@@ -17,6 +17,43 @@ import {
   sendSubscriptionEmailToUser,
 } from "@/services/sendEmail.service";
 
+const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
+  insta: {
+    "Insta-Automation-Pro": 99,
+  },
+  web: {
+    "chatbot-lead-generation": 499,
+    "chatbot-education": 499,
+  },
+} as const;
+
+const getFirstCycleCommissionBase = (
+  subscriptionType: string,
+  productId: string,
+  billingCycle: string,
+  recurringPrice: number,
+) => {
+  if (billingCycle !== "monthly") return recurringPrice;
+
+  if (subscriptionType === "insta") {
+    return (
+      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.insta[
+        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.insta
+      ] || recurringPrice
+    );
+  }
+
+  if (subscriptionType === "web") {
+    return (
+      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web[
+        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web
+      ] || recurringPrice
+    );
+  }
+
+  return recurringPrice;
+};
+
 async function finalizeSubscriptionReplacementFromNotes(notes: any) {
   const previousSubscriptionId = notes.previousSubscriptionId;
   const previousSubscriptionType = notes.previousSubscriptionType;
@@ -293,6 +330,12 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
     if (affiliate && affiliate.userId !== clerkId.toString()) {
       const commissionRate = affiliate.commissionRate || 0.25;
+      const firstCycleCommissionBase = getFirstCycleCommissionBase(
+        subscriptionType,
+        chatbotType,
+        billingCycle,
+        Number(subscriptionPrice),
+      );
 
       let monthlyCommission = 0;
       let yearlyCommission = 0;
@@ -387,7 +430,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       // Calculate commission amount for this period
       const commissionAmount =
         billingCycle === "monthly"
-          ? Number(monthlyCommission)
+          ? Number(firstCycleCommissionBase) * Number(commissionRate)
           : Number(yearlyCommission);
 
       if (commissionAmount > 0) {
