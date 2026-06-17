@@ -73,6 +73,21 @@ type WhatsAppDashboardData = {
 
 const plans = [
   {
+    id: "free",
+    name: "WhatsApp Free",
+    price: "INR 0",
+    period: "/month",
+    badge: "Default plan",
+    limit: "10 free automations/messages",
+    features: [
+      "Created automatically after Meta/Facebook setup",
+      "1 connected WhatsApp number",
+      "1 AI agent",
+      "Basic inbox, contacts, and appointments",
+      "Upgrade anytime when you need more volume",
+    ],
+  },
+  {
     id: "launch",
     name: "WhatsApp Automation",
     price: "INR 1,999",
@@ -1095,47 +1110,51 @@ function Pricing({
           differently from paid template sends.
         </p>
       </div>
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,0.72fr)_minmax(280px,0.28fr)]">
-        {plans.map((plan) => (
-          <div key={plan.name} className={`rounded-2xl border ${cardClass} p-5 ring-2 ring-emerald-400/40`}>
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xl font-black">{plan.name}</h3>
-              <Badge className="bg-emerald-500 text-white">
-                {plan.badge}
-              </Badge>
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
+        <div className="grid gap-5 md:grid-cols-2">
+          {plans.map((plan) => (
+            <div key={plan.name} className={`rounded-2xl border ${cardClass} p-5 ${plan.id === "launch" ? "ring-2 ring-emerald-400/40" : ""}`}>
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-xl font-black">{plan.name}</h3>
+                <Badge className={plan.id === "free" ? "bg-gray-500 text-white" : "bg-emerald-500 text-white"}>
+                  {plan.badge}
+                </Badge>
+              </div>
+              <div className="mt-5 flex items-end gap-1">
+                <span className="text-3xl font-black">{plan.price}</span>
+                <span className="pb-1 text-sm text-gray-500 dark:text-white/50">{plan.period}</span>
+              </div>
+              <p className="mt-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-400">
+                {plan.limit}
+              </p>
+              <ul className="mt-5 space-y-3">
+                {plan.features.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3 text-sm text-gray-600 dark:text-white/60">
+                    <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button
+                disabled={currentPlan === plan.id || savingPlan === plan.id}
+                onClick={async () => {
+                  setSavingPlan(plan.id);
+                  await onPlanSelect(plan.id);
+                  setSavingPlan("");
+                }}
+                className="mt-6 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:cursor-default disabled:opacity-80"
+              >
+                {currentPlan === plan.id
+                  ? "Current Plan"
+                  : savingPlan === plan.id
+                    ? "Saving..."
+                    : plan.id === "free"
+                      ? "Use Free Plan"
+                      : "Configure Plan"}
+              </Button>
             </div>
-            <div className="mt-5 flex items-end gap-1">
-              <span className="text-3xl font-black">{plan.price}</span>
-              <span className="pb-1 text-sm text-gray-500 dark:text-white/50">{plan.period}</span>
-            </div>
-            <p className="mt-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-400">
-              {plan.limit}
-            </p>
-            <ul className="mt-5 space-y-3">
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-3 text-sm text-gray-600 dark:text-white/60">
-                  <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400" />
-                  <span>{feature}</span>
-                </li>
-              ))}
-            </ul>
-            <Button
-              disabled={savingPlan === plan.id}
-              onClick={async () => {
-                setSavingPlan(plan.id);
-                await onPlanSelect(plan.id);
-                setSavingPlan("");
-              }}
-              className="mt-6 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
-            >
-              {currentPlan === plan.id
-                ? "Current Plan"
-                : savingPlan === plan.id
-                  ? "Saving..."
-                  : "Configure Plan"}
-            </Button>
-          </div>
-        ))}
+          ))}
+        </div>
         <div className={`rounded-2xl border ${cardClass} p-5`}>
           <h3 className="text-lg font-black">Plan limits</h3>
           <div className="mt-5 space-y-3">

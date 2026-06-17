@@ -25,6 +25,7 @@ import {
   Contact,
   Lock,
   CurrencyIcon,
+  PackageCheck,
   Phone,
   MessageCircle as WhatsAppIcon,
 } from "lucide-react";
@@ -54,6 +55,12 @@ const NAV_ITEMS = [
     href: "/insta/pricing",
     icon: CurrencyIcon,
     isNew: false,
+  },
+  {
+    label: "Packages",
+    href: "/packages",
+    icon: PackageCheck,
+    isNew: true,
   },
 ] as const;
 

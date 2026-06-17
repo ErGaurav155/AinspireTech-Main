@@ -6,6 +6,22 @@ import WhatsAppWorkspace, {
 
 export const whatsappPlans = [
   {
+    id: "free",
+    name: "WhatsApp Free",
+    priceInr: 0,
+    yearlyInr: 0,
+    messageLimit: 10,
+    numbersLimit: 1,
+    seatsLimit: 1,
+    agentsLimit: 1,
+    features: [
+      "10 free automations",
+      "1 connected WhatsApp number",
+      "1 AI agent",
+      "Basic contacts and inbox",
+    ],
+  },
+  {
     id: "launch",
     name: "WhatsApp Automation",
     priceInr: 1999,
@@ -20,6 +36,23 @@ export const whatsappPlans = [
       "3 AI agents",
       "Templates and broadcast tracker",
       "Contacts, appointments, and basic analytics",
+    ],
+  },
+  {
+    id: "package",
+    name: "Package WhatsApp Automation",
+    priceInr: 0,
+    yearlyInr: 0,
+    messageLimit: 10000,
+    numbersLimit: 1,
+    seatsLimit: 1,
+    agentsLimit: 3,
+    features: [
+      "Included in common dashboard package",
+      "1 connected WhatsApp number",
+      "1 team inbox",
+      "3 AI agents",
+      "Templates, contacts, and appointments",
     ],
   },
 ] as const;
@@ -51,7 +84,7 @@ export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
 export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
   let workspace = await WhatsAppWorkspace.findOne({ clerkId });
   if (workspace) {
-    const plan = whatsappPlans[0];
+    const plan = getPlanById(workspace.subscription?.plan || "free");
     workspace.subscription.plan = plan.id;
     workspace.subscription.messageLimit = plan.messageLimit;
     workspace.subscription.numbersLimit = plan.numbersLimit;
@@ -74,14 +107,14 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       graphApiVersion: "v23.0",
     },
     subscription: {
-      plan: "launch",
+      plan: "free",
       status: "trial",
       billingCycle: "monthly",
-      messageLimit: 10000,
+      messageLimit: 10,
       messagesUsed: 0,
       numbersLimit: 1,
       seatsLimit: 1,
-      agentsLimit: 3,
+      agentsLimit: 1,
       nextBillingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     },
     appointmentConfig: {

@@ -1,6 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
-export type WhatsAppPlanId = "launch";
+export type WhatsAppPlanId = "free" | "launch" | "package";
 export type WhatsAppTemplateCategory =
   | "marketing"
   | "utility"
@@ -190,7 +190,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       lastVerifiedAt: Date,
     },
     subscription: {
-      plan: { type: String, enum: ["launch"], default: "launch" },
+      plan: { type: String, enum: ["free", "launch", "package"], default: "free" },
       status: {
         type: String,
         enum: ["trial", "active", "past_due", "cancelled"],
@@ -201,7 +201,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         enum: ["monthly", "yearly"],
         default: "monthly",
       },
-      messageLimit: { type: Number, default: 10000 },
+      messageLimit: { type: Number, default: 10 },
       messagesUsed: { type: Number, default: 0 },
       numbersLimit: { type: Number, default: 1 },
       seatsLimit: { type: Number, default: 1 },

@@ -43,6 +43,7 @@ import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
+import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 
 // Types
 interface Subscription {
@@ -478,6 +479,7 @@ const PricingContent = () => {
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
+        <PackageSubscriptionNotice />
         {/* Header Section */}
         <section className="text-center mb-12">
           <div

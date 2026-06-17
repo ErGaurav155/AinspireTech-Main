@@ -1,5 +1,6 @@
 import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import { getRazorpay } from "@/utils/util";
 
@@ -113,7 +114,7 @@ export const updateSubscriptionStatus = async (
 // Get subscription by ID
 export const getSubscriptionById = async (
   subscriptionId: string,
-  subcriptionType: "insta" | "web",
+  subcriptionType: "insta" | "web" | "package",
 ) => {
   try {
     await connectToDatabase();
@@ -122,6 +123,11 @@ export const getSubscriptionById = async (
 
     if (subcriptionType === "insta") {
       subscription = await InstaSubscription.findOne({
+        subscriptionId,
+        status: "active",
+      });
+    } else if (subcriptionType === "package") {
+      subscription = await PackageSubscription.findOne({
         subscriptionId,
         status: "active",
       });

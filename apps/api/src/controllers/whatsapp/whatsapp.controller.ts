@@ -9,6 +9,7 @@ import {
   sendWhatsAppTextMessage,
   whatsappPlans,
 } from "@/services/whatsapp/whatsapp.service";
+import { getActivePackageSubscription } from "@/services/packages/package-subscription.service";
 
 const authUserId = (req: Request) => getAuth(req).userId;
 
@@ -133,6 +134,18 @@ export const updateWhatsAppWorkspaceController = async (
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
     const { organization, meta, subscription, appointmentConfig } = req.body || {};
+
+    if (subscription?.plan && subscription.plan !== "free") {
+      const activePackage = await getActivePackageSubscription(userId);
+      if (activePackage && subscription.plan !== "package") {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active common package before buying a standalone WhatsApp plan.",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
 
     if (organization) {
       workspace.organization = {

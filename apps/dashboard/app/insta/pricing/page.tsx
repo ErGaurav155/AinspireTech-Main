@@ -53,6 +53,7 @@ import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
+import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
@@ -1317,6 +1318,9 @@ function PricingWithSearchParams() {
       }
     >
       {isDark && <Orbs />}
+      <div className="mx-auto max-w-6xl px-4 pt-8 sm:px-6 lg:px-8">
+        <PackageSubscriptionNotice />
+      </div>
       {/* Hero Section */}
       <section className="py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">

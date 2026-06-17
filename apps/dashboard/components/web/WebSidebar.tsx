@@ -29,6 +29,7 @@ import {
   Coins,
   CreditCard,
   ChartBarStacked,
+  PackageCheck,
   Phone,
   MessageCircle as WhatsAppIcon,
 } from "lucide-react";
@@ -80,6 +81,12 @@ const BOTTOM_NAV_ITEMS = [
     href: "/web/pricing",
     icon: CreditCard,
     isNew: false,
+  },
+  {
+    label: "Packages",
+    href: "/packages",
+    icon: PackageCheck,
+    isNew: true,
   },
 ];
 

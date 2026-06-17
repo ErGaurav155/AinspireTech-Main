@@ -16,6 +16,7 @@ import {
   Instagram,
   LayoutDashboard,
   MessageCircle,
+  PackageCheck,
   Phone,
   Send,
   Settings,
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { label: "Templates", href: "/whatsapp/templates", icon: FileText },
   { label: "Contacts", href: "/whatsapp/contacts", icon: Users },
   { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
+  { label: "Packages", href: "/packages", icon: PackageCheck },
   { label: "Settings", href: "/whatsapp/settings", icon: Settings },
 ] as const;
 

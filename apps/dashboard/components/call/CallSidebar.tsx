@@ -15,6 +15,7 @@ import {
   Instagram,
   LayoutDashboard,
   MessageCircle,
+  PackageCheck,
   Phone,
   Sparkles,
   Settings,
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { label: "Calls & Leads", href: "/call/calls", icon: Headphones },
   { label: "AI Flows", href: "/call/flows", icon: GitBranch },
   { label: "Pricing", href: "/call/pricing", icon: Sparkles },
+  { label: "Packages", href: "/packages", icon: PackageCheck },
   { label: "Billing", href: "/call/billing", icon: CreditCard },
   { label: "Settings", href: "/call/settings", icon: Settings },
 ] as const;

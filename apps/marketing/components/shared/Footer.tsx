@@ -11,6 +11,7 @@ const productLinks = [
   { href: "/web", label: "Website chatbots" },
   { href: "/call", label: "AI calling" },
   { href: "/whatsapp", label: "WhatsApp automation" },
+  { href: "/packages", label: "Packages" },
   { href: "/affiliate", label: "Affiliate" },
 ];
 

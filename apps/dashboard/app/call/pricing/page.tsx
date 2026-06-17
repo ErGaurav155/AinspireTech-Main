@@ -26,6 +26,7 @@ import {
 import { useApi } from "@/lib/useApi";
 import { getCallSubscriptions } from "@/lib/services/call-actions.api";
 import { CallCheckout } from "@/components/call/CallCheckout";
+import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 
 type BillingMode = "monthly" | "yearly";
 
@@ -136,6 +137,7 @@ export default function CallPricingPage() {
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
+        <PackageSubscriptionNotice />
         <motion.section
           initial="hidden"
           animate="visible"

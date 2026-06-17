@@ -8,6 +8,10 @@ import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import {
+  activateDashboardPackageSubscription,
+  activateMetaAdsSubscription,
+} from "@/services/packages/package-subscription.service";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { getRazorpay } from "@/utils/util";
 
@@ -18,7 +22,7 @@ export interface VerifyBody {
   chatbotType?: string;
   productId?: string;
   subscriptionType?: string;
-  subscriptionKind?: "web" | "insta";
+  subscriptionKind?: "web" | "insta" | "package" | "meta-ads";
   billingCycle?: "monthly" | "yearly";
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
@@ -47,18 +51,73 @@ const activateVerifiedSubscription = async ({
   const notes = razorpaySubscription?.notes || {};
   const targetChatbotType =
     chatbotType || productId || notes.productId || subscriptionType;
+  const requestedKind =
+    subscriptionKind || subscriptionType || notes.subscriptionType;
   const currentSubscriptionKind =
-    subscriptionKind ||
-    (subscriptionType === "insta" || notes.subscriptionType === "insta"
-      ? "insta"
-      : "web");
+    requestedKind === "package"
+      ? "package"
+      : requestedKind === "meta-ads"
+        ? "meta-ads"
+        : requestedKind === "insta"
+          ? "insta"
+          : "web";
   const resolvedBillingCycle = billingCycle || notes.billingCycle || "monthly";
   const expiresAt = razorpaySubscription?.current_end
     ? new Date(razorpaySubscription.current_end * 1000)
     : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-  if (!targetChatbotType) {
+  if (currentSubscriptionKind !== "package" && !targetChatbotType) {
     throw new Error("Unable to determine subscription product");
+  }
+
+  if (currentSubscriptionKind === "package") {
+    const packageId = productId || notes.packageId || notes.productId;
+    if (!packageId) {
+      throw new Error("Unable to determine dashboard package");
+    }
+
+    const packageSubscription = await activateDashboardPackageSubscription({
+      clerkId: userId,
+      packageId,
+      subscriptionId: subscription_id,
+      billingCycle: "monthly",
+      expiresAt,
+      razorpayPaymentId: razorpay_payment_id,
+      offerId: notes.offerId,
+    });
+
+    return {
+      success: true,
+      message: "Package subscription activated successfully",
+      packageId,
+      packageName: packageSubscription.packageName,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
+  }
+
+  if (currentSubscriptionKind === "meta-ads") {
+    const planId = productId || notes.productId;
+    if (!planId) {
+      throw new Error("Unable to determine Meta Ads plan");
+    }
+
+    const subscription = await activateMetaAdsSubscription({
+      clerkId: userId,
+      planId,
+      subscriptionId: subscription_id,
+      expiresAt,
+      razorpayPaymentId: razorpay_payment_id,
+    });
+
+    return {
+      success: true,
+      message: "Meta Ads subscription activated successfully",
+      planId,
+      planName: subscription.planName,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
   }
 
   if (currentSubscriptionKind === "web") {

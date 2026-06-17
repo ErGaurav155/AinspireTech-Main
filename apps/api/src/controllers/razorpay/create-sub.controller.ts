@@ -1,5 +1,12 @@
 import { getRazorpay } from "@/utils/util";
+import { getAuth } from "@clerk/express";
 import { Request, Response } from "express";
+import {
+  getActiveMetaAdsSubscription,
+  getActivePackageSubscription,
+  getActiveSeparateServiceSubscriptions,
+  getMetaAdsPlan,
+} from "@/services/packages/package-subscription.service";
 
 const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   insta: {
@@ -9,7 +16,13 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
     "chatbot-lead-generation": "offer_Swg8earHCXfe9f",
     "chatbot-education": "offer_Swg8earHCXfe9f",
   },
-} as const;
+  package: {
+    "package-starter": "offer_T2lwDeumrH9CrM",
+    "package-whatsapp": "offer_T2lyhifS6agMei",
+    "package-call": "offer_T2m0RJcdsJzTtV",
+    "package-complete": "offer_T2m2QLmnJaYiIg",
+  },
+};
 
 const getMonthlyFirstCycleOfferId = (
   subscriptionType: string,
@@ -27,6 +40,12 @@ const getMonthlyFirstCycleOfferId = (
   if (subscriptionType === "web") {
     return MONTHLY_FIRST_CYCLE_OFFER_IDS.web[
       productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.web
+    ];
+  }
+
+  if (subscriptionType === "package") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.package[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.package
     ];
   }
 
@@ -57,6 +76,7 @@ export const createRazorpaySubscriptionController = async (
       billingCycle,
       previousSubscriptionId,
       previousSubscriptionType,
+      offerId: requestedOfferId,
     } = metadata;
     const extraNotes = Object.fromEntries(
       Object.entries(metadata).filter(
@@ -78,12 +98,88 @@ export const createRazorpaySubscriptionController = async (
         timestamp: new Date().toISOString(),
       });
     }
+
+    if (subscriptionType === "package") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error: "Package subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const [activePackage, activeSeparateServices] = await Promise.all([
+        getActivePackageSubscription(buyerId),
+        getActiveSeparateServiceSubscriptions(buyerId),
+      ]);
+
+      if (activePackage) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active package before subscribing to another package.",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (activeSeparateServices.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel active individual service subscriptions before buying a package.",
+          data: { activeSeparateServices },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "meta-ads") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error: "Meta Ads subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!getMetaAdsPlan(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid Meta Ads plan",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activeMetaAdsSubscription =
+        await getActiveMetaAdsSubscription(buyerId);
+      if (activeMetaAdsSubscription) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active Meta Ads subscription before choosing another Meta Ads budget.",
+          data: { activeMetaAdsSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else {
+      const activePackage = await getActivePackageSubscription(buyerId);
+      if (activePackage) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active common package before buying a standalone service subscription.",
+          data: { activePackage },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
     const razorpay = getRazorpay();
-    const offerId = getMonthlyFirstCycleOfferId(
-      subscriptionType,
-      productId,
-      billingCycle,
-    );
+    const offerId =
+      subscriptionType === "meta-ads" || billingCycle !== "monthly"
+        ? undefined
+        : requestedOfferId ||
+          getMonthlyFirstCycleOfferId(subscriptionType, productId, billingCycle);
 
     // Create Razorpay subscription
     let subscription;
