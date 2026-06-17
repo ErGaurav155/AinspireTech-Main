@@ -376,7 +376,7 @@ function Header({
         <div>
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-400">
             <MessageCircle className="h-3.5 w-3.5" />
-            Admin beta
+            WhatsApp automation
           </div>
           <h1 className="text-2xl font-black tracking-tight md:text-4xl">
             {titles[view]}

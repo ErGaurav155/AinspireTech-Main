@@ -28,14 +28,20 @@ function ChooseProductContent() {
   }, [searchParams]);
 
   const handleSelectProduct = (
-    product: "web-chatbot" | "insta-automation" | "whatsapp-automation",
+    product:
+      | "web-chatbot"
+      | "insta-automation"
+      | "whatsapp-automation"
+      | "call-assistant",
   ) => {
     if (product === "web-chatbot") {
       router.push("/web");
     } else if (product === "insta-automation") {
       router.push("/insta");
-    } else {
+    } else if (product === "whatsapp-automation") {
       router.push("/whatsapp");
+    } else {
+      router.push("/call");
     }
   };
 
@@ -53,7 +59,7 @@ function ChooseProductContent() {
     >
       {isDark && <Orbs />}
 
-      <div className={`${styles.container} max-w-6xl mx-auto`}>
+      <div className={`${styles.container} max-w-7xl mx-auto`}>
         <div className="text-center mb-12 relative z-10">
           <motion.div
             initial={{ opacity: 0, y: -20 }}
@@ -90,7 +96,7 @@ function ChooseProductContent() {
           </motion.p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
           {/* Web Chatbot Card */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -245,12 +251,12 @@ function ChooseProductContent() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
-                  <Phone className="w-8 h-8 text-white" />
+                  <MessageCircle className="w-8 h-8 text-white" />
                 </div>
 
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                   <Zap className="h-3 w-3 mr-1" />
-                  Admin Beta
+                  Automation
                 </span>
               </div>
 
@@ -286,7 +292,65 @@ function ChooseProductContent() {
               </div>
 
               <Button className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-6 text-base font-medium group-hover:shadow-lg transition-all hover:from-emerald-600 hover:to-teal-600">
-                Open WhatsApp Beta
+                Start with WhatsApp
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* AI Call Assistant Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className={`${styles.card} p-8 rounded-3xl cursor-pointer group relative overflow-hidden`}
+            onClick={() => handleSelectProduct("call-assistant")}
+          >
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-6">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-300">
+                  <Phone className="w-8 h-8 text-white" />
+                </div>
+
+                <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
+                  <Zap className="h-3 w-3 mr-1" />
+                  Voice AI
+                </span>
+              </div>
+
+              <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
+                AI Call Assistant
+              </h2>
+
+              <p className={`${styles.text.secondary} mb-6`}>
+                Answer inbound calls with an AI receptionist, collect caller
+                details, qualify leads, and route follow-ups from one dashboard.
+              </p>
+
+              <div className="space-y-3 mb-8">
+                {[
+                  { icon: Phone, text: "Inbound call answering" },
+                  { icon: Target, text: "Lead qualification scripts" },
+                  { icon: MessageCircle, text: "WhatsApp and email alerts" },
+                  { icon: TrendingUp, text: "Calls, leads, and summaries" },
+                  { icon: Sparkles, text: "Custom AI flow builder" },
+                ].map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={index} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full bg-cyan-500/10 flex items-center justify-center flex-shrink-0">
+                        <Icon className="h-3 w-3 text-cyan-500" />
+                      </div>
+                      <span className={`text-sm ${styles.text.secondary}`}>
+                        {feature.text}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-6 text-base font-medium group-hover:shadow-lg transition-all hover:from-cyan-600 hover:to-blue-600">
+                Start with AI Call
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
@@ -306,8 +370,8 @@ function ChooseProductContent() {
               className={`h-4 w-4 ${isDark ? "text-purple-400" : "text-purple-500"}`}
             />
             <p className={`text-sm ${styles.text.secondary}`}>
-              Not sure which one to choose? You can always switch or use both
-              products later.
+              Not sure which one to choose? You can always switch or use
+              multiple products later.
             </p>
           </div>
         </motion.div>
