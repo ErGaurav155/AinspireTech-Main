@@ -55,6 +55,26 @@ export interface MetaAdsSubscription {
   expiresAt: string;
 }
 
+export interface WebsiteMaintenancePlan {
+  id: "website-maintenance";
+  name: string;
+  description: string;
+  amountInr: number;
+  firstMonthInr: number;
+  features: string[];
+}
+
+export interface WebsiteMaintenanceSubscription {
+  _id: string;
+  clerkId: string;
+  planId: WebsiteMaintenancePlan["id"];
+  planName: string;
+  subscriptionId: string;
+  amountInr: number;
+  status: "active" | "cancelled" | "expired";
+  expiresAt: string;
+}
+
 export interface ActiveSeparateServiceSubscription {
   service: DashboardPackageServiceKey;
   label: string;
@@ -66,8 +86,10 @@ export interface ActiveSeparateServiceSubscription {
 export interface DashboardPackageStatus {
   plans: DashboardPackagePlan[];
   metaAdsPlans: MetaAdsPlan[];
+  websiteMaintenancePlans: WebsiteMaintenancePlan[];
   activePackage: DashboardPackageSubscription | null;
   activeMetaAdsSubscription: MetaAdsSubscription | null;
+  activeWebsiteMaintenanceSubscription: WebsiteMaintenanceSubscription | null;
   firstTimeDiscountEligible: boolean;
   activeSeparateServices: ActiveSeparateServiceSubscription[];
   serviceChecks: DashboardPackageServiceCheck[];
@@ -102,6 +124,20 @@ export const cancelMetaAdsSubscription = (
   },
 ): Promise<any> => {
   return apiRequest("/packages/meta-ads/subscription/cancel", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+export const cancelWebsiteMaintenanceSubscription = (
+  apiRequest: ApiRequestFn,
+  data: {
+    subscriptionId: string;
+    reason?: string;
+    mode?: "Immediate" | "EndOfCycle";
+  },
+): Promise<any> => {
+  return apiRequest("/packages/website-maintenance/subscription/cancel", {
     method: "POST",
     body: JSON.stringify(data),
   });

@@ -5,7 +5,9 @@ import {
   getActiveMetaAdsSubscription,
   getActivePackageSubscription,
   getActiveSeparateServiceSubscriptions,
+  getActiveWebsiteMaintenanceSubscription,
   getMetaAdsPlan,
+  getWebsiteMaintenancePlan,
 } from "@/services/packages/package-subscription.service";
 
 const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
@@ -21,6 +23,9 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
     "package-whatsapp": "offer_T2lyhifS6agMei",
     "package-call": "offer_T2m0RJcdsJzTtV",
     "package-complete": "offer_T2m2QLmnJaYiIg",
+  },
+  websiteMaintenance: {
+    "website-maintenance": "offer_T3Arfhh0cRasSf",
   },
 };
 
@@ -46,6 +51,12 @@ const getMonthlyFirstCycleOfferId = (
   if (subscriptionType === "package") {
     return MONTHLY_FIRST_CYCLE_OFFER_IDS.package[
       productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.package
+    ];
+  }
+
+  if (subscriptionType === "website-maintenance") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.websiteMaintenance[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.websiteMaintenance
     ];
   }
 
@@ -158,6 +169,36 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active Meta Ads subscription before choosing another Meta Ads budget.",
           data: { activeMetaAdsSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "website-maintenance") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error:
+            "Website maintenance subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!getWebsiteMaintenancePlan(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid website maintenance plan",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activeWebsiteMaintenanceSubscription =
+        await getActiveWebsiteMaintenanceSubscription(buyerId);
+      if (activeWebsiteMaintenanceSubscription) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active website maintenance subscription before choosing another one.",
+          data: { activeWebsiteMaintenanceSubscription },
           timestamp: new Date().toISOString(),
         });
       }

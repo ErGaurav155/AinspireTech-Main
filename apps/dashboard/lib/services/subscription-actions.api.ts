@@ -21,7 +21,13 @@ export const createRazorpaySubscription = (
     referralCode: string | null;
     metadata: {
       productId: string;
-      subscriptionType: "web" | "insta" | "call" | "package" | "meta-ads";
+      subscriptionType:
+        | "web"
+        | "insta"
+        | "call"
+        | "package"
+        | "meta-ads"
+        | "website-maintenance";
       billingCycle: "monthly" | "yearly" | "one-time";
       previousSubscriptionId?: string;
       previousSubscriptionType?: "web" | "insta" | "call" | "package";

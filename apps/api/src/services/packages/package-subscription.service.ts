@@ -10,6 +10,9 @@ import PackageSubscription, {
   DashboardPackageId,
   DashboardPackageServiceKey,
 } from "@/models/packages/PackageSubscription.model";
+import WebsiteMaintenanceSubscription, {
+  WebsiteMaintenancePlanId,
+} from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
@@ -41,6 +44,15 @@ export interface MetaAdsPlan {
   description: string;
   amountInr: number;
   monthlyBudgetInr: number;
+  features: string[];
+}
+
+export interface WebsiteMaintenancePlan {
+  id: WebsiteMaintenancePlanId;
+  name: string;
+  description: string;
+  amountInr: number;
+  firstMonthInr: number;
   features: string[];
 }
 
@@ -166,6 +178,24 @@ export const metaAdsPlans: MetaAdsPlan[] = [
   },
 ];
 
+export const websiteMaintenancePlans: WebsiteMaintenancePlan[] = [
+  {
+    id: "website-maintenance",
+    name: "Website Monthly Maintenance",
+    description:
+      "For clients who only need website upkeep, small content changes, and monthly maintenance.",
+    amountInr: 500,
+    firstMonthInr: 250,
+    features: [
+      "Monthly website maintenance",
+      "Small content and image updates",
+      "Basic uptime and form checks",
+      "Minor bug-fix support",
+      "No automation setup checks required",
+    ],
+  },
+];
+
 const packageGrantId = (
   subscriptionId: string,
   service: DashboardPackageServiceKey,
@@ -180,9 +210,23 @@ export const getDashboardPackagePlan = (packageId: string) =>
 export const getMetaAdsPlan = (planId: string) =>
   metaAdsPlans.find((plan) => plan.id === planId);
 
+export const getWebsiteMaintenancePlan = (planId: string) =>
+  websiteMaintenancePlans.find((plan) => plan.id === planId);
+
 export async function getActiveMetaAdsSubscription(clerkId: string) {
   await connectToDatabase();
   return MetaAdsSubscription.findOne({
+    clerkId,
+    status: "active",
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+}
+
+export async function getActiveWebsiteMaintenanceSubscription(clerkId: string) {
+  await connectToDatabase();
+  return WebsiteMaintenanceSubscription.findOne({
     clerkId,
     status: "active",
     expiresAt: { $gt: new Date() },
@@ -300,6 +344,7 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     callWorkspace,
     activeSeparateServices,
     activeMetaAdsSubscription,
+    activeWebsiteMaintenanceSubscription,
   ] = await Promise.all([
     getActivePackageSubscription(clerkId),
     PackageSubscription.exists({ clerkId }),
@@ -316,6 +361,7 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     CallAssistantWorkspace.findOne({ clerkId }).lean(),
     getActiveSeparateServiceSubscriptions(clerkId),
     getActiveMetaAdsSubscription(clerkId),
+    getActiveWebsiteMaintenanceSubscription(clerkId),
   ]);
 
   const serviceChecks = [
@@ -372,7 +418,9 @@ export async function buildDashboardPackageStatus(clerkId: string) {
   return {
     plans: dashboardPackagePlans,
     metaAdsPlans,
+    websiteMaintenancePlans,
     activeMetaAdsSubscription,
+    activeWebsiteMaintenanceSubscription,
     activePackage,
     firstTimeDiscountEligible:
       !packageHistory &&
@@ -450,6 +498,87 @@ export async function cancelMetaAdsSubscriptionLocally({
 
   const now = new Date();
   return MetaAdsSubscription.findOneAndUpdate(
+    { clerkId, subscriptionId, status: "active" },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: now,
+        updatedAt: now,
+      },
+    },
+    { new: true },
+  );
+}
+
+export async function activateWebsiteMaintenanceSubscription({
+  clerkId,
+  planId,
+  subscriptionId,
+  expiresAt,
+  razorpayPaymentId,
+  offerId,
+}: {
+  clerkId: string;
+  planId: string;
+  subscriptionId: string;
+  expiresAt: Date;
+  razorpayPaymentId?: string;
+  offerId?: string;
+}) {
+  await connectToDatabase();
+
+  const plan = getWebsiteMaintenancePlan(planId);
+  if (!plan) {
+    throw new Error("Unknown website maintenance plan");
+  }
+
+  await WebsiteMaintenanceSubscription.updateMany(
+    {
+      clerkId,
+      subscriptionId: { $ne: subscriptionId },
+      status: "active",
+    },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  return WebsiteMaintenanceSubscription.findOneAndUpdate(
+    { subscriptionId },
+    {
+      $set: {
+        clerkId,
+        planId: plan.id,
+        planName: plan.name,
+        subscriptionId,
+        amountInr: plan.amountInr,
+        billingCycle: "monthly",
+        status: "active",
+        razorpayPaymentId,
+        offerId,
+        expiresAt,
+        updatedAt: new Date(),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+}
+
+export async function cancelWebsiteMaintenanceSubscriptionLocally({
+  clerkId,
+  subscriptionId,
+}: {
+  clerkId: string;
+  subscriptionId: string;
+}) {
+  await connectToDatabase();
+
+  const now = new Date();
+  return WebsiteMaintenanceSubscription.findOneAndUpdate(
     { clerkId, subscriptionId, status: "active" },
     {
       $set: {

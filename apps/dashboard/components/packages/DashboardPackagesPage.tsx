@@ -24,12 +24,14 @@ import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import {
   cancelDashboardPackageSubscription,
   cancelMetaAdsSubscription,
+  cancelWebsiteMaintenanceSubscription,
   DashboardPackagePlan,
   DashboardPackageServiceCheck,
   DashboardPackageServiceKey,
   DashboardPackageStatus,
   getDashboardPackageStatus,
   MetaAdsPlan,
+  WebsiteMaintenancePlan,
 } from "@/lib/services/package-actions.api";
 import {
   createRazorpaySubscription,
@@ -111,13 +113,18 @@ export function DashboardPackagesPage() {
   const [checkedServices, setCheckedServices] = useState<
     DashboardPackageServiceKey[]
   >([]);
+  const [isCheckDialogOpen, setIsCheckDialogOpen] = useState(false);
   const [payingPackageId, setPayingPackageId] =
     useState<DashboardPackagePlan["id"] | null>(null);
   const [payingMetaAdsPlanId, setPayingMetaAdsPlanId] = useState<
     MetaAdsPlan["id"] | null
   >(null);
+  const [payingWebsiteMaintenancePlanId, setPayingWebsiteMaintenancePlanId] =
+    useState<WebsiteMaintenancePlan["id"] | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCancellingMetaAds, setIsCancellingMetaAds] = useState(false);
+  const [isCancellingWebsiteMaintenance, setIsCancellingWebsiteMaintenance] =
+    useState(false);
 
   const loadStatus = useCallback(async () => {
     const data = await getDashboardPackageStatus(apiRequest);
@@ -167,6 +174,8 @@ export function DashboardPackagesPage() {
   const missingChecks = selectedChecks.filter((check) => !check.ready);
   const activePackage = status?.activePackage || null;
   const activeMetaAdsSubscription = status?.activeMetaAdsSubscription || null;
+  const activeWebsiteMaintenanceSubscription =
+    status?.activeWebsiteMaintenanceSubscription || null;
   const activeSeparateServices = status?.activeSeparateServices || [];
   const hasSeparateServiceSubscriptions = activeSeparateServices.length > 0;
   const isChecking = Boolean(checkingPackageId);
@@ -407,6 +416,114 @@ export function DashboardPackagesPage() {
     }
   };
 
+  const startWebsiteMaintenanceCheckout = async (
+    plan: WebsiteMaintenancePlan,
+  ) => {
+    if (!userId) {
+      toast({
+        title: "Sign in required",
+        description:
+          "Please sign in before subscribing to website maintenance.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (activeWebsiteMaintenanceSubscription) {
+      toast({
+        title: "Maintenance plan already active",
+        description:
+          "Cancel the active website maintenance subscription before starting another one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setPayingWebsiteMaintenancePlanId(plan.id);
+      await loadRazorpayScript();
+
+      const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
+      const razorpayPlanId = planInfo.razorpaymonthlyplanId;
+      if (!razorpayPlanId) {
+        throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
+      }
+
+      const referralCode = getStoredReferralCode();
+      const result = await createRazorpaySubscription(apiRequest, {
+        amount: plan.amountInr,
+        razorpayplanId: razorpayPlanId,
+        buyerId: userId,
+        referralCode,
+        metadata: {
+          productId: plan.id,
+          subscriptionType: "website-maintenance",
+          billingCycle: "monthly",
+          email: user?.primaryEmailAddress?.emailAddress || "",
+          referralCode: referralCode || "",
+        },
+      });
+
+      const razorpay = new (window as any).Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        amount: plan.amountInr * 100,
+        currency: "INR",
+        name: "RocketReplai",
+        description: `${plan.name} - monthly maintenance`,
+        subscription_id: result.subscriptionId,
+        prefill: {
+          email: user?.primaryEmailAddress?.emailAddress || "",
+        },
+        notes: {
+          productId: plan.id,
+          subscriptionType: "website-maintenance",
+          buyerId: userId,
+          billingCycle: "monthly",
+        },
+        handler: async (response: any) => {
+          await verifyRazorpayPayment(apiRequest, {
+            subscription_id:
+              response.razorpay_subscription_id || result.subscriptionId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            productId: plan.id,
+            subscriptionType: "website-maintenance",
+            subscriptionKind: "website-maintenance",
+            billingCycle: "monthly",
+          });
+          clearStoredReferralCode();
+          toast({
+            title: "Website maintenance activated",
+            description: `${plan.name} is now active.`,
+          });
+          await loadStatus();
+          router.refresh();
+        },
+        modal: {
+          ondismiss: () => {
+            toast({
+              title: "Checkout closed",
+              description: "Payment was not completed.",
+              variant: "destructive",
+            });
+          },
+        },
+        theme: { color: "#7C3AED" },
+      });
+
+      razorpay.open();
+    } catch (error: any) {
+      toast({
+        title: "Checkout failed",
+        description:
+          error.message || "Could not start website maintenance checkout.",
+        variant: "destructive",
+      });
+    } finally {
+      setPayingWebsiteMaintenancePlanId(null);
+    }
+  };
+
   const handlePackageAction = async (plan: DashboardPackagePlan) => {
     if (activePackage) {
       toast({
@@ -430,16 +547,19 @@ export function DashboardPackagesPage() {
 
     try {
       setSelectedPackageId(plan.id);
+      setIsCheckDialogOpen(true);
       setCheckingPackageId(plan.id);
       setCheckedServices([]);
       const latestStatus = await loadStatus();
       if (latestStatus.activeSeparateServices.length > 0) {
+        setIsCheckDialogOpen(false);
         toast({
           title: "Cancel active services first",
           description:
             "Packages can be purchased only after all individual service subscriptions are cancelled.",
           variant: "destructive",
         });
+        setActiveCheck(null);
         return;
       }
 
@@ -476,6 +596,7 @@ export function DashboardPackagesPage() {
         return;
       }
 
+      setIsCheckDialogOpen(false);
       await startCheckout(latestPlan);
     } finally {
       setCheckingPackageId(null);
@@ -541,6 +662,38 @@ export function DashboardPackagesPage() {
       });
     } finally {
       setIsCancellingMetaAds(false);
+    }
+  };
+
+  const handleCancelWebsiteMaintenance = async () => {
+    if (!activeWebsiteMaintenanceSubscription) return;
+    const confirmed = window.confirm(
+      "Cancel the current website maintenance subscription?",
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsCancellingWebsiteMaintenance(true);
+      await cancelWebsiteMaintenanceSubscription(apiRequest, {
+        subscriptionId: activeWebsiteMaintenanceSubscription.subscriptionId,
+        mode: "Immediate",
+        reason: "Cancelled from dashboard packages page",
+      });
+      toast({
+        title: "Maintenance plan cancelled",
+        description: "You can now subscribe to website maintenance again.",
+      });
+      await loadStatus();
+      router.refresh();
+    } catch (error: any) {
+      toast({
+        title: "Cancellation failed",
+        description:
+          error.message || "Could not cancel the website maintenance plan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancellingWebsiteMaintenance(false);
     }
   };
 
@@ -906,8 +1059,199 @@ export function DashboardPackagesPage() {
           </div>
         </section>
 
-        {selectedPackage ? (
-          <section className="grid gap-6 lg:grid-cols-[1fr_420px]">
+        <section
+          className={`rounded-2xl border p-5 ${
+            isDark
+              ? "border-violet-500/20 bg-violet-500/10"
+              : "border-violet-200 bg-violet-50"
+          }`}
+        >
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-bold text-violet-500">
+                <Bot className="h-3.5 w-3.5" />
+                Separate website service
+              </div>
+              <h2 className={`text-2xl font-black ${styles.text.primary}`}>
+                Website Monthly Maintenance
+              </h2>
+              <p className={`mt-2 max-w-3xl text-sm ${styles.text.secondary}`}>
+                A direct maintenance subscription for clients who only need a
+                website handled. No automation setup checks are required.
+              </p>
+            </div>
+            {activeWebsiteMaintenanceSubscription ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">
+                  {activeWebsiteMaintenanceSubscription.planName} active
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelWebsiteMaintenance}
+                  disabled={isCancellingWebsiteMaintenance}
+                  className="rounded-xl"
+                >
+                  {isCancellingWebsiteMaintenance ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Cancel Maintenance
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr]">
+            {(status?.websiteMaintenancePlans || []).map((plan) => {
+              const isCurrent =
+                activeWebsiteMaintenanceSubscription?.planId === plan.id;
+              const isPaying = payingWebsiteMaintenancePlanId === plan.id;
+
+              return (
+                <article
+                  key={plan.id}
+                  className={`flex min-h-[340px] flex-col rounded-2xl border p-5 ${
+                    isDark
+                      ? "border-white/[0.08] bg-black/20"
+                      : "border-violet-100 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white">
+                      <Bot className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-full bg-violet-500/10 px-3 py-1 text-xs font-bold text-violet-500">
+                      Website only
+                    </span>
+                  </div>
+
+                  <h3 className={`mt-4 text-xl font-black ${styles.text.primary}`}>
+                    {plan.name}
+                  </h3>
+                  <p className={`mt-2 text-sm ${styles.text.secondary}`}>
+                    {plan.description}
+                  </p>
+
+                  <div className="mt-5">
+                    <p className={`text-3xl font-black ${styles.text.primary}`}>
+                      {formatInr(plan.amountInr)}
+                      <span className={`text-sm font-semibold ${styles.text.muted}`}>
+                        /mo
+                      </span>
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-500">
+                      First month {formatInr(plan.firstMonthInr)} with Razorpay
+                      offer
+                    </p>
+                  </div>
+
+                  <ul className="mt-5 flex-1 space-y-2">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className={`flex gap-2 text-sm ${styles.text.secondary}`}
+                      >
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-violet-500" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    type="button"
+                    disabled={
+                      Boolean(activeWebsiteMaintenanceSubscription) || isPaying
+                    }
+                    onClick={() => startWebsiteMaintenanceCheckout(plan)}
+                    className="mt-6 w-full rounded-xl bg-violet-500 py-6 font-bold text-white hover:bg-violet-600"
+                  >
+                    {isPaying ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : isCurrent ? (
+                      <Check className="mr-2 h-4 w-4" />
+                    ) : (
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                    )}
+                    {isCurrent
+                      ? "Current Maintenance Plan"
+                      : activeWebsiteMaintenanceSubscription
+                        ? "Maintenance already active"
+                        : "Subscribe Maintenance"}
+                  </Button>
+                </article>
+              );
+            })}
+
+            <div
+              className={`rounded-2xl border p-5 ${
+                isDark
+                  ? "border-white/[0.08] bg-black/20"
+                  : "border-violet-100 bg-white"
+              }`}
+            >
+              <h3 className={`text-lg font-black ${styles.text.primary}`}>
+                Separate from all packages
+              </h3>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Can be purchased directly without service setup checks."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Does not block automation service packages or Meta Ads plans."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Uses its own Razorpay subscription and cancellation."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="First-month pricing uses a Razorpay offer on the backend."
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {isCheckDialogOpen && selectedPackage ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Setup checks for ${selectedPackage.name}`}
+              className={`relative z-10 grid max-h-[calc(100vh-3rem)] w-full max-w-6xl gap-6 overflow-y-auto rounded-2xl border p-4 shadow-2xl md:p-5 lg:grid-cols-[1fr_420px] ${
+                isDark
+                  ? "border-white/[0.08] bg-[#0F0F11]"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+            <div className="flex items-start justify-between gap-4 lg:col-span-2">
+              <div>
+                <h2 className={`text-xl font-black ${styles.text.primary}`}>
+                  Setup checks for {selectedPackage.name}
+                </h2>
+                <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                  We check each required service before Razorpay opens. If
+                  something is missing, this window stays open so you can use the
+                  setup links.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsCheckDialogOpen(false)}
+                disabled={isChecking}
+                className="h-10 w-10 rounded-xl p-0"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
             <div
               className={`rounded-2xl border p-5 ${
                 isDark
@@ -918,7 +1262,7 @@ export function DashboardPackagesPage() {
               <div className="mb-5 flex items-center justify-between gap-3">
                 <div>
                   <h2 className={`text-xl font-black ${styles.text.primary}`}>
-                    Setup checks for {selectedPackage.name}
+                    Service readiness
                   </h2>
                   <p className={`text-sm ${styles.text.secondary}`}>
                     We check these services before opening Razorpay.
@@ -1054,6 +1398,7 @@ export function DashboardPackagesPage() {
               ) : null}
             </aside>
           </section>
+          </div>
         ) : null}
       </main>
     </div>

@@ -2,10 +2,12 @@ import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
+import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import {
   buildDashboardPackageStatus,
   cancelDashboardPackageLocally,
   cancelMetaAdsSubscriptionLocally,
+  cancelWebsiteMaintenanceSubscriptionLocally,
 } from "@/services/packages/package-subscription.service";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 
@@ -179,6 +181,82 @@ export const cancelMetaAdsSubscriptionController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to cancel Meta Ads subscription",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const cancelWebsiteMaintenanceSubscriptionController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) return unauthorized(res);
+
+    const { subscriptionId, reason, mode } = req.body || {};
+    if (!subscriptionId) {
+      return res.status(400).json({
+        success: false,
+        error: "subscriptionId is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const maintenanceSubscription =
+      await WebsiteMaintenanceSubscription.findOne({
+        clerkId: userId,
+        subscriptionId,
+        status: "active",
+      });
+
+    if (!maintenanceSubscription) {
+      return res.status(404).json({
+        success: false,
+        error: "Active website maintenance subscription not found",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await cancelRazorPaySubscription(
+        subscriptionId,
+        reason || "Cancelled website maintenance subscription",
+        mode || "Immediate",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/invalid|not found|cancel|status/i.test(message)) {
+        throw error;
+      }
+      console.warn(
+        "Website maintenance Razorpay subscription was already inactive:",
+        {
+          subscriptionId,
+          message,
+        },
+      );
+    }
+
+    await cancelWebsiteMaintenanceSubscriptionLocally({
+      clerkId: userId,
+      subscriptionId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        subscriptionId,
+        cancelledAt: new Date(),
+        message: "Website maintenance subscription cancelled successfully",
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Website maintenance cancellation error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to cancel website maintenance subscription",
       timestamp: new Date().toISOString(),
     });
   }

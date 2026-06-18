@@ -11,6 +11,7 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import {
   activateDashboardPackageSubscription,
   activateMetaAdsSubscription,
+  activateWebsiteMaintenanceSubscription,
 } from "@/services/packages/package-subscription.service";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { getRazorpay } from "@/utils/util";
@@ -22,7 +23,12 @@ export interface VerifyBody {
   chatbotType?: string;
   productId?: string;
   subscriptionType?: string;
-  subscriptionKind?: "web" | "insta" | "package" | "meta-ads";
+  subscriptionKind?:
+    | "web"
+    | "insta"
+    | "package"
+    | "meta-ads"
+    | "website-maintenance";
   billingCycle?: "monthly" | "yearly";
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta";
@@ -58,9 +64,11 @@ const activateVerifiedSubscription = async ({
       ? "package"
       : requestedKind === "meta-ads"
         ? "meta-ads"
-        : requestedKind === "insta"
-          ? "insta"
-          : "web";
+        : requestedKind === "website-maintenance"
+          ? "website-maintenance"
+          : requestedKind === "insta"
+            ? "insta"
+            : "web";
   const resolvedBillingCycle = billingCycle || notes.billingCycle || "monthly";
   const expiresAt = razorpaySubscription?.current_end
     ? new Date(razorpaySubscription.current_end * 1000)
@@ -113,6 +121,31 @@ const activateVerifiedSubscription = async ({
     return {
       success: true,
       message: "Meta Ads subscription activated successfully",
+      planId,
+      planName: subscription.planName,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
+  }
+
+  if (currentSubscriptionKind === "website-maintenance") {
+    const planId = productId || notes.productId;
+    if (!planId) {
+      throw new Error("Unable to determine website maintenance plan");
+    }
+
+    const subscription = await activateWebsiteMaintenanceSubscription({
+      clerkId: userId,
+      planId,
+      subscriptionId: subscription_id,
+      expiresAt,
+      razorpayPaymentId: razorpay_payment_id,
+      offerId: notes.offerId,
+    });
+
+    return {
+      success: true,
+      message: "Website maintenance subscription activated successfully",
       planId,
       planName: subscription.planName,
       subscriptionId: subscription_id,
