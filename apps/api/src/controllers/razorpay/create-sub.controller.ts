@@ -1,11 +1,14 @@
 import { getRazorpay } from "@/utils/util";
 import { getAuth } from "@clerk/express";
 import { Request, Response } from "express";
+import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   getActiveMetaAdsSubscription,
   getActivePackageSubscription,
   getActiveSeparateServiceSubscriptions,
   getActiveWebsiteMaintenanceSubscription,
+  getDashboardPackagePlan,
   getMetaAdsPlan,
   getWebsiteMaintenancePlan,
 } from "@/services/packages/package-subscription.service";
@@ -61,6 +64,38 @@ const getMonthlyFirstCycleOfferId = (
   }
 
   return undefined;
+};
+
+const getMissingCallSetupFields = (workspace: any) => {
+  if (!workspace) return ["AI call assistant"];
+
+  const missing: string[] = [];
+  if (!workspace.isConfigured) missing.push("AI call assistant");
+  if (!workspace.organization?.name?.trim()) missing.push("business name");
+  if (!workspace.organization?.phone?.trim()) missing.push("business phone");
+  if (!workspace.organization?.email?.trim()) missing.push("business email");
+  if (!workspace.owner?.whatsappNumber?.trim()) {
+    missing.push("WhatsApp alert number");
+  }
+  return missing;
+};
+
+const getMissingWhatsAppSetupFields = (workspace: any) => {
+  if (!workspace) return ["WhatsApp Meta setup"];
+
+  const missing: string[] = [];
+  if (!workspace.meta?.businessManagerId?.trim()) {
+    missing.push("Business Manager ID");
+  }
+  if (!workspace.meta?.appId?.trim()) missing.push("Meta app ID");
+  if (!workspace.meta?.appSecret?.trim()) missing.push("Meta app secret");
+  if (!workspace.meta?.wabaId?.trim()) missing.push("WABA ID");
+  if (!workspace.meta?.phoneNumberId?.trim()) missing.push("Phone number ID");
+  if (!workspace.meta?.displayPhoneNumber?.trim()) {
+    missing.push("WhatsApp business number");
+  }
+  if (!workspace.meta?.accessToken?.trim()) missing.push("Access token");
+  return missing;
 };
 
 // POST /api/razorpay/subscription/create - Create Razorpay subscription
@@ -124,6 +159,15 @@ export const createRazorpaySubscriptionController = async (
         getActivePackageSubscription(buyerId),
         getActiveSeparateServiceSubscriptions(buyerId),
       ]);
+      const packagePlan = getDashboardPackagePlan(productId);
+
+      if (!packagePlan) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid dashboard package",
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       if (activePackage) {
         return res.status(409).json({
@@ -140,6 +184,37 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel active individual service subscriptions before buying a package.",
           data: { activeSeparateServices },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const [callWorkspace, whatsappWorkspace] = await Promise.all([
+        packagePlan.setupServices.includes("call")
+          ? CallAssistantWorkspace.findOne({ clerkId: buyerId }).lean()
+          : Promise.resolve(null),
+        packagePlan.setupServices.includes("whatsapp")
+          ? WhatsAppWorkspace.findOne({ clerkId: buyerId }).lean()
+          : Promise.resolve(null),
+      ]);
+      const missingPackageSetupFields = [
+        ...(packagePlan.setupServices.includes("call")
+          ? getMissingCallSetupFields(callWorkspace).map(
+              (field) => `AI Call: ${field}`,
+            )
+          : []),
+        ...(packagePlan.setupServices.includes("whatsapp")
+          ? getMissingWhatsAppSetupFields(whatsappWorkspace).map(
+              (field) => `WhatsApp: ${field}`,
+            )
+          : []),
+      ];
+
+      if (missingPackageSetupFields.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Complete included service setup before starting package payment checkout.",
+          data: { missingFields: missingPackageSetupFields },
           timestamp: new Date().toISOString(),
         });
       }
@@ -199,6 +274,43 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active website maintenance subscription before choosing another one.",
           data: { activeWebsiteMaintenanceSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "call") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error: "Call subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activePackage = await getActivePackageSubscription(buyerId);
+      if (activePackage) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active common package before buying a standalone service subscription.",
+          data: { activePackage },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const workspace = await CallAssistantWorkspace.findOne({
+        clerkId: buyerId,
+      }).lean();
+      const missingCallSetupFields = getMissingCallSetupFields(workspace);
+      if (missingCallSetupFields.length > 0) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Complete AI Call assistant setup before starting payment checkout.",
+          data: {
+            missingFields: missingCallSetupFields,
+            setupUrl: workspace?.isConfigured ? "/call/settings" : "/call",
+          },
           timestamp: new Date().toISOString(),
         });
       }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowUpRight,
@@ -201,9 +202,26 @@ const contacts = [
   ["Opted out", "329", "+2%", "Excluded from broadcasts"],
 ];
 
+const getMissingWhatsAppSetupFields = (workspace: any) => {
+  const missing: string[] = [];
+  if (!workspace?.meta?.businessManagerId?.trim()) {
+    missing.push("Business Manager ID");
+  }
+  if (!workspace?.meta?.appId?.trim()) missing.push("Meta app ID");
+  if (!workspace?.meta?.appSecret?.trim()) missing.push("Meta app secret");
+  if (!workspace?.meta?.wabaId?.trim()) missing.push("WABA ID");
+  if (!workspace?.meta?.phoneNumberId?.trim()) missing.push("Phone number ID");
+  if (!workspace?.meta?.displayPhoneNumber?.trim()) {
+    missing.push("WhatsApp business number");
+  }
+  if (!workspace?.meta?.accessToken?.trim()) missing.push("Access token");
+  return missing;
+};
+
 export default function WhatsAppAutomationDashboard({
   view = "overview",
 }: WhatsAppAutomationDashboardProps) {
+  const router = useRouter();
   const { styles, isDark } = useThemeStyles();
   const { apiRequest } = useApi();
   const [data, setData] = useState<WhatsAppDashboardData | null>(null);
@@ -311,6 +329,21 @@ export default function WhatsAppAutomationDashboard({
             cardClass={cardClass}
             currentPlan={mergedData.workspace?.subscription?.plan}
             onPlanSelect={async (plan) => {
+              const missingSetupFields =
+                plan === "free"
+                  ? []
+                  : getMissingWhatsAppSetupFields(mergedData.workspace);
+
+              if (missingSetupFields.length > 0) {
+                toast({
+                  title: "Finish WhatsApp setup first",
+                  description: `Please complete: ${missingSetupFields.join(", ")}.`,
+                  variant: "destructive",
+                });
+                router.push("/whatsapp/settings");
+                return;
+              }
+
               await updateWhatsAppWorkspace(apiRequest, {
                 subscription: { plan },
               });

@@ -204,6 +204,26 @@ const packageGrantId = (
 const nextBillingDate = (expiresAt?: Date) =>
   expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+const isWhatsAppWorkspaceReady = (workspace: any) =>
+  Boolean(
+    workspace?.meta?.businessManagerId &&
+      workspace?.meta?.appId &&
+      workspace?.meta?.appSecret &&
+      workspace?.meta?.wabaId &&
+      workspace?.meta?.phoneNumberId &&
+      workspace?.meta?.displayPhoneNumber &&
+      workspace?.meta?.accessToken,
+  );
+
+const isCallWorkspaceReady = (workspace: any) =>
+  Boolean(
+    workspace?.isConfigured &&
+      workspace?.organization?.name &&
+      workspace?.organization?.phone &&
+      workspace?.organization?.email &&
+      workspace?.owner?.whatsappNumber,
+  );
+
 export const getDashboardPackagePlan = (packageId: string) =>
   dashboardPackagePlans.find((plan) => plan.id === packageId);
 
@@ -392,26 +412,26 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     {
       key: "whatsapp",
       label: "WhatsApp Automation",
-      ready: Boolean(whatsappWorkspace),
-      setupUrl: "/whatsapp",
-      successText: whatsappWorkspace
-        ? "WhatsApp free workspace is active"
-        : "WhatsApp free workspace active",
-      missingTitle: "Activate WhatsApp automation",
+      ready: isWhatsAppWorkspaceReady(whatsappWorkspace),
+      setupUrl: "/whatsapp/settings",
+      successText: isWhatsAppWorkspaceReady(whatsappWorkspace)
+        ? "WhatsApp Meta setup is connected"
+        : "WhatsApp Meta setup connected",
+      missingTitle: "Complete WhatsApp setup",
       missingDescription:
-        "Open the WhatsApp dashboard once to create the free automation workspace.",
+        "Connect Meta app, WABA ID, phone number ID, business display number, and access token before package payment.",
     },
     {
       key: "call",
       label: "AI Call Assistant",
-      ready: Boolean(callWorkspace),
-      setupUrl: "/call",
-      successText: callWorkspace
-        ? "AI call assistant free workspace is active"
-        : "AI call assistant free workspace active",
-      missingTitle: "Activate the AI call assistant",
+      ready: isCallWorkspaceReady(callWorkspace),
+      setupUrl: callWorkspace?.isConfigured ? "/call/settings" : "/call",
+      successText: isCallWorkspaceReady(callWorkspace)
+        ? "AI call assistant setup is complete"
+        : "AI call assistant setup complete",
+      missingTitle: "Complete the AI call assistant",
       missingDescription:
-        "Open the AI Call dashboard once to create the free call assistant workspace.",
+        "Create the assistant and fill business phone, business email, and WhatsApp alert number before package payment.",
     },
   ] as const;
 

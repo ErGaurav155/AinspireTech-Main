@@ -20,6 +20,12 @@ export default function CallSettingsPage() {
     address: "",
     timeZone: "Asia/Kolkata",
   });
+  const [ownerForm, setOwnerForm] = useState({
+    name: "",
+    email: "",
+    whatsappNumber: "",
+    smsNumber: "",
+  });
   const [meta, setMeta] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,6 +34,7 @@ export default function CallSettingsPage() {
     const data = await getCallDashboard(apiRequest);
     setMeta(data || {});
     setForm((prev) => ({ ...prev, ...(data?.organization || {}) }));
+    setOwnerForm((prev) => ({ ...prev, ...(data?.owner || {}) }));
     setLoading(false);
   }, [apiRequest]);
 
@@ -36,9 +43,32 @@ export default function CallSettingsPage() {
   }, [load]);
 
   const save = async () => {
+    const missingFields = [
+      ["ownerForm.name", "Owner name", ownerForm.name],
+      ["ownerForm.email", "Owner email", ownerForm.email],
+      ["ownerForm.whatsappNumber", "WhatsApp alert number", ownerForm.whatsappNumber],
+      ["form.name", "Business name", form.name],
+      ["form.phone", "Business phone", form.phone],
+      ["form.email", "Business email", form.email],
+    ].filter(([, , value]) => !String(value || "").trim());
+
+    if (missingFields.length > 0) {
+      toast({
+        title: "Complete required details",
+        description: `Please fill: ${missingFields
+          .map(([, label]) => label)
+          .join(", ")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSaving(true);
-      await updateCallWorkspace(apiRequest, { organization: form });
+      await updateCallWorkspace(apiRequest, {
+        organization: form,
+        owner: ownerForm,
+      });
       toast({ title: "Call assistant settings saved" });
     } catch (error) {
       console.error(error);
@@ -73,6 +103,46 @@ export default function CallSettingsPage() {
         </div>
 
         <div className={`${styles.card} p-5`}>
+          <div className="mb-5">
+            <h2 className={`text-xl font-black ${styles.text.primary}`}>
+              Owner alerts
+            </h2>
+            <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+              These details are required before upgrading the AI Call Assistant.
+            </p>
+          </div>
+          <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {Object.entries(ownerForm).map(([key, value]) => (
+              <label key={key} className="space-y-2">
+                <span className={`text-xs font-semibold uppercase ${styles.text.muted}`}>
+                  {key.replace(/([A-Z])/g, " $1")}
+                </span>
+                <input
+                  value={value}
+                  onChange={(event) =>
+                    setOwnerForm((current) => ({
+                      ...current,
+                      [key]: event.target.value,
+                    }))
+                  }
+                  className={`w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                    isDark
+                      ? "border-white/[0.08] bg-white/[0.04] text-white"
+                      : "border-gray-200 bg-white text-gray-900"
+                  }`}
+                />
+              </label>
+            ))}
+          </div>
+
+          <div className="mb-5">
+            <h2 className={`text-xl font-black ${styles.text.primary}`}>
+              Business details
+            </h2>
+            <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+              Business phone and email are checked before payment opens.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(form).map(([key, value]) => (
               <label key={key} className="space-y-2">

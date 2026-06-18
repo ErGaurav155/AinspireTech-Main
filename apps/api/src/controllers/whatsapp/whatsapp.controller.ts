@@ -43,6 +43,22 @@ const toCollectionName = (value: string): CollectionName | null =>
     ? (value as CollectionName)
     : null;
 
+const getMissingWhatsAppSetupFields = (workspace: any) => {
+  const missing: string[] = [];
+  if (!workspace.meta?.businessManagerId?.trim()) {
+    missing.push("Business Manager ID");
+  }
+  if (!workspace.meta?.appId?.trim()) missing.push("Meta app ID");
+  if (!workspace.meta?.appSecret?.trim()) missing.push("Meta app secret");
+  if (!workspace.meta?.wabaId?.trim()) missing.push("WABA ID");
+  if (!workspace.meta?.phoneNumberId?.trim()) missing.push("Phone number ID");
+  if (!workspace.meta?.displayPhoneNumber?.trim()) {
+    missing.push("WhatsApp business number");
+  }
+  if (!workspace.meta?.accessToken?.trim()) missing.push("Access token");
+  return missing;
+};
+
 export const getWhatsAppPlansController = async (_req: Request, res: Response) =>
   ok(res, { plans: whatsappPlans });
 
@@ -165,6 +181,22 @@ export const updateWhatsAppWorkspaceController = async (
 
     if (subscription?.plan) {
       const plan = getPlanById(subscription.plan);
+      if (plan.id !== "free" && plan.id !== "package") {
+        const missingSetupFields = getMissingWhatsAppSetupFields(workspace);
+        if (missingSetupFields.length > 0) {
+          return res.status(409).json({
+            success: false,
+            error:
+              "Complete WhatsApp Meta setup before activating a paid WhatsApp plan.",
+            data: {
+              missingFields: missingSetupFields,
+              setupUrl: "/whatsapp/settings",
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }
+
       workspace.subscription.plan = plan.id;
       workspace.subscription.messageLimit = plan.messageLimit;
       workspace.subscription.numbersLimit = plan.numbersLimit;

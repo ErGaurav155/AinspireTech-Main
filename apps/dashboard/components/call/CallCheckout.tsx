@@ -10,6 +10,7 @@ import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
+import { getCallDashboard } from "@/lib/services/call-actions.api";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
@@ -82,6 +83,27 @@ export function CallCheckout({
 
     try {
       setIsSubmitting(true);
+      const dashboard = await getCallDashboard(apiRequest);
+      const missingSetup: string[] = [];
+
+      if (!dashboard?.isConfigured) missingSetup.push("create AI call assistant");
+      if (!dashboard?.organization?.name?.trim()) missingSetup.push("business name");
+      if (!dashboard?.organization?.phone?.trim()) missingSetup.push("business phone");
+      if (!dashboard?.organization?.email?.trim()) missingSetup.push("business email");
+      if (!dashboard?.owner?.whatsappNumber?.trim()) {
+        missingSetup.push("WhatsApp alert number");
+      }
+
+      if (missingSetup.length > 0) {
+        toast({
+          title: "Finish AI Call setup first",
+          description: `Please complete: ${missingSetup.join(", ")}.`,
+          variant: "destructive",
+        });
+        router.push(dashboard?.isConfigured ? "/call/settings" : "/call");
+        return;
+      }
+
       await loadRazorpayScript();
 
       const planInfo = await getRazerpayPlanInfo(apiRequest, productId);

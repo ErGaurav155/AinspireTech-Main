@@ -61,6 +61,25 @@ export default function CreateCallAssistantGate({
     );
 
   const submit = async () => {
+    const missingFields = [
+      ["ownerName", "Owner name"],
+      ["businessName", "Business name"],
+      ["businessPhone", "Business phone"],
+      ["ownerEmail", "Owner email"],
+      ["whatsappNumber", "WhatsApp alert number"],
+    ].filter(([key]) => !(form as any)[key]?.trim());
+
+    if (missingFields.length > 0) {
+      toast({
+        title: "Complete call assistant setup",
+        description: `Please fill: ${missingFields
+          .map(([, label]) => label)
+          .join(", ")}.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSaving(true);
       await createCallAssistant(apiRequest, form);
