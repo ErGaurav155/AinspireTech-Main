@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
 import Affiliate from "@/models/affiliate/Affiliate";
@@ -16,6 +17,13 @@ import {
   sendSubscriptionEmailToOwner,
   sendSubscriptionEmailToUser,
 } from "@/services/sendEmail.service";
+import {
+  activateCallPaidSubscription,
+  activateWhatsAppPaidSubscription,
+  downgradeWhatsAppSubscriptionToFree,
+  renewCallPaidSubscription,
+  renewWhatsAppPaidSubscription,
+} from "@/services/billing/paid-subscription.service";
 
 const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
   insta: {
@@ -24,6 +32,10 @@ const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
   web: {
     "chatbot-lead-generation": 499,
     "chatbot-education": 499,
+  },
+  whatsapp: {
+    "whatsapp-launch": 1499,
+    launch: 1499,
   },
 } as const;
 
@@ -51,6 +63,14 @@ const getFirstCycleCommissionBase = (
     );
   }
 
+  if (subscriptionType === "whatsapp") {
+    return (
+      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.whatsapp[
+        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.whatsapp
+      ] || recurringPrice
+    );
+  }
+
   return recurringPrice;
 };
 
@@ -74,11 +94,17 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
             clerkId,
             status: "active",
           })
-        : await WebSubscription.findOne({
-            subscriptionId: previousSubscriptionId,
-            clerkId,
-            status: "active",
-          });
+        : previousSubscriptionType === "whatsapp"
+          ? await WhatsAppWorkspace.findOne({
+              clerkId,
+              "subscription.subscriptionId": previousSubscriptionId,
+              "subscription.status": "active",
+            })
+          : await WebSubscription.findOne({
+              subscriptionId: previousSubscriptionId,
+              clerkId,
+              status: "active",
+            });
 
   if (!previousSubscription) return;
 
@@ -118,6 +144,8 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
       { subscriptionId: previousSubscriptionId, clerkId },
       cancellationUpdate,
     );
+  } else if (previousSubscriptionType === "whatsapp") {
+    await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
   } else {
     await WebSubscription.findOneAndUpdate(
       { subscriptionId: previousSubscriptionId, clerkId },
@@ -199,6 +227,10 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     existingSubscription = await CallSubscription.findOne({
       subscriptionId: subscriptionData.id,
     });
+  } else if (subscriptionType === "whatsapp") {
+    existingSubscription = await WhatsAppWorkspace.findOne({
+      "subscription.subscriptionId": subscriptionData.id,
+    });
   } else {
     existingSubscription = await WebSubscription.findOne({
       subscriptionId: subscriptionData.id,
@@ -254,9 +286,13 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       );
     }
   } else if (subscriptionType === "call") {
-    newSubscription = await CallSubscription.create({
-      ...commonData,
+    newSubscription = await activateCallPaidSubscription({
+      clerkId,
       planType: chatbotType,
+      subscriptionId: subscriptionData.id,
+      plan,
+      billingCycle,
+      expiresAt,
       minutesLimit: Number(notes.minutesLimit) || 200,
       numberLimit:
         Number(notes.concurrentCallLimit) || Number(notes.numberLimit) || 3,
@@ -264,6 +300,16 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         Number(notes.concurrentCallLimit) || Number(notes.numberLimit) || 3,
       agentLimit: Number(notes.agentLimit) || 1,
       overageRate: Number(notes.overageRate) || 5,
+    });
+  } else if (subscriptionType === "whatsapp") {
+    newSubscription = await activateWhatsAppPaidSubscription({
+      clerkId,
+      productId: chatbotType,
+      subscriptionId: subscriptionData.id,
+      billingCycle,
+      expiresAt,
+      razorpayPaymentId: payload.payment?.entity?.id,
+      offerId: notes.offerId,
     });
   } else {
     newSubscription = await WebSubscription.create({
@@ -362,20 +408,26 @@ async function handleWebhookSubscriptionCreate(payload: any) {
           ? "insta-automation"
           : subscriptionType === "call"
             ? "call-assistant"
-            : "web-chatbot";
+            : subscriptionType === "whatsapp"
+              ? "whatsapp-automation"
+              : "web-chatbot";
       const subscriptionModel =
         subscriptionType === "insta"
           ? "InstaSubscription"
           : subscriptionType === "call"
             ? "CallSubscription"
-            : "WebSubscription";
+            : subscriptionType === "whatsapp"
+              ? "WhatsAppWorkspace"
+              : "WebSubscription";
       const productName =
         chatbotType ||
         (subscriptionType === "insta"
           ? "Instagram Automation"
           : subscriptionType === "call"
             ? "AI Call Assistant"
-            : "Web Chatbot");
+            : subscriptionType === "whatsapp"
+              ? "WhatsApp Automation"
+              : "Web Chatbot");
 
       const existingReferral = await AffiReferral.findOne({
         referredUserId: clerkId.toString(),
@@ -392,7 +444,9 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         existingReferral.monthlyCommission = Number(monthlyCommission);
         existingReferral.yearlyCommission = Number(yearlyCommission);
         existingReferral.chatbotType =
-          subscriptionType === "web" || subscriptionType === "call"
+          subscriptionType === "web" ||
+          subscriptionType === "call" ||
+          subscriptionType === "whatsapp"
             ? chatbotType
             : undefined;
         existingReferral.instaPlan =
@@ -413,7 +467,11 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         subscriptionModel,
         subscriptionType: billingCycle,
         chatbotType:
-          subscriptionType === "web" ? chatbotType : undefined,
+          subscriptionType === "web" ||
+          subscriptionType === "call" ||
+          subscriptionType === "whatsapp"
+            ? chatbotType
+            : undefined,
         instaPlan: subscriptionType === "insta" ? chatbotType : undefined,
         subscriptionPrice: Number(subscriptionPrice),
         commissionRate: Number(commissionRate),
@@ -484,7 +542,7 @@ async function handleSubscriptionCharged(
   nextBillingDate: Date,
 ) {
   // Update subscription
-  const [instaUpdate, webUpdate, callUpdate] = await Promise.all([
+  const [instaUpdate, webUpdate, callUpdate, whatsAppUpdate] = await Promise.all([
     InstaSubscription.findOneAndUpdate(
       { subscriptionId },
       {
@@ -507,20 +565,14 @@ async function handleSubscriptionCharged(
       },
       { new: true },
     ),
-    CallSubscription.findOneAndUpdate(
-      { subscriptionId },
-      {
-        $set: {
-          status: "active",
-          expiresAt: nextBillingDate,
-          updatedAt: new Date(),
-        },
-      },
-      { new: true },
-    ),
+    renewCallPaidSubscription({ subscriptionId, expiresAt: nextBillingDate }),
+    renewWhatsAppPaidSubscription({
+      subscriptionId,
+      expiresAt: nextBillingDate,
+    }),
   ]);
 
-  const subscription = instaUpdate || webUpdate || callUpdate;
+  const subscription = instaUpdate || webUpdate || callUpdate || whatsAppUpdate;
 
   if (subscription) {
     // Find active referral for this subscription
@@ -572,7 +624,9 @@ async function handleSubscriptionCharged(
               ? referral.chatbotType || "Web Chatbot"
               : (referral as any).productType === "call-assistant"
                 ? referral.chatbotType || "AI Call Assistant"
-                : referral.instaPlan || "Instagram Automation",
+                : (referral as any).productType === "whatsapp-automation"
+                  ? referral.chatbotType || "WhatsApp Automation"
+                  : referral.instaPlan || "Instagram Automation",
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });
@@ -663,7 +717,10 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
         const instaExists = await InstaSubscription.findOne({ subscriptionId });
         const webExists = await WebSubscription.findOne({ subscriptionId });
         const callExists = await CallSubscription.findOne({ subscriptionId });
-        const exists = instaExists || webExists || callExists;
+        const whatsAppExists = await WhatsAppWorkspace.findOne({
+          "subscription.subscriptionId": subscriptionId,
+        });
+        const exists = instaExists || webExists || callExists || whatsAppExists;
         let createdFromWebhook = false;
 
         if (!exists) {

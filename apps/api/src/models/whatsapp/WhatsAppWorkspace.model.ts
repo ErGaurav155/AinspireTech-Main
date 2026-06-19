@@ -9,6 +9,25 @@ export type WhatsAppTemplateCategory =
 export interface IWhatsAppWorkspace extends Document {
   clerkId: string;
   isConfigured: boolean;
+  onboarding: {
+    status:
+      | "not_started"
+      | "facebook_connected"
+      | "number_pending"
+      | "connected"
+      | "error";
+    mode: "embedded_signup";
+    facebookUserId?: string;
+    facebookName?: string;
+    businessId?: string;
+    phoneSource?: "official_number" | "meta_free_number";
+    requestedPhoneNumber?: string;
+    businessDisplayName?: string;
+    businessWebsite?: string;
+    businessCategory?: string;
+    lastError?: string;
+    connectedAt?: Date;
+  };
   organization: {
     name: string;
     industry: string;
@@ -38,6 +57,10 @@ export interface IWhatsAppWorkspace extends Document {
     numbersLimit: number;
     seatsLimit: number;
     agentsLimit: number;
+    subscriptionId?: string;
+    razorpayPaymentId?: string;
+    offerId?: string;
+    activatedAt?: Date;
     nextBillingDate: Date;
   };
   appointmentConfig: {
@@ -161,6 +184,37 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
   {
     clerkId: { type: String, required: true, unique: true, index: true },
     isConfigured: { type: Boolean, default: false },
+    onboarding: {
+      status: {
+        type: String,
+        enum: [
+          "not_started",
+          "facebook_connected",
+          "number_pending",
+          "connected",
+          "error",
+        ],
+        default: "not_started",
+      },
+      mode: {
+        type: String,
+        enum: ["embedded_signup"],
+        default: "embedded_signup",
+      },
+      facebookUserId: String,
+      facebookName: String,
+      businessId: String,
+      phoneSource: {
+        type: String,
+        enum: ["official_number", "meta_free_number"],
+      },
+      requestedPhoneNumber: String,
+      businessDisplayName: String,
+      businessWebsite: String,
+      businessCategory: String,
+      lastError: String,
+      connectedAt: Date,
+    },
     organization: {
       name: { type: String, default: "My Business" },
       industry: { type: String, default: "Services" },
@@ -206,6 +260,10 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       numbersLimit: { type: Number, default: 1 },
       seatsLimit: { type: Number, default: 1 },
       agentsLimit: { type: Number, default: 3 },
+      subscriptionId: String,
+      razorpayPaymentId: String,
+      offerId: String,
+      activatedAt: Date,
       nextBillingDate: {
         type: Date,
         default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),

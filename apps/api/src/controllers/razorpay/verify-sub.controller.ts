@@ -8,6 +8,8 @@ import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import CallSubscription from "@/models/call/CallSubscription.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   activateDashboardPackageSubscription,
   activateMetaAdsSubscription,
@@ -15,6 +17,12 @@ import {
 } from "@/services/packages/package-subscription.service";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { getRazorpay } from "@/utils/util";
+import {
+  activateCallPaidSubscription,
+  activateWhatsAppPaidSubscription,
+  downgradeCallWorkspaceToFree,
+  downgradeWhatsAppSubscriptionToFree,
+} from "@/services/billing/paid-subscription.service";
 
 export interface VerifyBody {
   subscription_id: string;
@@ -26,12 +34,14 @@ export interface VerifyBody {
   subscriptionKind?:
     | "web"
     | "insta"
+    | "call"
+    | "whatsapp"
     | "package"
     | "meta-ads"
     | "website-maintenance";
   billingCycle?: "monthly" | "yearly";
   previousSubscriptionId?: string;
-  previousSubscriptionType?: "web" | "insta";
+  previousSubscriptionType?: "web" | "insta" | "call" | "whatsapp";
 }
 
 const PAID_PAYMENT_STATUSES = new Set(["captured"]);
@@ -68,7 +78,11 @@ const activateVerifiedSubscription = async ({
           ? "website-maintenance"
           : requestedKind === "insta"
             ? "insta"
-            : "web";
+            : requestedKind === "call"
+              ? "call"
+              : requestedKind === "whatsapp"
+                ? "whatsapp"
+                : "web";
   const resolvedBillingCycle = billingCycle || notes.billingCycle || "monthly";
   const expiresAt = razorpaySubscription?.current_end
     ? new Date(razorpaySubscription.current_end * 1000)
@@ -153,6 +167,66 @@ const activateVerifiedSubscription = async ({
     };
   }
 
+  if (currentSubscriptionKind === "call") {
+    await cancelPreviousSubscriptionAfterPayment({
+      clerkId: userId,
+      previousSubscriptionId:
+        previousSubscriptionId || notes.previousSubscriptionId,
+      previousSubscriptionType:
+        previousSubscriptionType || notes.previousSubscriptionType,
+    });
+
+    const subscription = await activateCallPaidSubscription({
+      clerkId: userId,
+      planType: productId || notes.productId || targetChatbotType,
+      subscriptionId: subscription_id,
+      plan: productId || notes.productId || targetChatbotType,
+      billingCycle: resolvedBillingCycle,
+      expiresAt,
+      minutesLimit: Number(notes.minutesLimit),
+      numberLimit: Number(notes.numberLimit),
+      concurrentCallLimit: Number(notes.concurrentCallLimit),
+      agentLimit: Number(notes.agentLimit),
+      overageRate: Number(notes.overageRate),
+    });
+
+    return {
+      success: true,
+      message: "AI Call subscription activated successfully",
+      planId: subscription.planType,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
+  }
+
+  if (currentSubscriptionKind === "whatsapp") {
+    await cancelPreviousSubscriptionAfterPayment({
+      clerkId: userId,
+      previousSubscriptionId:
+        previousSubscriptionId || notes.previousSubscriptionId,
+      previousSubscriptionType:
+        previousSubscriptionType || notes.previousSubscriptionType,
+    });
+
+    const workspace = await activateWhatsAppPaidSubscription({
+      clerkId: userId,
+      productId: productId || notes.productId || targetChatbotType,
+      subscriptionId: subscription_id,
+      billingCycle: resolvedBillingCycle,
+      expiresAt,
+      razorpayPaymentId: razorpay_payment_id,
+      offerId: notes.offerId,
+    });
+
+    return {
+      success: true,
+      message: "WhatsApp subscription activated successfully",
+      planId: workspace.subscription.plan,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
+  }
+
   if (currentSubscriptionKind === "web") {
     await initializeSubscriptionTokens(userId, targetChatbotType);
   }
@@ -228,7 +302,7 @@ const cancelPreviousSubscriptionAfterPayment = async ({
 }: {
   clerkId: string;
   previousSubscriptionId?: string;
-  previousSubscriptionType?: "web" | "insta";
+  previousSubscriptionType?: "web" | "insta" | "call" | "whatsapp";
 }) => {
   if (!previousSubscriptionId || !previousSubscriptionType) return;
 
@@ -239,11 +313,23 @@ const cancelPreviousSubscriptionAfterPayment = async ({
           clerkId,
           status: "active",
         })
-      : await WebSubscription.findOne({
-          subscriptionId: previousSubscriptionId,
-          clerkId,
-          status: "active",
-        });
+      : previousSubscriptionType === "call"
+        ? await CallSubscription.findOne({
+            subscriptionId: previousSubscriptionId,
+            clerkId,
+            status: "active",
+          })
+        : previousSubscriptionType === "whatsapp"
+          ? await WhatsAppWorkspace.findOne({
+              clerkId,
+              "subscription.subscriptionId": previousSubscriptionId,
+              "subscription.status": "active",
+            })
+          : await WebSubscription.findOne({
+              subscriptionId: previousSubscriptionId,
+              clerkId,
+              status: "active",
+            });
 
   if (!previousSubscription) {
     console.warn("Previous subscription not found or already inactive", {
@@ -285,6 +371,14 @@ const cancelPreviousSubscriptionAfterPayment = async ({
       { subscriptionId: previousSubscriptionId, clerkId },
       cancellationUpdate,
     );
+  } else if (previousSubscriptionType === "call") {
+    await CallSubscription.findOneAndUpdate(
+      { subscriptionId: previousSubscriptionId, clerkId },
+      cancellationUpdate,
+    );
+    await downgradeCallWorkspaceToFree(clerkId);
+  } else if (previousSubscriptionType === "whatsapp") {
+    await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
   } else {
     await WebSubscription.findOneAndUpdate(
       { subscriptionId: previousSubscriptionId, clerkId },

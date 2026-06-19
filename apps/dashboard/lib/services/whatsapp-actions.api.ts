@@ -6,6 +6,18 @@ export const getWhatsAppDashboard = (apiRequest: ApiRequestFn) =>
 export const getWhatsAppPlans = (apiRequest: ApiRequestFn) =>
   apiRequest("/whatsapp/plans", { method: "GET" });
 
+export const getWhatsAppFacebookConfig = (apiRequest: ApiRequestFn) =>
+  apiRequest("/whatsapp/facebook/config", { method: "GET" });
+
+export const connectWhatsAppFacebook = (
+  apiRequest: ApiRequestFn,
+  data: Record<string, any>,
+) =>
+  apiRequest("/whatsapp/facebook/connect", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+
 export const updateWhatsAppWorkspace = (
   apiRequest: ApiRequestFn,
   payload: Record<string, any>,

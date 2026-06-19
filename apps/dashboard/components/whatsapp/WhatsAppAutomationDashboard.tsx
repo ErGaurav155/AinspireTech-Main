@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useAuth, useUser } from "@clerk/nextjs";
 import {
   AlertTriangle,
   ArrowUpRight,
   BadgeCheck,
   BarChart3,
   Bot,
+  Building2,
   CalendarCheck,
   Check,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
   FileText,
   Headphones,
   MessageCircle,
+  Phone,
   Plug,
   RefreshCw,
   Send,
@@ -29,10 +31,31 @@ import {
 import { Badge, Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
+  connectWhatsAppFacebook,
   createWhatsAppCollectionItem,
+  getWhatsAppFacebookConfig,
   getWhatsAppDashboard,
   updateWhatsAppWorkspace,
 } from "@/lib/services/whatsapp-actions.api";
+import {
+  createRazorpaySubscription,
+  getRazerpayPlanInfo,
+} from "@/lib/services/subscription-actions.api";
+import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
+
+declare global {
+  interface Window {
+    FB?: any;
+    Razorpay: any;
+    fbAsyncInit?: () => void;
+  }
+}
+
+const FACEBOOK_SDK_SCRIPT_ID = "facebook-jssdk";
+const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
+const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const WHATSAPP_PRODUCT_ID = "whatsapp-launch";
+const WHATSAPP_FIRST_MONTH_OFFER_ID = "offer_T3WZjvSEGwtewO";
 
 type WhatsAppView =
   | "overview"
@@ -78,6 +101,8 @@ const plans = [
     name: "WhatsApp Free",
     price: "INR 0",
     period: "/month",
+    amount: 0,
+    firstMonth: 0,
     badge: "Default plan",
     limit: "10 free automations/messages",
     features: [
@@ -91,9 +116,11 @@ const plans = [
   {
     id: "launch",
     name: "WhatsApp Automation",
-    price: "INR 1,999",
+    price: "INR 2,999",
     period: "/month",
-    badge: "Simple plan",
+    amount: 2999,
+    firstMonth: 1499,
+    badge: "50% first month",
     limit: "10k business-initiated messages",
     features: [
       "1 connected WhatsApp number",
@@ -103,6 +130,26 @@ const plans = [
       "Broadcast tracker, appointments, contacts, and analytics",
     ],
   },
+];
+
+const businessCategories = [
+  "Automotive",
+  "Beauty, Spa and Salon",
+  "Clothing and Apparel",
+  "Education",
+  "Entertainment",
+  "Event Planning and Service",
+  "Finance and Banking",
+  "Food and Grocery",
+  "Hotel and Lodging",
+  "Medical and Health",
+  "Non-profit",
+  "Professional Services",
+  "Public Service",
+  "Shopping and Retail",
+  "Travel and Transportation",
+  "Restaurant",
+  "Others",
 ];
 
 const metrics = [
@@ -202,26 +249,11 @@ const contacts = [
   ["Opted out", "329", "+2%", "Excluded from broadcasts"],
 ];
 
-const getMissingWhatsAppSetupFields = (workspace: any) => {
-  const missing: string[] = [];
-  if (!workspace?.meta?.businessManagerId?.trim()) {
-    missing.push("Business Manager ID");
-  }
-  if (!workspace?.meta?.appId?.trim()) missing.push("Meta app ID");
-  if (!workspace?.meta?.appSecret?.trim()) missing.push("Meta app secret");
-  if (!workspace?.meta?.wabaId?.trim()) missing.push("WABA ID");
-  if (!workspace?.meta?.phoneNumberId?.trim()) missing.push("Phone number ID");
-  if (!workspace?.meta?.displayPhoneNumber?.trim()) {
-    missing.push("WhatsApp business number");
-  }
-  if (!workspace?.meta?.accessToken?.trim()) missing.push("Access token");
-  return missing;
-};
-
 export default function WhatsAppAutomationDashboard({
   view = "overview",
 }: WhatsAppAutomationDashboardProps) {
-  const router = useRouter();
+  const { userId } = useAuth();
+  const { user } = useUser();
   const { styles, isDark } = useThemeStyles();
   const { apiRequest } = useApi();
   const [data, setData] = useState<WhatsAppDashboardData | null>(null);
@@ -328,31 +360,10 @@ export default function WhatsAppAutomationDashboard({
           <Pricing
             cardClass={cardClass}
             currentPlan={mergedData.workspace?.subscription?.plan}
-            onPlanSelect={async (plan) => {
-              const missingSetupFields =
-                plan === "free"
-                  ? []
-                  : getMissingWhatsAppSetupFields(mergedData.workspace);
-
-              if (missingSetupFields.length > 0) {
-                toast({
-                  title: "Finish WhatsApp setup first",
-                  description: `Please complete: ${missingSetupFields.join(", ")}.`,
-                  variant: "destructive",
-                });
-                router.push("/whatsapp/settings");
-                return;
-              }
-
-              await updateWhatsAppWorkspace(apiRequest, {
-                subscription: { plan },
-              });
-              toast({
-                title: "Plan updated",
-                description: "WhatsApp workspace limits were updated.",
-              });
-              await loadDashboard();
-            }}
+            currentSubscription={mergedData.workspace?.subscription}
+            userId={userId || ""}
+            email={user?.primaryEmailAddress?.emailAddress || ""}
+            onActivated={loadDashboard}
           />
         )}
         {view === "settings" && (
@@ -360,6 +371,7 @@ export default function WhatsAppAutomationDashboard({
             cardClass={cardClass}
             softCardClass={softCardClass}
             workspace={mergedData.workspace}
+            onConnected={loadDashboard}
             onSave={async (payload) => {
               await updateWhatsAppWorkspace(apiRequest, payload);
               toast({
@@ -423,7 +435,7 @@ function Header({
         <div className="grid min-w-[260px] grid-cols-2 gap-3">
           <StatusPill
             label="Meta app"
-            value={workspace?.isConfigured ? "Connected" : "Pending IDs"}
+            value={workspace?.isConfigured ? "Connected" : "Business login"}
             tone={workspace?.isConfigured ? "ok" : "warn"}
           />
           <StatusPill label="Webhook" value="Ready" tone="ok" />
@@ -538,10 +550,10 @@ function Overview({
           <SectionTitle icon={Plug} title="Meta Connection" />
           <div className="mt-5 space-y-3">
             {[
-              ["Business Manager ID", "Waiting"],
-              ["WABA ID", "Waiting"],
-              ["Phone Number ID", "Waiting"],
-              ["Permanent Access Token", "Waiting"],
+              ["Facebook Business", data.workspace?.onboarding?.status || "Not started"],
+              ["WABA ID", data.workspace?.meta?.wabaId ? "Connected" : "Waiting"],
+              ["Phone Number ID", data.workspace?.meta?.phoneNumberId ? "Connected" : "Waiting"],
+              ["Access token", data.workspace?.meta?.accessToken ? "Stored" : "Waiting"],
             ].map(([label, value]) => (
               <div key={label} className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2.5">
                 <span className="text-sm text-gray-500 dark:text-white/55">{label}</span>
@@ -553,7 +565,7 @@ function Overview({
           </div>
           <Button asChild className="mt-5 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600">
             <Link href="/whatsapp/settings">
-              Add Meta IDs
+              Connect WhatsApp
               <ArrowUpRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -1124,13 +1136,18 @@ function Contacts({
 function Pricing({
   cardClass,
   currentPlan,
-  onPlanSelect,
+  currentSubscription,
+  userId,
+  email,
+  onActivated,
 }: {
   cardClass: string;
   currentPlan?: string;
-  onPlanSelect: (plan: string) => Promise<void>;
+  currentSubscription?: any;
+  userId: string;
+  email: string;
+  onActivated: () => Promise<void>;
 }) {
-  const [savingPlan, setSavingPlan] = useState("");
   return (
     <div className="space-y-6">
       <div className={`rounded-2xl border ${cardClass} p-5`}>
@@ -1157,6 +1174,11 @@ function Pricing({
                 <span className="text-3xl font-black">{plan.price}</span>
                 <span className="pb-1 text-sm text-gray-500 dark:text-white/50">{plan.period}</span>
               </div>
+              {plan.firstMonth > 0 && (
+                <p className="mt-2 text-sm font-semibold text-emerald-500">
+                  First month INR {plan.firstMonth.toLocaleString("en-IN")} with launch offer, then INR {plan.amount.toLocaleString("en-IN")}/month.
+                </p>
+              )}
               <p className="mt-2 rounded-xl bg-emerald-500/10 px-3 py-2 text-sm font-semibold text-emerald-400">
                 {plan.limit}
               </p>
@@ -1168,23 +1190,23 @@ function Pricing({
                   </li>
                 ))}
               </ul>
-              <Button
-                disabled={currentPlan === plan.id || savingPlan === plan.id}
-                onClick={async () => {
-                  setSavingPlan(plan.id);
-                  await onPlanSelect(plan.id);
-                  setSavingPlan("");
-                }}
-                className="mt-6 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:cursor-default disabled:opacity-80"
-              >
-                {currentPlan === plan.id
-                  ? "Current Plan"
-                  : savingPlan === plan.id
-                    ? "Saving..."
-                    : plan.id === "free"
-                      ? "Use Free Plan"
-                      : "Configure Plan"}
-              </Button>
+              {plan.id === "launch" ? (
+                <WhatsAppCheckoutButton
+                  userId={userId}
+                  email={email}
+                  amount={plan.amount}
+                  currentSubscription={currentSubscription}
+                  disabled={currentPlan === plan.id && currentSubscription?.status === "active"}
+                  onActivated={onActivated}
+                />
+              ) : (
+                <Button
+                  disabled
+                  className="mt-6 w-full rounded-xl bg-gray-500 text-white disabled:cursor-default disabled:opacity-80"
+                >
+                  {currentPlan === "free" ? "Current Plan" : "Included Free"}
+                </Button>
+              )}
             </div>
           ))}
         </div>
@@ -1209,82 +1231,538 @@ function Pricing({
   );
 }
 
+function WhatsAppCheckoutButton({
+  userId,
+  email,
+  amount,
+  currentSubscription,
+  disabled,
+  onActivated,
+}: {
+  userId: string;
+  email: string;
+  amount: number;
+  currentSubscription?: any;
+  disabled: boolean;
+  onActivated: () => Promise<void>;
+}) {
+  const { apiRequest } = useApi();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const loadRazorpayScript = useCallback((): Promise<void> => {
+    if (typeof window === "undefined") {
+      return Promise.reject(new Error("Payment checkout is not available"));
+    }
+
+    if (window.Razorpay) return Promise.resolve();
+
+    return new Promise((resolve, reject) => {
+      const existingScript =
+        document.getElementById(RAZORPAY_SCRIPT_ID) ||
+        document.querySelector(`script[src="${RAZORPAY_SCRIPT_SRC}"]`);
+
+      const handleLoad = () => resolve();
+      const handleError = () =>
+        reject(new Error("Payment checkout failed to load"));
+
+      if (existingScript) {
+        existingScript.addEventListener("load", handleLoad, { once: true });
+        existingScript.addEventListener("error", handleError, { once: true });
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.id = RAZORPAY_SCRIPT_ID;
+      script.src = RAZORPAY_SCRIPT_SRC;
+      script.async = true;
+      script.addEventListener("load", handleLoad, { once: true });
+      script.addEventListener("error", handleError, { once: true });
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleCheckout = async () => {
+    if (!userId) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in before starting WhatsApp billing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID) {
+      toast({
+        title: "Razorpay key missing",
+        description: "Add NEXT_PUBLIC_RAZORPAY_KEY_ID before taking payments.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      await loadRazorpayScript();
+
+      let planInfo: any;
+      try {
+        planInfo = await getRazerpayPlanInfo(apiRequest, WHATSAPP_PRODUCT_ID);
+      } catch {
+        planInfo = await getRazerpayPlanInfo(apiRequest, "launch");
+      }
+
+      const razorpayPlanId = planInfo?.razorpaymonthlyplanId;
+      if (!razorpayPlanId) {
+        throw new Error("Razorpay monthly plan is not configured for WhatsApp");
+      }
+
+      const referralCode = getStoredReferralCode();
+      const previousSubscriptionId = currentSubscription?.subscriptionId || "";
+      const result = await createRazorpaySubscription(apiRequest, {
+        amount,
+        razorpayplanId: razorpayPlanId,
+        buyerId: userId,
+        referralCode,
+        metadata: {
+          productId: WHATSAPP_PRODUCT_ID,
+          subscriptionType: "whatsapp",
+          billingCycle: "monthly",
+          previousSubscriptionId: previousSubscriptionId || undefined,
+          previousSubscriptionType: previousSubscriptionId
+            ? "whatsapp"
+            : undefined,
+          email,
+          offerId: WHATSAPP_FIRST_MONTH_OFFER_ID || undefined,
+          referralCode: referralCode || "",
+        },
+      });
+
+      const razorpay = new window.Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: amount * 100,
+        currency: "INR",
+        name: "RocketReplai",
+        description: "WhatsApp Automation - monthly",
+        subscription_id: result.subscriptionId,
+        prefill: { email },
+        notes: {
+          productId: WHATSAPP_PRODUCT_ID,
+          subscriptionType: "whatsapp",
+          buyerId: userId,
+          billingCycle: "monthly",
+          offerId: WHATSAPP_FIRST_MONTH_OFFER_ID || "",
+        },
+        handler: () => {
+          clearStoredReferralCode();
+          toast({
+            title: "Payment received",
+            description:
+              "WhatsApp Automation will activate after Razorpay confirms the subscription.",
+          });
+          window.setTimeout(() => {
+            void onActivated();
+          }, 2000);
+        },
+        modal: {
+          ondismiss: () => {
+            toast({
+              title: "Checkout closed",
+              description: "Payment was not completed.",
+              variant: "destructive",
+            });
+          },
+        },
+        theme: { color: "#10B981" },
+      });
+
+      razorpay.open();
+    } catch (error: any) {
+      console.error("WhatsApp checkout error:", error);
+      toast({
+        title: "Checkout failed",
+        description: error.message || "Could not start WhatsApp payment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Button
+      disabled={disabled || isSubmitting}
+      onClick={handleCheckout}
+      className="mt-6 w-full rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:cursor-default disabled:opacity-80"
+    >
+      {disabled
+        ? "Current Plan"
+        : isSubmitting
+          ? "Opening checkout..."
+          : "Subscribe with Razorpay"}
+    </Button>
+  );
+}
+
 function SettingsView({
   cardClass,
   softCardClass,
   workspace,
+  onConnected,
   onSave,
 }: {
   cardClass: string;
   softCardClass: string;
   workspace: any;
+  onConnected: () => Promise<void>;
   onSave: (payload: Record<string, any>) => Promise<void>;
 }) {
+  const { apiRequest } = useApi();
   const [form, setForm] = useState({
     organizationName: workspace?.organization?.name || "",
-    industry: workspace?.organization?.industry || "",
+    industry: workspace?.organization?.industry || "Professional Services",
     website: workspace?.organization?.website || "",
-    businessManagerId: workspace?.meta?.businessManagerId || "",
-    wabaId: workspace?.meta?.wabaId || "",
-    phoneNumberId: workspace?.meta?.phoneNumberId || "",
-    displayPhoneNumber: workspace?.meta?.displayPhoneNumber || "",
-    appId: workspace?.meta?.appId || "",
-    appSecret: "",
-    accessToken: "",
-    verifyToken: workspace?.meta?.verifyToken || "",
+    phoneSource: workspace?.onboarding?.phoneSource || "official_number",
+    requestedPhoneNumber:
+      workspace?.onboarding?.requestedPhoneNumber ||
+      workspace?.meta?.displayPhoneNumber ||
+      "",
+    businessDisplayName:
+      workspace?.onboarding?.businessDisplayName ||
+      workspace?.organization?.name ||
+      "",
+    businessCategory:
+      workspace?.onboarding?.businessCategory ||
+      workspace?.organization?.industry ||
+      "Professional Services",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [facebookConfig, setFacebookConfig] = useState<any>(null);
+  const [embeddedSignupData, setEmbeddedSignupData] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    setForm({
+      organizationName: workspace?.organization?.name || "",
+      industry: workspace?.organization?.industry || "Professional Services",
+      website: workspace?.organization?.website || "",
+      phoneSource: workspace?.onboarding?.phoneSource || "official_number",
+      requestedPhoneNumber:
+        workspace?.onboarding?.requestedPhoneNumber ||
+        workspace?.meta?.displayPhoneNumber ||
+        "",
+      businessDisplayName:
+        workspace?.onboarding?.businessDisplayName ||
+        workspace?.organization?.name ||
+        "",
+      businessCategory:
+        workspace?.onboarding?.businessCategory ||
+        workspace?.organization?.industry ||
+        "Professional Services",
+    });
+  }, [workspace]);
+
+  useEffect(() => {
+    let mounted = true;
+    setIsLoadingConfig(true);
+    getWhatsAppFacebookConfig(apiRequest)
+      .then((config) => {
+        if (mounted) setFacebookConfig(config);
+      })
+      .catch((error) => {
+        console.error("Failed to load WhatsApp Facebook config", error);
+      })
+      .finally(() => {
+        if (mounted) setIsLoadingConfig(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [apiRequest]);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (!event.origin.includes("facebook.com")) return;
+
+      let payload: any = event.data;
+      if (typeof event.data === "string") {
+        try {
+          payload = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+      }
+
+      const data = payload?.data || payload;
+      const wabaId = data?.waba_id || data?.wabaId;
+      const phoneNumberId = data?.phone_number_id || data?.phoneNumberId;
+      const businessId =
+        data?.business_id ||
+        data?.businessId ||
+        data?.business_manager_id ||
+        data?.businessManagerId;
+      const displayPhoneNumber =
+        data?.phone_number ||
+        data?.display_phone_number ||
+        data?.displayPhoneNumber;
+
+      if (businessId || wabaId || phoneNumberId) {
+        setEmbeddedSignupData((current) => ({
+          ...current,
+          businessId,
+          wabaId,
+          phoneNumberId,
+          displayPhoneNumber,
+        }));
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, []);
+
+  const loadFacebookSdk = useCallback(
+    (appId: string, graphApiVersion: string): Promise<void> => {
+      if (typeof window === "undefined") {
+        return Promise.reject(new Error("Facebook login is not available"));
+      }
+
+      if (window.FB) return Promise.resolve();
+
+      return new Promise((resolve, reject) => {
+        window.fbAsyncInit = () => {
+          window.FB?.init({
+            appId,
+            cookie: true,
+            xfbml: true,
+            version: graphApiVersion,
+          });
+          window.FB?.AppEvents?.logPageView?.();
+          resolve();
+        };
+
+        const existingScript = document.getElementById(FACEBOOK_SDK_SCRIPT_ID);
+        if (existingScript) {
+          existingScript.addEventListener(
+            "error",
+            () => reject(new Error("Facebook SDK failed to load")),
+            { once: true },
+          );
+          return;
+        }
+
+        const script = document.createElement("script");
+        script.id = FACEBOOK_SDK_SCRIPT_ID;
+        script.async = true;
+        script.defer = true;
+        script.crossOrigin = "anonymous";
+        script.src = "https://connect.facebook.net/en_US/sdk.js";
+        script.addEventListener(
+          "error",
+          () => reject(new Error("Facebook SDK failed to load")),
+          { once: true },
+        );
+        document.body.appendChild(script);
+      });
+    },
+    [],
+  );
+
+  const handleFacebookConnect = async () => {
+    if (!facebookConfig?.appId) {
+      toast({
+        title: "Meta app not configured",
+        description: "Add WHATSAPP_META_APP_ID on the API server first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsConnecting(true);
+      await loadFacebookSdk(
+        facebookConfig.appId,
+        facebookConfig.graphApiVersion || "v23.0",
+      );
+
+      const loginOptions = facebookConfig.embeddedSignupConfigId
+        ? {
+            config_id: facebookConfig.embeddedSignupConfigId,
+            response_type: "code",
+            override_default_response_type: true,
+            extras: {
+              setup: {},
+              featureType: "whatsapp_business_app_onboarding",
+              sessionInfoVersion: "3",
+            },
+          }
+        : {
+            scope:
+              "public_profile,business_management,whatsapp_business_management,whatsapp_business_messaging",
+            return_scopes: true,
+          };
+
+      const response = await new Promise<any>((resolve) => {
+        window.FB?.login((loginResponse: any) => resolve(loginResponse), loginOptions);
+      });
+
+      if (response?.status !== "connected" || !response?.authResponse) {
+        toast({
+          title: "Facebook connection cancelled",
+          description: "Please approve the business permissions to connect WhatsApp.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = await connectWhatsAppFacebook(apiRequest, {
+        authResponse: response.authResponse,
+        setup: {
+          ...embeddedSignupData,
+          organizationName: form.organizationName,
+          businessDisplayName:
+            form.businessDisplayName || form.organizationName,
+          businessWebsite: form.website,
+          businessCategory: form.businessCategory || form.industry,
+          phoneSource: form.phoneSource,
+          requestedPhoneNumber: form.requestedPhoneNumber,
+        },
+      });
+
+      toast({
+        title: result?.workspace?.isConfigured
+          ? "WhatsApp connected"
+          : "Facebook connected",
+        description: result?.workspace?.isConfigured
+          ? "Your WABA and phone number are ready for automation."
+          : "Facebook login was saved. Complete Meta Embedded Signup if WABA details are still pending.",
+      });
+      await onConnected();
+    } catch (error: any) {
+      console.error("Facebook WhatsApp connect error:", error);
+      toast({
+        title: "Connection failed",
+        description: error.message || "Could not connect Facebook Business.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
 
   const setup = [
-    ["Meta Business Manager ID", "Add after Meta app review"],
-    ["WhatsApp Business Account ID", "Required to sync templates"],
-    ["Phone Number ID", "Required to send messages"],
-    ["Permanent Access Token", "Store server-side only"],
-    ["Webhook Verify Token", "Ready to generate"],
-    ["App Secret", "Required for signature validation"],
+    [
+      "Facebook Business",
+      workspace?.onboarding?.facebookUserId ? "Connected" : "Not connected",
+      workspace?.onboarding?.facebookName || "Login through Business Connect",
+    ],
+    [
+      "Business ID",
+      workspace?.onboarding?.businessId || workspace?.meta?.businessManagerId
+        ? "Captured"
+        : "Pending",
+      workspace?.onboarding?.businessId ||
+        workspace?.meta?.businessManagerId ||
+        embeddedSignupData.businessId ||
+        "Provided by Embedded Signup",
+    ],
+    [
+      "WABA ID",
+      workspace?.meta?.wabaId ? "Captured" : "Pending",
+      workspace?.meta?.wabaId ||
+        embeddedSignupData.wabaId ||
+        "Provided by Meta",
+    ],
+    [
+      "Phone Number ID",
+      workspace?.meta?.phoneNumberId ? "Captured" : "Pending",
+      workspace?.meta?.phoneNumberId ||
+        embeddedSignupData.phoneNumberId ||
+        "Provided by Meta",
+    ],
+    [
+      "Display Number",
+      workspace?.meta?.displayPhoneNumber ? "Ready" : "Pending",
+      workspace?.meta?.displayPhoneNumber ||
+        form.requestedPhoneNumber ||
+        "Business WhatsApp number",
+    ],
+    [
+      "Webhook",
+      facebookConfig?.webhookCallbackUrl ? "Configured URL" : "Pending env",
+      facebookConfig?.webhookCallbackUrl || "Set PUBLIC_API_URL on API server",
+    ],
   ];
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
       <section className={`rounded-2xl border ${cardClass} p-5`}>
-        <SectionTitle icon={Settings} title="Meta Credentials Checklist" />
+        <SectionTitle icon={Settings} title="Connect WhatsApp Business" />
         <form
           className="mt-5 grid gap-3"
           onSubmit={async (event) => {
             event.preventDefault();
             setIsSaving(true);
-            await onSave({
-              organization: {
-                name: form.organizationName,
-                industry: form.industry,
-                website: form.website,
-              },
-              meta: {
-                businessManagerId: form.businessManagerId,
-                wabaId: form.wabaId,
-                phoneNumberId: form.phoneNumberId,
-                displayPhoneNumber: form.displayPhoneNumber,
-                appId: form.appId,
-                appSecret: form.appSecret || undefined,
-                accessToken: form.accessToken || undefined,
-                verifyToken: form.verifyToken,
-              },
-            });
-            setIsSaving(false);
+            try {
+              await onSave({
+                organization: {
+                  name: form.organizationName,
+                  industry: form.businessCategory || form.industry,
+                  website: form.website,
+                },
+              });
+            } finally {
+              setIsSaving(false);
+            }
           }}
         >
+          <div className={`rounded-xl border ${softCardClass} p-4`}>
+            <div className="flex items-start gap-3">
+              <Phone className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-400" />
+              <div>
+                <h3 className="font-bold">Choose your WhatsApp number</h3>
+                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-white/50">
+                  Use an official business number that can be registered on WhatsApp Business Platform, or let Meta offer a free number during signup.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {[
+                ["official_number", "I have an official number"],
+                ["meta_free_number", "Use Meta free number"],
+              ].map(([value, label]) => (
+                <label
+                  key={value}
+                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
+                    form.phoneSource === value
+                      ? "border-emerald-400 bg-emerald-500/10 text-emerald-500"
+                      : "border-gray-200 text-gray-600 dark:border-white/[0.08] dark:text-white/60"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="phoneSource"
+                    value={value}
+                    checked={form.phoneSource === value}
+                    onChange={() =>
+                      setForm((current) => ({
+                        ...current,
+                        phoneSource: value,
+                      }))
+                    }
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </div>
           {[
             ["organizationName", "Business name"],
-            ["industry", "Industry"],
-            ["website", "Website"],
-            ["businessManagerId", "Meta Business Manager ID"],
-            ["wabaId", "WhatsApp Business Account ID"],
-            ["phoneNumberId", "Phone Number ID"],
-            ["displayPhoneNumber", "Display phone number"],
-            ["appId", "Meta App ID"],
-            ["appSecret", "App Secret"],
-            ["accessToken", "Permanent access token"],
-            ["verifyToken", "Webhook verify token"],
+            ["businessDisplayName", "WhatsApp display name"],
+            ["requestedPhoneNumber", "Official WhatsApp number"],
+            ["website", "Official website URL"],
           ].map(([key, label]) => (
             <label key={key} className="grid gap-1.5">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
@@ -1298,27 +1776,71 @@ function SettingsView({
                     [key]: event.target.value,
                   }))
                 }
-                type={key === "appSecret" || key === "accessToken" ? "password" : "text"}
+                type="text"
                 className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
               />
             </label>
           ))}
+          <label className="grid gap-1.5">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Business category
+            </span>
+            <select
+              value={form.businessCategory}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  businessCategory: event.target.value,
+                  industry: event.target.value,
+                }))
+              }
+              className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+            >
+              {businessCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             disabled={isSaving}
-            className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+            className="rounded-xl border border-emerald-500 bg-transparent text-emerald-500 hover:bg-emerald-500/10"
           >
-            {isSaving ? "Saving..." : "Save WhatsApp Setup"}
+            {isSaving ? "Saving..." : "Save Business Profile"}
           </Button>
+            <Button
+              type="button"
+              disabled={isConnecting || isLoadingConfig}
+              onClick={handleFacebookConnect}
+              className="rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-default disabled:opacity-70"
+            >
+              {isConnecting
+                ? "Connecting..."
+                : isLoadingConfig
+                  ? "Loading Meta config..."
+                  : "Continue with Facebook"}
+            </Button>
+          </div>
         </form>
         <div className="mt-5 grid gap-3">
-          {setup.map(([label, note]) => (
+          {setup.map(([label, status, note]) => (
             <div key={label} className={`rounded-xl border ${softCardClass} p-4`}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-bold">{label}</h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-white/50">{note}</p>
+                  <p className="mt-1 break-all text-sm text-gray-500 dark:text-white/50">{note}</p>
                 </div>
-                <Badge className="bg-amber-500/15 text-amber-300">Pending</Badge>
+                <Badge
+                  className={
+                    ["Connected", "Captured", "Ready", "Configured URL"].includes(status)
+                      ? "bg-emerald-500/15 text-emerald-400"
+                      : "bg-amber-500/15 text-amber-300"
+                  }
+                >
+                  {status}
+                </Badge>
               </div>
             </div>
           ))}

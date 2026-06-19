@@ -96,6 +96,8 @@ const sleep = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
+type CancelTarget = "package" | "meta-ads" | "website-maintenance";
+
 export function DashboardPackagesPage() {
   const router = useRouter();
   const { userId } = useAuth();
@@ -125,6 +127,7 @@ export function DashboardPackagesPage() {
   const [isCancellingMetaAds, setIsCancellingMetaAds] = useState(false);
   const [isCancellingWebsiteMaintenance, setIsCancellingWebsiteMaintenance] =
     useState(false);
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   const loadStatus = useCallback(async () => {
     const data = await getDashboardPackageStatus(apiRequest);
@@ -603,13 +606,13 @@ export function DashboardPackagesPage() {
     }
   };
 
-  const handleCancelPackage = async () => {
+  const handleCancelPackage = () => {
     if (!activePackage) return;
-    const confirmed = window.confirm(
-      "Cancel the current common package? Included dashboards will return to their free plans.",
-    );
-    if (!confirmed) return;
+    setCancelTarget("package");
+  };
 
+  const cancelPackage = async () => {
+    if (!activePackage) return;
     try {
       setIsCancelling(true);
       await cancelDashboardPackageSubscription(apiRequest, {
@@ -631,16 +634,17 @@ export function DashboardPackagesPage() {
       });
     } finally {
       setIsCancelling(false);
+      setCancelTarget(null);
     }
   };
 
-  const handleCancelMetaAds = async () => {
+  const handleCancelMetaAds = () => {
     if (!activeMetaAdsSubscription) return;
-    const confirmed = window.confirm(
-      "Cancel the current Meta Ads budget subscription?",
-    );
-    if (!confirmed) return;
+    setCancelTarget("meta-ads");
+  };
 
+  const cancelMetaAds = async () => {
+    if (!activeMetaAdsSubscription) return;
     try {
       setIsCancellingMetaAds(true);
       await cancelMetaAdsSubscription(apiRequest, {
@@ -662,16 +666,17 @@ export function DashboardPackagesPage() {
       });
     } finally {
       setIsCancellingMetaAds(false);
+      setCancelTarget(null);
     }
   };
 
-  const handleCancelWebsiteMaintenance = async () => {
+  const handleCancelWebsiteMaintenance = () => {
     if (!activeWebsiteMaintenanceSubscription) return;
-    const confirmed = window.confirm(
-      "Cancel the current website maintenance subscription?",
-    );
-    if (!confirmed) return;
+    setCancelTarget("website-maintenance");
+  };
 
+  const cancelWebsiteMaintenance = async () => {
+    if (!activeWebsiteMaintenanceSubscription) return;
     try {
       setIsCancellingWebsiteMaintenance(true);
       await cancelWebsiteMaintenanceSubscription(apiRequest, {
@@ -694,8 +699,53 @@ export function DashboardPackagesPage() {
       });
     } finally {
       setIsCancellingWebsiteMaintenance(false);
+      setCancelTarget(null);
     }
   };
+
+  const confirmCancellation = async () => {
+    if (cancelTarget === "package") {
+      await cancelPackage();
+      return;
+    }
+    if (cancelTarget === "meta-ads") {
+      await cancelMetaAds();
+      return;
+    }
+    if (cancelTarget === "website-maintenance") {
+      await cancelWebsiteMaintenance();
+    }
+  };
+
+  const isCancellingAny =
+    isCancelling || isCancellingMetaAds || isCancellingWebsiteMaintenance;
+  const cancelConfirmation = cancelTarget
+    ? {
+        package: {
+          title: "Cancel common package?",
+          description:
+            "Included dashboards will move back to their free plans. You can subscribe to a new package later after cancellation completes.",
+          name: activePackage?.packageName || "Current package",
+          confirmLabel: "Cancel Package",
+        },
+        "meta-ads": {
+          title: "Cancel Meta Ads plan?",
+          description:
+            "This stops the active Meta Ads budget subscription. Automation packages and service subscriptions will not be changed.",
+          name: activeMetaAdsSubscription?.planName || "Meta Ads plan",
+          confirmLabel: "Cancel Ads Plan",
+        },
+        "website-maintenance": {
+          title: "Cancel website maintenance?",
+          description:
+            "This stops the active website maintenance subscription. Other subscriptions will not be changed.",
+          name:
+            activeWebsiteMaintenanceSubscription?.planName ||
+            "Website maintenance",
+          confirmLabel: "Cancel Maintenance",
+        },
+      }[cancelTarget]
+    : null;
 
   if (isLoading) {
     return (
@@ -1398,6 +1448,91 @@ export function DashboardPackagesPage() {
               ) : null}
             </aside>
           </section>
+          </div>
+        ) : null}
+
+        {cancelConfirmation ? (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center px-4 py-6">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <section
+              role="dialog"
+              aria-modal="true"
+              aria-label={cancelConfirmation.title}
+              className={`relative z-10 w-full max-w-lg rounded-2xl border p-5 shadow-2xl ${
+                isDark
+                  ? "border-white/[0.08] bg-[#0F0F11]"
+                  : "border-gray-200 bg-white"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div
+                    className={`mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold ${
+                      isDark
+                        ? "border-red-400/20 bg-red-400/10 text-red-300"
+                        : "border-red-200 bg-red-50 text-red-600"
+                    }`}
+                  >
+                    <CircleAlert className="h-3.5 w-3.5" />
+                    Confirmation required
+                  </div>
+                  <h2 className={`text-2xl font-black ${styles.text.primary}`}>
+                    {cancelConfirmation.title}
+                  </h2>
+                  <p className={`mt-2 text-sm ${styles.text.secondary}`}>
+                    {cancelConfirmation.description}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCancelTarget(null)}
+                  disabled={isCancellingAny}
+                  className="h-10 w-10 flex-shrink-0 rounded-xl p-0"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div
+                className={`mt-5 rounded-xl border p-4 ${
+                  isDark
+                    ? "border-white/[0.08] bg-black/20"
+                    : "border-gray-200 bg-gray-50"
+                }`}
+              >
+                <p className={`text-xs font-bold uppercase ${styles.text.muted}`}>
+                  Subscription
+                </p>
+                <p className={`mt-1 font-black ${styles.text.primary}`}>
+                  {cancelConfirmation.name}
+                </p>
+              </div>
+
+              <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setCancelTarget(null)}
+                  disabled={isCancellingAny}
+                  className="rounded-xl"
+                >
+                  Keep Subscription
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={confirmCancellation}
+                  disabled={isCancellingAny}
+                  className="rounded-xl"
+                >
+                  {isCancellingAny ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  {cancelConfirmation.confirmLabel}
+                </Button>
+              </div>
+            </section>
           </div>
         ) : null}
       </main>

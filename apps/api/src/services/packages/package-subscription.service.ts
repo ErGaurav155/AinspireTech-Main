@@ -18,6 +18,7 @@ import WebSubscription from "@/models/web/Websubcription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import { initializeSubscriptionTokens } from "@/services/token.service";
 import { getPlanById } from "@/services/whatsapp/whatsapp.service";
+import { syncCallWorkspaceFromSubscription } from "@/services/billing/paid-subscription.service";
 
 export interface DashboardPackagePlan {
   id: DashboardPackageId;
@@ -80,7 +81,7 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
     amountInr: 10000,
     billingCycle: "monthly",
     includedServices: ["insta", "web", "whatsapp"],
-    setupServices: ["insta", "web", "whatsapp"],
+    setupServices: ["insta", "web"],
     features: [
       "Everything in Starter Automation",
       "WhatsApp automation",
@@ -112,7 +113,7 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
     amountInr: 15000,
     billingCycle: "monthly",
     includedServices: ["insta", "web", "whatsapp", "call"],
-    setupServices: ["insta", "web", "whatsapp", "call"],
+    setupServices: ["insta", "web", "call"],
     features: [
       "Instagram chatbot automation",
       "Website lead chatbot",
@@ -207,8 +208,6 @@ const nextBillingDate = (expiresAt?: Date) =>
 const isWhatsAppWorkspaceReady = (workspace: any) =>
   Boolean(
     workspace?.meta?.businessManagerId &&
-      workspace?.meta?.appId &&
-      workspace?.meta?.appSecret &&
       workspace?.meta?.wabaId &&
       workspace?.meta?.phoneNumberId &&
       workspace?.meta?.displayPhoneNumber &&
@@ -415,11 +414,11 @@ export async function buildDashboardPackageStatus(clerkId: string) {
       ready: isWhatsAppWorkspaceReady(whatsappWorkspace),
       setupUrl: "/whatsapp/settings",
       successText: isWhatsAppWorkspaceReady(whatsappWorkspace)
-        ? "WhatsApp Meta setup is connected"
-        : "WhatsApp Meta setup connected",
-      missingTitle: "Complete WhatsApp setup",
+        ? "WhatsApp Business is connected"
+        : "WhatsApp Business connection ready",
+      missingTitle: "Connect WhatsApp Business",
       missingDescription:
-        "Connect Meta app, WABA ID, phone number ID, business display number, and access token before package payment.",
+        "Use Facebook Business / Embedded Signup to connect a WhatsApp Business number after checkout.",
     },
     {
       key: "call",
@@ -685,6 +684,8 @@ export async function activateDashboardPackageSubscription({
     subscriptionId,
     packagePlan: plan,
     expiresAt,
+    razorpayPaymentId,
+    offerId,
   });
 
   return packageSubscription;
@@ -695,11 +696,15 @@ async function grantPackageServices({
   subscriptionId,
   packagePlan,
   expiresAt,
+  razorpayPaymentId,
+  offerId,
 }: {
   clerkId: string;
   subscriptionId: string;
   packagePlan: DashboardPackagePlan;
   expiresAt: Date;
+  razorpayPaymentId?: string;
+  offerId?: string;
 }) {
   const grantExpiry = nextBillingDate(expiresAt);
   const tasks: Promise<unknown>[] = [];
@@ -771,7 +776,7 @@ async function grantPackageServices({
           },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },
-      ),
+      ).then((subscription) => syncCallWorkspaceFromSubscription(subscription)),
     );
   }
 
@@ -790,6 +795,13 @@ async function grantPackageServices({
             "subscription.seatsLimit": whatsappPlan.seatsLimit,
             "subscription.agentsLimit": whatsappPlan.agentsLimit,
             "subscription.nextBillingDate": grantExpiry,
+            "subscription.subscriptionId": packageGrantId(
+              subscriptionId,
+              "whatsapp",
+            ),
+            "subscription.razorpayPaymentId": razorpayPaymentId || "",
+            "subscription.offerId": offerId || "",
+            "subscription.activatedAt": new Date(),
           },
         },
         { new: true },
@@ -846,6 +858,12 @@ export async function cancelDashboardPackageLocally({
           "subscription.numbersLimit": freeWhatsAppPlan.numbersLimit,
           "subscription.seatsLimit": freeWhatsAppPlan.seatsLimit,
           "subscription.agentsLimit": freeWhatsAppPlan.agentsLimit,
+        },
+        $unset: {
+          "subscription.subscriptionId": "",
+          "subscription.razorpayPaymentId": "",
+          "subscription.offerId": "",
+          "subscription.activatedAt": "",
         },
       },
     ),

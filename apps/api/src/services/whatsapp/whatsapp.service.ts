@@ -10,6 +10,7 @@ export const whatsappPlans = [
     name: "WhatsApp Free",
     priceInr: 0,
     yearlyInr: 0,
+    firstMonthInr: 0,
     messageLimit: 10,
     numbersLimit: 1,
     seatsLimit: 1,
@@ -24,8 +25,9 @@ export const whatsappPlans = [
   {
     id: "launch",
     name: "WhatsApp Automation",
-    priceInr: 1999,
-    yearlyInr: 19990,
+    priceInr: 2999,
+    yearlyInr: 29990,
+    firstMonthInr: 1499,
     messageLimit: 10000,
     numbersLimit: 1,
     seatsLimit: 1,
@@ -43,6 +45,7 @@ export const whatsappPlans = [
     name: "Package WhatsApp Automation",
     priceInr: 0,
     yearlyInr: 0,
+    firstMonthInr: 0,
     messageLimit: 10000,
     numbersLimit: 1,
     seatsLimit: 1,
@@ -96,6 +99,10 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
   workspace = await WhatsAppWorkspace.create({
     clerkId,
     isConfigured: false,
+    onboarding: {
+      status: "not_started",
+      mode: "embedded_signup",
+    },
     organization: {
       name: "My Business",
       industry: "Services",

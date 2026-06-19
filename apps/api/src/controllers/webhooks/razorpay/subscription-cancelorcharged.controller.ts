@@ -6,6 +6,7 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
 import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import ReplyLog from "@/models/insta/ReplyLog.model";
@@ -15,6 +16,7 @@ import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import AffiReferral from "@/models/affiliate/Referral";
 import Affiliate from "@/models/affiliate/Affiliate";
 import { getCurrentWindow } from "@/services/rate-limit.service";
+import { downgradeWhatsAppSubscriptionToFree } from "@/services/billing/paid-subscription.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -179,6 +181,12 @@ async function handleReferralCancellation(
     }
 
     if (!subscription) {
+      subscription = await WhatsAppWorkspace.findOne({
+        "subscription.subscriptionId": subscriptionId,
+      });
+    }
+
+    if (!subscription) {
       return;
     }
 
@@ -281,7 +289,17 @@ async function handleSubscriptionEnded(subscriptionId: string) {
           },
         );
       } else {
-        console.warn(`Subscription ${subscriptionId} not found in any model`);
+        const whatsAppUpdated = await downgradeWhatsAppSubscriptionToFree(
+          subscriptionId,
+        );
+        if (whatsAppUpdated) {
+          await handleReferralCancellation(
+            subscriptionId,
+            whatsAppUpdated.clerkId,
+          );
+        } else {
+          console.warn(`Subscription ${subscriptionId} not found in any model`);
+        }
       }
     }
   }

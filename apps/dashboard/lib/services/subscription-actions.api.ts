@@ -24,13 +24,14 @@ export const createRazorpaySubscription = (
       subscriptionType:
         | "web"
         | "insta"
+        | "whatsapp"
         | "call"
         | "package"
         | "meta-ads"
         | "website-maintenance";
       billingCycle: "monthly" | "yearly" | "one-time";
       previousSubscriptionId?: string;
-      previousSubscriptionType?: "web" | "insta" | "call" | "package";
+      previousSubscriptionType?: "web" | "insta" | "whatsapp" | "call" | "package";
       email?: string;
       packageId?: string;
       packageName?: string;

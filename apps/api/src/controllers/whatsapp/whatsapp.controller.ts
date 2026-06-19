@@ -59,8 +59,231 @@ const getMissingWhatsAppSetupFields = (workspace: any) => {
   return missing;
 };
 
+const metaAppId =
+  process.env.WHATSAPP_META_APP_ID ||
+  process.env.META_APP_ID ||
+  process.env.FACEBOOK_APP_ID ||
+  "";
+const metaAppSecret =
+  process.env.WHATSAPP_META_APP_SECRET ||
+  process.env.WHATSAPP_APP_SECRET ||
+  process.env.META_APP_SECRET ||
+  process.env.FACEBOOK_APP_SECRET ||
+  "";
+const metaGraphApiVersion =
+  process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
+
+const cleanString = (value: unknown) =>
+  typeof value === "string" ? value.trim() : "";
+
+const graphFetch = async (path: string, accessToken: string) => {
+  const url = new URL(`https://graph.facebook.com/${metaGraphApiVersion}${path}`);
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Meta Graph API request failed");
+  }
+  return data;
+};
+
+const exchangeFacebookLoginCode = async (code: string) => {
+  if (!metaAppSecret) {
+    throw new Error("Meta app secret is required to exchange Facebook login code");
+  }
+
+  const url = new URL(
+    `https://graph.facebook.com/${metaGraphApiVersion}/oauth/access_token`,
+  );
+  url.searchParams.set("client_id", metaAppId);
+  url.searchParams.set("client_secret", metaAppSecret);
+  url.searchParams.set("code", code);
+  if (process.env.WHATSAPP_OAUTH_REDIRECT_URI) {
+    url.searchParams.set(
+      "redirect_uri",
+      process.env.WHATSAPP_OAUTH_REDIRECT_URI,
+    );
+  }
+
+  const response = await fetch(url);
+  const data = await response.json();
+  if (!response.ok || !data?.access_token) {
+    throw new Error(data?.error?.message || "Could not exchange Facebook login code");
+  }
+
+  return data.access_token as string;
+};
+
 export const getWhatsAppPlansController = async (_req: Request, res: Response) =>
   ok(res, { plans: whatsappPlans });
+
+export const getWhatsAppFacebookConfigController = async (
+  _req: Request,
+  res: Response,
+) =>
+  ok(res, {
+    appId: metaAppId,
+    graphApiVersion: metaGraphApiVersion,
+    embeddedSignupConfigId:
+      process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "",
+    integrationType: "tech_provider",
+    webhookCallbackUrl: `${process.env.PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || ""}/api/webhooks/whatsapp`,
+  });
+
+export const connectWhatsAppFacebookController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    const { authResponse, setup } = req.body || {};
+    let accessToken = cleanString(authResponse?.accessToken);
+    const loginCode = cleanString(authResponse?.code);
+    const facebookUserId = cleanString(authResponse?.userID);
+
+    if (!metaAppId) {
+      return res.status(500).json({
+        success: false,
+        error: "Meta app id is not configured on the server",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!accessToken && loginCode) {
+      accessToken = await exchangeFacebookLoginCode(loginCode);
+    }
+
+    if (!accessToken) {
+      return res.status(400).json({
+        success: false,
+        error: "Facebook access token or login code is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    let facebookProfile: any = null;
+    if (metaAppSecret) {
+      const debugUrl = new URL(
+        `https://graph.facebook.com/${metaGraphApiVersion}/debug_token`,
+      );
+      debugUrl.searchParams.set("input_token", accessToken);
+      debugUrl.searchParams.set("access_token", `${metaAppId}|${metaAppSecret}`);
+      const debugResponse = await fetch(debugUrl);
+      const debugData = await debugResponse.json();
+      if (!debugResponse.ok || !debugData?.data?.is_valid) {
+        return res.status(401).json({
+          success: false,
+          error:
+            debugData?.error?.message ||
+            "Facebook login token could not be verified",
+          timestamp: new Date().toISOString(),
+        });
+      }
+      if (debugData.data.app_id && debugData.data.app_id !== metaAppId) {
+        return res.status(401).json({
+          success: false,
+          error: "Facebook token belongs to a different Meta app",
+          timestamp: new Date().toISOString(),
+        });
+      }
+    }
+
+    try {
+      facebookProfile = await graphFetch(
+        "/me?fields=id,name,picture",
+        accessToken,
+      );
+    } catch (error) {
+      console.warn("Unable to fetch Facebook profile during WhatsApp connect", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    const businessId =
+      cleanString(setup?.businessId) || cleanString(setup?.businessManagerId);
+    const wabaId = cleanString(setup?.wabaId);
+    const phoneNumberId = cleanString(setup?.phoneNumberId);
+    const displayPhoneNumber = cleanString(setup?.displayPhoneNumber);
+    const requestedPhoneNumber = cleanString(setup?.requestedPhoneNumber);
+    const connected = Boolean(wabaId && phoneNumberId && accessToken);
+
+    workspace.organization = {
+      ...workspace.organization,
+      name:
+        cleanString(setup?.businessDisplayName) ||
+        cleanString(setup?.organizationName) ||
+        workspace.organization?.name ||
+        "My Business",
+      industry:
+        cleanString(setup?.businessCategory) ||
+        workspace.organization?.industry ||
+        "Services",
+      website:
+        cleanString(setup?.businessWebsite) ||
+        workspace.organization?.website ||
+        "",
+      timeZone: workspace.organization?.timeZone || "Asia/Kolkata",
+    };
+
+    workspace.onboarding = {
+      ...workspace.onboarding,
+      status: connected ? "connected" : "facebook_connected",
+      mode: "embedded_signup",
+      facebookUserId: facebookProfile?.id || facebookUserId,
+      facebookName: facebookProfile?.name || "",
+      businessId,
+      phoneSource:
+        setup?.phoneSource === "meta_free_number"
+          ? "meta_free_number"
+          : "official_number",
+      requestedPhoneNumber,
+      businessDisplayName:
+        cleanString(setup?.businessDisplayName) || workspace.organization.name,
+      businessWebsite:
+        cleanString(setup?.businessWebsite) || workspace.organization.website,
+      businessCategory:
+        cleanString(setup?.businessCategory) || workspace.organization.industry,
+      lastError: "",
+      connectedAt: connected ? new Date() : workspace.onboarding?.connectedAt,
+    } as any;
+
+    workspace.meta = {
+      ...workspace.meta,
+      businessManagerId: businessId || workspace.meta?.businessManagerId || "",
+      wabaId: wabaId || workspace.meta?.wabaId || "",
+      phoneNumberId: phoneNumberId || workspace.meta?.phoneNumberId || "",
+      displayPhoneNumber:
+        displayPhoneNumber ||
+        requestedPhoneNumber ||
+        workspace.meta?.displayPhoneNumber ||
+        "",
+      appId: metaAppId,
+      graphApiVersion: metaGraphApiVersion,
+      accessToken,
+    } as any;
+
+    workspace.isConfigured = resolveWorkspaceConfigured(workspace);
+    workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
+    if (workspace.isConfigured) workspace.meta.lastVerifiedAt = new Date();
+    await workspace.save();
+
+    return ok(res, {
+      workspace: sanitizeWorkspace(workspace),
+      onboarding: workspace.onboarding,
+    });
+  } catch (error: any) {
+    console.error("WhatsApp Facebook connect error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to connect Facebook Business",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
 
 export const getWhatsAppDashboardController = async (
   req: Request,
@@ -170,13 +393,13 @@ export const updateWhatsAppWorkspaceController = async (
       };
     }
 
-    if (meta) {
-      workspace.meta = {
-        ...workspace.meta,
-        ...Object.fromEntries(
-          Object.entries(meta).filter(([, value]) => value !== undefined),
-        ),
-      } as any;
+    if (meta && Object.keys(meta).length > 0) {
+      return res.status(403).json({
+        success: false,
+        error:
+          "Manual Meta credential editing is disabled. Use Facebook Business connect.",
+        timestamp: new Date().toISOString(),
+      });
     }
 
     if (subscription?.plan) {

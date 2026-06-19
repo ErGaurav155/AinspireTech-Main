@@ -7,6 +7,7 @@ import Affiliate from "@/models/affiliate/Affiliate";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 
 export const processCommissionsController = async (
   req: Request,
@@ -41,6 +42,9 @@ export const processCommissionsController = async (
         } else if (referral.subscriptionModel === "CallSubscription") {
           const sub = await CallSubscription.findById(referral.subscriptionId);
           if (sub && sub.status === "active") subscriptionActive = true;
+        } else if (referral.subscriptionModel === "WhatsAppWorkspace") {
+          const sub = await WhatsAppWorkspace.findById(referral.subscriptionId);
+          if (sub?.subscription?.status === "active") subscriptionActive = true;
         }
 
         if (!subscriptionActive) {
@@ -98,7 +102,9 @@ export const processCommissionsController = async (
               ? referral.chatbotType || "Web Chatbot"
               : referral.productType === "call-assistant"
                 ? referral.chatbotType || "AI Call Assistant"
-                : referral.instaPlan || "Instagram Automation",
+                : referral.productType === "whatsapp-automation"
+                  ? referral.chatbotType || "WhatsApp Automation"
+                  : referral.instaPlan || "Instagram Automation",
           subscriptionType: referral.subscriptionType,
           status: "pending",
         });

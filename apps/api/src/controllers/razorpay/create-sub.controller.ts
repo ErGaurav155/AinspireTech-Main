@@ -21,6 +21,10 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
     "chatbot-lead-generation": "offer_Swg8earHCXfe9f",
     "chatbot-education": "offer_Swg8earHCXfe9f",
   },
+  whatsapp: {
+    "whatsapp-launch": "offer_T3WZjvSEGwtewO",
+    launch: "offer_T3WZjvSEGwtewO",
+  },
   package: {
     "package-starter": "offer_T2lwDeumrH9CrM",
     "package-whatsapp": "offer_T2lyhifS6agMei",
@@ -49,6 +53,14 @@ const getMonthlyFirstCycleOfferId = (
     return MONTHLY_FIRST_CYCLE_OFFER_IDS.web[
       productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.web
     ];
+  }
+
+  if (subscriptionType === "whatsapp") {
+    return (
+      MONTHLY_FIRST_CYCLE_OFFER_IDS.whatsapp[
+        productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.whatsapp
+      ] || undefined
+    );
   }
 
   if (subscriptionType === "package") {
@@ -274,6 +286,48 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active website maintenance subscription before choosing another one.",
           data: { activeWebsiteMaintenanceSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "whatsapp") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error: "WhatsApp subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!["whatsapp-launch", "launch"].includes(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid WhatsApp automation plan",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activePackage = await getActivePackageSubscription(buyerId);
+      if (activePackage) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active common package before buying a standalone WhatsApp plan.",
+          data: { activePackage },
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activeWhatsAppWorkspace = await WhatsAppWorkspace.findOne({
+        clerkId: buyerId,
+        "subscription.plan": "launch",
+        "subscription.status": "active",
+      }).lean();
+      if (activeWhatsAppWorkspace) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active WhatsApp subscription before choosing another WhatsApp plan.",
           timestamp: new Date().toISOString(),
         });
       }

@@ -7,7 +7,11 @@ export interface ICommissionRecord extends Document {
   referredUserId: string;
   amount: number;
   period: string;
-  productType: "web-chatbot" | "insta-automation" | "call-assistant";
+  productType:
+    | "web-chatbot"
+    | "insta-automation"
+    | "call-assistant"
+    | "whatsapp-automation";
   productName: string;
   subscriptionType: "monthly" | "yearly";
   status: "pending" | "paid";
@@ -44,7 +48,12 @@ const CommissionRecordSchema = new Schema(
     // Product details
     productType: {
       type: String,
-      enum: ["web-chatbot", "insta-automation", "call-assistant"],
+      enum: [
+        "web-chatbot",
+        "insta-automation",
+        "call-assistant",
+        "whatsapp-automation",
+      ],
       required: true,
     },
     productName: {
