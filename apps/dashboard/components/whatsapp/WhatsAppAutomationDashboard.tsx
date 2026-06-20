@@ -1963,6 +1963,16 @@ function SettingsView({
       facebookConfig?.webhookCallbackUrl || "Set PUBLIC_API_URL on API server",
     ],
   ];
+  const hasWhatsAppAccountData = Boolean(
+    workspace?.isConfigured ||
+      workspace?.onboarding?.facebookUserId ||
+      workspace?.onboarding?.businessId ||
+      workspace?.meta?.businessManagerId ||
+      workspace?.meta?.wabaId ||
+      workspace?.meta?.phoneNumberId ||
+      workspace?.meta?.displayPhoneNumber ||
+      workspace?.meta?.accessToken,
+  );
 
   return (
     <>
@@ -2135,22 +2145,26 @@ function SettingsView({
             </div>
           ))}
         </div>
-        <div className="mt-6 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
-          <h3 className="font-black text-red-500">Delete WhatsApp Account Data</h3>
-          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/55">
-            Remove the connected Meta account details, WhatsApp contacts,
-            conversations, appointments, campaigns, templates, and automation
-            agents stored for this WhatsApp dashboard.
-          </p>
-          <Button
-            type="button"
-            disabled={isDeleting}
-            onClick={() => setIsDeleteDialogOpen(true)}
-            className="mt-4 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-70"
-          >
-            {isDeleting ? "Deleting..." : "Delete WhatsApp Data"}
-          </Button>
-        </div>
+        {hasWhatsAppAccountData && (
+          <div className="mt-6 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
+            <h3 className="font-black text-red-500">
+              Delete WhatsApp Account Data
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/55">
+              Remove the connected Meta account details, WhatsApp contacts,
+              conversations, appointments, campaigns, templates, and automation
+              agents stored for this WhatsApp dashboard.
+            </p>
+            <Button
+              type="button"
+              disabled={isDeleting}
+              onClick={() => setIsDeleteDialogOpen(true)}
+              className="mt-4 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-70"
+            >
+              {isDeleting ? "Deleting..." : "Delete WhatsApp Data"}
+            </Button>
+          </div>
+        )}
       </section>
     </div>
     <ConfirmDialog
