@@ -22,7 +22,7 @@ export default function WhatsAppBottomNavbar() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-white/[0.08] bg-[#101114]/95 px-1 py-2 backdrop-blur-xl md:hidden">
+    <nav className="fixed inset-x-0 bottom-0 z-[45] border-t border-white/[0.08] bg-[#101114]/95 px-1 py-2 backdrop-blur-xl md:hidden">
       <div className="grid grid-cols-5">
         {ITEMS.map((item) => {
           const active =

@@ -93,6 +93,289 @@ const graphFetch = async (path: string, accessToken: string) => {
   return data;
 };
 
+const normalizeQualityRating = (value: unknown) => {
+  const rating = cleanString(value).toLowerCase();
+  if (["low", "medium", "high"].includes(rating)) return rating;
+  return "unknown";
+};
+
+const fetchFirstWabaPhoneNumber = async (
+  wabaId: string,
+  accessToken: string,
+) => {
+  try {
+    const phoneNumbers = await graphFetch(
+      `/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name,quality_rating`,
+      accessToken,
+    );
+    const phone = phoneNumbers?.data?.[0] || {};
+    return {
+      phoneNumberId: cleanString(phone.id),
+      displayPhoneNumber:
+        cleanString(phone.display_phone_number) ||
+        cleanString(phone.verified_name),
+      qualityRating: normalizeQualityRating(phone.quality_rating),
+    };
+  } catch (error) {
+    console.warn("[whatsapp:connect] Could not fetch WABA phone numbers", {
+      wabaId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      phoneNumberId: "",
+      displayPhoneNumber: "",
+      qualityRating: "unknown",
+    };
+  }
+};
+
+const fetchConnectionFromBusiness = async (
+  businessId: string,
+  accessToken: string,
+) => {
+  const edges = [
+    "owned_whatsapp_business_accounts",
+    "client_whatsapp_business_accounts",
+  ];
+
+  for (const edge of edges) {
+    try {
+      const accounts = await graphFetch(
+        `/${businessId}/${edge}?fields=id,name,account_review_status`,
+        accessToken,
+      );
+      for (const account of accounts?.data || []) {
+        const wabaId = cleanString(account.id);
+        if (!wabaId) continue;
+        const phone = await fetchFirstWabaPhoneNumber(wabaId, accessToken);
+        return {
+          businessId,
+          wabaId,
+          ...phone,
+        };
+      }
+    } catch (error) {
+      console.warn("[whatsapp:connect] Could not fetch WABA edge", {
+        businessId,
+        edge,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  return {
+    businessId,
+    wabaId: "",
+    phoneNumberId: "",
+    displayPhoneNumber: "",
+    qualityRating: "unknown",
+  };
+};
+
+const resolveMetaWhatsAppConnection = async ({
+  accessToken,
+  setup,
+  debugData,
+}: {
+  accessToken: string;
+  setup: any;
+  debugData: any;
+}) => {
+  const seeded = {
+    businessId:
+      cleanString(setup?.businessId) || cleanString(setup?.businessManagerId),
+    wabaId: cleanString(setup?.wabaId),
+    phoneNumberId: cleanString(setup?.phoneNumberId),
+    displayPhoneNumber: cleanString(setup?.displayPhoneNumber),
+    qualityRating: "unknown",
+  };
+
+  if (seeded.wabaId && !seeded.phoneNumberId) {
+    const phone = await fetchFirstWabaPhoneNumber(seeded.wabaId, accessToken);
+    seeded.phoneNumberId = phone.phoneNumberId;
+    seeded.displayPhoneNumber =
+      seeded.displayPhoneNumber || phone.displayPhoneNumber;
+    seeded.qualityRating = phone.qualityRating;
+  }
+
+  if (seeded.wabaId && seeded.phoneNumberId) return seeded;
+
+  const targetIds = Array.from(
+    new Set<string>(
+      ((debugData?.data?.granular_scopes || []) as any[])
+        .flatMap((scope: any) =>
+          Array.isArray(scope?.target_ids) ? scope.target_ids : [],
+        )
+        .map((targetId: unknown) => cleanString(targetId))
+        .filter(Boolean),
+    ),
+  );
+
+  for (const targetId of targetIds) {
+    const phone = await fetchFirstWabaPhoneNumber(targetId, accessToken);
+    if (phone.phoneNumberId) {
+      return {
+        ...seeded,
+        wabaId: seeded.wabaId || targetId,
+        phoneNumberId: phone.phoneNumberId,
+        displayPhoneNumber:
+          seeded.displayPhoneNumber || phone.displayPhoneNumber,
+        qualityRating: phone.qualityRating,
+      };
+    }
+
+    const businessConnection = await fetchConnectionFromBusiness(
+      targetId,
+      accessToken,
+    );
+    if (businessConnection.wabaId || businessConnection.phoneNumberId) {
+      return {
+        ...seeded,
+        ...businessConnection,
+        businessId: seeded.businessId || businessConnection.businessId,
+        displayPhoneNumber:
+          seeded.displayPhoneNumber || businessConnection.displayPhoneNumber,
+      };
+    }
+  }
+
+  if (seeded.businessId) {
+    const businessConnection = await fetchConnectionFromBusiness(
+      seeded.businessId,
+      accessToken,
+    );
+    if (businessConnection.wabaId || businessConnection.phoneNumberId) {
+      return {
+        ...seeded,
+        ...businessConnection,
+        displayPhoneNumber:
+          seeded.displayPhoneNumber || businessConnection.displayPhoneNumber,
+      };
+    }
+  }
+
+  try {
+    const businesses = await graphFetch("/me/businesses?fields=id,name", accessToken);
+    for (const business of businesses?.data || []) {
+      const businessId = cleanString(business.id);
+      if (!businessId) continue;
+      const businessConnection = await fetchConnectionFromBusiness(
+        businessId,
+        accessToken,
+      );
+      if (businessConnection.wabaId || businessConnection.phoneNumberId) {
+        return {
+          ...seeded,
+          ...businessConnection,
+          businessId: seeded.businessId || businessConnection.businessId,
+          displayPhoneNumber:
+            seeded.displayPhoneNumber || businessConnection.displayPhoneNumber,
+        };
+      }
+    }
+  } catch (error) {
+    console.warn("[whatsapp:connect] Could not list user businesses", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  return seeded;
+};
+
+const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
+  if (!wabaId) return;
+
+  const url = new URL(
+    `https://graph.facebook.com/${metaGraphApiVersion}/${wabaId}/subscribed_apps`,
+  );
+  url.searchParams.set("access_token", accessToken);
+  const response = await fetch(url, { method: "POST" });
+  const data: any = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    console.warn("[whatsapp:connect] Could not subscribe app to WABA", {
+      wabaId,
+      error: data?.error?.message || response.statusText,
+    });
+    return;
+  }
+
+  console.info("[whatsapp:connect] App subscribed to WABA", { wabaId });
+};
+
+const syncWorkspaceMetaConnection = async (workspace: any) => {
+  const accessToken = cleanString(workspace.meta?.accessToken);
+  if (!accessToken || (workspace.meta?.wabaId && workspace.meta?.phoneNumberId)) {
+    return false;
+  }
+
+  const resolvedConnection = await resolveMetaWhatsAppConnection({
+    accessToken,
+    setup: {
+      businessId:
+        workspace.onboarding?.businessId || workspace.meta?.businessManagerId,
+      wabaId: workspace.meta?.wabaId,
+      phoneNumberId: workspace.meta?.phoneNumberId,
+      displayPhoneNumber: workspace.meta?.displayPhoneNumber,
+      requestedPhoneNumber:
+        workspace.onboarding?.requestedPhoneNumber ||
+        workspace.meta?.displayPhoneNumber,
+    },
+    debugData: null,
+  });
+
+  if (!resolvedConnection.wabaId && !resolvedConnection.phoneNumberId) {
+    return false;
+  }
+
+  workspace.onboarding = {
+    ...workspace.onboarding,
+    businessId:
+      workspace.onboarding?.businessId || resolvedConnection.businessId || "",
+  };
+
+  workspace.meta = {
+    ...workspace.meta,
+    businessManagerId:
+      workspace.meta?.businessManagerId || resolvedConnection.businessId || "",
+    wabaId: workspace.meta?.wabaId || resolvedConnection.wabaId || "",
+    phoneNumberId:
+      workspace.meta?.phoneNumberId || resolvedConnection.phoneNumberId || "",
+    displayPhoneNumber:
+      workspace.meta?.displayPhoneNumber ||
+      resolvedConnection.displayPhoneNumber ||
+      "",
+    qualityRating:
+      (resolvedConnection.qualityRating as any) ||
+      workspace.meta?.qualityRating ||
+      "unknown",
+  };
+
+  workspace.isConfigured = resolveWorkspaceConfigured(workspace);
+  workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
+  workspace.onboarding.status = workspace.isConfigured
+    ? "connected"
+    : workspace.onboarding?.status || "facebook_connected";
+  if (workspace.isConfigured) {
+    workspace.meta.lastVerifiedAt = new Date();
+    workspace.onboarding.connectedAt =
+      workspace.onboarding.connectedAt || new Date();
+  }
+
+  if (resolvedConnection.wabaId) {
+    await subscribeAppToWaba(resolvedConnection.wabaId, accessToken);
+  }
+
+  console.info("[whatsapp:connect] Workspace Meta connection synced", {
+    workspaceId: String(workspace._id),
+    wabaId: workspace.meta.wabaId || null,
+    phoneNumberId: workspace.meta.phoneNumberId || null,
+    isConfigured: workspace.isConfigured,
+  });
+
+  return true;
+};
+
 const exchangeFacebookLoginCode = async (
   code: string,
   redirectUri = whatsappOAuthRedirectUri,
@@ -190,6 +473,7 @@ export const connectWhatsAppFacebookController = async (
     }
 
     let facebookProfile: any = null;
+    let debugData: any = null;
     if (metaAppSecret) {
       const debugUrl = new URL(
         `https://graph.facebook.com/${metaGraphApiVersion}/debug_token`,
@@ -197,7 +481,7 @@ export const connectWhatsAppFacebookController = async (
       debugUrl.searchParams.set("input_token", accessToken);
       debugUrl.searchParams.set("access_token", `${metaAppId}|${metaAppSecret}`);
       const debugResponse = await fetch(debugUrl);
-      const debugData = await debugResponse.json();
+      debugData = await debugResponse.json();
       if (!debugResponse.ok || !debugData?.data?.is_valid) {
         return res.status(401).json({
           success: false,
@@ -229,13 +513,29 @@ export const connectWhatsAppFacebookController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
-    const businessId =
-      cleanString(setup?.businessId) || cleanString(setup?.businessManagerId);
-    const wabaId = cleanString(setup?.wabaId);
-    const phoneNumberId = cleanString(setup?.phoneNumberId);
-    const displayPhoneNumber = cleanString(setup?.displayPhoneNumber);
+    const resolvedConnection = await resolveMetaWhatsAppConnection({
+      accessToken,
+      setup,
+      debugData,
+    });
+    const businessId = resolvedConnection.businessId;
+    const wabaId = resolvedConnection.wabaId;
+    const phoneNumberId = resolvedConnection.phoneNumberId;
+    const displayPhoneNumber = resolvedConnection.displayPhoneNumber;
     const requestedPhoneNumber = cleanString(setup?.requestedPhoneNumber);
     const connected = Boolean(wabaId && phoneNumberId && accessToken);
+
+    console.info("[whatsapp:connect] Meta connection details resolved", {
+      businessId: businessId || null,
+      wabaId: wabaId || null,
+      phoneNumberId: phoneNumberId || null,
+      hasAccessToken: Boolean(accessToken),
+      connected,
+    });
+
+    if (wabaId) {
+      await subscribeAppToWaba(wabaId, accessToken);
+    }
 
     workspace.organization = {
       ...workspace.organization,
@@ -290,6 +590,10 @@ export const connectWhatsAppFacebookController = async (
       appId: metaAppId,
       graphApiVersion: metaGraphApiVersion,
       accessToken,
+      qualityRating:
+        (resolvedConnection.qualityRating as any) ||
+        workspace.meta?.qualityRating ||
+        "unknown",
     } as any;
 
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
@@ -321,6 +625,7 @@ export const getWhatsAppDashboardController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    await syncWorkspaceMetaConnection(workspace);
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     await workspace.save();

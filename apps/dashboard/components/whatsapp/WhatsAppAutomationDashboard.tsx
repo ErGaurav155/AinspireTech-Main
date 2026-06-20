@@ -1489,8 +1489,6 @@ function SettingsView({
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      if (!event.origin.includes("facebook.com")) return;
-
       let payload: any = event.data;
       if (typeof event.data === "string") {
         try {
@@ -1499,6 +1497,35 @@ function SettingsView({
           return;
         }
       }
+
+      if (event.origin === window.location.origin) {
+        if (payload?.type === "rocket-whatsapp-signup:complete") {
+          setIsConnecting(false);
+          toast({
+            title: payload?.isConfigured
+              ? "WhatsApp connected"
+              : "Meta signup saved",
+            description: payload?.isConfigured
+              ? "Your WhatsApp Business account is ready for automation."
+              : "Meta login was completed. If WABA or phone IDs are still pending, finish the remaining Meta onboarding steps.",
+          });
+          void onConnected();
+          return;
+        }
+
+        if (payload?.type === "rocket-whatsapp-signup:error") {
+          setIsConnecting(false);
+          toast({
+            title: "Meta signup callback failed",
+            description:
+              payload?.message || "Could not complete WhatsApp Embedded Signup.",
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
+      if (!event.origin.includes("facebook.com")) return;
 
       const data = payload?.data || payload;
       const wabaId = data?.waba_id || data?.wabaId;
@@ -1526,7 +1553,7 @@ function SettingsView({
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [onConnected]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1594,6 +1621,19 @@ function SettingsView({
           },
         });
 
+        const hasOpener = Boolean(window.opener && window.opener !== window);
+        if (hasOpener) {
+          window.opener.postMessage(
+            {
+              type: "rocket-whatsapp-signup:complete",
+              isConfigured: Boolean(result?.workspace?.isConfigured),
+            },
+            window.location.origin,
+          );
+          window.setTimeout(() => window.close(), 250);
+          return;
+        }
+
         toast({
           title: result?.workspace?.isConfigured
             ? "WhatsApp connected"
@@ -1605,6 +1645,20 @@ function SettingsView({
         await onConnected();
       } catch (error: any) {
         console.error("Hosted WhatsApp signup callback error:", error);
+        const hasOpener = Boolean(window.opener && window.opener !== window);
+        if (hasOpener) {
+          window.opener.postMessage(
+            {
+              type: "rocket-whatsapp-signup:error",
+              message:
+                error.message || "Could not complete WhatsApp Embedded Signup.",
+            },
+            window.location.origin,
+          );
+          window.setTimeout(() => window.close(), 500);
+          return;
+        }
+
         toast({
           title: "Meta signup callback failed",
           description:
@@ -1785,6 +1839,54 @@ function SettingsView({
       ? facebookConfig?.oauthRedirectUri || ""
       : `${window.location.origin}/whatsapp/settings`;
 
+  const openFacebookSignupPopup = useCallback((url: string) => {
+    if (typeof window === "undefined") return false;
+
+    const popupWidth = 720;
+    const popupHeight = Math.min(860, Math.max(640, window.screen.availHeight - 80));
+    const screenLeft = window.screenLeft ?? window.screenX ?? 0;
+    const screenTop = window.screenTop ?? window.screenY ?? 0;
+    const viewportWidth =
+      window.innerWidth ||
+      document.documentElement.clientWidth ||
+      window.screen.width;
+    const viewportHeight =
+      window.innerHeight ||
+      document.documentElement.clientHeight ||
+      window.screen.height;
+    const left = Math.max(0, screenLeft + (viewportWidth - popupWidth) / 2);
+    const top = Math.max(0, screenTop + (viewportHeight - popupHeight) / 2);
+    const popup = window.open(
+      url,
+      "rocket_whatsapp_embedded_signup",
+      [
+        "popup=yes",
+        `width=${popupWidth}`,
+        `height=${popupHeight}`,
+        `left=${Math.round(left)}`,
+        `top=${Math.round(top)}`,
+        "resizable=yes",
+        "scrollbars=yes",
+        "status=no",
+        "toolbar=no",
+        "menubar=no",
+        "location=yes",
+      ].join(","),
+    );
+
+    if (!popup) return false;
+
+    popup.focus();
+    const closeTimer = window.setInterval(() => {
+      if (popup.closed) {
+        window.clearInterval(closeTimer);
+        setIsConnecting(false);
+      }
+    }, 700);
+
+    return true;
+  }, []);
+
   const handleFacebookConnect = async () => {
     if (!facebookConfig?.appId) {
       toast({
@@ -1799,6 +1901,7 @@ function SettingsView({
       setIsConnecting(true);
       const directSignupUrl = buildDirectEmbeddedSignupUrl();
       if (directSignupUrl) {
+        if (openFacebookSignupPopup(directSignupUrl)) return;
         window.location.href = directSignupUrl;
         return;
       }
@@ -1809,7 +1912,9 @@ function SettingsView({
           "redirect_uri",
           getCurrentWhatsAppRedirectUri(),
         );
-        window.location.href = hostedUrl.toString();
+        const hostedSignupUrl = hostedUrl.toString();
+        if (openFacebookSignupPopup(hostedSignupUrl)) return;
+        window.location.href = hostedSignupUrl;
         return;
       }
 
