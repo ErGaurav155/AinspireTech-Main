@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   getOrCreateWhatsAppWorkspace,
   getPlanById,
@@ -72,6 +73,11 @@ const metaAppSecret =
   "";
 const metaGraphApiVersion =
   process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
+const embeddedSignupConfigId =
+  process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1621203692298909";
+const whatsappOAuthRedirectUri =
+  process.env.WHATSAPP_OAUTH_REDIRECT_URI ||
+  "https://app.rocketreplai.com/whatsapp/settings";
 
 const cleanString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -98,12 +104,7 @@ const exchangeFacebookLoginCode = async (code: string) => {
   url.searchParams.set("client_id", metaAppId);
   url.searchParams.set("client_secret", metaAppSecret);
   url.searchParams.set("code", code);
-  if (process.env.WHATSAPP_OAUTH_REDIRECT_URI) {
-    url.searchParams.set(
-      "redirect_uri",
-      process.env.WHATSAPP_OAUTH_REDIRECT_URI,
-    );
-  }
+  url.searchParams.set("redirect_uri", whatsappOAuthRedirectUri);
 
   const response = await fetch(url);
   const data = await response.json();
@@ -120,15 +121,32 @@ export const getWhatsAppPlansController = async (_req: Request, res: Response) =
 export const getWhatsAppFacebookConfigController = async (
   _req: Request,
   res: Response,
-) =>
-  ok(res, {
+) => {
+  const hostedSignupUrl = new URL(
+    "https://business.facebook.com/messaging/whatsapp/onboard/",
+  );
+  hostedSignupUrl.searchParams.set("app_id", metaAppId);
+  hostedSignupUrl.searchParams.set("config_id", embeddedSignupConfigId);
+  hostedSignupUrl.searchParams.set(
+    "extras",
+    JSON.stringify({
+      version: "v4",
+      sessionInfoVersion: "3",
+      featureType: "whatsapp_business_app_onboarding",
+    }),
+  );
+  hostedSignupUrl.searchParams.set("redirect_uri", whatsappOAuthRedirectUri);
+
+  return ok(res, {
     appId: metaAppId,
     graphApiVersion: metaGraphApiVersion,
-    embeddedSignupConfigId:
-      process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "",
+    embeddedSignupConfigId,
+    metaHostedSignupUrl: hostedSignupUrl.toString(),
+    oauthRedirectUri: whatsappOAuthRedirectUri,
     integrationType: "tech_provider",
     webhookCallbackUrl: `${process.env.PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || ""}/api/webhooks/whatsapp`,
   });
+};
 
 export const connectWhatsAppFacebookController = async (
   req: Request,
@@ -449,6 +467,34 @@ export const updateWhatsAppWorkspaceController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to update WhatsApp workspace",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const deleteWhatsAppWorkspaceController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    await connectToDatabase();
+    const deletedWorkspace = await WhatsAppWorkspace.findOneAndDelete({
+      clerkId: userId,
+    });
+
+    return ok(res, {
+      deleted: Boolean(deletedWorkspace),
+      message:
+        "WhatsApp dashboard data, Meta connection data, contacts, conversations, and appointments were deleted.",
+    });
+  } catch (error: any) {
+    console.error("WhatsApp workspace delete error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to delete WhatsApp workspace data",
       timestamp: new Date().toISOString(),
     });
   }

@@ -3,6 +3,7 @@ import { requireAuth } from "@clerk/express";
 import {
   connectWhatsAppFacebookController,
   createWhatsAppCollectionItemController,
+  deleteWhatsAppWorkspaceController,
   getWhatsAppFacebookConfigController,
   getWhatsAppCollectionController,
   getWhatsAppDashboardController,
@@ -20,6 +21,7 @@ router.get("/dashboard", getWhatsAppDashboardController);
 router.get("/facebook/config", getWhatsAppFacebookConfigController);
 router.post("/facebook/connect", connectWhatsAppFacebookController);
 router.put("/workspace", updateWhatsAppWorkspaceController);
+router.delete("/workspace", deleteWhatsAppWorkspaceController);
 router.post("/messages/text", sendWhatsAppTextController);
 router.get("/:collection", getWhatsAppCollectionController);
 router.post("/:collection", createWhatsAppCollectionItemController);

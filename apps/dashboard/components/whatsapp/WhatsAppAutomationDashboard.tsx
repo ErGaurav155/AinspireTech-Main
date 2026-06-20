@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth, useUser } from "@clerk/nextjs";
 import {
@@ -33,6 +33,7 @@ import { useApi } from "@/lib/useApi";
 import {
   connectWhatsAppFacebook,
   createWhatsAppCollectionItem,
+  deleteWhatsAppWorkspace,
   getWhatsAppFacebookConfig,
   getWhatsAppDashboard,
   updateWhatsAppWorkspace,
@@ -1437,9 +1438,11 @@ function SettingsView({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [facebookConfig, setFacebookConfig] = useState<any>(null);
   const [embeddedSignupData, setEmbeddedSignupData] = useState<Record<string, any>>({});
+  const processedHostedSignupCodeRef = useRef("");
 
   useEffect(() => {
     setForm({
@@ -1522,6 +1525,115 @@ function SettingsView({
     return () => window.removeEventListener("message", handleMessage);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code") || "";
+    const errorMessage =
+      params.get("error_message") ||
+      params.get("error_description") ||
+      params.get("error") ||
+      "";
+
+    if (errorMessage) {
+      toast({
+        title: "Meta signup failed",
+        description: errorMessage,
+        variant: "destructive",
+      });
+      ["error", "error_message", "error_description"].forEach((key) =>
+        params.delete(key),
+      );
+      const nextSearch = params.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`,
+      );
+    }
+
+    if (!code || processedHostedSignupCodeRef.current === code) return;
+    processedHostedSignupCodeRef.current = code;
+
+    const completeHostedSignup = async () => {
+      try {
+        setIsConnecting(true);
+        const result = await connectWhatsAppFacebook(apiRequest, {
+          authResponse: { code },
+          setup: {
+            businessId:
+              params.get("business_id") ||
+              params.get("businessId") ||
+              embeddedSignupData.businessId,
+            wabaId:
+              params.get("waba_id") ||
+              params.get("wabaId") ||
+              embeddedSignupData.wabaId,
+            phoneNumberId:
+              params.get("phone_number_id") ||
+              params.get("phoneNumberId") ||
+              embeddedSignupData.phoneNumberId,
+            displayPhoneNumber:
+              params.get("phone_number") ||
+              params.get("display_phone_number") ||
+              embeddedSignupData.displayPhoneNumber,
+            organizationName: form.organizationName,
+            businessDisplayName:
+              form.businessDisplayName || form.organizationName,
+            businessWebsite: form.website,
+            businessCategory: form.businessCategory || form.industry,
+            phoneSource: form.phoneSource,
+            requestedPhoneNumber: form.requestedPhoneNumber,
+          },
+        });
+
+        toast({
+          title: result?.workspace?.isConfigured
+            ? "WhatsApp connected"
+            : "Meta signup saved",
+          description: result?.workspace?.isConfigured
+            ? "Your WhatsApp Business account is ready for automation."
+            : "Meta login was completed. If WABA or phone IDs are still pending, finish the remaining Meta onboarding steps.",
+        });
+        await onConnected();
+      } catch (error: any) {
+        console.error("Hosted WhatsApp signup callback error:", error);
+        toast({
+          title: "Meta signup callback failed",
+          description:
+            error.message || "Could not complete WhatsApp Embedded Signup.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsConnecting(false);
+        [
+          "code",
+          "state",
+          "error",
+          "error_message",
+          "error_description",
+          "business_id",
+          "businessId",
+          "waba_id",
+          "wabaId",
+          "phone_number_id",
+          "phoneNumberId",
+          "phone_number",
+          "display_phone_number",
+        ].forEach((key) => params.delete(key));
+        const nextSearch = params.toString();
+        window.history.replaceState(
+          {},
+          "",
+          `${window.location.pathname}${nextSearch ? `?${nextSearch}` : ""}`,
+        );
+      }
+    };
+
+    void completeHostedSignup();
+  }, [apiRequest, embeddedSignupData, form, onConnected]);
+
   const loadFacebookSdk = useCallback(
     (appId: string, graphApiVersion: string): Promise<void> => {
       if (typeof window === "undefined") {
@@ -1581,6 +1693,11 @@ function SettingsView({
 
     try {
       setIsConnecting(true);
+      if (facebookConfig?.metaHostedSignupUrl) {
+        window.location.href = facebookConfig.metaHostedSignupUrl;
+        return;
+      }
+
       await loadFacebookSdk(
         facebookConfig.appId,
         facebookConfig.graphApiVersion || "v23.0",
@@ -1608,9 +1725,22 @@ function SettingsView({
       });
 
       if (response?.status !== "connected" || !response?.authResponse) {
+        const metaError =
+          response?.error?.message ||
+          response?.error_message ||
+          response?.errorDescription ||
+          response?.message ||
+          "";
+        const isJavascriptSdkSetupError = /jssdk|javascript sdk|sdk/i.test(
+          metaError,
+        );
         toast({
-          title: "Facebook connection cancelled",
-          description: "Please approve the business permissions to connect WhatsApp.",
+          title: isJavascriptSdkSetupError
+            ? "Enable JavaScript SDK login in Meta"
+            : "Facebook connection cancelled",
+          description:
+            metaError ||
+            "Please approve the business permissions to connect WhatsApp.",
           variant: "destructive",
         });
         return;
@@ -1648,6 +1778,34 @@ function SettingsView({
       });
     } finally {
       setIsConnecting(false);
+    }
+  };
+
+  const handleDeleteWhatsAppData = async () => {
+    const confirmed = window.confirm(
+      "Delete all WhatsApp dashboard data? This will remove the connected Meta/WhatsApp account details, contacts, conversations, appointments, campaigns, templates, and agents from RocketReplai. This does not cancel any Razorpay subscription.",
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      await deleteWhatsAppWorkspace(apiRequest);
+      setEmbeddedSignupData({});
+      toast({
+        title: "WhatsApp data deleted",
+        description:
+          "Your WhatsApp dashboard data was removed. A fresh workspace will be created when the dashboard reloads.",
+      });
+      await onConnected();
+    } catch (error: any) {
+      console.error("WhatsApp data delete error:", error);
+      toast({
+        title: "Delete failed",
+        description: error.message || "Could not delete WhatsApp dashboard data.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -1864,6 +2022,22 @@ function SettingsView({
               </div>
             </div>
           ))}
+        </div>
+        <div className="mt-6 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
+          <h3 className="font-black text-red-500">Delete WhatsApp Account Data</h3>
+          <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/55">
+            Remove the connected Meta account details, WhatsApp contacts,
+            conversations, appointments, campaigns, templates, and automation
+            agents stored for this WhatsApp dashboard.
+          </p>
+          <Button
+            type="button"
+            disabled={isDeleting}
+            onClick={handleDeleteWhatsAppData}
+            className="mt-4 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-70"
+          >
+            {isDeleting ? "Deleting..." : "Delete WhatsApp Data"}
+          </Button>
         </div>
       </section>
     </div>

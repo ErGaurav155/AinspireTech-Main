@@ -12,6 +12,11 @@ import {
   handleWhatsAppWebhookController,
   verifyWhatsAppWebhookController,
 } from "@/controllers/webhooks/whatsapp.controller";
+import {
+  metaDataDeletionController,
+  metaDataDeletionStatusController,
+  metaDeauthorizeController,
+} from "@/controllers/webhooks/meta.controller";
 
 import { razorpaySubsCancelWebhookController } from "@/controllers/webhooks/razorpay/subscription-cancelorcharged.controller";
 import { razorpaySubsCreateOrChargeWebhookController } from "@/controllers/webhooks/razorpay/subscription-create.controller";
@@ -40,6 +45,11 @@ router.post(
 router.get("/whatsapp", verifyWhatsAppWebhookController);
 // POST /api/webhooks/whatsapp - Handle WhatsApp Cloud API webhooks
 router.post("/whatsapp", handleWhatsAppWebhookController);
+
+//meta app callbacks
+router.post("/meta/deauthorize", metaDeauthorizeController);
+router.post("/meta/data-deletion", metaDataDeletionController);
+router.get("/meta/data-deletion-status", metaDataDeletionStatusController);
 
 //razorpay
 // POST /api/webhooks/subscription/create - Create subscription

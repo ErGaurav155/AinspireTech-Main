@@ -27,6 +27,11 @@ export const updateWhatsAppWorkspace = (
     body: JSON.stringify(payload),
   });
 
+export const deleteWhatsAppWorkspace = (apiRequest: ApiRequestFn) =>
+  apiRequest("/whatsapp/workspace", {
+    method: "DELETE",
+  });
+
 export const sendWhatsAppTextMessage = (
   apiRequest: ApiRequestFn,
   payload: { to: string; body: string },
