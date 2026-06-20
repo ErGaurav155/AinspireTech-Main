@@ -93,7 +93,10 @@ const graphFetch = async (path: string, accessToken: string) => {
   return data;
 };
 
-const exchangeFacebookLoginCode = async (code: string) => {
+const exchangeFacebookLoginCode = async (
+  code: string,
+  redirectUri = whatsappOAuthRedirectUri,
+) => {
   if (!metaAppSecret) {
     throw new Error("Meta app secret is required to exchange Facebook login code");
   }
@@ -104,7 +107,7 @@ const exchangeFacebookLoginCode = async (code: string) => {
   url.searchParams.set("client_id", metaAppId);
   url.searchParams.set("client_secret", metaAppSecret);
   url.searchParams.set("code", code);
-  url.searchParams.set("redirect_uri", whatsappOAuthRedirectUri);
+  url.searchParams.set("redirect_uri", redirectUri);
 
   const response = await fetch(url);
   const data = await response.json();
@@ -159,6 +162,8 @@ export const connectWhatsAppFacebookController = async (
     const { authResponse, setup } = req.body || {};
     let accessToken = cleanString(authResponse?.accessToken);
     const loginCode = cleanString(authResponse?.code);
+    const loginRedirectUri =
+      cleanString(authResponse?.redirectUri) || whatsappOAuthRedirectUri;
     const facebookUserId = cleanString(authResponse?.userID);
 
     if (!metaAppId) {
@@ -170,7 +175,10 @@ export const connectWhatsAppFacebookController = async (
     }
 
     if (!accessToken && loginCode) {
-      accessToken = await exchangeFacebookLoginCode(loginCode);
+      accessToken = await exchangeFacebookLoginCode(
+        loginCode,
+        loginRedirectUri,
+      );
     }
 
     if (!accessToken) {

@@ -43,6 +43,7 @@ import {
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 declare global {
   interface Window {
@@ -1418,6 +1419,7 @@ function SettingsView({
   onSave: (payload: Record<string, any>) => Promise<void>;
 }) {
   const { apiRequest } = useApi();
+  const { user } = useUser();
   const [form, setForm] = useState({
     organizationName: workspace?.organization?.name || "",
     industry: workspace?.organization?.industry || "Professional Services",
@@ -1439,6 +1441,7 @@ function SettingsView({
   const [isSaving, setIsSaving] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
   const [facebookConfig, setFacebookConfig] = useState<any>(null);
   const [embeddedSignupData, setEmbeddedSignupData] = useState<Record<string, any>>({});
@@ -1560,7 +1563,10 @@ function SettingsView({
       try {
         setIsConnecting(true);
         const result = await connectWhatsAppFacebook(apiRequest, {
-          authResponse: { code },
+          authResponse: {
+            code,
+            redirectUri: `${window.location.origin}/whatsapp/settings`,
+          },
           setup: {
             businessId:
               params.get("business_id") ||
@@ -1681,6 +1687,104 @@ function SettingsView({
     [],
   );
 
+  const resolveMetaBusinessCategory = (category: string) => {
+    const normalized = category.toLowerCase();
+    if (normalized.includes("automotive")) return "AUTO";
+    if (normalized.includes("beauty")) return "BEAUTY";
+    if (normalized.includes("clothing")) return "APPAREL";
+    if (normalized.includes("education")) return "EDU";
+    if (normalized.includes("entertainment")) return "ENTERTAIN";
+    if (normalized.includes("event")) return "EVENT_PLAN";
+    if (normalized.includes("finance")) return "FINANCE";
+    if (normalized.includes("food") || normalized.includes("grocery")) {
+      return "GROCERY";
+    }
+    if (normalized.includes("hotel")) return "HOTEL";
+    if (normalized.includes("medical") || normalized.includes("health")) {
+      return "MEDICAL_HEALTH";
+    }
+    if (normalized.includes("restaurant")) return "RESTAURANT";
+    if (normalized.includes("shopping") || normalized.includes("retail")) {
+      return "SHOPPING";
+    }
+    if (normalized.includes("travel")) return "TRAVEL";
+    if (normalized.includes("non-profit")) return "NONPROFIT";
+    return "PROF_SERVICES";
+  };
+
+  const buildDirectEmbeddedSignupUrl = useCallback(() => {
+    if (
+      typeof window === "undefined" ||
+      !facebookConfig?.appId ||
+      !facebookConfig?.embeddedSignupConfigId
+    ) {
+      return "";
+    }
+
+    const redirectUri = `${window.location.origin}/whatsapp/settings`;
+    const version = facebookConfig.graphApiVersion || "v23.0";
+    const url = new URL(`https://www.facebook.com/${version}/dialog/oauth`);
+    const loggerId =
+      typeof window.crypto?.randomUUID === "function"
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    const phoneDigits = form.requestedPhoneNumber.replace(/\D/g, "");
+    const phoneWithoutCountry =
+      phoneDigits.startsWith("91") && phoneDigits.length > 10
+        ? phoneDigits.slice(2)
+        : phoneDigits;
+
+    url.searchParams.set("client_id", facebookConfig.appId);
+    url.searchParams.set("app_id", facebookConfig.appId);
+    url.searchParams.set("config_id", facebookConfig.embeddedSignupConfigId);
+    url.searchParams.set("redirect_uri", redirectUri);
+    url.searchParams.set("response_type", "code");
+    url.searchParams.set("override_default_response_type", "true");
+    url.searchParams.set("display", "popup");
+    url.searchParams.set("domain", window.location.hostname);
+    url.searchParams.set("fallback_redirect_uri", redirectUri);
+    url.searchParams.set("locale", "en_US");
+    url.searchParams.set("origin", "1");
+    url.searchParams.set("sdk", "joey");
+    url.searchParams.set("version", version);
+    url.searchParams.set("cbt", Date.now().toString());
+    url.searchParams.set("logger_id", loggerId);
+    url.searchParams.set("e2e", JSON.stringify({}));
+    url.searchParams.set("is_business_login", "1");
+    url.searchParams.set(
+      "scope",
+      "business_management,whatsapp_business_management,whatsapp_business_messaging",
+    );
+    url.searchParams.set(
+      "extras",
+      JSON.stringify({
+        setup: {
+          business: {
+            name: form.organizationName || form.businessDisplayName,
+            email: user?.primaryEmailAddress?.emailAddress || "",
+            phone: phoneWithoutCountry
+              ? { code: 91, number: phoneWithoutCountry }
+              : undefined,
+            website: form.website || undefined,
+          },
+          phone: {
+            category: resolveMetaBusinessCategory(form.businessCategory),
+            displayName: form.businessDisplayName || form.organizationName,
+          },
+        },
+        version: "v3",
+        featureType: "whatsapp_business_app_onboarding",
+      }),
+    );
+
+    return url.toString();
+  }, [facebookConfig, form, user?.primaryEmailAddress?.emailAddress]);
+
+  const getCurrentWhatsAppRedirectUri = () =>
+    typeof window === "undefined"
+      ? facebookConfig?.oauthRedirectUri || ""
+      : `${window.location.origin}/whatsapp/settings`;
+
   const handleFacebookConnect = async () => {
     if (!facebookConfig?.appId) {
       toast({
@@ -1693,8 +1797,19 @@ function SettingsView({
 
     try {
       setIsConnecting(true);
+      const directSignupUrl = buildDirectEmbeddedSignupUrl();
+      if (directSignupUrl) {
+        window.location.href = directSignupUrl;
+        return;
+      }
+
       if (facebookConfig?.metaHostedSignupUrl) {
-        window.location.href = facebookConfig.metaHostedSignupUrl;
+        const hostedUrl = new URL(facebookConfig.metaHostedSignupUrl);
+        hostedUrl.searchParams.set(
+          "redirect_uri",
+          getCurrentWhatsAppRedirectUri(),
+        );
+        window.location.href = hostedUrl.toString();
         return;
       }
 
@@ -1782,15 +1897,11 @@ function SettingsView({
   };
 
   const handleDeleteWhatsAppData = async () => {
-    const confirmed = window.confirm(
-      "Delete all WhatsApp dashboard data? This will remove the connected Meta/WhatsApp account details, contacts, conversations, appointments, campaigns, templates, and agents from RocketReplai. This does not cancel any Razorpay subscription.",
-    );
-    if (!confirmed) return;
-
     try {
       setIsDeleting(true);
       await deleteWhatsAppWorkspace(apiRequest);
       setEmbeddedSignupData({});
+      setIsDeleteDialogOpen(false);
       toast({
         title: "WhatsApp data deleted",
         description:
@@ -1854,6 +1965,7 @@ function SettingsView({
   ];
 
   return (
+    <>
     <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
       <section className={`rounded-2xl border ${cardClass} p-5`}>
         <SectionTitle icon={Settings} title="Connect WhatsApp Business" />
@@ -2033,7 +2145,7 @@ function SettingsView({
           <Button
             type="button"
             disabled={isDeleting}
-            onClick={handleDeleteWhatsAppData}
+            onClick={() => setIsDeleteDialogOpen(true)}
             className="mt-4 rounded-xl bg-red-600 text-white hover:bg-red-700 disabled:cursor-default disabled:opacity-70"
           >
             {isDeleting ? "Deleting..." : "Delete WhatsApp Data"}
@@ -2041,6 +2153,30 @@ function SettingsView({
         </div>
       </section>
     </div>
+    <ConfirmDialog
+      open={isDeleteDialogOpen}
+      onOpenChange={setIsDeleteDialogOpen}
+      onConfirm={handleDeleteWhatsAppData}
+      title="Delete WhatsApp Account Data"
+      description="This will permanently delete the WhatsApp dashboard workspace stored in RocketReplai, including Meta connection details, contacts, conversations, appointments, campaigns, templates, and automation agents. Razorpay billing is not cancelled by this action."
+      confirmText="Delete WhatsApp Data"
+      cancelText="Keep Data"
+      isDestructive
+      isLoading={isDeleting}
+      acknowledgements={[
+        {
+          id: "delete-whatsapp-dashboard-data",
+          label:
+            "I understand this removes all WhatsApp dashboard data stored in RocketReplai.",
+        },
+        {
+          id: "delete-whatsapp-keeps-billing",
+          label:
+            "I understand this does not cancel any active Razorpay subscription.",
+        },
+      ]}
+    />
+    </>
   );
 }
 
