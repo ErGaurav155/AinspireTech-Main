@@ -574,6 +574,11 @@ export const updateAccountSettings = (
     requireFollowForFreeUsers?: boolean;
     storyAutomationsEnabled?: boolean;
     trackDmUrlEnabled?: boolean;
+    appointmentAlerts?: {
+      whatsappNumber?: string;
+      whatsappEnabled?: boolean;
+      emailEnabled?: boolean;
+    };
   },
 ): Promise<{ success: boolean; account: any }> => {
   return apiRequest(`/insta/accounts/${accountId}`, {

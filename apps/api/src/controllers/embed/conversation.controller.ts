@@ -3,9 +3,9 @@ import { connectToDatabase } from "@/config/database.config";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
 import { getUserById } from "@/services/user.service";
 import {
-  sendAppointmentEmailToUser,
-  sendWhatsAppInfo,
-} from "@/services/sendEmail.service";
+  formDataToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 import WebChatbot from "@/models/web/WebChatbot.model";
 
 // POST /api/embed/conversation - Handle conversation creation
@@ -97,18 +97,15 @@ export const handleConversationRequest = async (
     // Send notifications for lead generation chatbot
     if (chatbotType === "chatbot-lead-generation") {
       try {
-        await sendAppointmentEmailToUser({
-          email: user.email,
-          data: formData,
+        await sendAppointmentNotifications({
+          userId,
+          source: "web",
+          sourceRef: String(result._id),
+          appointment: formDataToAppointmentAlert(formData || []),
+          ownerEmail: user.email,
+          ownerWhatsAppNumber: chatbot.phone,
+          dashboardPath: `/web/${chatbotType}/conversations`,
         });
-
-        if (chatbot.phone) {
-          await sendWhatsAppInfo({
-            data: formData,
-            userId,
-            number: chatbot.phone,
-          });
-        }
       } catch (notificationError) {
         console.error("Notification error:", notificationError);
         // Continue even if notifications fail

@@ -268,6 +268,7 @@ export const getAllInstaAccountsInfoController = async (
               storyAutomationsEnabled: account.storyAutomationsEnabled,
               trackDmUrlEnabled: account.trackDmUrlEnabled,
               requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+              appointmentAlerts: account.appointmentAlerts,
               metaCallsThisHour: account.metaCallsThisHour,
               isMetaRateLimited: account.isMetaRateLimited,
               tokenExpiresAt: account.tokenExpiresAt,
@@ -360,6 +361,7 @@ export const getAllInstaAccountsInfoController = async (
               storyAutomationsEnabled: account.storyAutomationsEnabled,
               trackDmUrlEnabled: account.trackDmUrlEnabled,
               requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+              appointmentAlerts: account.appointmentAlerts,
               metaCallsThisHour: account.metaCallsThisHour,
               isMetaRateLimited: account.isMetaRateLimited,
               tokenExpiresAt: account.tokenExpiresAt,
@@ -454,6 +456,7 @@ export const getAllInstaAccountsInfoController = async (
             storyAutomationsEnabled: account.storyAutomationsEnabled,
             trackDmUrlEnabled: account.trackDmUrlEnabled,
             requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            appointmentAlerts: account.appointmentAlerts,
             metaCallsThisHour: account.metaCallsThisHour,
             isMetaRateLimited: false,
             tokenExpiresAt: account.tokenExpiresAt,
@@ -525,6 +528,7 @@ export const getAllInstaAccountsInfoController = async (
             storyAutomationsEnabled: account.storyAutomationsEnabled,
             trackDmUrlEnabled: account.trackDmUrlEnabled,
             requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            appointmentAlerts: account.appointmentAlerts,
             metaCallsThisHour: account.metaCallsThisHour,
             isMetaRateLimited: account.isMetaRateLimited,
             tokenExpiresAt: account.tokenExpiresAt,
@@ -691,6 +695,7 @@ export const getInstaAccountByIdController = async (
             storyAutomationsEnabled: account.storyAutomationsEnabled,
             trackDmUrlEnabled: account.trackDmUrlEnabled,
             requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            appointmentAlerts: account.appointmentAlerts,
             // Statistics
             accountReply: account.accountReply || 0,
             accountDMSent: account.accountDMSent || 0,
@@ -775,6 +780,7 @@ export const getInstaAccountByIdController = async (
             storyAutomationsEnabled: account.storyAutomationsEnabled,
             trackDmUrlEnabled: account.trackDmUrlEnabled,
             requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+            appointmentAlerts: account.appointmentAlerts,
             // Statistics
             accountReply: account.accountReply || 0,
             accountDMSent: account.accountDMSent || 0,
@@ -863,6 +869,7 @@ export const getInstaAccountByIdController = async (
         storyAutomationsEnabled: account.storyAutomationsEnabled,
         trackDmUrlEnabled: account.trackDmUrlEnabled,
         requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+        appointmentAlerts: account.appointmentAlerts,
         // Statistics
         accountReply: account.accountReply || 0,
         accountDMSent: account.accountDMSent || 0,
@@ -947,6 +954,7 @@ export const updateInstaAccountController = async (
       requireFollowForFreeUsers,
       storyAutomationsEnabled,
       trackDmUrlEnabled,
+      appointmentAlerts,
     } = req.body;
 
     await connectToDatabase();
@@ -969,6 +977,16 @@ export const updateInstaAccountController = async (
       updateFields.storyAutomationsEnabled = storyAutomationsEnabled;
     if (trackDmUrlEnabled !== undefined)
       updateFields.trackDmUrlEnabled = trackDmUrlEnabled;
+    if (appointmentAlerts !== undefined) {
+      updateFields.appointmentAlerts = {
+        whatsappNumber:
+          typeof appointmentAlerts?.whatsappNumber === "string"
+            ? appointmentAlerts.whatsappNumber.trim()
+            : "",
+        whatsappEnabled: appointmentAlerts?.whatsappEnabled !== false,
+        emailEnabled: appointmentAlerts?.emailEnabled !== false,
+      };
+    }
 
     const account = await InstagramAccount.findOneAndUpdate(
       { instagramId: accountId },
@@ -1008,6 +1026,7 @@ export const updateInstaAccountController = async (
           storyAutomationsEnabled: account.storyAutomationsEnabled,
           trackDmUrlEnabled: account.trackDmUrlEnabled,
           requireFollowForFreeUsers: account.requireFollowForFreeUsers,
+          appointmentAlerts: account.appointmentAlerts,
           accountReply: account.accountReply || 0,
           accountDMSent: account.accountDMSent || 0,
           accountFollowCheck: account.accountFollowCheck || 0,

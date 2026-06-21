@@ -17,6 +17,10 @@ import {
   recordInstaDMSent,
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
+import {
+  objectToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 
 const MAX_INSTAGRAM_QUICK_REPLIES = 13;
 
@@ -349,7 +353,7 @@ async function handleFormQuestionResponse(
       return { success: result.success, message: result.message };
     }
 
-    await InstaLeadCollection.create({
+    const lead = await InstaLeadCollection.create({
       userId: clerkId,
       accountId: account.instagramId,
       accountUsername: account.username,
@@ -363,6 +367,28 @@ async function handleFormQuestionResponse(
       phone: log.phoneCollected,
       formData: nextResponses,
       source: "form_collection",
+    });
+
+    const formSummary = Object.values(nextResponses)
+      .map((item: any) => `${item.label || "Answer"}: ${item.answer || ""}`)
+      .join(" | ");
+    sendAppointmentNotifications({
+      userId: clerkId,
+      source: "insta",
+      sourceRef: String(lead._id),
+      appointment: objectToAppointmentAlert({
+        customerName: log.commenterUsername || senderId,
+        customerPhone: log.phoneCollected,
+        customerEmail: log.emailCollected,
+        service: log.templateName || template.name || "Instagram form",
+        summary: formSummary,
+      }),
+      ownerWhatsAppNumber: account.appointmentAlerts?.whatsappNumber,
+      emailEnabled: account.appointmentAlerts?.emailEnabled !== false,
+      whatsappEnabled: account.appointmentAlerts?.whatsappEnabled !== false,
+      dashboardPath: "/insta/lead",
+    }).catch((error) => {
+      console.error("Instagram appointment notification error:", error);
     });
 
     const result = await sendFinalLinkDM(

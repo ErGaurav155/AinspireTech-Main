@@ -3,6 +3,10 @@ import WhatsAppWorkspace, {
   IWhatsAppWorkspace,
   WhatsAppPlanId,
 } from "@/models/whatsapp/WhatsAppWorkspace.model";
+import {
+  objectToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 
 export const whatsappPlans = [
   {
@@ -62,6 +66,8 @@ export const whatsappPlans = [
 
 const defaultAgentPrompt =
   "You are RocketReplai's WhatsApp business assistant. Qualify inbound leads, answer only from approved business knowledge, collect name, phone, requirement, budget, city, and callback time, then hand off when confidence is low, sentiment is negative, payment is discussed, or the customer asks for a human.";
+const defaultWhatsAppGraphApiVersion =
+  process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
 
 export const getPlanById = (planId: WhatsAppPlanId) =>
   whatsappPlans.find((plan) => plan.id === planId) || whatsappPlans[0];
@@ -93,6 +99,20 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     workspace.subscription.numbersLimit = plan.numbersLimit;
     workspace.subscription.seatsLimit = plan.seatsLimit;
     workspace.subscription.agentsLimit = plan.agentsLimit;
+    if (
+      !workspace.meta?.graphApiVersion ||
+      workspace.meta.graphApiVersion === "v23.0"
+    ) {
+      workspace.meta.graphApiVersion = defaultWhatsAppGraphApiVersion;
+    }
+    if (!workspace.notificationSettings) {
+      workspace.notificationSettings = {
+        email: "",
+        whatsappNumber: "",
+        emailEnabled: true,
+        whatsappEnabled: true,
+      } as any;
+    }
     return workspace;
   }
 
@@ -111,7 +131,7 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     },
     meta: {
       verifyToken: `rr_wa_${crypto.randomBytes(16).toString("hex")}`,
-      graphApiVersion: "v23.0",
+      graphApiVersion: defaultWhatsAppGraphApiVersion,
     },
     subscription: {
       plan: "free",
@@ -160,6 +180,12 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       emergencyKeywords: ["emergency", "bleeding", "chest pain", "severe pain", "accident"],
       confirmationTemplateName: "",
       reminderTemplateName: "",
+    },
+    notificationSettings: {
+      email: "",
+      whatsappNumber: "",
+      emailEnabled: true,
+      whatsappEnabled: true,
     },
     agents: [
       {
@@ -262,7 +288,7 @@ export async function sendWhatsAppTextMessage({
     throw new Error("WhatsApp Meta credentials are not configured");
   }
 
-  const version = workspace.meta.graphApiVersion || "v23.0";
+  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
   const response = await fetch(
     `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
     {
@@ -317,7 +343,10 @@ const hasAppointmentIntent = (body: string) =>
     body,
   );
 
-const resolveUrgency = (body: string, emergencyKeywords: string[] = []) => {
+const resolveUrgency = (
+  body: string,
+  emergencyKeywords: string[] = [],
+): "routine" | "urgent" | "emergency" => {
   const text = body.toLowerCase();
   if (emergencyKeywords.some((keyword) => text.includes(keyword.toLowerCase()))) {
     return "emergency";
@@ -407,6 +436,7 @@ export async function processWhatsAppWebhook(payload: any) {
         (agent) => agent.isActive && agent.status === "live",
       ).length,
     });
+    const createdAppointmentAlerts: Array<Record<string, any>> = [];
 
     for (const message of value.messages || []) {
       const waId = message.from;
@@ -506,7 +536,7 @@ export async function processWhatsAppWebhook(payload: any) {
           );
 
           if (!existingRequest) {
-            workspace.appointments.push({
+            const appointmentPayload = {
               patientName: contactName || "Unknown patient",
               patientPhone: waId,
               patientWaId: waId,
@@ -514,14 +544,16 @@ export async function processWhatsAppWebhook(payload: any) {
               symptoms: body,
               preferredDate: inferPreferredDate(body),
               preferredTime: inferPreferredTime(body),
-              status: "requested",
-              source: "whatsapp",
+              status: "requested" as const,
+              source: "whatsapp" as const,
               urgency,
               notes: "Created automatically from WhatsApp appointment intent.",
               conversationWaId: waId,
               createdAt: new Date(),
               updatedAt: new Date(),
-            });
+            };
+            workspace.appointments.push(appointmentPayload);
+            createdAppointmentAlerts.push(appointmentPayload);
           }
         }
 
@@ -533,10 +565,10 @@ export async function processWhatsAppWebhook(payload: any) {
                 "our clinic",
               service: inferService(body, workspace.appointmentConfig?.services),
               urgency,
-            })
+          })
           : buildAgentReply({
-          businessName: workspace.organization?.name || "our business",
-          inboundBody: body,
+              businessName: workspace.organization?.name || "our business",
+              inboundBody: body,
             });
 
         if (reply) {
@@ -578,6 +610,24 @@ export async function processWhatsAppWebhook(payload: any) {
     }
 
     await workspace.save();
+    for (const appointment of createdAppointmentAlerts) {
+      sendAppointmentNotifications({
+        userId: workspace.clerkId,
+        source: "whatsapp",
+        sourceRef: `${phoneNumberId}:${appointment.patientWaId}:${new Date(
+          appointment.createdAt,
+        ).getTime()}`,
+        appointment: objectToAppointmentAlert(appointment),
+        ownerEmail: workspace.notificationSettings?.email,
+        ownerWhatsAppNumber: workspace.notificationSettings?.whatsappNumber,
+        emailEnabled: workspace.notificationSettings?.emailEnabled !== false,
+        whatsappEnabled:
+          workspace.notificationSettings?.whatsappEnabled !== false,
+        dashboardPath: "/whatsapp/appointments",
+      }).catch((error) => {
+        console.error("WhatsApp appointment notification error:", error);
+      });
+    }
     console.info("[whatsapp:process] Workspace saved", {
       workspaceId: String(workspace._id),
       contacts: workspace.contacts.length,

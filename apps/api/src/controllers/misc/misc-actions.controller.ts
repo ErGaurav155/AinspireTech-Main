@@ -8,6 +8,10 @@ import WebChatbot from "@/models/web/WebChatbot.model";
 import { getAuth } from "@clerk/express";
 import { uploadToCloudinary } from "@/services/cloudinary.service";
 import { sendEmail } from "@/services/smtp-mailer.service";
+import {
+  objectToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 import multer from "multer";
 
 const twilioClient = new Twilio(
@@ -311,6 +315,28 @@ export const createAppointmentController = async (
       createdAt: new Date(),
       source: appointmentData.source || "website-form",
     });
+
+    const ownerUserId =
+      appointmentData.userId || appointmentData.clerkId || appointmentData.ownerUserId;
+    if (ownerUserId || appointmentData.ownerEmail || appointmentData.ownerWhatsAppNumber) {
+      sendAppointmentNotifications({
+        userId: ownerUserId || "external",
+        source: "misc",
+        sourceRef: String(newAppointment._id),
+        appointment: objectToAppointmentAlert({
+          name: newAppointment.name,
+          email: newAppointment.email,
+          phone: newAppointment.phone,
+          subject: newAppointment.subject,
+          message: newAppointment.message,
+        }),
+        ownerEmail: appointmentData.ownerEmail,
+        ownerWhatsAppNumber: appointmentData.ownerWhatsAppNumber,
+        dashboardPath: "/dashboard",
+      }).catch((error) => {
+        console.error("Appointment notification error:", error);
+      });
+    }
 
     return res.status(201).json({
       success: true,

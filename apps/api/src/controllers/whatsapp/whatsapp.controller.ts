@@ -11,6 +11,10 @@ import {
   whatsappPlans,
 } from "@/services/whatsapp/whatsapp.service";
 import { getActivePackageSubscription } from "@/services/packages/package-subscription.service";
+import {
+  objectToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 
 const authUserId = (req: Request) => getAuth(req).userId;
 
@@ -72,7 +76,7 @@ const metaAppSecret =
   process.env.FACEBOOK_APP_SECRET ||
   "";
 const metaGraphApiVersion =
-  process.env.WHATSAPP_GRAPH_API_VERSION || "v23.0";
+  process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
 const embeddedSignupConfigId =
   process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1621203692298909";
 const whatsappOAuthRedirectUri =
@@ -555,6 +559,28 @@ export const connectWhatsAppFacebookController = async (
       timeZone: workspace.organization?.timeZone || "Asia/Kolkata",
     };
 
+    if (setup?.notificationSettings) {
+      const currentSettings = workspace.notificationSettings || {};
+      workspace.notificationSettings = {
+        email:
+          setup.notificationSettings.email !== undefined
+            ? cleanString(setup.notificationSettings.email)
+            : currentSettings.email || "",
+        whatsappNumber:
+          setup.notificationSettings.whatsappNumber !== undefined
+            ? cleanString(setup.notificationSettings.whatsappNumber)
+            : currentSettings.whatsappNumber || "",
+        emailEnabled:
+          setup.notificationSettings.emailEnabled !== undefined
+            ? Boolean(setup.notificationSettings.emailEnabled)
+            : currentSettings.emailEnabled !== false,
+        whatsappEnabled:
+          setup.notificationSettings.whatsappEnabled !== undefined
+            ? Boolean(setup.notificationSettings.whatsappEnabled)
+            : currentSettings.whatsappEnabled !== false,
+      } as any;
+    }
+
     workspace.onboarding = {
       ...workspace.onboarding,
       status: connected ? "connected" : "facebook_connected",
@@ -703,7 +729,13 @@ export const updateWhatsAppWorkspaceController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
-    const { organization, meta, subscription, appointmentConfig } = req.body || {};
+    const {
+      organization,
+      meta,
+      subscription,
+      appointmentConfig,
+      notificationSettings,
+    } = req.body || {};
 
     if (subscription?.plan && subscription.plan !== "free") {
       const activePackage = await getActivePackageSubscription(userId);
@@ -766,6 +798,28 @@ export const updateWhatsAppWorkspaceController = async (
       workspace.appointmentConfig = {
         ...workspace.appointmentConfig,
         ...appointmentConfig,
+      } as any;
+    }
+
+    if (notificationSettings) {
+      const currentSettings = workspace.notificationSettings || {};
+      workspace.notificationSettings = {
+        email:
+          notificationSettings.email !== undefined
+            ? cleanString(notificationSettings.email)
+            : currentSettings.email || "",
+        whatsappNumber:
+          notificationSettings.whatsappNumber !== undefined
+            ? cleanString(notificationSettings.whatsappNumber)
+            : currentSettings.whatsappNumber || "",
+        emailEnabled:
+          notificationSettings.emailEnabled !== undefined
+            ? Boolean(notificationSettings.emailEnabled)
+            : currentSettings.emailEnabled !== false,
+        whatsappEnabled:
+          notificationSettings.whatsappEnabled !== undefined
+            ? Boolean(notificationSettings.whatsappEnabled)
+            : currentSettings.whatsappEnabled !== false,
       } as any;
     }
 
@@ -872,18 +926,37 @@ export const createWhatsAppCollectionItemController = async (
       });
     }
 
-    (workspace[collection] as any[]).push({
+    const itemPayload = {
       ...req.body,
       createdAt: new Date(),
       updatedAt: new Date(),
-    });
+    };
+    (workspace[collection] as any[]).push(itemPayload);
     await workspace.save();
+    const item = (workspace[collection] as any[])[
+      (workspace[collection] as any[]).length - 1
+    ];
+
+    if (collection === "appointments") {
+      sendAppointmentNotifications({
+        userId,
+        source: "whatsapp",
+        sourceRef: String(item?._id || itemPayload.createdAt.getTime()),
+        appointment: objectToAppointmentAlert(itemPayload),
+        ownerEmail: workspace.notificationSettings?.email,
+        ownerWhatsAppNumber: workspace.notificationSettings?.whatsappNumber,
+        emailEnabled: workspace.notificationSettings?.emailEnabled !== false,
+        whatsappEnabled:
+          workspace.notificationSettings?.whatsappEnabled !== false,
+        dashboardPath: "/whatsapp/appointments",
+      }).catch((error) => {
+        console.error("Manual WhatsApp appointment notification error:", error);
+      });
+    }
 
     return ok(res, {
       [collection]: workspace[collection],
-      item: (workspace[collection] as any[])[
-        (workspace[collection] as any[]).length - 1
-      ],
+      item,
     });
   } catch (error: any) {
     return res.status(500).json({

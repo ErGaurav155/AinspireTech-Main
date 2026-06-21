@@ -29,6 +29,11 @@ export interface IInstagramAccount extends Document {
   requireFollowForFreeUsers: boolean;
   storyAutomationsEnabled: boolean;
   trackDmUrlEnabled: boolean;
+  appointmentAlerts?: {
+    whatsappNumber: string;
+    whatsappEnabled: boolean;
+    emailEnabled: boolean;
+  };
 
   // Rate limiting
   metaCallsThisHour: number;
@@ -70,6 +75,11 @@ const InstagramAccountSchema = new Schema<IInstagramAccount>(
     requireFollowForFreeUsers: { type: Boolean, default: false },
     storyAutomationsEnabled: { type: Boolean, default: true },
     trackDmUrlEnabled: { type: Boolean, default: true },
+    appointmentAlerts: {
+      whatsappNumber: { type: String, default: "" },
+      whatsappEnabled: { type: Boolean, default: true },
+      emailEnabled: { type: Boolean, default: true },
+    },
 
     metaCallsThisHour: { type: Number, default: 0 },
     lastMetaCallAt: { type: Date, default: Date.now },

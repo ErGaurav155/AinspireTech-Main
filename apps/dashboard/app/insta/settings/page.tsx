@@ -48,8 +48,15 @@ interface AccountDataType {
   requireFollowForFreeUsers?: boolean;
   storyAutomationsEnabled: boolean;
   trackDmUrlEnabled: boolean;
+  appointmentAlerts?: AppointmentAlertsState;
   metaCallsThisHour?: number;
   isMetaRateLimited?: boolean;
+}
+
+interface AppointmentAlertsState {
+  whatsappNumber: string;
+  whatsappEnabled: boolean;
+  emailEnabled: boolean;
 }
 
 interface SettingsState {
@@ -92,6 +99,18 @@ function extractSettings(accountInfo: any): SettingsState {
       typeof accountInfo.trackDmUrlEnabled === "boolean"
         ? accountInfo.trackDmUrlEnabled
         : true,
+  };
+}
+
+function extractAppointmentAlerts(accountInfo: any): AppointmentAlertsState {
+  return {
+    whatsappNumber:
+      typeof accountInfo?.appointmentAlerts?.whatsappNumber === "string"
+        ? accountInfo.appointmentAlerts.whatsappNumber
+        : "",
+    whatsappEnabled:
+      accountInfo?.appointmentAlerts?.whatsappEnabled !== false,
+    emailEnabled: accountInfo?.appointmentAlerts?.emailEnabled !== false,
   };
 }
 
@@ -140,6 +159,7 @@ function mapAccountToDataType(account: any): AccountDataType | null {
       typeof account.trackDmUrlEnabled === "boolean"
         ? account.trackDmUrlEnabled
         : true,
+    appointmentAlerts: extractAppointmentAlerts(account),
     metaCallsThisHour: account.metaCallsThisHour || 0,
     isMetaRateLimited: account.isMetaRateLimited || false,
   };
@@ -223,6 +243,12 @@ export default function SettingsPage() {
     requireFollowForFreeUsers: false,
     trackDmUrlEnabled: true,
   });
+  const [appointmentAlerts, setAppointmentAlerts] =
+    useState<AppointmentAlertsState>({
+      whatsappNumber: "",
+      whatsappEnabled: true,
+      emailEnabled: true,
+    });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
@@ -324,6 +350,7 @@ export default function SettingsPage() {
       const mappedAccount = mapAccountToDataType(selectedAccount);
       setAccount(mappedAccount);
       setSettings(extractSettings(selectedAccount));
+      setAppointmentAlerts(extractAppointmentAlerts(selectedAccount));
     } else {
       setAccount(null);
     }
@@ -351,20 +378,35 @@ export default function SettingsPage() {
       const result = await updateAccountSettings(
         apiRequest,
         account.instagramId,
-        settings,
+        {
+          ...settings,
+          appointmentAlerts,
+        },
       );
 
       const savedAccount = result?.account || result;
 
       if (savedAccount && typeof savedAccount === "object") {
         const savedSettings = extractSettings(savedAccount);
+        const savedAppointmentAlerts = extractAppointmentAlerts(savedAccount);
         setSettings(savedSettings);
-        setAccount((prev) => (prev ? { ...prev, ...savedSettings } : null));
+        setAppointmentAlerts(savedAppointmentAlerts);
+        setAccount((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...savedSettings,
+                appointmentAlerts: savedAppointmentAlerts,
+              }
+            : null,
+        );
 
         // Refresh context to keep it in sync
         await refreshAccounts();
       } else {
-        setAccount((prev) => (prev ? { ...prev, ...settings } : null));
+        setAccount((prev) =>
+          prev ? { ...prev, ...settings, appointmentAlerts } : null,
+        );
       }
 
       toast({ title: "Settings saved successfully!", duration: 3000 });
@@ -380,12 +422,20 @@ export default function SettingsPage() {
       // Revert to context state on error
       if (selectedAccount) {
         setSettings(extractSettings(selectedAccount));
+        setAppointmentAlerts(extractAppointmentAlerts(selectedAccount));
         setAccount(mapAccountToDataType(selectedAccount));
       }
     } finally {
       setIsSaving(false);
     }
-  }, [account, settings, apiRequest, refreshAccounts, selectedAccount]);
+  }, [
+    account,
+    settings,
+    appointmentAlerts,
+    apiRequest,
+    refreshAccounts,
+    selectedAccount,
+  ]);
 
   const handleReconnect = useCallback(() => {
     router.push("/insta/accounts/add");
@@ -403,6 +453,7 @@ export default function SettingsPage() {
       await updateAccountSettings(apiRequest, account.instagramId, {
         ...settings,
         isActive: newStatus,
+        appointmentAlerts,
       });
       toast({
         title: newStatus ? "Account enabled" : "Account disabled",
@@ -415,6 +466,7 @@ export default function SettingsPage() {
       if (selectedAccount) {
         setAccount(mapAccountToDataType(selectedAccount));
         setSettings(extractSettings(selectedAccount));
+        setAppointmentAlerts(extractAppointmentAlerts(selectedAccount));
       }
       toast({
         title: "Failed to update account status",
@@ -422,7 +474,14 @@ export default function SettingsPage() {
         duration: 3000,
       });
     }
-  }, [account, settings, apiRequest, refreshAccounts, selectedAccount]);
+  }, [
+    account,
+    settings,
+    appointmentAlerts,
+    apiRequest,
+    refreshAccounts,
+    selectedAccount,
+  ]);
 
   const handleRemoveAccount = useCallback(async () => {
     if (!account) return;
@@ -729,6 +788,101 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+
+        {account && (
+          <div className={styles.card}>
+            <div className="p-5">
+              <div className={pageStyles.settingsHeader}>
+                <div>
+                  <h2
+                    className={`text-base font-semibold ${styles.text.primary}`}
+                  >
+                    Appointment Alerts
+                  </h2>
+                  <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                    Send completed Instagram booking forms to the owner by email
+                    and WhatsApp.
+                  </p>
+                </div>
+              </div>
+              <label className="grid gap-1.5">
+                <span
+                  className={`text-xs font-bold uppercase tracking-widest ${
+                    isDark ? "text-white/40" : "text-gray-400"
+                  }`}
+                >
+                  WhatsApp alert number
+                </span>
+                <input
+                  value={appointmentAlerts.whatsappNumber}
+                  onChange={(event) =>
+                    setAppointmentAlerts((current) => ({
+                      ...current,
+                      whatsappNumber: event.target.value,
+                    }))
+                  }
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  className={`rounded-xl border px-3 py-2.5 text-sm outline-none transition-colors ${
+                    isDark
+                      ? "border-white/[0.08] bg-white/[0.04] text-white focus:border-pink-400"
+                      : "border-gray-200 bg-white text-gray-900 focus:border-pink-400"
+                  }`}
+                />
+              </label>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <div
+                  className={`flex items-center justify-between rounded-xl border p-3 ${
+                    isDark ? "border-white/[0.08]" : "border-gray-100"
+                  }`}
+                >
+                  <div>
+                    <p className={`text-sm font-semibold ${styles.text.primary}`}>
+                      Email alerts
+                    </p>
+                    <p className={`text-xs ${styles.text.secondary}`}>
+                      Uses the logged-in owner's email.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={appointmentAlerts.emailEnabled}
+                    onChange={(value) =>
+                      setAppointmentAlerts((current) => ({
+                        ...current,
+                        emailEnabled: value,
+                      }))
+                    }
+                    isDark={isDark}
+                  />
+                </div>
+                <div
+                  className={`flex items-center justify-between rounded-xl border p-3 ${
+                    isDark ? "border-white/[0.08]" : "border-gray-100"
+                  }`}
+                >
+                  <div>
+                    <p className={`text-sm font-semibold ${styles.text.primary}`}>
+                      WhatsApp alerts
+                    </p>
+                    <p className={`text-xs ${styles.text.secondary}`}>
+                      Uses RocketReplai's Meta template sender.
+                    </p>
+                  </div>
+                  <Toggle
+                    checked={appointmentAlerts.whatsappEnabled}
+                    onChange={(value) =>
+                      setAppointmentAlerts((current) => ({
+                        ...current,
+                        whatsappEnabled: value,
+                      }))
+                    }
+                    isDark={isDark}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Remove account section */}
         {account && (

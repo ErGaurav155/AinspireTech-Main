@@ -1420,6 +1420,7 @@ function SettingsView({
 }) {
   const { apiRequest } = useApi();
   const { user } = useUser();
+  const defaultAlertEmail = user?.primaryEmailAddress?.emailAddress || "";
   const [form, setForm] = useState({
     organizationName: workspace?.organization?.name || "",
     industry: workspace?.organization?.industry || "Professional Services",
@@ -1437,6 +1438,12 @@ function SettingsView({
       workspace?.onboarding?.businessCategory ||
       workspace?.organization?.industry ||
       "Professional Services",
+    alertEmail: workspace?.notificationSettings?.email || defaultAlertEmail,
+    alertWhatsAppNumber: workspace?.notificationSettings?.whatsappNumber || "",
+    emailAlertsEnabled:
+      workspace?.notificationSettings?.emailEnabled !== false,
+    whatsappAlertsEnabled:
+      workspace?.notificationSettings?.whatsappEnabled !== false,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
@@ -1465,8 +1472,15 @@ function SettingsView({
         workspace?.onboarding?.businessCategory ||
         workspace?.organization?.industry ||
         "Professional Services",
+      alertEmail: workspace?.notificationSettings?.email || defaultAlertEmail,
+      alertWhatsAppNumber:
+        workspace?.notificationSettings?.whatsappNumber || "",
+      emailAlertsEnabled:
+        workspace?.notificationSettings?.emailEnabled !== false,
+      whatsappAlertsEnabled:
+        workspace?.notificationSettings?.whatsappEnabled !== false,
     });
-  }, [workspace]);
+  }, [defaultAlertEmail, workspace]);
 
   useEffect(() => {
     let mounted = true;
@@ -1618,6 +1632,12 @@ function SettingsView({
             businessCategory: form.businessCategory || form.industry,
             phoneSource: form.phoneSource,
             requestedPhoneNumber: form.requestedPhoneNumber,
+            notificationSettings: {
+              email: form.alertEmail,
+              whatsappNumber: form.alertWhatsAppNumber,
+              emailEnabled: form.emailAlertsEnabled,
+              whatsappEnabled: form.whatsappAlertsEnabled,
+            },
           },
         });
 
@@ -1776,7 +1796,7 @@ function SettingsView({
     }
 
     const redirectUri = `${window.location.origin}/whatsapp/settings`;
-    const version = facebookConfig.graphApiVersion || "v23.0";
+    const version = facebookConfig.graphApiVersion || "v25.0";
     const url = new URL(`https://www.facebook.com/${version}/dialog/oauth`);
     const loggerId =
       typeof window.crypto?.randomUUID === "function"
@@ -1827,6 +1847,7 @@ function SettingsView({
           },
         },
         version: "v3",
+        sessionInfoVersion: "3",
         featureType: "whatsapp_business_app_onboarding",
       }),
     );
@@ -1920,7 +1941,7 @@ function SettingsView({
 
       await loadFacebookSdk(
         facebookConfig.appId,
-        facebookConfig.graphApiVersion || "v23.0",
+        facebookConfig.graphApiVersion || "v25.0",
       );
 
       const loginOptions = facebookConfig.embeddedSignupConfigId
@@ -1977,6 +1998,12 @@ function SettingsView({
           businessCategory: form.businessCategory || form.industry,
           phoneSource: form.phoneSource,
           requestedPhoneNumber: form.requestedPhoneNumber,
+          notificationSettings: {
+            email: form.alertEmail,
+            whatsappNumber: form.alertWhatsAppNumber,
+            emailEnabled: form.emailAlertsEnabled,
+            whatsappEnabled: form.whatsappAlertsEnabled,
+          },
         },
       });
 
@@ -2096,6 +2123,12 @@ function SettingsView({
                   industry: form.businessCategory || form.industry,
                   website: form.website,
                 },
+                notificationSettings: {
+                  email: form.alertEmail,
+                  whatsappNumber: form.alertWhatsAppNumber,
+                  emailEnabled: form.emailAlertsEnabled,
+                  whatsappEnabled: form.whatsappAlertsEnabled,
+                },
               });
             } finally {
               setIsSaving(false);
@@ -2188,6 +2221,76 @@ function SettingsView({
               ))}
             </select>
           </label>
+          <div className={`rounded-xl border ${softCardClass} p-4`}>
+            <div className="flex items-start gap-3">
+              <MessageCircle className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-400" />
+              <div>
+                <h3 className="font-bold">Appointment Alerts</h3>
+                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-white/50">
+                  Send new appointment requests to the owner by email and WhatsApp using RocketReplai's approved WhatsApp template.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <label className="grid gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                  Alert email
+                </span>
+                <input
+                  value={form.alertEmail}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      alertEmail: event.target.value,
+                    }))
+                  }
+                  type="email"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+                />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                  Alert WhatsApp number
+                </span>
+                <input
+                  value={form.alertWhatsAppNumber}
+                  onChange={(event) =>
+                    setForm((current) => ({
+                      ...current,
+                      alertWhatsAppNumber: event.target.value,
+                    }))
+                  }
+                  type="tel"
+                  placeholder="+91 98765 43210"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+                />
+              </label>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {[
+                ["emailAlertsEnabled", "Email alerts"],
+                ["whatsappAlertsEnabled", "WhatsApp alerts"],
+              ].map(([key, label]) => (
+                <label
+                  key={key}
+                  className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 dark:border-white/[0.08] dark:text-white/70"
+                >
+                  {label}
+                  <input
+                    type="checkbox"
+                    checked={Boolean((form as any)[key])}
+                    onChange={(event) =>
+                      setForm((current) => ({
+                        ...current,
+                        [key]: event.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 accent-emerald-500"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
           <div className="flex flex-col gap-3 sm:flex-row">
           <Button
             disabled={isSaving}

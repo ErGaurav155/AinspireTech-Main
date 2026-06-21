@@ -88,6 +88,12 @@ export interface IWhatsAppWorkspace extends Document {
     confirmationTemplateName?: string;
     reminderTemplateName?: string;
   };
+  notificationSettings: {
+    email: string;
+    whatsappNumber: string;
+    emailEnabled: boolean;
+    whatsappEnabled: boolean;
+  };
   agents: Array<{
     name: string;
     type: "sales" | "support" | "retention" | "custom";
@@ -230,7 +236,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       appSecret: { type: String, default: "" },
       accessToken: { type: String, default: "" },
       verifyToken: { type: String, default: "" },
-      graphApiVersion: { type: String, default: "v23.0" },
+      graphApiVersion: { type: String, default: "v25.0" },
       qualityRating: {
         type: String,
         enum: ["unknown", "low", "medium", "high"],
@@ -297,6 +303,12 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       emergencyKeywords: [String],
       confirmationTemplateName: String,
       reminderTemplateName: String,
+    },
+    notificationSettings: {
+      email: { type: String, default: "" },
+      whatsappNumber: { type: String, default: "" },
+      emailEnabled: { type: Boolean, default: true },
+      whatsappEnabled: { type: Boolean, default: true },
     },
     agents: [
       {

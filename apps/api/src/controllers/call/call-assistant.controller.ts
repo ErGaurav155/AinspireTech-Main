@@ -15,6 +15,10 @@ import {
 } from "@/services/call/exotel.service";
 import { sendCallNotifications } from "@/services/call/call-notification.service";
 import { sendEmail } from "@/services/smtp-mailer.service";
+import {
+  objectToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 
 const plans = [
   {
@@ -727,11 +731,12 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
         normalized.notes ||
         normalized.status === "missed");
 
+    let createdCallLead: Record<string, any> | null = null;
     if (
       shouldCreateLead &&
       !workspace.leads.some((lead) => lead.callSid === normalized.callSid)
     ) {
-      workspace.leads.push({
+      createdCallLead = {
         callerName: normalized.callerName || "Unknown caller",
         callerPhone: normalized.fromNumber,
         callerEmail: normalized.callerEmail,
@@ -742,7 +747,8 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
         status: "new",
         callSid: normalized.callSid,
         createdAt: new Date(),
-      } as any);
+      };
+      workspace.leads.push(createdCallLead as any);
     }
 
     workspace.subscription.minutesUsed = Math.ceil(
@@ -750,6 +756,27 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
     );
     workspace.subscription.callsUsed = workspace.calls.length;
     await workspace.save();
+
+    if (createdCallLead) {
+      sendAppointmentNotifications({
+        userId: workspace.clerkId,
+        source: "call",
+        sourceRef: normalized.callSid,
+        appointment: objectToAppointmentAlert({
+          ...createdCallLead,
+          service: createdCallLead.interest,
+          summary:
+            createdCallLead.notes ||
+            normalized.summary ||
+            "New lead captured by AI call assistant.",
+        }),
+        ownerEmail: workspace.owner?.email,
+        ownerWhatsAppNumber: workspace.owner?.whatsappNumber,
+        dashboardPath: "/call/calls",
+      }).catch((error) => {
+        console.error("Call appointment notification error:", error);
+      });
+    }
 
     sendCallNotifications({
       channels: workspace.notifications,
