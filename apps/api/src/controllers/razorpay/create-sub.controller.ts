@@ -15,11 +15,15 @@ import {
 
 const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   insta: {
-    "Insta-Automation-Pro": "offer_SwesHPkR1J7vDu",
+    "Insta-Automation-Pro": "offer_T4CHk4QtNE6dp7",
   },
   web: {
-    "chatbot-lead-generation": "offer_Swg8earHCXfe9f",
+    "chatbot-lead-generation": "offer_T4CNQG5KW1UXQt",
     "chatbot-education": "offer_Swg8earHCXfe9f",
+  },
+  call: {
+    "call-business": "offer_T4CSKUy2N3ofO2",
+    business: "offer_T4CSKUy2N3ofO2",
   },
   whatsapp: {
     "whatsapp-launch": "offer_T3WZjvSEGwtewO",
@@ -52,6 +56,12 @@ const getMonthlyFirstCycleOfferId = (
   if (subscriptionType === "web") {
     return MONTHLY_FIRST_CYCLE_OFFER_IDS.web[
       productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.web
+    ];
+  }
+
+  if (subscriptionType === "call") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.call[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.call
     ];
   }
 
@@ -337,6 +347,22 @@ export const createRazorpaySubscriptionController = async (
         return res.status(403).json({
           success: false,
           error: "Call subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (billingCycle !== "monthly") {
+        return res.status(400).json({
+          success: false,
+          error: "AI Call assistant supports monthly billing only.",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!["call-business", "business"].includes(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid AI Call assistant plan",
           timestamp: new Date().toISOString(),
         });
       }

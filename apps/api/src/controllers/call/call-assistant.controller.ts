@@ -37,9 +37,9 @@ const plans = [
   {
     id: "business",
     name: "Business",
-    priceInr: 1999,
-    priceUsd: 49,
-    yearlyInr: 19990,
+    priceInr: 5000,
+    priceUsd: 59,
+    firstMonthInr: 2500,
     minutes: 200,
     calls: 999999,
     concurrentCalls: 3,
@@ -54,7 +54,7 @@ const daysFromNow = (days: number) =>
   new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
 const DEFAULT_BEHAVIOR_PROMPT =
-  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed inbound calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Free includes 10 minutes and 1 concurrent inbound call. Business is 1999 rupees monthly or 19990 rupees yearly with 200 minutes and 3 concurrent inbound calls. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
+  "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed inbound calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Free includes 10 minutes and 1 concurrent inbound call. Business is 5000 rupees per month, with the first month at 2500 rupees during the 50% launch offer, and includes 200 minutes with 3 concurrent inbound calls. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
 
 const DEFAULT_QUESTIONS = [
   "May I know your name?",

@@ -33,6 +33,10 @@ const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
     "chatbot-lead-generation": 499,
     "chatbot-education": 499,
   },
+  call: {
+    "call-business": 2500,
+    business: 2500,
+  },
   whatsapp: {
     "whatsapp-launch": 1499,
     launch: 1499,
@@ -59,6 +63,14 @@ const getFirstCycleCommissionBase = (
     return (
       MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web[
         productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web
+      ] || recurringPrice
+    );
+  }
+
+  if (subscriptionType === "call") {
+    return (
+      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.call[
+        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.call
       ] || recurringPrice
     );
   }

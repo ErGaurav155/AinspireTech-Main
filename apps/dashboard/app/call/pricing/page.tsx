@@ -17,7 +17,6 @@ import {
   Button,
   Orbs,
   Spinner,
-  Switch,
   Tabs,
   TabsContent,
   toast,
@@ -28,15 +27,13 @@ import { getCallSubscriptions } from "@/lib/services/call-actions.api";
 import { CallCheckout } from "@/components/call/CallCheckout";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 
-type BillingMode = "monthly" | "yearly";
-
 const CALL_PLANS = [
   {
     id: "free",
     name: "Free",
     monthly: 0,
-    yearly: 0,
     originalMonthly: 0,
+    firstMonth: 0,
     minutesLimit: 10,
     concurrentCallLimit: 1,
     agentLimit: 1,
@@ -53,9 +50,9 @@ const CALL_PLANS = [
   {
     id: "call-business",
     name: "Business",
-    monthly: 1999,
-    yearly: 19990,
-    originalMonthly: 2499,
+    monthly: 5000,
+    originalMonthly: 5000,
+    firstMonth: 2500,
     minutesLimit: 200,
     concurrentCallLimit: 3,
     agentLimit: 1,
@@ -93,7 +90,6 @@ export default function CallPricingPage() {
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -184,33 +180,18 @@ export default function CallPricingPage() {
                 </nav>
               </div>
               <TabsContent value="call" className="mt-8">
-                <div className="flex items-center justify-center gap-4">
+                <div className="flex items-center justify-center gap-3">
                   <span
-                    className={`text-sm font-medium ${
-                      billingMode === "monthly"
-                        ? styles.text.primary
-                        : styles.text.muted
+                    className={`rounded-full px-4 py-2 text-sm font-bold ${
+                      isDark
+                        ? "bg-white/[0.06] text-white"
+                        : "bg-gray-100 text-gray-800"
                     }`}
                   >
-                    Monthly
-                  </span>
-                  <Switch
-                    checked={billingMode === "yearly"}
-                    onCheckedChange={(checked) =>
-                      setBillingMode(checked ? "yearly" : "monthly")
-                    }
-                  />
-                  <span
-                    className={`text-sm font-medium ${
-                      billingMode === "yearly"
-                        ? styles.text.primary
-                        : styles.text.muted
-                    }`}
-                  >
-                    Yearly
+                    Monthly billing only
                   </span>
                   <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-bold text-green-500">
-                    Save 16%
+                    50% off first month
                   </span>
                 </div>
               </TabsContent>
@@ -220,12 +201,8 @@ export default function CallPricingPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {CALL_PLANS.map((plan, index) => {
-            const price =
-              billingMode === "monthly" ? plan.monthly : plan.yearly;
-            const originalPrice =
-              billingMode === "monthly"
-                ? plan.originalMonthly
-                : plan.originalMonthly * 12;
+            const price = plan.monthly;
+            const originalPrice = plan.originalMonthly;
             const isCurrent = activeSubscription?.planType === plan.id;
 
             return (
@@ -282,8 +259,13 @@ export default function CallPricingPage() {
                     </p>
                   </div>
                   <p className={`font-montserrat text-sm ${styles.text.muted}`}>
-                    /{billingMode === "monthly" ? "month" : "year"} + GST
+                    /month + GST
                   </p>
+                  {plan.firstMonth > 0 && (
+                    <p className="mt-2 rounded-full bg-green-500/10 px-3 py-1 text-xs font-bold text-green-500">
+                      First month ₹{plan.firstMonth.toLocaleString("en-IN")} with launch offer, then ₹{plan.monthly.toLocaleString("en-IN")}/month.
+                    </p>
+                  )}
                 </div>
 
                 <div className="mt-5 grid grid-cols-2 gap-3">
@@ -347,7 +329,7 @@ export default function CallPricingPage() {
                       <CallCheckout
                         userId={userId!}
                         productId={plan.id}
-                        billingCycle={billingMode}
+                        billingCycle="monthly"
                         amount={price}
                         minutesLimit={plan.minutesLimit}
                         concurrentCallLimit={plan.concurrentCallLimit}

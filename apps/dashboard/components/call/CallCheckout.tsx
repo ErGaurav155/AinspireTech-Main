@@ -19,7 +19,7 @@ const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 interface CallCheckoutProps {
   userId: string;
   productId: string;
-  billingCycle: "monthly" | "yearly";
+  billingCycle?: "monthly";
   amount: number;
   minutesLimit: number;
   concurrentCallLimit: number;
@@ -32,7 +32,7 @@ interface CallCheckoutProps {
 export function CallCheckout({
   userId,
   productId,
-  billingCycle,
+  billingCycle = "monthly",
   amount,
   minutesLimit,
   concurrentCallLimit,
@@ -107,10 +107,7 @@ export function CallCheckout({
       await loadRazorpayScript();
 
       const planInfo = await getRazerpayPlanInfo(apiRequest, productId);
-      const razorpayPlanId =
-        billingCycle === "monthly"
-          ? planInfo.razorpaymonthlyplanId
-          : planInfo.razorpayyearlyplanId;
+      const razorpayPlanId = planInfo.razorpaymonthlyplanId;
 
       if (!razorpayPlanId) {
         throw new Error("Razorpay plan is not configured for this call plan");
