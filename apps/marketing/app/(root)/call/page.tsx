@@ -129,7 +129,7 @@ const faqs = [
   {
     question: "Can I use my existing business number?",
     answer:
-      "Yes. Use your existing phone provider and route inbound calls to the RocketReplai call webhook. We do not allocate new phone numbers.",
+      "Yes. We assign a dedicated Exotel number for missed-call forwarding, then your existing business phone forwards busy or unanswered calls to that number.",
   },
   {
     question: "Which languages can the assistant support?",

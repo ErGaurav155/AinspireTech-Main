@@ -35,7 +35,15 @@ const CONFIG: Record<
     title: "Calls & Leads",
     description: "Review answered calls, missed calls, recordings, transcripts, and captured lead intent.",
     icon: Headphones,
-    fields: ["createdAt", "fromNumber", "toNumber", "status", "durationSec", "summary"],
+    fields: [
+      "createdAt",
+      "fromNumber",
+      "toNumber",
+      "status",
+      "durationSec",
+      "summary",
+      "recordingUrl",
+    ],
   },
   leads: {
     title: "Lead Inbox",
@@ -141,6 +149,33 @@ export default function CallCollectionPage({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const renderCell = (item: any, field: string) => {
+    if (field === "recordingUrl") {
+      if (!item.recordingUrl) return <span>-</span>;
+
+      return (
+        <div className="space-y-2">
+          <audio
+            controls
+            preload="none"
+            src={item.recordingUrl}
+            className="h-8 w-56 max-w-full"
+          />
+          <a
+            href={item.recordingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="block text-xs font-semibold text-cyan-500"
+          >
+            Open recording
+          </a>
+        </div>
+      );
+    }
+
+    return <span className="line-clamp-2">{formatValue(item[field])}</span>;
   };
 
   if (isLoading) return <Spinner label={`Loading ${config.title}...`} />;
@@ -252,7 +287,7 @@ export default function CallCollectionPage({
                       <tr key={item._id || item.callSid || index} className={styles.rowHover}>
                         {config.fields.map((field) => (
                           <td key={field} className={`px-4 py-3 align-top ${styles.text.secondary}`}>
-                            <span className="line-clamp-2">{formatValue(item[field])}</span>
+                            {renderCell(item, field)}
                           </td>
                         ))}
                       </tr>

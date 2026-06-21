@@ -1,11 +1,28 @@
 import CallNumberPool from "@/models/call/CallNumberPool.model";
 
-const normalize = (phone: string) => phone.replace(/\s+/g, "");
+export const normalizeCallNumber = (phone = "") =>
+  phone.replace(/[^\d+]/g, "").trim();
+
+const phoneLookupCandidates = (phone = "") => {
+  const normalized = normalizeCallNumber(phone);
+  const withoutPlus = normalized.replace(/^\+/, "");
+  const withoutIndiaCode = withoutPlus.startsWith("91")
+    ? withoutPlus.slice(2)
+    : withoutPlus;
+
+  return Array.from(
+    new Set(
+      [normalized, withoutPlus, withoutIndiaCode]
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+};
 
 const splitNumbers = (value = "") =>
   value
     .split(",")
-    .map((item) => normalize(item.trim()))
+    .map((item) => normalizeCallNumber(item.trim()))
     .filter(Boolean);
 
 export const seedCallNumberPoolFromEnv = async () => {
@@ -89,6 +106,57 @@ export const listAvailableCallNumbers = async ({
     .lean();
 };
 
+export const getAssignedDedicatedNumberForClerk = async (clerkId: string) => {
+  if (!clerkId) return null;
+  await seedCallNumberPoolFromEnv();
+
+  return CallNumberPool.findOne({
+    assignedClerkId: clerkId,
+    tier: "paid_dedicated",
+    status: "assigned",
+  }).lean();
+};
+
+export const assignNextDedicatedNumber = async (clerkId: string) => {
+  if (!clerkId) return null;
+  await seedCallNumberPoolFromEnv();
+
+  const existing = await CallNumberPool.findOne({
+    assignedClerkId: clerkId,
+    tier: "paid_dedicated",
+    status: "assigned",
+  });
+
+  if (existing) return existing;
+
+  return CallNumberPool.findOneAndUpdate(
+    {
+      tier: "paid_dedicated",
+      status: "available",
+    },
+    {
+      $set: {
+        status: "assigned",
+        assignedClerkId: clerkId,
+      },
+    },
+    { sort: { updatedAt: 1 }, new: true },
+  );
+};
+
+export const findAssignedDedicatedNumberByPhone = async (phoneNumber: string) => {
+  const candidates = phoneLookupCandidates(phoneNumber);
+  if (!candidates.length) return null;
+
+  await seedCallNumberPoolFromEnv();
+
+  return CallNumberPool.findOne({
+    phoneNumber: { $in: candidates },
+    tier: "paid_dedicated",
+    status: "assigned",
+  }).lean();
+};
+
 export const leaseSharedNumber = async ({
   clerkId,
   callSid,
@@ -151,7 +219,7 @@ export const assignDedicatedNumber = async ({
   await seedCallNumberPoolFromEnv();
   return CallNumberPool.findOneAndUpdate(
     {
-      phoneNumber: normalize(phoneNumber),
+      phoneNumber: normalizeCallNumber(phoneNumber),
       tier: "paid_dedicated",
       status: "available",
     },

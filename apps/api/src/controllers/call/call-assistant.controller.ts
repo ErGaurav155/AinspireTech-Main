@@ -8,11 +8,22 @@ import CallSubscription from "@/models/call/CallSubscription.model";
 import {
   connectExotelCall,
   getExotelConfigStatus,
+  getExotelVoicebotStreamUrl,
+  getExotelWebhookUrl,
   mergeExotelPayload,
   normalizeExotelWebhook,
   sendExotelSms,
   verifyExotelWebhookSecret,
 } from "@/services/call/exotel.service";
+import {
+  assignDedicatedNumber,
+  assignNextDedicatedNumber,
+  findAssignedDedicatedNumberByPhone,
+  getAssignedDedicatedNumberForClerk,
+  listAvailableCallNumbers,
+  normalizeCallNumber,
+  releaseDedicatedNumbersForClerk,
+} from "@/services/call/call-number-pool.service";
 import { sendCallNotifications } from "@/services/call/call-notification.service";
 import { sendEmail } from "@/services/smtp-mailer.service";
 import {
@@ -62,6 +73,162 @@ const DEFAULT_QUESTIONS = [
   "What is your business name?",
   "Which service or plan are you interested in?",
 ];
+
+const forwardingCodesForNumber = (phoneNumber = "") => {
+  if (!phoneNumber) {
+    return {
+      busy: "",
+      noAnswer: "",
+      unreachable: "",
+      allCalls: "",
+      disableBusy: "##67#",
+      disableNoAnswer: "##61#",
+      disableUnreachable: "##62#",
+      disableAllCalls: "##21#",
+    };
+  }
+
+  return {
+    busy: `**67*${phoneNumber}#`,
+    noAnswer: `**61*${phoneNumber}#`,
+    unreachable: `**62*${phoneNumber}#`,
+    allCalls: `**21*${phoneNumber}#`,
+    disableBusy: "##67#",
+    disableNoAnswer: "##61#",
+    disableUnreachable: "##62#",
+    disableAllCalls: "##21#",
+  };
+};
+
+const phoneLookupCandidates = (phoneNumber = "") => {
+  const normalized = normalizeCallNumber(phoneNumber);
+  const withoutPlus = normalized.replace(/^\+/, "");
+  const withoutIndiaCode = withoutPlus.startsWith("91")
+    ? withoutPlus.slice(2)
+    : withoutPlus;
+
+  return Array.from(
+    new Set(
+      [normalized, withoutPlus, withoutIndiaCode]
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+};
+
+const getPrimaryDedicatedNumber = (workspace: ICallAssistantWorkspace) =>
+  (workspace.numbers || []).find(
+    (number) =>
+      number.status === "active" &&
+      number.provider === "exotel" &&
+      number.assignment === "dedicated",
+  );
+
+const upsertWorkspaceDedicatedNumber = (
+  workspace: ICallAssistantWorkspace,
+  phoneNumber: string,
+  providerNumberId?: string,
+) => {
+  const normalized = normalizeCallNumber(phoneNumber);
+  if (!normalized) return null;
+  const incomingCandidates = phoneLookupCandidates(normalized);
+
+  const existing = (workspace.numbers || []).find((number) =>
+    phoneLookupCandidates(number.phoneNumber).some((candidate) =>
+      incomingCandidates.includes(candidate),
+    ),
+  );
+
+  if (existing) {
+    existing.phoneNumber = normalized;
+    existing.label = existing.label || "Dedicated Exotel call assistant number";
+    existing.countryCode = existing.countryCode || "IN";
+    existing.type = existing.type || "local";
+    existing.status = "active";
+    existing.provider = "exotel";
+    existing.assignment = "dedicated";
+    existing.providerNumberId = providerNumberId || existing.providerNumberId;
+    return existing;
+  }
+
+  workspace.numbers.push({
+    phoneNumber: normalized,
+    label: "Dedicated Exotel call assistant number",
+    countryCode: "IN",
+    type: "local",
+    status: "active",
+    provider: "exotel",
+    providerNumberId,
+    assignment: "dedicated",
+    createdAt: new Date(),
+  } as any);
+
+  return workspace.numbers[workspace.numbers.length - 1];
+};
+
+const ensureDedicatedNumberForWorkspace = async (
+  workspace: ICallAssistantWorkspace,
+) => {
+  const existing = getPrimaryDedicatedNumber(workspace);
+  if (existing?.phoneNumber) return existing;
+
+  const alreadyAssigned = await getAssignedDedicatedNumberForClerk(
+    workspace.clerkId,
+  );
+  const assigned =
+    alreadyAssigned || (await assignNextDedicatedNumber(workspace.clerkId));
+
+  if (!assigned?.phoneNumber) return null;
+
+  return upsertWorkspaceDedicatedNumber(
+    workspace,
+    assigned.phoneNumber,
+    String(assigned._id || ""),
+  );
+};
+
+const findWorkspaceByIncomingExotelNumber = async (phoneNumber = "") => {
+  const candidates = phoneLookupCandidates(phoneNumber);
+  if (!candidates.length) return null;
+
+  const assignedNumber = await findAssignedDedicatedNumberByPhone(phoneNumber);
+  if (assignedNumber?.assignedClerkId) {
+    const workspace = await CallAssistantWorkspace.findOne({
+      clerkId: assignedNumber.assignedClerkId,
+    });
+    if (workspace) return workspace;
+  }
+
+  return CallAssistantWorkspace.findOne({
+    "numbers.phoneNumber": { $in: candidates },
+    "numbers.status": "active",
+    "numbers.provider": "exotel",
+    "numbers.assignment": "dedicated",
+  });
+};
+
+const buildRoutingDetails = (workspace: ICallAssistantWorkspace) => {
+  const assignedNumber = getPrimaryDedicatedNumber(workspace);
+  const webhookUrl = getExotelConfigStatus().webhookUrl;
+  const voicebotStreamUrl = getExotelVoicebotStreamUrl();
+
+  return {
+    provider: "exotel",
+    status: assignedNumber?.phoneNumber ? "ready" : "needs_number",
+    assignedNumber: assignedNumber?.phoneNumber || "",
+    forwardingCodes: forwardingCodesForNumber(assignedNumber?.phoneNumber || ""),
+    webhookUrl,
+    webhookUrlConfigured: Boolean(getExotelWebhookUrl()),
+    voicebotStreamUrlConfigured: Boolean(voicebotStreamUrl),
+    setupSteps: [
+      "Assign one dedicated Exotel number to this workspace.",
+      "Configure that Exotel number's incoming call flow to the Exotel Voicebot applet using the voicebot stream URL.",
+      "Add a Passthru/status callback after Voicebot to send final call status and recording URL to the Exotel webhook.",
+      "Forward the business phone's busy/no-answer/unreachable calls to the assigned Exotel number.",
+      "Place a busy/no-answer test call and confirm it appears in the dashboard.",
+    ],
+  };
+};
 
 const planIdFromSubscription = (planType?: string): "business" => {
   // Legacy paid call plans should continue to behave as paid Business.
@@ -223,6 +390,9 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
     await syncWorkspaceSubscription(workspace);
+    if (workspace.isConfigured) {
+      await ensureDedicatedNumberForWorkspace(workspace);
+    }
     const calls = workspace.calls || [];
     const leads = workspace.leads || [];
     const answeredCalls = calls.filter((call) => call.status !== "missed");
@@ -266,7 +436,9 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
         activeFlows: workspace.flows.filter((flow) => flow.isActive).length,
         concurrentCallLimit: workspace.subscription.concurrentCallLimit || 1,
         activeInboundCalls: countActiveInboundCalls(workspace, ""),
-        activeNumbers: 0,
+        activeNumbers: workspace.numbers.filter(
+          (number) => number.status === "active",
+        ).length,
       },
       organization: workspace.organization,
       owner: workspace.owner,
@@ -274,6 +446,7 @@ export const getCallDashboardController = async (req: Request, res: Response) =>
       flows: workspace.flows,
       notifications: workspace.notifications,
       numbers: workspace.numbers,
+      routing: buildRoutingDetails(workspace),
       subscriptions: await CallSubscription.find({
         clerkId: userId,
         status: "active",
@@ -299,6 +472,9 @@ export const getCallCollectionController = async (req: Request, res: Response) =
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
     await syncWorkspaceSubscription(workspace);
+    if (workspace.isConfigured) {
+      await ensureDedicatedNumberForWorkspace(workspace);
+    }
     await workspace.save();
     const allowed = [
       "calls",
@@ -322,6 +498,8 @@ export const getCallCollectionController = async (req: Request, res: Response) =
       subscription: workspace.subscription,
       organization: workspace.organization,
       owner: workspace.owner,
+      numbers: workspace.numbers,
+      routing: buildRoutingDetails(workspace),
       isConfigured: workspace.isConfigured,
     });
   } catch (error) {
@@ -476,8 +654,42 @@ export const createCallAssistantController = async (req: Request, res: Response)
       } as any,
     ];
 
+    const assignedNumber = await ensureDedicatedNumberForWorkspace(workspace);
+    if (!assignedNumber?.phoneNumber) {
+      return res.status(409).json({
+        success: false,
+        error:
+          "No dedicated Exotel number is available. Add numbers to EXOTEL_PAID_NUMBER_POOL_NUMBERS before activating this assistant.",
+      });
+    }
+
+    const exotelIntegration = workspace.integrations.find(
+      (integration) => integration.type === "exotel",
+    );
+    const integrationConfig = {
+      assignedNumber: assignedNumber.phoneNumber,
+      webhookUrl: getExotelConfigStatus().webhookUrl,
+      voicebotStreamUrlConfigured: Boolean(getExotelVoicebotStreamUrl()),
+    };
+    if (exotelIntegration) {
+      exotelIntegration.status = "connected";
+      exotelIntegration.config = {
+        ...(exotelIntegration.config || {}),
+        ...integrationConfig,
+      };
+      exotelIntegration.updatedAt = new Date();
+    } else {
+      workspace.integrations.push({
+        type: "exotel",
+        label: "Exotel",
+        status: "connected",
+        config: integrationConfig,
+        updatedAt: new Date(),
+      } as any);
+    }
+
     await workspace.save();
-    return ok(res, { workspace });
+    return ok(res, { workspace, routing: buildRoutingDetails(workspace) });
   } catch (error) {
     console.error("Create call assistant error:", error);
     return res.status(500).json({ success: false, error: "Internal server error" });
@@ -495,15 +707,22 @@ export const getAvailableCallNumbersController = async (
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
     await syncWorkspaceSubscription(workspace);
+    const assignedNumber = workspace.isConfigured
+      ? await ensureDedicatedNumberForWorkspace(workspace)
+      : getPrimaryDedicatedNumber(workspace);
     await workspace.save();
+    const availableNumbers = await listAvailableCallNumbers({
+      tier: "paid_dedicated",
+    });
 
     return ok(res, {
-      mode: "inbound_only",
-      canSelect: false,
-      selectedNumbers: [],
-      numbers: [],
+      mode: "dedicated_exotel",
+      canSelect: true,
+      selectedNumbers: assignedNumber ? [assignedNumber] : [],
+      numbers: availableNumbers,
+      routing: buildRoutingDetails(workspace),
       message:
-        "Number allocation is disabled. Route inbound Exotel calls to the workspace webhook with clerkId/userId.",
+        "Assign one dedicated Exotel number per active call assistant workspace.",
     });
   } catch (error) {
     console.error("Call available numbers error:", error);
@@ -528,12 +747,36 @@ export const selectDedicatedCallNumberController = async (
     const workspace = await getOrCreateWorkspace(userId);
     await syncWorkspaceSubscription(workspace);
 
-    await workspace.save();
-    return res.status(410).json({
-      success: false,
-      error:
-        "Permanent number selection has been removed. Use inbound webhook routing instead.",
+    const alreadyAssigned = getPrimaryDedicatedNumber(workspace);
+    if (alreadyAssigned?.phoneNumber === normalizeCallNumber(phoneNumber)) {
+      return ok(res, { workspace, routing: buildRoutingDetails(workspace) });
+    }
+
+    await releaseDedicatedNumbersForClerk(userId);
+    workspace.numbers = (workspace.numbers || []).map((number) =>
+      number.assignment === "dedicated" && number.provider === "exotel"
+        ? { ...number, status: "released" }
+        : number,
+    ) as any;
+
+    const assigned = await assignDedicatedNumber({
+      clerkId: userId,
+      phoneNumber,
     });
+    if (!assigned?.phoneNumber) {
+      return res.status(409).json({
+        success: false,
+        error: "Selected Exotel number is no longer available.",
+      });
+    }
+
+    upsertWorkspaceDedicatedNumber(
+      workspace,
+      assigned.phoneNumber,
+      String(assigned._id || ""),
+    );
+    await workspace.save();
+    return ok(res, { workspace, routing: buildRoutingDetails(workspace) });
   } catch (error) {
     console.error("Call select number error:", error);
     return res.status(500).json({ success: false, error: "Internal server error" });
@@ -635,11 +878,22 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
     }
 
     if (!workspace) {
+      workspace = await findWorkspaceByIncomingExotelNumber(
+        normalized.virtualNumber || normalized.toNumber,
+      );
+      if (workspace) await syncWorkspaceSubscription(workspace);
+    }
+
+    if (!workspace) {
       return res.status(404).json({
         success: false,
         error:
-          "No call workspace found. Pass clerkId/userId/ownerId in the inbound Exotel webhook URL.",
+          "No call workspace found for this Exotel number. Assign the DID to a workspace or pass clerkId/userId/ownerId in the webhook URL.",
       });
+    }
+
+    if (!getPrimaryDedicatedNumber(workspace) && normalized.virtualNumber) {
+      upsertWorkspaceDedicatedNumber(workspace, normalized.virtualNumber);
     }
 
     if (normalized.direction !== "inbound") {
@@ -719,9 +973,25 @@ export const exotelWebhookController = async (req: Request, res: Response) => {
       providerPayload: normalized.rawPayload,
       createdAt: new Date(),
     };
+    const hasWebhookConversationDetails = Boolean(
+      normalized.transcriptText ||
+        normalized.notes ||
+        normalized.interest ||
+        normalized.callerName ||
+        normalized.callerEmail,
+    );
 
-    if (existing) Object.assign(existing, callPayload);
-    else workspace.calls.push(callPayload as any);
+    if (existing) {
+      Object.assign(existing, {
+        ...callPayload,
+        recordingUrl: callPayload.recordingUrl || existing.recordingUrl,
+        transcriptText: callPayload.transcriptText || existing.transcriptText,
+        summary: hasWebhookConversationDetails
+          ? callPayload.summary || existing.summary
+          : existing.summary || callPayload.summary,
+        createdAt: existing.createdAt || callPayload.createdAt,
+      });
+    } else workspace.calls.push(callPayload as any);
 
     const shouldCreateLead =
       normalized.fromNumber &&

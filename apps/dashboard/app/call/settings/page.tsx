@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Phone, Save } from "lucide-react";
+import { Building2, CheckCircle2, Copy, Phone, Save } from "lucide-react";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
@@ -78,11 +78,28 @@ export default function CallSettingsPage() {
     }
   };
 
+  const copyValue = async (value: string, label: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} copied` });
+    } catch {
+      toast({ title: "Could not copy value", variant: "destructive" });
+    }
+  };
+
   if (loading) return <Spinner label="Loading settings..." />;
 
   const isFree = meta.subscription?.isFree;
   const overview = meta.overview || {};
   const planName = isFree ? "Free" : "Business";
+  const routing = meta.routing || {};
+  const forwardingCodes = routing.forwardingCodes || {};
+  const codeRows = [
+    ["When busy", forwardingCodes.busy],
+    ["When not answered", forwardingCodes.noAnswer],
+    ["When unreachable", forwardingCodes.unreachable],
+  ].filter(([, value]) => value);
 
   return (
     <div className={styles.page}>
@@ -181,24 +198,48 @@ export default function CallSettingsPage() {
                 Inbound Call Routing
               </h2>
               <p className={`mt-2 max-w-2xl text-sm ${styles.text.secondary}`}>
-                Number allocation is removed. Connect your existing inbound phone provider to the call webhook with the owner user id, and the assistant will enforce plan limits automatically.
+                Forward missed, busy, or unreachable calls from your business
+                phone to the dedicated Exotel number assigned below.
               </p>
             </div>
           </div>
 
           <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className={`${styles.innerCard} p-4`}>
-              <p className={`text-xs font-semibold uppercase ${styles.text.muted}`}>Plan Mode</p>
-              <p className={`mt-1 text-lg font-bold capitalize ${styles.text.primary}`}>
-                {planName}
+              <p className={`text-xs font-semibold uppercase ${styles.text.muted}`}>
+                Assigned Exotel Number
               </p>
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className={`text-lg font-bold ${styles.text.primary}`}>
+                  {routing.assignedNumber || "Not assigned"}
+                </p>
+                {routing.assignedNumber && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      copyValue(routing.assignedNumber, "Exotel number")
+                    }
+                    className={`rounded-lg border p-2 ${
+                      isDark
+                        ? "border-white/[0.08] text-white/70"
+                        : "border-gray-200 text-gray-600"
+                    }`}
+                    aria-label="Copy Exotel number"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
             <div className={`${styles.innerCard} p-4`}>
               <p className={`text-xs font-semibold uppercase ${styles.text.muted}`}>
-                Included Minutes
+                Routing Status
               </p>
-              <p className={`mt-1 text-lg font-bold ${styles.text.primary}`}>
-                {overview.minutesLimit || (isFree ? 10 : 200)}
+              <p className={`mt-2 inline-flex items-center gap-2 text-lg font-bold capitalize ${styles.text.primary}`}>
+                {routing.status === "ready" && (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                )}
+                {routing.status || "needs_number"}
               </p>
             </div>
             <div className={`${styles.innerCard} p-4`}>
@@ -211,8 +252,50 @@ export default function CallSettingsPage() {
             </div>
           </div>
 
+          {routing.assignedNumber ? (
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+              {codeRows.map(([label, code]) => (
+                <div key={label} className={`${styles.innerCard} p-4`}>
+                  <p className={`text-xs font-semibold uppercase ${styles.text.muted}`}>
+                    {label}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <code
+                      className={`rounded-lg px-2 py-1 text-sm font-bold ${
+                        isDark
+                          ? "bg-white/[0.06] text-cyan-100"
+                          : "bg-cyan-50 text-cyan-900"
+                      }`}
+                    >
+                      {code}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copyValue(String(code), String(label))}
+                      className={`rounded-lg border p-2 ${
+                        isDark
+                          ? "border-white/[0.08] text-white/70"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                      aria-label={`Copy ${label} forwarding code`}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${isDark ? "border-amber-400/20 bg-amber-400/10 text-amber-100" : "border-amber-100 bg-amber-50 text-amber-900"}`}>
+              Add dedicated Exotel numbers to EXOTEL_PAID_NUMBER_POOL_NUMBERS
+              and reload this workspace to assign one.
+            </div>
+          )}
+
           <div className={`mt-5 rounded-xl border px-4 py-3 text-sm ${isDark ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-100" : "border-cyan-100 bg-cyan-50 text-cyan-900"}`}>
-            Inbound calls only are supported right now. Free includes 10 minutes and 1 concurrent call. Business includes 200 minutes and 3 concurrent calls.
+            Plan: {planName}. Included minutes:{" "}
+            {overview.minutesLimit || (isFree ? 10 : 200)}. Webhook status:{" "}
+            {routing.webhookUrlConfigured ? "configured" : "missing PUBLIC_API_URL or EXOTEL_WEBHOOK_URL"}.
           </div>
         </div>
       </div>

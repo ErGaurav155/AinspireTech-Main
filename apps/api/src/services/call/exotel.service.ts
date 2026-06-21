@@ -185,8 +185,61 @@ const getExotelConfig = () => {
   return { apiKey, apiToken, accountSid, subdomain };
 };
 
+const trimTrailingSlash = (value = "") => value.replace(/\/+$/, "");
+
+const getPublicApiBaseUrl = () =>
+  trimTrailingSlash(
+    process.env.PUBLIC_API_URL ||
+      process.env.API_PUBLIC_URL ||
+      process.env.NEXT_PUBLIC_API_URL ||
+      "",
+  );
+
+const maskSensitiveUrlParams = (url = "") =>
+  url.replace(/([?&](?:secret|webhookSecret)=)[^&]+/gi, "$1********");
+
+const getDefaultVoicebotPath = () =>
+  process.env.EXOTEL_VOICEBOT_PATH || "/api/call/voicebot-stream";
+
+const toWebSocketBaseUrl = (baseUrl: string) => {
+  if (!baseUrl) return "";
+  if (baseUrl.startsWith("https://")) return `wss://${baseUrl.slice(8)}`;
+  if (baseUrl.startsWith("http://")) return `ws://${baseUrl.slice(7)}`;
+  return baseUrl;
+};
+
+export const getExotelWebhookUrl = () => {
+  if (process.env.EXOTEL_WEBHOOK_URL) return process.env.EXOTEL_WEBHOOK_URL;
+
+  const baseUrl = getPublicApiBaseUrl();
+  if (!baseUrl) return "";
+
+  return `${baseUrl}/api/call/webhooks/exotel`;
+};
+
+export const getExotelVoicebotStreamUrl = () =>
+  process.env.EXOTEL_VOICEBOT_WS_URL ||
+  process.env.EXOTEL_VOICE_STREAM_URL ||
+  (() => {
+    const baseUrl = toWebSocketBaseUrl(getPublicApiBaseUrl());
+    if (!baseUrl) return "";
+
+    const url = new URL(`${baseUrl}${getDefaultVoicebotPath()}`);
+    const secret =
+      process.env.EXOTEL_VOICEBOT_SECRET || process.env.EXOTEL_WEBHOOK_SECRET;
+    if (secret) url.searchParams.set("secret", secret);
+    url.searchParams.set(
+      "sample-rate",
+      process.env.EXOTEL_VOICEBOT_SAMPLE_RATE || "24000",
+    );
+    return url.toString();
+  })();
+
 export const getExotelConfigStatus = () => {
   const config = getExotelConfig();
+  const webhookUrl = getExotelWebhookUrl();
+  const voicebotStreamUrl = getExotelVoicebotStreamUrl();
+
   return {
     configured: Boolean(config.apiKey && config.apiToken && config.accountSid),
     hasApiKey: Boolean(config.apiKey),
@@ -194,6 +247,20 @@ export const getExotelConfigStatus = () => {
     hasAccountSid: Boolean(config.accountSid),
     subdomain: config.subdomain,
     smsSender: process.env.EXOTEL_SMS_SENDER || "",
+    webhookUrl: maskSensitiveUrlParams(webhookUrl),
+    webhookUrlConfigured: Boolean(webhookUrl),
+    voicebotStreamUrl: maskSensitiveUrlParams(voicebotStreamUrl),
+    voicebotStreamUrlConfigured: Boolean(voicebotStreamUrl),
+    voicebotPath: getDefaultVoicebotPath(),
+    voicebotSilenceTimeoutSec: Number(
+      process.env.CALL_VOICEBOT_SILENCE_TIMEOUT_SEC || 20,
+    ),
+    voicebotMaxDurationSec: Number(
+      process.env.CALL_VOICEBOT_MAX_DURATION_SEC || 300,
+    ),
+    openAiRealtimeConfigured: Boolean(
+      process.env.OPENAI_API_KEY || process.env.OPENAI_REALTIME_API_KEY,
+    ),
     webhookSecretConfigured: Boolean(process.env.EXOTEL_WEBHOOK_SECRET),
   };
 };

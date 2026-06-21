@@ -9,7 +9,9 @@ import {
   BarChart3,
   Bell,
   CheckCircle2,
+  Copy,
   Headphones,
+  PhoneForwarded,
   RefreshCw,
   Rocket,
   Shield,
@@ -88,8 +90,19 @@ export default function CallDashboardPage() {
   const overview = data?.overview || {};
   const recentCalls = data?.recentCalls || [];
   const recentLeads = data?.recentLeads || [];
+  const routing = data?.routing || {};
+  const forwardingCodes = routing.forwardingCodes || {};
   const gradientText =
     "bg-gradient-to-r from-pink-400 to-rose-400 bg-clip-text text-transparent";
+  const copyValue = async (value: string, label: string) => {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      toast({ title: `${label} copied` });
+    } catch {
+      toast({ title: "Could not copy value", variant: "destructive" });
+    }
+  };
 
   return (
     <div className={styles.page}>
@@ -212,6 +225,75 @@ export default function CallDashboardPage() {
               </Button>
             </motion.div>
           </div>
+        </motion.section>
+
+        <motion.section
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${styles.card} p-5`}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className={`text-base font-bold flex items-center gap-2 ${styles.text.primary}`}>
+                <PhoneForwarded className="h-5 w-5 text-cyan-400" />
+                Exotel Call Forwarding
+              </h2>
+              <p className={`mt-2 text-sm ${styles.text.secondary}`}>
+                {routing.assignedNumber
+                  ? "Forward busy, unanswered, or unreachable calls to this assigned Exotel number."
+                  : "No Exotel number is assigned yet. Add numbers to the API env pool and reload."}
+              </p>
+            </div>
+            <Link
+              href="/call/settings"
+              className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${
+                isDark
+                  ? "border-white/[0.08] text-white/70 hover:bg-white/[0.06]"
+                  : "border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Routing Settings
+              <ArrowUpRight className="h-4 w-4" />
+            </Link>
+          </div>
+
+          {routing.assignedNumber && (
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-4 gap-3">
+              {[
+                ["Exotel number", routing.assignedNumber],
+                ["Busy", forwardingCodes.busy],
+                ["No answer", forwardingCodes.noAnswer],
+                ["Unreachable", forwardingCodes.unreachable],
+              ].map(([label, value]) => (
+                <div key={label} className={`${styles.innerCard} p-4`}>
+                  <p className={`text-xs font-semibold uppercase ${styles.text.muted}`}>
+                    {label}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <code
+                      className={`text-sm font-bold ${
+                        isDark ? "text-cyan-100" : "text-cyan-900"
+                      }`}
+                    >
+                      {value}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copyValue(String(value || ""), String(label))}
+                      className={`rounded-lg border p-2 ${
+                        isDark
+                          ? "border-white/[0.08] text-white/70"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                      aria-label={`Copy ${label}`}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </motion.section>
 
         <motion.div

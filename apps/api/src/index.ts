@@ -14,6 +14,15 @@ async function startServer() {
     console.log("✅ Ready to accept connections");
   });
 
+  try {
+    const { attachCallVoicebotServer } = await import(
+      "@/services/call/call-voicebot.service.js"
+    );
+    attachCallVoicebotServer(server);
+  } catch (voicebotError: any) {
+    console.error("⚠️ Failed to attach call voicebot:", voicebotError.message);
+  }
+
   // Handle server errors
   server.on("error", (error: any) => {
     console.error("❌ Server error:", error.message);
