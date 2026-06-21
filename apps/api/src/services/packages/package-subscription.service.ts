@@ -81,7 +81,7 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
     amountInr: 10000,
     billingCycle: "monthly",
     includedServices: ["insta", "web", "whatsapp"],
-    setupServices: ["insta", "web"],
+    setupServices: ["insta", "web", "whatsapp"],
     features: [
       "Everything in Starter Automation",
       "WhatsApp automation",
@@ -113,7 +113,7 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
     amountInr: 15000,
     billingCycle: "monthly",
     includedServices: ["insta", "web", "whatsapp", "call"],
-    setupServices: ["insta", "web", "call"],
+    setupServices: ["insta", "web", "whatsapp", "call"],
     features: [
       "Instagram chatbot automation",
       "Website lead chatbot",

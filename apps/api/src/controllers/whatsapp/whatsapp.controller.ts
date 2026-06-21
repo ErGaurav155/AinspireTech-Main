@@ -54,7 +54,6 @@ const getMissingWhatsAppSetupFields = (workspace: any) => {
     missing.push("Business Manager ID");
   }
   if (!workspace.meta?.appId?.trim()) missing.push("Meta app ID");
-  if (!workspace.meta?.appSecret?.trim()) missing.push("Meta app secret");
   if (!workspace.meta?.wabaId?.trim()) missing.push("WABA ID");
   if (!workspace.meta?.phoneNumberId?.trim()) missing.push("Phone number ID");
   if (!workspace.meta?.displayPhoneNumber?.trim()) {
