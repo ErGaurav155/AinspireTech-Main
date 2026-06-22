@@ -28,7 +28,8 @@ export const createRazorpaySubscription = (
         | "call"
         | "package"
         | "meta-ads"
-        | "website-maintenance";
+        | "website-maintenance"
+        | "content-creation";
       billingCycle: "monthly" | "yearly" | "one-time";
       previousSubscriptionId?: string;
       previousSubscriptionType?: "web" | "insta" | "whatsapp" | "call" | "package";

@@ -4,10 +4,12 @@ import { Request, Response } from "express";
 import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
+  getActiveContentCreationSubscription,
   getActiveMetaAdsSubscription,
   getActivePackageSubscription,
   getActiveSeparateServiceSubscriptions,
   getActiveWebsiteMaintenanceSubscription,
+  getContentCreationPlan,
   getDashboardPackagePlan,
   getMetaAdsPlan,
   getWebsiteMaintenancePlan,
@@ -37,6 +39,9 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   },
   websiteMaintenance: {
     "website-maintenance": "offer_T3Arfhh0cRasSf",
+  },
+  contentCreation: {
+    "content-creation": "offer_T4mHmsbdGMQLXP",
   },
 };
 
@@ -82,6 +87,12 @@ const getMonthlyFirstCycleOfferId = (
   if (subscriptionType === "website-maintenance") {
     return MONTHLY_FIRST_CYCLE_OFFER_IDS.websiteMaintenance[
       productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.websiteMaintenance
+    ];
+  }
+
+  if (subscriptionType === "content-creation") {
+    return MONTHLY_FIRST_CYCLE_OFFER_IDS.contentCreation[
+      productId as keyof typeof MONTHLY_FIRST_CYCLE_OFFER_IDS.contentCreation
     ];
   }
 
@@ -296,6 +307,36 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active website maintenance subscription before choosing another one.",
           data: { activeWebsiteMaintenanceSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "content-creation") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error:
+            "Content creation subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (!getContentCreationPlan(productId)) {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid content creation plan",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      const activeContentCreationSubscription =
+        await getActiveContentCreationSubscription(buyerId);
+      if (activeContentCreationSubscription) {
+        return res.status(409).json({
+          success: false,
+          error:
+            "Cancel the active content creation subscription before choosing another one.",
+          data: { activeContentCreationSubscription },
           timestamp: new Date().toISOString(),
         });
       }

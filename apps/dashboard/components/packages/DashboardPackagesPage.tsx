@@ -22,9 +22,11 @@ import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import {
+  cancelContentCreationSubscription,
   cancelDashboardPackageSubscription,
   cancelMetaAdsSubscription,
   cancelWebsiteMaintenanceSubscription,
+  ContentCreationPlan,
   DashboardPackagePlan,
   DashboardPackageServiceCheck,
   DashboardPackageServiceKey,
@@ -96,7 +98,11 @@ const sleep = (ms: number) =>
     window.setTimeout(resolve, ms);
   });
 
-type CancelTarget = "package" | "meta-ads" | "website-maintenance";
+type CancelTarget =
+  | "package"
+  | "meta-ads"
+  | "website-maintenance"
+  | "content-creation";
 
 export function DashboardPackagesPage() {
   const router = useRouter();
@@ -123,9 +129,13 @@ export function DashboardPackagesPage() {
   >(null);
   const [payingWebsiteMaintenancePlanId, setPayingWebsiteMaintenancePlanId] =
     useState<WebsiteMaintenancePlan["id"] | null>(null);
+  const [payingContentCreationPlanId, setPayingContentCreationPlanId] =
+    useState<ContentCreationPlan["id"] | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCancellingMetaAds, setIsCancellingMetaAds] = useState(false);
   const [isCancellingWebsiteMaintenance, setIsCancellingWebsiteMaintenance] =
+    useState(false);
+  const [isCancellingContentCreation, setIsCancellingContentCreation] =
     useState(false);
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
@@ -179,6 +189,8 @@ export function DashboardPackagesPage() {
   const activeMetaAdsSubscription = status?.activeMetaAdsSubscription || null;
   const activeWebsiteMaintenanceSubscription =
     status?.activeWebsiteMaintenanceSubscription || null;
+  const activeContentCreationSubscription =
+    status?.activeContentCreationSubscription || null;
   const activeSeparateServices = status?.activeSeparateServices || [];
   const hasSeparateServiceSubscriptions = activeSeparateServices.length > 0;
   const isChecking = Boolean(checkingPackageId);
@@ -231,7 +243,9 @@ export function DashboardPackagesPage() {
       const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
       const razorpayPlanId = planInfo.razorpaymonthlyplanId;
       if (!razorpayPlanId) {
-        throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
+        throw new Error(
+          `Razorpay monthly plan is not configured for ${plan.id}`,
+        );
       }
 
       const referralCode = getStoredReferralCode();
@@ -527,6 +541,111 @@ export function DashboardPackagesPage() {
     }
   };
 
+  const startContentCreationCheckout = async (plan: ContentCreationPlan) => {
+    if (!userId) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in before subscribing to content creation.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (activeContentCreationSubscription) {
+      toast({
+        title: "Content plan already active",
+        description:
+          "Cancel the active content creation subscription before starting another one.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setPayingContentCreationPlanId(plan.id);
+      await loadRazorpayScript();
+
+      const planInfo = await getRazerpayPlanInfo(apiRequest, plan.id);
+      const razorpayPlanId = planInfo.razorpaymonthlyplanId;
+      if (!razorpayPlanId) {
+        throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
+      }
+
+      const referralCode = getStoredReferralCode();
+      const result = await createRazorpaySubscription(apiRequest, {
+        amount: plan.amountInr,
+        razorpayplanId: razorpayPlanId,
+        buyerId: userId,
+        referralCode,
+        metadata: {
+          productId: plan.id,
+          subscriptionType: "content-creation",
+          billingCycle: "monthly",
+          email: user?.primaryEmailAddress?.emailAddress || "",
+          referralCode: referralCode || "",
+        },
+      });
+
+      const razorpay = new (window as any).Razorpay({
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+        amount: plan.amountInr * 100,
+        currency: "INR",
+        name: "RocketReplai",
+        description: `${plan.name} - monthly content creation`,
+        subscription_id: result.subscriptionId,
+        prefill: {
+          email: user?.primaryEmailAddress?.emailAddress || "",
+        },
+        notes: {
+          productId: plan.id,
+          subscriptionType: "content-creation",
+          buyerId: userId,
+          billingCycle: "monthly",
+        },
+        handler: async (response: any) => {
+          await verifyRazorpayPayment(apiRequest, {
+            subscription_id:
+              response.razorpay_subscription_id || result.subscriptionId,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            productId: plan.id,
+            subscriptionType: "content-creation",
+            subscriptionKind: "content-creation",
+            billingCycle: "monthly",
+          });
+          clearStoredReferralCode();
+          toast({
+            title: "Content creation activated",
+            description: `${plan.name} is now active.`,
+          });
+          await loadStatus();
+          router.refresh();
+        },
+        modal: {
+          ondismiss: () => {
+            toast({
+              title: "Checkout closed",
+              description: "Payment was not completed.",
+              variant: "destructive",
+            });
+          },
+        },
+        theme: { color: "#DB2777" },
+      });
+
+      razorpay.open();
+    } catch (error: any) {
+      toast({
+        title: "Checkout failed",
+        description:
+          error.message || "Could not start content creation checkout.",
+        variant: "destructive",
+      });
+    } finally {
+      setPayingContentCreationPlanId(null);
+    }
+  };
+
   const handlePackageAction = async (plan: DashboardPackagePlan) => {
     if (activePackage) {
       toast({
@@ -703,6 +822,39 @@ export function DashboardPackagesPage() {
     }
   };
 
+  const handleCancelContentCreation = () => {
+    if (!activeContentCreationSubscription) return;
+    setCancelTarget("content-creation");
+  };
+
+  const cancelContentCreation = async () => {
+    if (!activeContentCreationSubscription) return;
+    try {
+      setIsCancellingContentCreation(true);
+      await cancelContentCreationSubscription(apiRequest, {
+        subscriptionId: activeContentCreationSubscription.subscriptionId,
+        mode: "Immediate",
+        reason: "Cancelled from dashboard packages page",
+      });
+      toast({
+        title: "Content plan cancelled",
+        description: "You can now subscribe to content creation again.",
+      });
+      await loadStatus();
+      router.refresh();
+    } catch (error: any) {
+      toast({
+        title: "Cancellation failed",
+        description:
+          error.message || "Could not cancel the content creation plan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancellingContentCreation(false);
+      setCancelTarget(null);
+    }
+  };
+
   const confirmCancellation = async () => {
     if (cancelTarget === "package") {
       await cancelPackage();
@@ -714,11 +866,18 @@ export function DashboardPackagesPage() {
     }
     if (cancelTarget === "website-maintenance") {
       await cancelWebsiteMaintenance();
+      return;
+    }
+    if (cancelTarget === "content-creation") {
+      await cancelContentCreation();
     }
   };
 
   const isCancellingAny =
-    isCancelling || isCancellingMetaAds || isCancellingWebsiteMaintenance;
+    isCancelling ||
+    isCancellingMetaAds ||
+    isCancellingWebsiteMaintenance ||
+    isCancellingContentCreation;
   const cancelConfirmation = cancelTarget
     ? {
         package: {
@@ -743,6 +902,14 @@ export function DashboardPackagesPage() {
             activeWebsiteMaintenanceSubscription?.planName ||
             "Website maintenance",
           confirmLabel: "Cancel Maintenance",
+        },
+        "content-creation": {
+          title: "Cancel content creation?",
+          description:
+            "This stops the active content creation subscription. Other subscriptions will not be changed.",
+          name:
+            activeContentCreationSubscription?.planName || "Content creation",
+          confirmLabel: "Cancel Content Plan",
         },
       }[cancelTarget]
     : null;
@@ -1053,7 +1220,9 @@ export function DashboardPackagesPage() {
                     </span>
                   </div>
 
-                  <h3 className={`mt-4 text-xl font-black ${styles.text.primary}`}>
+                  <h3
+                    className={`mt-4 text-xl font-black ${styles.text.primary}`}
+                  >
                     {plan.name}
                   </h3>
                   <p className={`mt-2 text-sm ${styles.text.secondary}`}>
@@ -1063,7 +1232,9 @@ export function DashboardPackagesPage() {
                   <div className="mt-5">
                     <p className={`text-3xl font-black ${styles.text.primary}`}>
                       {formatInr(plan.amountInr)}
-                      <span className={`text-sm font-semibold ${styles.text.muted}`}>
+                      <span
+                        className={`text-sm font-semibold ${styles.text.muted}`}
+                      >
                         /mo
                       </span>
                     </p>
@@ -1262,6 +1433,165 @@ export function DashboardPackagesPage() {
                   isDark={isDark}
                   ok
                   text="First-month pricing uses a Razorpay offer on the backend."
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section
+          className={`rounded-2xl border p-5 ${
+            isDark
+              ? "border-pink-500/20 bg-pink-500/10"
+              : "border-pink-200 bg-pink-50"
+          }`}
+        >
+          <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+            <div>
+              <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-pink-500/20 bg-pink-500/10 px-3 py-1 text-xs font-bold text-pink-500">
+                <Sparkles className="h-3.5 w-3.5" />
+                Separate content service
+              </div>
+              <h2 className={`text-2xl font-black ${styles.text.primary}`}>
+                Content Creation
+              </h2>
+              <p className={`mt-2 max-w-3xl text-sm ${styles.text.secondary}`}>
+                A direct monthly content plan for clients who only need reels
+                and poster creation. No automation setup checks are required.
+              </p>
+            </div>
+            {activeContentCreationSubscription ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="rounded-full bg-pink-500 px-3 py-1 text-xs font-bold text-white">
+                  {activeContentCreationSubscription.planName} active
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCancelContentCreation}
+                  disabled={isCancellingContentCreation}
+                  className="rounded-xl"
+                >
+                  {isCancellingContentCreation ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Cancel Content Plan
+                </Button>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,420px)_1fr]">
+            {(status?.contentCreationPlans || []).map((plan) => {
+              const isCurrent =
+                activeContentCreationSubscription?.planId === plan.id;
+              const isPaying = payingContentCreationPlanId === plan.id;
+
+              return (
+                <article
+                  key={plan.id}
+                  className={`flex min-h-[340px] flex-col rounded-2xl border p-5 ${
+                    isDark
+                      ? "border-white/[0.08] bg-black/20"
+                      : "border-pink-100 bg-white"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 text-white">
+                      <Sparkles className="h-5 w-5" />
+                    </div>
+                    <span className="rounded-full bg-pink-500/10 px-3 py-1 text-xs font-bold text-pink-500">
+                      Content only
+                    </span>
+                  </div>
+
+                  <h3 className={`mt-4 text-xl font-black ${styles.text.primary}`}>
+                    {plan.name}
+                  </h3>
+                  <p className={`mt-2 text-sm ${styles.text.secondary}`}>
+                    {plan.description}
+                  </p>
+
+                  <div className="mt-5">
+                    <p className={`text-3xl font-black ${styles.text.primary}`}>
+                      {formatInr(plan.amountInr)}
+                      <span className={`text-sm font-semibold ${styles.text.muted}`}>
+                        /mo
+                      </span>
+                    </p>
+                    <p className="mt-1 text-sm font-semibold text-emerald-500">
+                      First month {formatInr(plan.firstMonthInr)} with Razorpay
+                      offer
+                    </p>
+                  </div>
+
+                  <ul className="mt-5 flex-1 space-y-2">
+                    {plan.features.map((feature) => (
+                      <li
+                        key={feature}
+                        className={`flex gap-2 text-sm ${styles.text.secondary}`}
+                      >
+                        <Check className="mt-0.5 h-4 w-4 flex-shrink-0 text-pink-500" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Button
+                    type="button"
+                    disabled={
+                      Boolean(activeContentCreationSubscription) || isPaying
+                    }
+                    onClick={() => startContentCreationCheckout(plan)}
+                    className="mt-6 w-full rounded-xl bg-pink-500 py-6 font-bold text-white hover:bg-pink-600"
+                  >
+                    {isPaying ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : isCurrent ? (
+                      <Check className="mr-2 h-4 w-4" />
+                    ) : (
+                      <ArrowRight className="mr-2 h-4 w-4" />
+                    )}
+                    {isCurrent
+                      ? "Current Content Plan"
+                      : activeContentCreationSubscription
+                        ? "Content plan already active"
+                        : "Subscribe Content Plan"}
+                  </Button>
+                </article>
+              );
+            })}
+
+            <div
+              className={`rounded-2xl border p-5 ${
+                isDark
+                  ? "border-white/[0.08] bg-black/20"
+                  : "border-pink-100 bg-white"
+              }`}
+            >
+              <h3 className={`text-lg font-black ${styles.text.primary}`}>
+                Separate from automation packages
+              </h3>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Includes 15 reels and poster creation each month."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Can be purchased directly without service setup checks."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="Does not block automation service packages or Meta Ads plans."
+                />
+                <RuleRow
+                  isDark={isDark}
+                  ok
+                  text="First-month pricing uses the Content Creation Razorpay offer."
                 />
               </div>
             </div>

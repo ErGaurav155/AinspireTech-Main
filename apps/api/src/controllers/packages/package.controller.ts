@@ -1,10 +1,12 @@
 import { Request, Response } from "express";
 import { getAuth } from "@clerk/express";
 import PackageSubscription from "@/models/packages/PackageSubscription.model";
+import ContentCreationSubscription from "@/models/packages/ContentCreationSubscription.model";
 import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
 import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import {
   buildDashboardPackageStatus,
+  cancelContentCreationSubscriptionLocally,
   cancelDashboardPackageLocally,
   cancelMetaAdsSubscriptionLocally,
   cancelWebsiteMaintenanceSubscriptionLocally,
@@ -257,6 +259,81 @@ export const cancelWebsiteMaintenanceSubscriptionController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to cancel website maintenance subscription",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const cancelContentCreationSubscriptionController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const { userId } = getAuth(req);
+    if (!userId) return unauthorized(res);
+
+    const { subscriptionId, reason, mode } = req.body || {};
+    if (!subscriptionId) {
+      return res.status(400).json({
+        success: false,
+        error: "subscriptionId is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const contentSubscription = await ContentCreationSubscription.findOne({
+      clerkId: userId,
+      subscriptionId,
+      status: "active",
+    });
+
+    if (!contentSubscription) {
+      return res.status(404).json({
+        success: false,
+        error: "Active content creation subscription not found",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    try {
+      await cancelRazorPaySubscription(
+        subscriptionId,
+        reason || "Cancelled content creation subscription",
+        mode || "Immediate",
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!/invalid|not found|cancel|status/i.test(message)) {
+        throw error;
+      }
+      console.warn(
+        "Content creation Razorpay subscription was already inactive:",
+        {
+          subscriptionId,
+          message,
+        },
+      );
+    }
+
+    await cancelContentCreationSubscriptionLocally({
+      clerkId: userId,
+      subscriptionId,
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        subscriptionId,
+        cancelledAt: new Date(),
+        message: "Content creation subscription cancelled successfully",
+      },
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error: any) {
+    console.error("Content creation cancellation error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to cancel content creation subscription",
       timestamp: new Date().toISOString(),
     });
   }

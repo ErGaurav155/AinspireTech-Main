@@ -11,6 +11,7 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
+  activateContentCreationSubscription,
   activateDashboardPackageSubscription,
   activateMetaAdsSubscription,
   activateWebsiteMaintenanceSubscription,
@@ -38,7 +39,8 @@ export interface VerifyBody {
     | "whatsapp"
     | "package"
     | "meta-ads"
-    | "website-maintenance";
+    | "website-maintenance"
+    | "content-creation";
   billingCycle?: "monthly" | "yearly";
   previousSubscriptionId?: string;
   previousSubscriptionType?: "web" | "insta" | "call" | "whatsapp";
@@ -76,13 +78,15 @@ const activateVerifiedSubscription = async ({
         ? "meta-ads"
         : requestedKind === "website-maintenance"
           ? "website-maintenance"
-          : requestedKind === "insta"
-            ? "insta"
-            : requestedKind === "call"
-              ? "call"
-              : requestedKind === "whatsapp"
-                ? "whatsapp"
-                : "web";
+          : requestedKind === "content-creation"
+            ? "content-creation"
+            : requestedKind === "insta"
+              ? "insta"
+              : requestedKind === "call"
+                ? "call"
+                : requestedKind === "whatsapp"
+                  ? "whatsapp"
+                  : "web";
   const resolvedBillingCycle = billingCycle || notes.billingCycle || "monthly";
   const expiresAt = razorpaySubscription?.current_end
     ? new Date(razorpaySubscription.current_end * 1000)
@@ -160,6 +164,31 @@ const activateVerifiedSubscription = async ({
     return {
       success: true,
       message: "Website maintenance subscription activated successfully",
+      planId,
+      planName: subscription.planName,
+      subscriptionId: subscription_id,
+      paymentId: razorpay_payment_id,
+    };
+  }
+
+  if (currentSubscriptionKind === "content-creation") {
+    const planId = productId || notes.productId;
+    if (!planId) {
+      throw new Error("Unable to determine content creation plan");
+    }
+
+    const subscription = await activateContentCreationSubscription({
+      clerkId: userId,
+      planId,
+      subscriptionId: subscription_id,
+      expiresAt,
+      razorpayPaymentId: razorpay_payment_id,
+      offerId: notes.offerId,
+    });
+
+    return {
+      success: true,
+      message: "Content creation subscription activated successfully",
       planId,
       planName: subscription.planName,
       subscriptionId: subscription_id,

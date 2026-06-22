@@ -75,6 +75,26 @@ export interface WebsiteMaintenanceSubscription {
   expiresAt: string;
 }
 
+export interface ContentCreationPlan {
+  id: "content-creation";
+  name: string;
+  description: string;
+  amountInr: number;
+  firstMonthInr: number;
+  features: string[];
+}
+
+export interface ContentCreationSubscription {
+  _id: string;
+  clerkId: string;
+  planId: ContentCreationPlan["id"];
+  planName: string;
+  subscriptionId: string;
+  amountInr: number;
+  status: "active" | "cancelled" | "expired";
+  expiresAt: string;
+}
+
 export interface ActiveSeparateServiceSubscription {
   service: DashboardPackageServiceKey;
   label: string;
@@ -87,9 +107,11 @@ export interface DashboardPackageStatus {
   plans: DashboardPackagePlan[];
   metaAdsPlans: MetaAdsPlan[];
   websiteMaintenancePlans: WebsiteMaintenancePlan[];
+  contentCreationPlans: ContentCreationPlan[];
   activePackage: DashboardPackageSubscription | null;
   activeMetaAdsSubscription: MetaAdsSubscription | null;
   activeWebsiteMaintenanceSubscription: WebsiteMaintenanceSubscription | null;
+  activeContentCreationSubscription: ContentCreationSubscription | null;
   firstTimeDiscountEligible: boolean;
   activeSeparateServices: ActiveSeparateServiceSubscription[];
   serviceChecks: DashboardPackageServiceCheck[];
@@ -138,6 +160,20 @@ export const cancelWebsiteMaintenanceSubscription = (
   },
 ): Promise<any> => {
   return apiRequest("/packages/website-maintenance/subscription/cancel", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+};
+
+export const cancelContentCreationSubscription = (
+  apiRequest: ApiRequestFn,
+  data: {
+    subscriptionId: string;
+    reason?: string;
+    mode?: "Immediate" | "EndOfCycle";
+  },
+): Promise<any> => {
+  return apiRequest("/packages/content-creation/subscription/cancel", {
     method: "POST",
     body: JSON.stringify(data),
   });

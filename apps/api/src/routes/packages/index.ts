@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "@clerk/express";
 import {
+  cancelContentCreationSubscriptionController,
   cancelDashboardPackageSubscriptionController,
   cancelMetaAdsSubscriptionController,
   cancelWebsiteMaintenanceSubscriptionController,
@@ -20,6 +21,10 @@ router.post(
 router.post(
   "/website-maintenance/subscription/cancel",
   cancelWebsiteMaintenanceSubscriptionController,
+);
+router.post(
+  "/content-creation/subscription/cancel",
+  cancelContentCreationSubscriptionController,
 );
 
 export default router;

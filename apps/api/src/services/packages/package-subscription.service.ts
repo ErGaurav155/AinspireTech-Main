@@ -3,6 +3,9 @@ import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import ContentCreationSubscription, {
+  ContentCreationPlanId,
+} from "@/models/packages/ContentCreationSubscription.model";
 import MetaAdsSubscription, {
   MetaAdsPlanId,
 } from "@/models/packages/MetaAdsSubscription.model";
@@ -50,6 +53,15 @@ export interface MetaAdsPlan {
 
 export interface WebsiteMaintenancePlan {
   id: WebsiteMaintenancePlanId;
+  name: string;
+  description: string;
+  amountInr: number;
+  firstMonthInr: number;
+  features: string[];
+}
+
+export interface ContentCreationPlan {
+  id: ContentCreationPlanId;
   name: string;
   description: string;
   amountInr: number;
@@ -197,6 +209,24 @@ export const websiteMaintenancePlans: WebsiteMaintenancePlan[] = [
   },
 ];
 
+export const contentCreationPlans: ContentCreationPlan[] = [
+  {
+    id: "content-creation",
+    name: "Content Creation",
+    description:
+      "Monthly content creation for clients who need reels and poster assets.",
+    amountInr: 5000,
+    firstMonthInr: 2500,
+    features: [
+      "15 reels per month",
+      "Poster creation included",
+      "Monthly content planning support",
+      "Creative direction and publishing-ready assets",
+      "No automation setup checks required",
+    ],
+  },
+];
+
 const packageGrantId = (
   subscriptionId: string,
   service: DashboardPackageServiceKey,
@@ -232,6 +262,9 @@ export const getMetaAdsPlan = (planId: string) =>
 export const getWebsiteMaintenancePlan = (planId: string) =>
   websiteMaintenancePlans.find((plan) => plan.id === planId);
 
+export const getContentCreationPlan = (planId: string) =>
+  contentCreationPlans.find((plan) => plan.id === planId);
+
 export async function getActiveMetaAdsSubscription(clerkId: string) {
   await connectToDatabase();
   return MetaAdsSubscription.findOne({
@@ -246,6 +279,17 @@ export async function getActiveMetaAdsSubscription(clerkId: string) {
 export async function getActiveWebsiteMaintenanceSubscription(clerkId: string) {
   await connectToDatabase();
   return WebsiteMaintenanceSubscription.findOne({
+    clerkId,
+    status: "active",
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ createdAt: -1 })
+    .lean();
+}
+
+export async function getActiveContentCreationSubscription(clerkId: string) {
+  await connectToDatabase();
+  return ContentCreationSubscription.findOne({
     clerkId,
     status: "active",
     expiresAt: { $gt: new Date() },
@@ -364,6 +408,7 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     activeSeparateServices,
     activeMetaAdsSubscription,
     activeWebsiteMaintenanceSubscription,
+    activeContentCreationSubscription,
   ] = await Promise.all([
     getActivePackageSubscription(clerkId),
     PackageSubscription.exists({ clerkId }),
@@ -381,6 +426,7 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     getActiveSeparateServiceSubscriptions(clerkId),
     getActiveMetaAdsSubscription(clerkId),
     getActiveWebsiteMaintenanceSubscription(clerkId),
+    getActiveContentCreationSubscription(clerkId),
   ]);
 
   const serviceChecks = [
@@ -438,8 +484,10 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     plans: dashboardPackagePlans,
     metaAdsPlans,
     websiteMaintenancePlans,
+    contentCreationPlans,
     activeMetaAdsSubscription,
     activeWebsiteMaintenanceSubscription,
+    activeContentCreationSubscription,
     activePackage,
     firstTimeDiscountEligible:
       !packageHistory &&
@@ -598,6 +646,87 @@ export async function cancelWebsiteMaintenanceSubscriptionLocally({
 
   const now = new Date();
   return WebsiteMaintenanceSubscription.findOneAndUpdate(
+    { clerkId, subscriptionId, status: "active" },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: now,
+        updatedAt: now,
+      },
+    },
+    { new: true },
+  );
+}
+
+export async function activateContentCreationSubscription({
+  clerkId,
+  planId,
+  subscriptionId,
+  expiresAt,
+  razorpayPaymentId,
+  offerId,
+}: {
+  clerkId: string;
+  planId: string;
+  subscriptionId: string;
+  expiresAt: Date;
+  razorpayPaymentId?: string;
+  offerId?: string;
+}) {
+  await connectToDatabase();
+
+  const plan = getContentCreationPlan(planId);
+  if (!plan) {
+    throw new Error("Unknown content creation plan");
+  }
+
+  await ContentCreationSubscription.updateMany(
+    {
+      clerkId,
+      subscriptionId: { $ne: subscriptionId },
+      status: "active",
+    },
+    {
+      $set: {
+        status: "cancelled",
+        cancelledAt: new Date(),
+        updatedAt: new Date(),
+      },
+    },
+  );
+
+  return ContentCreationSubscription.findOneAndUpdate(
+    { subscriptionId },
+    {
+      $set: {
+        clerkId,
+        planId: plan.id,
+        planName: plan.name,
+        subscriptionId,
+        amountInr: plan.amountInr,
+        billingCycle: "monthly",
+        status: "active",
+        razorpayPaymentId,
+        offerId,
+        expiresAt,
+        updatedAt: new Date(),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+}
+
+export async function cancelContentCreationSubscriptionLocally({
+  clerkId,
+  subscriptionId,
+}: {
+  clerkId: string;
+  subscriptionId: string;
+}) {
+  await connectToDatabase();
+
+  const now = new Date();
+  return ContentCreationSubscription.findOneAndUpdate(
     { clerkId, subscriptionId, status: "active" },
     {
       $set: {
