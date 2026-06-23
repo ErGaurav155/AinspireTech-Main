@@ -52,7 +52,6 @@ declare global {
   }
 }
 
-const FACEBOOK_SDK_SCRIPT_ID = "facebook-jssdk";
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
 const WHATSAPP_PRODUCT_ID = "whatsapp-launch";
@@ -1717,53 +1716,6 @@ function SettingsView({
     void completeHostedSignup();
   }, [apiRequest, embeddedSignupData, form, onConnected]);
 
-  const loadFacebookSdk = useCallback(
-    (appId: string, graphApiVersion: string): Promise<void> => {
-      if (typeof window === "undefined") {
-        return Promise.reject(new Error("Facebook login is not available"));
-      }
-
-      if (window.FB) return Promise.resolve();
-
-      return new Promise((resolve, reject) => {
-        window.fbAsyncInit = () => {
-          window.FB?.init({
-            appId,
-            cookie: true,
-            xfbml: true,
-            version: graphApiVersion,
-          });
-          window.FB?.AppEvents?.logPageView?.();
-          resolve();
-        };
-
-        const existingScript = document.getElementById(FACEBOOK_SDK_SCRIPT_ID);
-        if (existingScript) {
-          existingScript.addEventListener(
-            "error",
-            () => reject(new Error("Facebook SDK failed to load")),
-            { once: true },
-          );
-          return;
-        }
-
-        const script = document.createElement("script");
-        script.id = FACEBOOK_SDK_SCRIPT_ID;
-        script.async = true;
-        script.defer = true;
-        script.crossOrigin = "anonymous";
-        script.src = "https://connect.facebook.net/en_US/sdk.js";
-        script.addEventListener(
-          "error",
-          () => reject(new Error("Facebook SDK failed to load")),
-          { once: true },
-        );
-        document.body.appendChild(script);
-      });
-    },
-    [],
-  );
-
   const resolveMetaBusinessCategory = (category: string) => {
     const normalized = category.toLowerCase();
     if (normalized.includes("automotive")) return "AUTO";
@@ -1817,7 +1769,7 @@ function SettingsView({
     url.searchParams.set("redirect_uri", redirectUri);
     url.searchParams.set("response_type", "code");
     url.searchParams.set("override_default_response_type", "true");
-    url.searchParams.set("display", "popup");
+    url.searchParams.set("display", "page");
     url.searchParams.set("domain", window.location.hostname);
     url.searchParams.set("fallback_redirect_uri", redirectUri);
     url.searchParams.set("locale", "en_US");
@@ -1863,54 +1815,6 @@ function SettingsView({
       ? facebookConfig?.oauthRedirectUri || ""
       : `${window.location.origin}/whatsapp/settings`;
 
-  const openFacebookSignupPopup = useCallback((url: string) => {
-    if (typeof window === "undefined") return false;
-
-    const popupWidth = 720;
-    const popupHeight = Math.min(860, Math.max(640, window.screen.availHeight - 80));
-    const screenLeft = window.screenLeft ?? window.screenX ?? 0;
-    const screenTop = window.screenTop ?? window.screenY ?? 0;
-    const viewportWidth =
-      window.innerWidth ||
-      document.documentElement.clientWidth ||
-      window.screen.width;
-    const viewportHeight =
-      window.innerHeight ||
-      document.documentElement.clientHeight ||
-      window.screen.height;
-    const left = Math.max(0, screenLeft + (viewportWidth - popupWidth) / 2);
-    const top = Math.max(0, screenTop + (viewportHeight - popupHeight) / 2);
-    const popup = window.open(
-      url,
-      "rocket_whatsapp_embedded_signup",
-      [
-        "popup=yes",
-        `width=${popupWidth}`,
-        `height=${popupHeight}`,
-        `left=${Math.round(left)}`,
-        `top=${Math.round(top)}`,
-        "resizable=yes",
-        "scrollbars=yes",
-        "status=no",
-        "toolbar=no",
-        "menubar=no",
-        "location=yes",
-      ].join(","),
-    );
-
-    if (!popup) return false;
-
-    popup.focus();
-    const closeTimer = window.setInterval(() => {
-      if (popup.closed) {
-        window.clearInterval(closeTimer);
-        setIsConnecting(false);
-      }
-    }, 700);
-
-    return true;
-  }, []);
-
   const handleFacebookConnect = async () => {
     if (isWhatsAppConnected) {
       toast({
@@ -1935,8 +1839,7 @@ function SettingsView({
       setIsConnecting(true);
       const directSignupUrl = buildDirectEmbeddedSignupUrl();
       if (directSignupUrl) {
-        if (openFacebookSignupPopup(directSignupUrl)) return;
-        window.location.href = directSignupUrl;
+        window.location.assign(directSignupUrl);
         return;
       }
 
@@ -1947,88 +1850,16 @@ function SettingsView({
           getCurrentWhatsAppRedirectUri(),
         );
         const hostedSignupUrl = hostedUrl.toString();
-        if (openFacebookSignupPopup(hostedSignupUrl)) return;
-        window.location.href = hostedSignupUrl;
+        window.location.assign(hostedSignupUrl);
         return;
       }
-
-      await loadFacebookSdk(
-        facebookConfig.appId,
-        facebookConfig.graphApiVersion || "v25.0",
-      );
-
-      const loginOptions = facebookConfig.embeddedSignupConfigId
-        ? {
-            config_id: facebookConfig.embeddedSignupConfigId,
-            response_type: "code",
-            override_default_response_type: true,
-            extras: {
-              setup: {},
-              featureType: "whatsapp_business_app_onboarding",
-              sessionInfoVersion: "3",
-            },
-          }
-        : {
-            scope:
-              "public_profile,business_management,whatsapp_business_management,whatsapp_business_messaging",
-            return_scopes: true,
-          };
-
-      const response = await new Promise<any>((resolve) => {
-        window.FB?.login((loginResponse: any) => resolve(loginResponse), loginOptions);
-      });
-
-      if (response?.status !== "connected" || !response?.authResponse) {
-        const metaError =
-          response?.error?.message ||
-          response?.error_message ||
-          response?.errorDescription ||
-          response?.message ||
-          "";
-        const isJavascriptSdkSetupError = /jssdk|javascript sdk|sdk/i.test(
-          metaError,
-        );
-        toast({
-          title: isJavascriptSdkSetupError
-            ? "Enable JavaScript SDK login in Meta"
-            : "Facebook connection cancelled",
-          description:
-            metaError ||
-            "Please approve the business permissions to connect WhatsApp.",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      const result = await connectWhatsAppFacebook(apiRequest, {
-        authResponse: response.authResponse,
-        setup: {
-          ...embeddedSignupData,
-          organizationName: form.organizationName,
-          businessDisplayName:
-            form.businessDisplayName || form.organizationName,
-          businessWebsite: form.website,
-          businessCategory: form.businessCategory || form.industry,
-          phoneSource: form.phoneSource,
-          requestedPhoneNumber: form.requestedPhoneNumber,
-          notificationSettings: {
-            email: form.alertEmail,
-            whatsappNumber: form.alertWhatsAppNumber,
-            emailEnabled: form.emailAlertsEnabled,
-            whatsappEnabled: form.whatsappAlertsEnabled,
-          },
-        },
-      });
 
       toast({
-        title: result?.workspace?.isConfigured
-          ? "WhatsApp connected"
-          : "Facebook connected",
-        description: result?.workspace?.isConfigured
-          ? "Your WABA and phone number are ready for automation."
-          : "Facebook login was saved. Complete Meta Embedded Signup if WABA details are still pending.",
+        title: "Embedded Signup not configured",
+        description:
+          "Add the WhatsApp Embedded Signup config ID or Meta-hosted signup URL on the API server.",
+        variant: "destructive",
       });
-      await onConnected();
     } catch (error: any) {
       console.error("Facebook WhatsApp connect error:", error);
       toast({
