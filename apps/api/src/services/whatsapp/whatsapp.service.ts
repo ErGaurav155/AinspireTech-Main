@@ -411,8 +411,25 @@ export async function processWhatsAppWebhook(payload: any) {
   for (const change of changes) {
     const value = change.value || {};
     const phoneNumberId = value.metadata?.phone_number_id;
+    const messages = value.messages || [];
+    const statuses = value.statuses || [];
     if (!phoneNumberId) {
-      console.warn("[whatsapp:process] Skipping change without phone number ID");
+      if (!messages.length && !statuses.length) {
+        console.info(
+          "[whatsapp:process] Ignoring non-message change without phone number ID",
+          {
+            field: change.field || "unknown",
+            valueKeys: Object.keys(value),
+          },
+        );
+        continue;
+      }
+
+      console.warn("[whatsapp:process] Skipping processable change without phone number ID", {
+        field: change.field || "unknown",
+        messages: messages.length,
+        statuses: statuses.length,
+      });
       continue;
     }
 
@@ -429,8 +446,8 @@ export async function processWhatsAppWebhook(payload: any) {
     console.info("[whatsapp:process] Workspace matched", {
       phoneNumberId,
       workspaceId: String(workspace._id),
-      inboundMessages: value.messages?.length || 0,
-      statuses: value.statuses?.length || 0,
+      inboundMessages: messages.length,
+      statuses: statuses.length,
       isConfigured: workspace.isConfigured,
       activeAgents: workspace.agents.filter(
         (agent) => agent.isActive && agent.status === "live",
@@ -438,7 +455,7 @@ export async function processWhatsAppWebhook(payload: any) {
     });
     const createdAppointmentAlerts: Array<Record<string, any>> = [];
 
-    for (const message of value.messages || []) {
+    for (const message of messages) {
       const waId = message.from;
       const profile = value.contacts?.find((contact: any) => contact.wa_id === waId);
       const body =
@@ -599,7 +616,7 @@ export async function processWhatsAppWebhook(payload: any) {
       }
     }
 
-    for (const status of value.statuses || []) {
+    for (const status of statuses) {
       const conversation = workspace.conversations.find((item) =>
         item.messages.some((message) => message.providerMessageId === status.id),
       );
