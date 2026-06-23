@@ -18,7 +18,6 @@ import {
   FileText,
   Headphones,
   MessageCircle,
-  Phone,
   Plug,
   RefreshCw,
   Send,
@@ -1453,6 +1452,10 @@ function SettingsView({
   const [facebookConfig, setFacebookConfig] = useState<any>(null);
   const [embeddedSignupData, setEmbeddedSignupData] = useState<Record<string, any>>({});
   const processedHostedSignupCodeRef = useRef("");
+  const isWhatsAppConnected = Boolean(
+    workspace?.isConfigured ||
+      (workspace?.meta?.wabaId && workspace?.meta?.phoneNumberId),
+  );
 
   useEffect(() => {
     setForm({
@@ -1909,6 +1912,16 @@ function SettingsView({
   }, []);
 
   const handleFacebookConnect = async () => {
+    if (isWhatsAppConnected) {
+      toast({
+        title: "WhatsApp already connected",
+        description:
+          "Delete the existing WhatsApp account data before connecting a different WhatsApp account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!facebookConfig?.appId) {
       toast({
         title: "Meta app not configured",
@@ -2105,6 +2118,17 @@ function SettingsView({
       workspace?.meta?.displayPhoneNumber ||
       workspace?.meta?.accessToken,
   );
+  const businessProfileFields: Array<[string, string]> = [
+    ["organizationName", "Business name"],
+    ["businessDisplayName", "WhatsApp display name"],
+    ...(!isWhatsAppConnected
+      ? ([["requestedPhoneNumber", "Official WhatsApp number"]] as Array<[
+          string,
+          string,
+        ]>)
+      : []),
+    ["website", "Official website URL"],
+  ];
 
   return (
     <>
@@ -2135,53 +2159,13 @@ function SettingsView({
             }
           }}
         >
-          <div className={`rounded-xl border ${softCardClass} p-4`}>
-            <div className="flex items-start gap-3">
-              <Phone className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-400" />
-              <div>
-                <h3 className="font-bold">Choose your WhatsApp number</h3>
-                <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-white/50">
-                  Use an official business number that can be registered on WhatsApp Business Platform, or let Meta offer a free number during signup.
-                </p>
-              </div>
+          {isWhatsAppConnected && (
+            <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 dark:text-emerald-300">
+              WhatsApp is connected for this workspace. To connect a different
+              WhatsApp account, delete the existing WhatsApp account data first.
             </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
-              {[
-                ["official_number", "I have an official number"],
-                ["meta_free_number", "Use Meta free number"],
-              ].map(([value, label]) => (
-                <label
-                  key={value}
-                  className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 text-sm font-semibold ${
-                    form.phoneSource === value
-                      ? "border-emerald-400 bg-emerald-500/10 text-emerald-500"
-                      : "border-gray-200 text-gray-600 dark:border-white/[0.08] dark:text-white/60"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="phoneSource"
-                    value={value}
-                    checked={form.phoneSource === value}
-                    onChange={() =>
-                      setForm((current) => ({
-                        ...current,
-                        phoneSource: value,
-                      }))
-                    }
-                    className="h-4 w-4 accent-emerald-500"
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </div>
-          {[
-            ["organizationName", "Business name"],
-            ["businessDisplayName", "WhatsApp display name"],
-            ["requestedPhoneNumber", "Official WhatsApp number"],
-            ["website", "Official website URL"],
-          ].map(([key, label]) => (
+          )}
+          {businessProfileFields.map(([key, label]) => (
             <label key={key} className="grid gap-1.5">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
                 {label}
@@ -2298,18 +2282,28 @@ function SettingsView({
           >
             {isSaving ? "Saving..." : "Save Business Profile"}
           </Button>
-            <Button
-              type="button"
-              disabled={isConnecting || isLoadingConfig}
-              onClick={handleFacebookConnect}
-              className="rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-default disabled:opacity-70"
-            >
-              {isConnecting
-                ? "Connecting..."
-                : isLoadingConfig
-                  ? "Loading Meta config..."
-                  : "Continue with Facebook"}
-            </Button>
+            {isWhatsAppConnected ? (
+              <Button
+                type="button"
+                disabled
+                className="rounded-xl bg-emerald-600 text-white disabled:cursor-default disabled:opacity-80"
+              >
+                WhatsApp Connected
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                disabled={isConnecting || isLoadingConfig}
+                onClick={handleFacebookConnect}
+                className="rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:cursor-default disabled:opacity-70"
+              >
+                {isConnecting
+                  ? "Connecting..."
+                  : isLoadingConfig
+                    ? "Loading Meta config..."
+                    : "Continue with Facebook"}
+              </Button>
+            )}
           </div>
         </form>
         <div className="mt-5 grid gap-3">

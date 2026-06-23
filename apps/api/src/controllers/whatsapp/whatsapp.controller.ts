@@ -516,6 +516,15 @@ export const connectWhatsAppFacebookController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (resolveWorkspaceConfigured(workspace)) {
+      return res.status(409).json({
+        success: false,
+        error:
+          "WhatsApp is already connected. Delete existing WhatsApp account data before connecting another account.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const resolvedConnection = await resolveMetaWhatsAppConnection({
       accessToken,
       setup,
