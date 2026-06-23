@@ -6,6 +6,10 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
+import ContentCreationSubscription from "@/models/packages/ContentCreationSubscription.model";
+import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
+import PackageSubscription from "@/models/packages/PackageSubscription.model";
+import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
 import Affiliate from "@/models/affiliate/Affiliate";
@@ -24,6 +28,13 @@ import {
   renewCallPaidSubscription,
   renewWhatsAppPaidSubscription,
 } from "@/services/billing/paid-subscription.service";
+
+const NON_CORE_SUBSCRIPTION_TYPES = new Set([
+  "package",
+  "meta-ads",
+  "website-maintenance",
+  "content-creation",
+]);
 
 const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
   insta: {
@@ -185,8 +196,20 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         ? entityAmount / 100
         : 0;
 
+  if (NON_CORE_SUBSCRIPTION_TYPES.has(subscriptionType)) {
+    console.info("Skipping core subscription webhook handling", {
+      subscriptionType,
+      subscriptionId: subscriptionData?.id,
+    });
+    return { subscription: null, referral: null };
+  }
+
   // Find or create user
-  const buyerEmail = (subscriptionData.email || notes.email || `${clerkId}@temp.com`).toLowerCase();
+  const buyerEmail = (
+    subscriptionData.email ||
+    notes.email ||
+    `${clerkId}@temp.com`
+  ).toLowerCase();
   let user = await User.findOne({ clerkId: clerkId });
   if (!user) {
     try {
@@ -554,7 +577,16 @@ async function handleSubscriptionCharged(
   nextBillingDate: Date,
 ) {
   // Update subscription
-  const [instaUpdate, webUpdate, callUpdate, whatsAppUpdate] = await Promise.all([
+  const [
+    instaUpdate,
+    webUpdate,
+    callUpdate,
+    whatsAppUpdate,
+    packageUpdate,
+    metaAdsUpdate,
+    websiteMaintenanceUpdate,
+    contentCreationUpdate,
+  ] = await Promise.all([
     InstaSubscription.findOneAndUpdate(
       { subscriptionId },
       {
@@ -582,9 +614,61 @@ async function handleSubscriptionCharged(
       subscriptionId,
       expiresAt: nextBillingDate,
     }),
+    PackageSubscription.findOneAndUpdate(
+      { subscriptionId },
+      {
+        $set: {
+          status: "active",
+          expiresAt: nextBillingDate,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    ),
+    MetaAdsSubscription.findOneAndUpdate(
+      { subscriptionId },
+      {
+        $set: {
+          status: "active",
+          expiresAt: nextBillingDate,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    ),
+    WebsiteMaintenanceSubscription.findOneAndUpdate(
+      { subscriptionId },
+      {
+        $set: {
+          status: "active",
+          expiresAt: nextBillingDate,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    ),
+    ContentCreationSubscription.findOneAndUpdate(
+      { subscriptionId },
+      {
+        $set: {
+          status: "active",
+          expiresAt: nextBillingDate,
+          updatedAt: new Date(),
+        },
+      },
+      { new: true },
+    ),
   ]);
 
-  const subscription = instaUpdate || webUpdate || callUpdate || whatsAppUpdate;
+  const subscription =
+    instaUpdate ||
+    webUpdate ||
+    callUpdate ||
+    whatsAppUpdate ||
+    packageUpdate ||
+    metaAdsUpdate ||
+    websiteMaintenanceUpdate ||
+    contentCreationUpdate;
 
   if (subscription) {
     // Find active referral for this subscription
@@ -732,7 +816,29 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
         const whatsAppExists = await WhatsAppWorkspace.findOne({
           "subscription.subscriptionId": subscriptionId,
         });
-        const exists = instaExists || webExists || callExists || whatsAppExists;
+        const packageExists = await PackageSubscription.findOne({
+          subscriptionId,
+        });
+        const metaAdsExists = await MetaAdsSubscription.findOne({
+          subscriptionId,
+        });
+        const websiteMaintenanceExists =
+          await WebsiteMaintenanceSubscription.findOne({
+            subscriptionId,
+          });
+        const contentCreationExists =
+          await ContentCreationSubscription.findOne({
+            subscriptionId,
+          });
+        const exists =
+          instaExists ||
+          webExists ||
+          callExists ||
+          whatsAppExists ||
+          packageExists ||
+          metaAdsExists ||
+          websiteMaintenanceExists ||
+          contentCreationExists;
         let createdFromWebhook = false;
 
         if (!exists) {

@@ -6,13 +6,27 @@ export const normalizeCallNumber = (phone = "") =>
 const phoneLookupCandidates = (phone = "") => {
   const normalized = normalizeCallNumber(phone);
   const withoutPlus = normalized.replace(/^\+/, "");
+  const withoutLeadingZero =
+    withoutPlus.length === 11 && withoutPlus.startsWith("0")
+      ? withoutPlus.slice(1)
+      : withoutPlus;
   const withoutIndiaCode = withoutPlus.startsWith("91")
     ? withoutPlus.slice(2)
     : withoutPlus;
+  const withIndiaCode =
+    withoutLeadingZero.length === 10 ? `91${withoutLeadingZero}` : "";
+  const withPlusIndiaCode = withIndiaCode ? `+${withIndiaCode}` : "";
 
   return Array.from(
     new Set(
-      [normalized, withoutPlus, withoutIndiaCode]
+      [
+        normalized,
+        withoutPlus,
+        withoutLeadingZero,
+        withoutIndiaCode,
+        withIndiaCode,
+        withPlusIndiaCode,
+      ]
         .map((item) => item.trim())
         .filter(Boolean),
     ),

@@ -74,8 +74,22 @@ const DEFAULT_QUESTIONS = [
   "Which service or plan are you interested in?",
 ];
 
+const formatForwardingTargetNumber = (phoneNumber = "") => {
+  const normalized = normalizeCallNumber(phoneNumber);
+  const digits = normalized.replace(/\D/g, "");
+  if (!digits) return "";
+  if (normalized.startsWith("+")) return normalized;
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 11 && digits.startsWith("0")) {
+    return `+91${digits.slice(1)}`;
+  }
+  if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
+  return normalized;
+};
+
 const forwardingCodesForNumber = (phoneNumber = "") => {
-  if (!phoneNumber) {
+  const targetNumber = formatForwardingTargetNumber(phoneNumber);
+  if (!targetNumber) {
     return {
       busy: "",
       noAnswer: "",
@@ -89,10 +103,10 @@ const forwardingCodesForNumber = (phoneNumber = "") => {
   }
 
   return {
-    busy: `**67*${phoneNumber}#`,
-    noAnswer: `**61*${phoneNumber}#`,
-    unreachable: `**62*${phoneNumber}#`,
-    allCalls: `**21*${phoneNumber}#`,
+    busy: `**67*${targetNumber}#`,
+    noAnswer: `**61*${targetNumber}#`,
+    unreachable: `**62*${targetNumber}#`,
+    allCalls: `**21*${targetNumber}#`,
     disableBusy: "##67#",
     disableNoAnswer: "##61#",
     disableUnreachable: "##62#",
@@ -103,13 +117,27 @@ const forwardingCodesForNumber = (phoneNumber = "") => {
 const phoneLookupCandidates = (phoneNumber = "") => {
   const normalized = normalizeCallNumber(phoneNumber);
   const withoutPlus = normalized.replace(/^\+/, "");
+  const withoutLeadingZero =
+    withoutPlus.length === 11 && withoutPlus.startsWith("0")
+      ? withoutPlus.slice(1)
+      : withoutPlus;
   const withoutIndiaCode = withoutPlus.startsWith("91")
     ? withoutPlus.slice(2)
     : withoutPlus;
+  const withIndiaCode =
+    withoutLeadingZero.length === 10 ? `91${withoutLeadingZero}` : "";
+  const withPlusIndiaCode = withIndiaCode ? `+${withIndiaCode}` : "";
 
   return Array.from(
     new Set(
-      [normalized, withoutPlus, withoutIndiaCode]
+      [
+        normalized,
+        withoutPlus,
+        withoutLeadingZero,
+        withoutIndiaCode,
+        withIndiaCode,
+        withPlusIndiaCode,
+      ]
         .map((item) => item.trim())
         .filter(Boolean),
     ),
