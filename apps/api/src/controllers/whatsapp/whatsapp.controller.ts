@@ -15,6 +15,9 @@ import {
   objectToAppointmentAlert,
   sendAppointmentNotifications,
 } from "@/services/appointment-notification.service";
+import { uploadTextToCloudinary } from "@/services/transaction.service";
+import { scrapeWebsitePagesForKnowledge } from "@/controllers/web/scrape/scrap-anu.controller";
+import { formatScrapedData } from "@/controllers/web/scrape/process-data.controller";
 
 const authUserId = (req: Request) => getAuth(req).userId;
 
@@ -33,11 +36,7 @@ const ok = (res: Response, data: any) =>
   });
 
 const allowedCollections = [
-  "agents",
-  "templates",
-  "contacts",
   "conversations",
-  "campaigns",
   "appointments",
 ] as const;
 
@@ -85,6 +84,158 @@ const whatsappOAuthRedirectUri =
 const cleanString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
 
+const safeCloudinaryFileName = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/[^a-z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .slice(0, 120);
+
+const downloadTextFromUrl = async (url: string, timeoutMs = 10000) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const readExistingWhatsAppKnowledge = async (knowledgeBaseUrl?: string) => {
+  if (!knowledgeBaseUrl) return {};
+  try {
+    const text = await downloadTextFromUrl(knowledgeBaseUrl, 7000);
+    return JSON.parse(text);
+  } catch (error) {
+    console.warn("[whatsapp:business-info] Could not read existing knowledge", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {};
+  }
+};
+
+const uploadWhatsAppKnowledge = async ({
+  workspace,
+  businessInfo,
+}: {
+  workspace: any;
+  businessInfo: Record<string, any>;
+}) => {
+  const existingInfo = workspace.businessInfo || {};
+  const websiteUrl =
+    businessInfo.websiteUrl !== undefined
+      ? cleanString(businessInfo.websiteUrl)
+      : cleanString(existingInfo.websiteUrl);
+  const summary =
+    businessInfo.summary !== undefined
+      ? cleanString(businessInfo.summary)
+      : cleanString(existingInfo.summary);
+  const fileText = cleanString(businessInfo.fileText);
+  const fileName =
+    businessInfo.fileName !== undefined
+      ? cleanString(businessInfo.fileName)
+      : cleanString(existingInfo.fileName);
+  const fileType =
+    businessInfo.fileType !== undefined
+      ? cleanString(businessInfo.fileType)
+      : cleanString(existingInfo.fileType);
+  const fileSize = Number(businessInfo.fileSize || existingInfo.fileSize || 0);
+  const existingKnowledge = await readExistingWhatsAppKnowledge(
+    existingInfo.knowledgeBaseUrl,
+  );
+  const shouldScrapeWebsite =
+    Boolean(websiteUrl) &&
+    (websiteUrl !== cleanString(existingInfo.websiteUrl) ||
+      !existingKnowledge?.website?.pages?.length);
+  let websiteKnowledge = existingKnowledge?.website || null;
+  let websiteKnowledgeUrl = cleanString(existingInfo.websiteKnowledgeUrl);
+  if (shouldScrapeWebsite) {
+    try {
+      const scrapeResult = await scrapeWebsitePagesForKnowledge(websiteUrl);
+      const formattedWebsiteData = formatScrapedData(scrapeResult.scrapedPages);
+      const websiteFileName = `whatsapp_${workspace.clerkId}_${scrapeResult.fileName}`;
+      websiteKnowledgeUrl = await uploadTextToCloudinary(
+        formattedWebsiteData,
+        websiteFileName,
+      );
+      websiteKnowledge = JSON.parse(formattedWebsiteData);
+    } catch (error) {
+      console.warn("[whatsapp:business-info] Shared website scrape failed", {
+        websiteUrl,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      websiteKnowledge = {
+        generatedAt: new Date().toISOString(),
+        pageCount: 0,
+        pages: [],
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  let fileKnowledge = existingKnowledge?.file || null;
+  let fileKnowledgeUrl = cleanString(existingInfo.fileKnowledgeUrl);
+  if (fileText) {
+    fileKnowledge = {
+      type: "file_upload",
+      name: fileName || "business-info.txt",
+      contentType: fileType || "text/plain",
+      size: fileSize,
+      content: fileText,
+      uploadedAt: new Date().toISOString(),
+    };
+    const fileKnowledgePayload = {
+      generatedAt: new Date().toISOString(),
+      file: fileKnowledge,
+    };
+    fileKnowledgeUrl = await uploadTextToCloudinary(
+      JSON.stringify(fileKnowledgePayload, null, 2),
+      `whatsapp_${workspace.clerkId}_file_${Date.now()}_${safeCloudinaryFileName(
+        fileName || "business_info",
+      )}`,
+    );
+  }
+
+  const knowledge = {
+    type: "whatsapp_business_info",
+    generatedAt: new Date().toISOString(),
+    businessName: workspace.organization?.name || "My Business",
+    websiteUrl,
+    summary: summary.slice(0, 12000),
+    websiteKnowledgeUrl,
+    fileKnowledgeUrl,
+    website: websiteKnowledge,
+    file: fileKnowledge,
+  };
+  const knowledgeFileName = `whatsapp_${workspace.clerkId}_${Date.now()}_${safeCloudinaryFileName(
+    websiteUrl || fileName || "business_info",
+  )}`;
+  const knowledgeBaseUrl = await uploadTextToCloudinary(
+    JSON.stringify(knowledge, null, 2),
+    knowledgeFileName,
+  );
+
+  return {
+    websiteUrl,
+    summary: summary.slice(0, 12000),
+    fileName,
+    fileType,
+    fileSize,
+    fileText: "",
+    websiteKnowledgeUrl,
+    fileKnowledgeUrl,
+    knowledgeBaseUrl,
+    knowledgeBaseFileName: knowledgeFileName,
+    knowledgeUpdatedAt: new Date(),
+    updatedAt: new Date(),
+  };
+};
+
 const graphFetch = async (path: string, accessToken: string) => {
   const url = new URL(`https://graph.facebook.com/${metaGraphApiVersion}${path}`);
   url.searchParams.set("access_token", accessToken);
@@ -93,6 +244,326 @@ const graphFetch = async (path: string, accessToken: string) => {
   if (!response.ok) {
     throw new Error(data?.error?.message || "Meta Graph API request failed");
   }
+  return data;
+};
+
+const syncGreetingTemplateStatus = async (workspace: any) => {
+  const template = workspace.greetingTemplate;
+  if (
+    !template?.name ||
+    !workspace.meta?.wabaId ||
+    !workspace.meta?.accessToken
+  ) {
+    return;
+  }
+
+  try {
+    const url = new URL(
+      `https://graph.facebook.com/${workspace.meta.graphApiVersion || metaGraphApiVersion}/${workspace.meta.wabaId}/message_templates`,
+    );
+    url.searchParams.set("name", template.name);
+    url.searchParams.set("fields", "id,name,status");
+    url.searchParams.set("access_token", workspace.meta.accessToken);
+    const response = await fetch(url);
+    const data = await response.json();
+    if (!response.ok) return;
+
+    const remoteTemplate = data?.data?.[0];
+    const remoteStatus = cleanString(remoteTemplate?.status).toLowerCase();
+    if (["approved", "pending", "rejected"].includes(remoteStatus)) {
+      template.status = remoteStatus;
+      template.metaTemplateId = cleanString(remoteTemplate?.id) || template.metaTemplateId;
+      template.lastError = "";
+      if (remoteStatus === "approved" && !template.approvedAt) {
+        template.approvedAt = new Date();
+      }
+    }
+  } catch (error) {
+    console.warn("[whatsapp:template] Could not sync greeting template status", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+};
+
+const normalizeFlowStatus = (
+  value: unknown,
+  validationErrors: any[] = [],
+): "draft" | "validation_error" | "published" | "deprecated" | "blocked" | "error" => {
+  if (validationErrors.length > 0) return "validation_error";
+  const status = cleanString(value).toLowerCase();
+  if (status === "published") return "published";
+  if (status === "deprecated") return "deprecated";
+  if (status === "blocked" || status === "throttled") return "blocked";
+  if (status === "draft") return "draft";
+  return status ? "error" : "draft";
+};
+
+const appointmentFieldLabels: Record<string, string> = {
+  patient_name: "Customer name",
+  phone: "Phone number",
+  symptoms: "Requirement",
+  preferred_date: "Preferred date",
+  preferred_time: "Preferred time",
+};
+
+const appointmentFlowFieldOrder = [
+  "patient_name",
+  "phone",
+  "symptoms",
+  "preferred_date",
+  "preferred_time",
+  "service",
+];
+
+const buildAppointmentFlowJson = (workspace: any) => {
+  const config = workspace.appointmentConfig || {};
+  const requiredFields = Array.isArray(config.requiredFields)
+    ? config.requiredFields
+    : [];
+  const selectedFields = appointmentFlowFieldOrder.filter(
+    (field) =>
+      requiredFields.includes(field) ||
+      ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(field),
+  );
+  const serviceNames = (config.services || [])
+    .filter((service: any) => service?.isActive !== false && cleanString(service?.name))
+    .map((service: any) => cleanString(service.name))
+    .slice(0, 10);
+  if (serviceNames.length > 0 && !selectedFields.includes("service")) {
+    selectedFields.push("service");
+  }
+  if (!selectedFields.includes("patient_name")) selectedFields.unshift("patient_name");
+
+  const inputComponents = selectedFields.map((field) => ({
+    type: "TextInput",
+    name: field,
+    label:
+      field === "service" && serviceNames.length > 0
+        ? `Service (${serviceNames.join(", ")})`
+        : appointmentFieldLabels[field] || field.replace(/_/g, " "),
+    required: ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(field)
+      ? true
+      : requiredFields.includes(field),
+    "input-type": field === "phone" ? "phone" : "text",
+  }));
+  const payload = selectedFields.reduce<Record<string, string>>((acc, field) => {
+    acc[field] = `\${form.${field}}`;
+    return acc;
+  }, {});
+
+  return {
+    version: workspace.appointmentFlow?.jsonVersion || "7.1",
+    screens: [
+      {
+        id: "APPOINTMENT_FORM",
+        title: "Book Appointment",
+        terminal: true,
+        success: true,
+        data: {},
+        layout: {
+          type: "SingleColumnLayout",
+          children: [
+            {
+              type: "Form",
+              name: "appointment_form",
+              children: [
+                {
+                  type: "TextHeading",
+                  text: `Book appointment with ${config.clinicName || workspace.organization?.name || "us"}`,
+                },
+                {
+                  type: "TextBody",
+                  text: "Share your appointment details. The business team will confirm availability.",
+                },
+                ...inputComponents,
+                {
+                  type: "Footer",
+                  label: "Book appointment",
+                  "on-click-action": {
+                    name: "complete",
+                    payload,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+    ],
+  };
+};
+
+const graphJsonRequest = async ({
+  path,
+  accessToken,
+  method = "POST",
+  body,
+  version,
+}: {
+  path: string;
+  accessToken: string;
+  method?: "GET" | "POST";
+  body?: Record<string, any>;
+  version: string;
+}) => {
+  const response = await fetch(`https://graph.facebook.com/${version}${path}`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error?.message || "Meta Graph API request failed");
+  }
+  return data;
+};
+
+const createAppointmentFlow = async (workspace: any, flowJson: Record<string, any>) => {
+  const baseName =
+    cleanString(workspace.appointmentFlow?.name) ||
+    `${workspace.organization?.name || "RocketReplai"} Appointment Booking`;
+  const needsRevisionName = Boolean(workspace.appointmentFlow?.flowId);
+  const name = needsRevisionName
+    ? `${baseName.slice(0, 42)} ${Date.now()}`
+    : baseName.slice(0, 60);
+  const version = workspace.meta?.graphApiVersion || metaGraphApiVersion;
+  const data = await graphJsonRequest({
+    path: `/${workspace.meta.wabaId}/flows`,
+    accessToken: workspace.meta.accessToken,
+    version,
+    body: {
+      name,
+      categories: ["APPOINTMENT_BOOKING"],
+      flow_json: JSON.stringify(flowJson),
+      publish: false,
+    },
+  });
+  workspace.appointmentFlow = {
+    ...workspace.appointmentFlow,
+    enabled: true,
+    name,
+    flowId: cleanString(data?.id),
+    status: "draft",
+    categories: ["APPOINTMENT_BOOKING"],
+    jsonVersion: flowJson.version,
+    validationErrors: [],
+    lastError: "",
+    lastSyncedAt: new Date(),
+    updatedAt: new Date(),
+  };
+  return data;
+};
+
+const uploadAppointmentFlowJson = async (
+  workspace: any,
+  flowJson: Record<string, any>,
+) => {
+  const formData = new (globalThis as any).FormData();
+  const flowBlob = new (globalThis as any).Blob([JSON.stringify(flowJson)], {
+    type: "application/json",
+  });
+  formData.set("name", "flow.json");
+  formData.set("asset_type", "FLOW_JSON");
+  formData.set("file", flowBlob, "flow.json");
+
+  const version = workspace.meta?.graphApiVersion || metaGraphApiVersion;
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${workspace.appointmentFlow.flowId}/assets`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${workspace.meta.accessToken}`,
+      },
+      body: formData,
+    } as any,
+  );
+  const data = await response.json().catch(() => ({}));
+  const validationErrors = Array.isArray(data?.validation_errors)
+    ? data.validation_errors
+    : [];
+  workspace.appointmentFlow = {
+    ...workspace.appointmentFlow,
+    status: normalizeFlowStatus("draft", validationErrors),
+    categories: ["APPOINTMENT_BOOKING"],
+    jsonVersion: flowJson.version,
+    validationErrors,
+    lastError: response.ok
+      ? ""
+      : data?.error?.message || "Meta Flow JSON upload failed",
+    lastSyncedAt: new Date(),
+    updatedAt: new Date(),
+  };
+  if (!response.ok) {
+    throw new Error(workspace.appointmentFlow.lastError);
+  }
+  return data;
+};
+
+const syncAppointmentFlowStatus = async (workspace: any) => {
+  if (!workspace.appointmentFlow?.flowId || !workspace.meta?.accessToken) return;
+
+  try {
+    const version = workspace.meta?.graphApiVersion || metaGraphApiVersion;
+    const phoneNumberId = cleanString(workspace.meta?.phoneNumberId);
+    const fields = phoneNumberId
+      ? `id,name,status,categories,validation_errors,json_version,preview,health_status.phone_number(${phoneNumberId})`
+      : "id,name,status,categories,validation_errors,json_version,preview";
+    const url = new URL(
+      `https://graph.facebook.com/${version}/${workspace.appointmentFlow.flowId}`,
+    );
+    url.searchParams.set("fields", fields);
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${workspace.meta.accessToken}` },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      workspace.appointmentFlow.lastError =
+        data?.error?.message || "Could not sync WhatsApp Flow status";
+      return;
+    }
+    const validationErrors = Array.isArray(data?.validation_errors)
+      ? data.validation_errors
+      : [];
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      name: cleanString(data?.name) || workspace.appointmentFlow.name,
+      status: normalizeFlowStatus(data?.status, validationErrors),
+      categories: Array.isArray(data?.categories)
+        ? data.categories
+        : workspace.appointmentFlow.categories || ["APPOINTMENT_BOOKING"],
+      jsonVersion: cleanString(data?.json_version) || workspace.appointmentFlow.jsonVersion,
+      validationErrors,
+      lastError: validationErrors.length
+        ? validationErrors.map((item: any) => item?.message).filter(Boolean).join("; ")
+        : "",
+      lastSyncedAt: new Date(),
+      updatedAt: new Date(),
+    };
+  } catch (error) {
+    workspace.appointmentFlow.lastError =
+      error instanceof Error ? error.message : String(error);
+  }
+};
+
+const publishAppointmentFlow = async (workspace: any) => {
+  const version = workspace.meta?.graphApiVersion || metaGraphApiVersion;
+  const data = await graphJsonRequest({
+    path: `/${workspace.appointmentFlow.flowId}/publish`,
+    accessToken: workspace.meta.accessToken,
+    version,
+  });
+  workspace.appointmentFlow = {
+    ...workspace.appointmentFlow,
+    status: "published",
+    validationErrors: [],
+    lastError: "",
+    publishedAt: new Date(),
+    lastSyncedAt: new Date(),
+    updatedAt: new Date(),
+  };
   return data;
 };
 
@@ -660,13 +1131,13 @@ export const getWhatsAppDashboardController = async (
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
     await syncWorkspaceMetaConnection(workspace);
+    await syncGreetingTemplateStatus(workspace);
+    await syncAppointmentFlowStatus(workspace);
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     await workspace.save();
 
     const conversations = workspace.conversations || [];
-    const contacts = workspace.contacts || [];
-    const campaigns = workspace.campaigns || [];
     const outboundMessages = conversations.flatMap((conversation) =>
       conversation.messages.filter((message) => message.direction === "outbound"),
     );
@@ -680,12 +1151,16 @@ export const getWhatsAppDashboardController = async (
     return ok(res, {
       workspace: sanitizeWorkspace(workspace),
       overview: {
-        totalContacts: contacts.length,
-        optedInContacts: contacts.filter((contact) => contact.consentStatus === "opted_in").length,
+        totalContacts: workspace.contacts?.length || 0,
+        optedInContacts:
+          workspace.contacts?.filter((contact) => contact.consentStatus === "opted_in")
+            .length || 0,
         openConversations: conversations.filter((item) => item.status !== "resolved").length,
         pendingHuman: conversations.filter((item) => item.status === "pending_human").length,
-        activeAgents: workspace.agents.filter((agent) => agent.isActive).length,
-        totalCampaigns: campaigns.length,
+        totalAppointments: workspace.appointments?.length || 0,
+        requestedAppointments:
+          workspace.appointments?.filter((item) => item.status === "requested")
+            .length || 0,
         messagesUsed: workspace.subscription.messagesUsed,
         messageLimit: workspace.subscription.messageLimit,
         deliveredRate:
@@ -704,9 +1179,6 @@ export const getWhatsAppDashboardController = async (
             new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
         )
         .slice(0, 10),
-      agents: workspace.agents,
-      templates: workspace.templates,
-      campaigns: workspace.campaigns,
       appointments: workspace.appointments
         .slice()
         .sort(
@@ -715,7 +1187,9 @@ export const getWhatsAppDashboardController = async (
         )
         .slice(0, 25),
       appointmentConfig: workspace.appointmentConfig,
-      contacts: workspace.contacts.slice(-25),
+      appointmentFlow: workspace.appointmentFlow,
+      businessInfo: workspace.businessInfo,
+      greetingTemplate: workspace.greetingTemplate,
     });
   } catch (error: any) {
     console.error("WhatsApp dashboard error:", error);
@@ -743,6 +1217,8 @@ export const updateWhatsAppWorkspaceController = async (
       subscription,
       appointmentConfig,
       notificationSettings,
+      businessInfo,
+      greetingTemplate,
     } = req.body || {};
 
     if (subscription?.plan && subscription.plan !== "free") {
@@ -807,6 +1283,84 @@ export const updateWhatsAppWorkspaceController = async (
         ...workspace.appointmentConfig,
         ...appointmentConfig,
       } as any;
+      workspace.appointmentFlow = {
+        ...workspace.appointmentFlow,
+        status:
+          workspace.appointmentFlow?.status === "published"
+            ? workspace.appointmentFlow.status
+            : "draft",
+        validationErrors: [],
+        lastError: "",
+        updatedAt: new Date(),
+      } as any;
+    }
+
+    if (businessInfo) {
+      const fileSize = Number(businessInfo.fileSize || 0);
+      if (fileSize > 10 * 1024 * 1024) {
+        return res.status(413).json({
+          success: false,
+          error: "Business info file must be 10 MB or smaller.",
+          timestamp: new Date().toISOString(),
+        });
+      }
+      const hasKnowledgeInput = Boolean(
+        cleanString(businessInfo.websiteUrl) ||
+          cleanString(businessInfo.summary) ||
+          cleanString(businessInfo.fileText) ||
+          workspace.businessInfo?.knowledgeBaseUrl,
+      );
+      workspace.businessInfo = hasKnowledgeInput
+        ? ({
+            ...workspace.businessInfo,
+            ...(await uploadWhatsAppKnowledge({ workspace, businessInfo })),
+          } as any)
+        : ({
+            ...workspace.businessInfo,
+            websiteUrl: "",
+            summary: "",
+            fileName: "",
+            fileType: "",
+            fileSize: 0,
+            fileText: "",
+            websiteKnowledgeUrl: "",
+            fileKnowledgeUrl: "",
+            knowledgeBaseUrl: "",
+            knowledgeBaseFileName: "",
+            updatedAt: new Date(),
+          } as any);
+      if (businessInfo.websiteUrl !== undefined) {
+        workspace.organization.website = cleanString(businessInfo.websiteUrl);
+      }
+    }
+
+    if (greetingTemplate) {
+      const currentTemplate = workspace.greetingTemplate || {};
+      const nextName =
+        cleanString(greetingTemplate.name)
+          .toLowerCase()
+          .replace(/[^a-z0-9_]/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_|_$/g, "") || "rocket_whatsapp_greeting";
+      const nextBody =
+        cleanString(greetingTemplate.body) ||
+        "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.";
+      const changed =
+        nextName !== currentTemplate.name || nextBody !== currentTemplate.body;
+      workspace.greetingTemplate = {
+        ...currentTemplate,
+        name: nextName,
+        language: cleanString(greetingTemplate.language) || "en_US",
+        category: "utility",
+        status: changed ? "draft" : currentTemplate.status || "draft",
+        body: nextBody.slice(0, 1024),
+        example:
+          cleanString(greetingTemplate.example) ||
+          nextBody.replace(/\{\{\s*1\s*\}\}/g, workspace.organization?.name || "Ainspiretech"),
+        metaTemplateId: changed ? "" : currentTemplate.metaTemplateId,
+        lastError: changed ? "" : currentTemplate.lastError,
+        updatedAt: new Date(),
+      } as any;
     }
 
     if (notificationSettings) {
@@ -863,13 +1417,236 @@ export const deleteWhatsAppWorkspaceController = async (
     return ok(res, {
       deleted: Boolean(deletedWorkspace),
       message:
-        "WhatsApp dashboard data, Meta connection data, contacts, conversations, and appointments were deleted.",
+        "WhatsApp dashboard data, Meta connection data, business info, conversations, appointments, and greeting template were deleted.",
     });
   } catch (error: any) {
     console.error("WhatsApp workspace delete error:", error);
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to delete WhatsApp workspace data",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const submitWhatsAppGreetingTemplateController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
+      return res.status(409).json({
+        success: false,
+        error: "Connect WhatsApp Business before submitting a greeting template.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const currentTemplate = workspace.greetingTemplate || {};
+    const name =
+      cleanString(req.body?.name || currentTemplate.name)
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, "_")
+        .replace(/_+/g, "_")
+        .replace(/^_|_$/g, "") || "rocket_whatsapp_greeting";
+    const body =
+      cleanString(req.body?.body || currentTemplate.body) ||
+      "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.";
+    const language = cleanString(req.body?.language || currentTemplate.language) || "en_US";
+    const exampleBusinessName = workspace.organization?.name || "Ainspiretech";
+    const bodyComponent: Record<string, any> = {
+      type: "BODY",
+      text: body,
+    };
+    if (/\{\{\s*1\s*\}\}/.test(body)) {
+      bodyComponent.example = {
+        body_text: [[exampleBusinessName]],
+      };
+    }
+
+    const response = await fetch(
+      `https://graph.facebook.com/${workspace.meta.graphApiVersion || metaGraphApiVersion}/${workspace.meta.wabaId}/message_templates`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${workspace.meta.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          language,
+          category: "UTILITY",
+          components: [bodyComponent],
+        }),
+      },
+    );
+    const data = await response.json().catch(() => ({}) as any);
+
+    workspace.greetingTemplate = {
+      ...currentTemplate,
+      name,
+      language,
+      category: "utility",
+      body: body.slice(0, 1024),
+      example: body.replace(/\{\{\s*1\s*\}\}/g, exampleBusinessName),
+      status: response.ok ? "pending" : "draft",
+      metaTemplateId: response.ok ? cleanString(data?.id) : currentTemplate.metaTemplateId,
+      submittedAt: response.ok ? new Date() : currentTemplate.submittedAt,
+      lastError: response.ok
+        ? ""
+        : data?.error?.message || "Meta template submission failed",
+      updatedAt: new Date(),
+    } as any;
+    await workspace.save();
+
+    if (!response.ok) {
+      return res.status(400).json({
+        success: false,
+        error: workspace.greetingTemplate.lastError,
+        data: { greetingTemplate: workspace.greetingTemplate },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    return ok(res, {
+      greetingTemplate: workspace.greetingTemplate,
+      meta: data,
+    });
+  } catch (error: any) {
+    console.error("WhatsApp greeting template submit error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to submit greeting template",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const syncWhatsAppAppointmentFlowController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
+      return res.status(409).json({
+        success: false,
+        error: "Connect WhatsApp Business before creating a native WhatsApp Flow.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const flowJson = buildAppointmentFlowJson(workspace);
+    await syncAppointmentFlowStatus(workspace);
+    const shouldCreateNewFlow =
+      !workspace.appointmentFlow?.flowId ||
+      ["published", "deprecated", "blocked"].includes(
+        workspace.appointmentFlow?.status,
+      );
+    const meta = shouldCreateNewFlow
+      ? await createAppointmentFlow(workspace, flowJson)
+      : await uploadAppointmentFlowJson(workspace, flowJson);
+
+    if (
+      req.body?.publish &&
+      workspace.appointmentFlow?.flowId &&
+      !workspace.appointmentFlow?.validationErrors?.length
+    ) {
+      await publishAppointmentFlow(workspace);
+    } else {
+      await syncAppointmentFlowStatus(workspace);
+    }
+
+    await workspace.save();
+    return ok(res, {
+      appointmentFlow: workspace.appointmentFlow,
+      meta,
+      flowJson,
+    });
+  } catch (error: any) {
+    console.error("WhatsApp appointment Flow sync error:", error);
+    try {
+      const userId = authUserId(req);
+      if (userId) {
+        const workspace = await getOrCreateWhatsAppWorkspace(userId);
+        workspace.appointmentFlow = {
+          ...workspace.appointmentFlow,
+          status: "error",
+          lastError: error.message || "Failed to sync WhatsApp Flow",
+          updatedAt: new Date(),
+        } as any;
+        await workspace.save();
+      }
+    } catch (saveError) {
+      console.warn("Could not persist WhatsApp Flow error state", {
+        error: saveError instanceof Error ? saveError.message : String(saveError),
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to sync native WhatsApp Flow",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const publishWhatsAppAppointmentFlowController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
+      return res.status(409).json({
+        success: false,
+        error: "Connect WhatsApp Business before publishing a native WhatsApp Flow.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!workspace.appointmentFlow?.flowId) {
+      const flowJson = buildAppointmentFlowJson(workspace);
+      await createAppointmentFlow(workspace, flowJson);
+    } else {
+      await syncAppointmentFlowStatus(workspace);
+    }
+
+    if (workspace.appointmentFlow?.validationErrors?.length) {
+      await workspace.save();
+      return res.status(400).json({
+        success: false,
+        error: "Fix Meta Flow validation errors before publishing.",
+        data: { appointmentFlow: workspace.appointmentFlow },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (workspace.appointmentFlow.status !== "published") {
+      await publishAppointmentFlow(workspace);
+    }
+    await workspace.save();
+
+    return ok(res, {
+      appointmentFlow: workspace.appointmentFlow,
+    });
+  } catch (error: any) {
+    console.error("WhatsApp appointment Flow publish error:", error);
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to publish native WhatsApp Flow",
       timestamp: new Date().toISOString(),
     });
   }
@@ -923,16 +1700,6 @@ export const createWhatsAppCollectionItemController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
-    if (
-      collection === "agents" &&
-      workspace.agents.length >= workspace.subscription.agentsLimit
-    ) {
-      return res.status(403).json({
-        success: false,
-        error: `Your WhatsApp plan includes ${workspace.subscription.agentsLimit} AI agents.`,
-        timestamp: new Date().toISOString(),
-      });
-    }
 
     const itemPayload = {
       ...req.body,

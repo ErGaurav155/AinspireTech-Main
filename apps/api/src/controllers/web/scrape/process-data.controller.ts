@@ -28,7 +28,7 @@ function sanitizeForOpenAI(text: string): string {
 }
 
 // Helper function to format scraped data
-function formatScrapedData(pages: ScrapedPage[]): string {
+export function formatScrapedData(pages: ScrapedPage[]): string {
   const formattedPages = pages.map((page) => {
     const textBody = sanitizeForOpenAI(page.fullText || page.content || "");
     const limit = isHomePageUrl(page.url) ? 2000 : 1000;

@@ -607,6 +607,57 @@ class WebScraper {
   }
 }
 
+export const scrapeWebsitePagesForKnowledge = async (url: string) => {
+  let inputUrl = url.trim();
+  if (!/^https?:\/\//i.test(inputUrl)) inputUrl = `http://${inputUrl}`;
+
+  let mainUrl: string;
+  let domain: string;
+  try {
+    const parsed = new URL(inputUrl);
+    domain = parsed.hostname.startsWith("www.")
+      ? parsed.hostname.substring(4)
+      : parsed.hostname;
+    mainUrl = `${parsed.protocol}//${parsed.hostname}`;
+  } catch {
+    throw new Error("Invalid URL provided.");
+  }
+
+  let browser: Browser | null = null;
+  try {
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        "--no-zygote",
+        "--single-process",
+      ],
+    });
+
+    const scraper = new WebScraper(browser);
+    const scrapedPages = await scraper.scrapeWebsite(mainUrl);
+    if (scrapedPages.length === 0) {
+      throw new Error("No pages could be scraped from the provided URL.");
+    }
+
+    return {
+      mainUrl,
+      domain,
+      fileName: `${domain}_${Date.now()}`,
+      scrapedPages,
+    };
+  } finally {
+    if (browser) {
+      try {
+        await browser.close();
+      } catch {}
+    }
+  }
+};
+
 export const scrapAnuController = async (req: Request, res: Response) => {
   const { userId } = getAuth(req);
   const { url, chatbotId } = req.body;

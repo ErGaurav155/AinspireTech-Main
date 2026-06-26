@@ -4,28 +4,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useAuth, useUser } from "@clerk/nextjs";
 import {
-  AlertTriangle,
   ArrowUpRight,
-  BadgeCheck,
-  BarChart3,
-  Bot,
   Building2,
   CalendarCheck,
   Check,
   CheckCircle2,
-  Clock3,
   CreditCard,
   FileText,
-  Headphones,
   MessageCircle,
   Plug,
-  RefreshCw,
-  Send,
   Settings,
   ShieldCheck,
-  Sparkles,
-  Users,
-  Workflow,
 } from "lucide-react";
 import { Badge, Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
@@ -35,6 +24,9 @@ import {
   deleteWhatsAppWorkspace,
   getWhatsAppFacebookConfig,
   getWhatsAppDashboard,
+  publishWhatsAppAppointmentFlow,
+  syncWhatsAppAppointmentFlow,
+  submitWhatsAppGreetingTemplate,
   updateWhatsAppWorkspace,
 } from "@/lib/services/whatsapp-actions.api";
 import {
@@ -59,12 +51,9 @@ const WHATSAPP_FIRST_MONTH_OFFER_ID = "offer_T3WZjvSEGwtewO";
 
 type WhatsAppView =
   | "overview"
-  | "inbox"
-  | "agents"
-  | "broadcasts"
   | "appointments"
+  | "business-info"
   | "templates"
-  | "contacts"
   | "pricing"
   | "settings";
 
@@ -79,20 +68,19 @@ type WhatsAppDashboardData = {
     optedInContacts: number;
     openConversations: number;
     pendingHuman: number;
-    activeAgents: number;
-    totalCampaigns: number;
+    totalAppointments: number;
+    requestedAppointments: number;
     messagesUsed: number;
     messageLimit: number;
     deliveredRate: number;
     readRate: number;
   };
   recentConversations: any[];
-  agents: any[];
-  templates: any[];
-  campaigns: any[];
   appointments: any[];
   appointmentConfig: any;
-  contacts: any[];
+  appointmentFlow: any;
+  businessInfo: any;
+  greetingTemplate: any;
 };
 
 const plans = [
@@ -108,8 +96,8 @@ const plans = [
     features: [
       "Created automatically after Meta/Facebook setup",
       "1 connected WhatsApp number",
-      "1 AI agent",
-      "Basic inbox, contacts, and appointments",
+      "Appointment booking flow",
+      "Business info replies",
       "Upgrade anytime when you need more volume",
     ],
   },
@@ -124,10 +112,10 @@ const plans = [
     limit: "10k business-initiated messages",
     features: [
       "1 connected WhatsApp number",
-      "1 team inbox",
-      "3 AI agents",
-      "Template sync and approvals tracker",
-      "Broadcast tracker, appointments, contacts, and analytics",
+      "Appointment booking flow",
+      "Business info replies from saved website/file notes",
+      "Greeting template review tracker",
+      "Owner alerts by email and WhatsApp",
     ],
   },
 ];
@@ -150,103 +138,6 @@ const businessCategories = [
   "Travel and Transportation",
   "Restaurant",
   "Others",
-];
-
-const metrics = [
-  { label: "Open conversations", value: "248", change: "+18%", icon: MessageCircle },
-  { label: "AI resolved", value: "71%", change: "+9%", icon: Bot },
-  { label: "Avg first reply", value: "7s", change: "-42%", icon: Clock3 },
-  { label: "Qualified leads", value: "1,482", change: "+26%", icon: Users },
-];
-
-const agentWorkflows = [
-  {
-    name: "Lead Qualification Agent",
-    status: "Live",
-    trigger: "New inbound message or ad click",
-    goal: "Capture name, requirement, budget, city, and preferred callback time.",
-    automation: "Routes hot leads to sales when intent score is above 80.",
-  },
-  {
-    name: "Support Resolution Agent",
-    status: "Draft",
-    trigger: "Order, refund, warranty, or complaint keywords",
-    goal: "Answer FAQs, collect order ID, and escalate unresolved issues.",
-    automation: "Creates a ticket when sentiment turns negative or SLA is breached.",
-  },
-  {
-    name: "Abandoned Cart Recovery",
-    status: "Ready",
-    trigger: "Checkout abandoned for 30 minutes",
-    goal: "Send approved utility or marketing template based on consent.",
-    automation: "Stops automatically after purchase, opt-out, or 3 attempts.",
-  },
-];
-
-const templates = [
-  ["order_update_v2", "Utility", "Approved", "INR 0.11 est."],
-  ["lead_followup_offer", "Marketing", "Approved", "INR 0.78 est."],
-  ["otp_login_india", "Authentication", "Approved", "INR 0.12 est."],
-  ["support_reopen_case", "Utility", "Needs copy review", "INR 0.11 est."],
-];
-
-const conversations = [
-  {
-    name: "Ananya Sharma",
-    topic: "Asked for demo pricing",
-    owner: "Sales Agent",
-    state: "Needs human",
-    time: "2m",
-  },
-  {
-    name: "Vikram Foods",
-    topic: "Bulk order follow-up",
-    owner: "AI Agent",
-    state: "Automated",
-    time: "6m",
-  },
-  {
-    name: "Riya Boutique",
-    topic: "Catalog and delivery query",
-    owner: "Support Agent",
-    state: "Resolved",
-    time: "14m",
-  },
-  {
-    name: "Apex Classes",
-    topic: "Course enquiry from ad",
-    owner: "Sales Agent",
-    state: "Qualified",
-    time: "22m",
-  },
-];
-
-const broadcasts = [
-  {
-    title: "June offer for warm leads",
-    segment: "Leads with consent, last seen under 30 days",
-    status: "Scheduled",
-    metric: "12,430 recipients",
-  },
-  {
-    title: "Payment reminder utility flow",
-    segment: "Invoices due in 48 hours",
-    status: "Running",
-    metric: "87.4% delivered",
-  },
-  {
-    title: "Post-demo nurture sequence",
-    segment: "Demo completed, no purchase",
-    status: "Paused",
-    metric: "34.8% replies",
-  },
-];
-
-const contacts = [
-  ["Hot leads", "4,820", "+34%", "Intent score above 80"],
-  ["Customers", "18,420", "+11%", "Purchased or booked"],
-  ["At risk", "1,106", "-6%", "Negative sentiment or refund keyword"],
-  ["Opted out", "329", "+2%", "Excluded from broadcasts"],
 ];
 
 export default function WhatsAppAutomationDashboard({
@@ -281,16 +172,13 @@ export default function WhatsAppAutomationDashboard({
     if (!data) return null;
     return {
       ...data,
-      recentConversations:
-        data.recentConversations?.length > 0
-          ? data.recentConversations
-          : conversations,
-      agents: data.agents?.length > 0 ? data.agents : agentWorkflows,
-      templates: data.templates?.length > 0 ? data.templates : templates,
-      campaigns: data.campaigns?.length > 0 ? data.campaigns : broadcasts,
+      recentConversations: data.recentConversations || [],
       appointments: data.appointments || [],
       appointmentConfig: data.appointmentConfig || data.workspace?.appointmentConfig,
-      contacts: data.contacts?.length > 0 ? data.contacts : contacts,
+      appointmentFlow: data.appointmentFlow || data.workspace?.appointmentFlow || {},
+      businessInfo: data.businessInfo || data.workspace?.businessInfo || {},
+      greetingTemplate:
+        data.greetingTemplate || data.workspace?.greetingTemplate || {},
     };
   }, [data]);
 
@@ -328,9 +216,6 @@ export default function WhatsAppAutomationDashboard({
             data={mergedData}
           />
         )}
-        {view === "inbox" && <Inbox cardClass={cardClass} data={mergedData} />}
-        {view === "agents" && <Agents cardClass={cardClass} data={mergedData} />}
-        {view === "broadcasts" && <Broadcasts cardClass={cardClass} data={mergedData} />}
         {view === "appointments" && (
           <Appointments
             cardClass={cardClass}
@@ -348,14 +233,69 @@ export default function WhatsAppAutomationDashboard({
               await updateWhatsAppWorkspace(apiRequest, { appointmentConfig });
               toast({
                 title: "Booking settings saved",
-                description: "Clinic booking settings were updated.",
+                description:
+                  "Clinic booking settings were updated. Sync the WhatsApp Flow before publishing.",
+              });
+              await loadDashboard();
+            }}
+            onSyncFlow={async (publish = false) => {
+              await syncWhatsAppAppointmentFlow(apiRequest, { publish });
+              toast({
+                title: publish ? "Flow synced and published" : "Flow synced",
+                description: publish
+                  ? "Meta accepted the appointment Flow for publishing."
+                  : "Meta validation status has been refreshed.",
+              });
+              await loadDashboard();
+            }}
+            onPublishFlow={async () => {
+              await publishWhatsAppAppointmentFlow(apiRequest);
+              toast({
+                title: "Flow published",
+                description:
+                  "Customers can now open the native WhatsApp appointment form.",
               });
               await loadDashboard();
             }}
           />
         )}
-        {view === "templates" && <Templates cardClass={cardClass} data={mergedData} />}
-        {view === "contacts" && <Contacts cardClass={cardClass} data={mergedData} />}
+        {view === "business-info" && (
+          <BusinessInfo
+            cardClass={cardClass}
+            softCardClass={softCardClass}
+            data={mergedData}
+            onSave={async (businessInfo) => {
+              await updateWhatsAppWorkspace(apiRequest, { businessInfo });
+              toast({
+                title: "Business info saved",
+                description: "WhatsApp replies will use the saved business details.",
+              });
+              await loadDashboard();
+            }}
+          />
+        )}
+        {view === "templates" && (
+          <Templates
+            cardClass={cardClass}
+            data={mergedData}
+            onSave={async (greetingTemplate) => {
+              await updateWhatsAppWorkspace(apiRequest, { greetingTemplate });
+              toast({
+                title: "Greeting template saved",
+                description: "Submit it for Meta review when the copy is ready.",
+              });
+              await loadDashboard();
+            }}
+            onSubmit={async (greetingTemplate) => {
+              await submitWhatsAppGreetingTemplate(apiRequest, greetingTemplate);
+              toast({
+                title: "Submitted to Meta",
+                description: "Template status will update after Meta review.",
+              });
+              await loadDashboard();
+            }}
+          />
+        )}
         {view === "pricing" && (
           <Pricing
             cardClass={cardClass}
@@ -385,9 +325,8 @@ export default function WhatsAppAutomationDashboard({
           </>
         )}
         <p className={`mt-8 text-xs ${styles.text.muted}`}>
-          Market assumptions are based on the WhatsApp Business Platform moving
-          to per-message pricing, Meta template categories, and common shared
-          inbox/automation capabilities from current WhatsApp BSP products.
+          WhatsApp automation currently supports appointment booking, business
+          info replies, greeting template tracking, Meta setup, and billing.
         </p>
       </div>
     </div>
@@ -404,13 +343,10 @@ function Header({
   workspace?: any;
 }) {
   const titles: Record<WhatsAppView, string> = {
-    overview: "WhatsApp Automation Command Center",
-    inbox: "Inbox Operations",
-    agents: "AI Agent Builder",
-    broadcasts: "Broadcasts & Journeys",
+    overview: "WhatsApp Automation",
     appointments: "Appointment Booking",
-    templates: "Template Library",
-    contacts: "Contacts & Segments",
+    "business-info": "Business Info Replies",
+    templates: "Greeting Template",
     pricing: "WhatsApp Automation Pricing",
     settings: "Meta Setup & Compliance",
   };
@@ -427,9 +363,9 @@ function Header({
             {titles[view]}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-white/55">
-            Built for WhatsApp Cloud API businesses: AI agents, shared inbox,
-            approved templates, compliant broadcasts, segmentation, billing, and
-            setup status in one workspace.
+            Built for local businesses that need WhatsApp appointment booking,
+            owner alerts, business-info replies, greeting template review, and
+            Meta setup status in one workspace.
           </p>
         </div>
         <div className="grid min-w-[260px] grid-cols-2 gap-3">
@@ -491,28 +427,35 @@ function Overview({
 }) {
   const dynamicMetrics = [
     {
-      label: "Open conversations",
-      value: String(data.overview.openConversations),
-      change: `${data.overview.pendingHuman} human`,
+      label: "Appointment requests",
+      value: String(data.overview.totalAppointments || data.appointments.length),
+      change: `${data.overview.requestedAppointments || 0} new`,
+      icon: CalendarCheck,
+    },
+    {
+      label: "Messages used",
+      value: String(data.overview.messagesUsed),
+      change: `${data.overview.messageLimit} limit`,
       icon: MessageCircle,
     },
     {
-      label: "Active agents",
-      value: String(data.overview.activeAgents),
-      change: `${data.agents.length} total`,
-      icon: Bot,
+      label: "Greeting template",
+      value: data.greetingTemplate?.status || "draft",
+      change: data.greetingTemplate?.name || "default",
+      icon: FileText,
     },
     {
-      label: "Read rate",
-      value: `${data.overview.readRate}%`,
-      change: `${data.overview.deliveredRate}% delivered`,
-      icon: Clock3,
-    },
-    {
-      label: "Contacts",
-      value: String(data.overview.totalContacts),
-      change: `${data.overview.optedInContacts} opted in`,
-      icon: Users,
+      label: "Business info",
+      value:
+        data.businessInfo?.knowledgeBaseUrl || data.businessInfo?.summary
+          ? "Ready"
+          : "Missing",
+      change: data.businessInfo?.knowledgeBaseUrl
+        ? "Cloudinary saved"
+        : data.businessInfo?.websiteUrl
+          ? "Website saved"
+          : "Add info",
+      icon: Building2,
     },
   ];
 
@@ -526,12 +469,12 @@ function Overview({
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <section className={`rounded-2xl border ${cardClass} p-5`}>
-          <SectionTitle icon={Workflow} title="Revenue Automation Pipeline" />
+          <SectionTitle icon={CalendarCheck} title="WhatsApp Booking Flow" />
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {[
-              ["Capture", "Ads, QR, site widget, direct message"],
-              ["Qualify", "AI asks guided questions and scores intent"],
-              ["Convert", "Human handoff, payment links, reminders"],
+              ["Greet", "Customer sends a WhatsApp message and sees your greeting."],
+              ["Collect", "Customer chooses appointment booking and shares required details."],
+              ["Notify", "Owner receives appointment details and the customer gets confirmation."],
             ].map(([title, desc], index) => (
               <div key={title} className={`rounded-xl border ${softCardClass} p-4`}>
                 <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-sm font-black text-white">
@@ -573,8 +516,35 @@ function Overview({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <Agents cardClass={cardClass} compact data={data} />
-        <Inbox cardClass={cardClass} compact data={data} />
+        <section className={`rounded-2xl border ${cardClass} p-5`}>
+          <SectionTitle icon={FileText} title="Business Info Replies" action="/whatsapp/business-info" />
+          <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-white/55">
+            Save a website link, business notes, or a text file up to 10 MB.
+            WhatsApp replies use this information when customers ask general
+            questions.
+          </p>
+          <div className={`mt-4 rounded-xl border ${softCardClass} p-4`}>
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Current source
+            </p>
+            <p className="mt-2 text-sm font-semibold">
+              {data.businessInfo?.knowledgeBaseUrl ||
+                data.businessInfo?.fileName ||
+                data.businessInfo?.websiteUrl ||
+                "No business info saved yet"}
+            </p>
+          </div>
+        </section>
+        <section className={`rounded-2xl border ${cardClass} p-5`}>
+          <SectionTitle icon={MessageCircle} title="Greeting Template" action="/whatsapp/templates" />
+          <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-white/55">
+            Keep one greeting template for Meta review. Approved copy can be
+            used as the first reply when customers message the business.
+          </p>
+          <Badge className="mt-4 bg-emerald-500/15 text-emerald-300">
+            {data.greetingTemplate?.status || "draft"}
+          </Badge>
+        </section>
       </div>
     </div>
   );
@@ -605,131 +575,43 @@ function MetricCard({
   );
 }
 
-function Inbox({
-  cardClass,
-  compact = false,
-  data,
-}: {
-  cardClass: string;
-  compact?: boolean;
-  data: WhatsAppDashboardData;
-}) {
-  const items = data.recentConversations;
-  return (
-    <section className={`rounded-2xl border ${cardClass} p-5`}>
-      <SectionTitle icon={Headphones} title="Priority Inbox" action={compact ? "/whatsapp/inbox" : undefined} />
-      <div className="mt-5 divide-y divide-gray-100 dark:divide-white/[0.06]">
-        {items.map((item: any) => (
-          <div key={item._id || item.name || item.waId} className="flex flex-wrap items-center justify-between gap-3 py-4 first:pt-0 last:pb-0">
-            <div>
-              <p className="font-bold">{item.contactName || item.name}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-white/50">
-                {item.lastMessage || item.topic}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-white/[0.06] text-gray-500 dark:text-white/60">
-                {item.owner === "ai" ? "AI Agent" : item.owner}
-              </Badge>
-              <Badge className={item.status === "pending_human" || item.state === "Needs human" ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300"}>
-                {item.status || item.state}
-              </Badge>
-              <span className="text-xs text-gray-400">
-                {item.messages?.length || item.time || 0} msgs
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Agents({
-  cardClass,
-  compact = false,
-  data,
-}: {
-  cardClass: string;
-  compact?: boolean;
-  data: WhatsAppDashboardData;
-}) {
-  return (
-    <section className={`rounded-2xl border ${cardClass} p-5`}>
-      <SectionTitle icon={Workflow} title="Automation Agents" action={compact ? "/whatsapp/agents" : undefined} />
-      <div className="mt-5 grid gap-4">
-        {data.agents.map((agent: any) => (
-          <div key={agent._id || agent.name} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="font-bold">{agent.name}</h3>
-                <p className="mt-1 text-xs text-gray-500 dark:text-white/45">{agent.trigger}</p>
-              </div>
-              <Badge className={agent.status === "live" || agent.status === "Live" ? "bg-emerald-500 text-white" : "bg-white/[0.08] text-gray-500 dark:text-white/70"}>
-                {agent.status}
-              </Badge>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-gray-600 dark:text-white/55">{agent.goal}</p>
-            <p className="mt-2 text-xs font-semibold text-emerald-500">
-              {agent.automation || agent.handoffRules?.join(" | ")}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function Broadcasts({
-  cardClass,
-  data,
-}: {
-  cardClass: string;
-  data: WhatsAppDashboardData;
-}) {
-  return (
-    <section className={`rounded-2xl border ${cardClass} p-5`}>
-      <SectionTitle icon={Send} title="Campaigns, Drips, and Utility Reminders" />
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        {data.campaigns.map((broadcast: any) => (
-          <div key={broadcast._id || broadcast.title || broadcast.name} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-            <div className="flex items-start justify-between gap-3">
-              <h3 className="font-bold">{broadcast.title || broadcast.name}</h3>
-              <Badge className="bg-emerald-500/15 text-emerald-300">{broadcast.status}</Badge>
-            </div>
-            <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/50">{broadcast.segment}</p>
-            <p className="mt-4 text-sm font-bold text-emerald-500">
-              {broadcast.metric || `${broadcast.recipients || 0} recipients`}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function Appointments({
   cardClass,
   softCardClass,
   data,
   onCreateAppointment,
   onSaveConfig,
+  onSyncFlow,
+  onPublishFlow,
 }: {
   cardClass: string;
   softCardClass: string;
   data: WhatsAppDashboardData;
   onCreateAppointment: (payload: Record<string, any>) => Promise<void>;
   onSaveConfig: (appointmentConfig: Record<string, any>) => Promise<void>;
+  onSyncFlow: (publish?: boolean) => Promise<void>;
+  onPublishFlow: () => Promise<void>;
 }) {
   const config = data.appointmentConfig || {};
+  const appointmentFlow = data.appointmentFlow || {};
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [isSyncingFlow, setIsSyncingFlow] = useState(false);
+  const [isPublishingFlow, setIsPublishingFlow] = useState(false);
   const [settingsForm, setSettingsForm] = useState({
     enabled: config.enabled ?? true,
     clinicName: config.clinicName || data.workspace?.organization?.name || "My Clinic",
     slotDurationMinutes: String(config.slotDurationMinutes || 30),
     bufferMinutes: String(config.bufferMinutes || 10),
     bookingWindowDays: String(config.bookingWindowDays || 14),
+    requiredFields:
+      config.requiredFields || [
+        "patient_name",
+        "phone",
+        "symptoms",
+        "preferred_date",
+        "preferred_time",
+      ],
     servicesText: (config.services || [])
       .map((service: any) => `${service.name}|${service.durationMinutes || 30}|${service.priceInr || 0}|${service.doctor || ""}`)
       .join("\n"),
@@ -751,6 +633,9 @@ function Appointments({
   const requested = appointments.filter((item) => item.status === "requested").length;
   const confirmed = appointments.filter((item) => item.status === "confirmed").length;
   const urgent = appointments.filter((item) => ["urgent", "emergency"].includes(item.urgency)).length;
+  const flowStatus = appointmentFlow.status || "draft";
+  const flowValidationErrors = appointmentFlow.validationErrors || [];
+  const flowReady = flowStatus === "published";
 
   return (
     <div className="space-y-6">
@@ -767,6 +652,91 @@ function Appointments({
           </div>
         ))}
       </div>
+
+      <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <SectionTitle icon={FileText} title="Native WhatsApp Appointment Flow" />
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-gray-500 dark:text-white/55">
+              These booking settings generate a real WhatsApp Flow form under
+              the connected WABA. Sync validates the form with Meta. Publish
+              makes it available to customers when they ask to book.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center gap-2 text-sm">
+              <Badge
+                className={
+                  flowReady
+                    ? "bg-emerald-500/15 text-emerald-300"
+                    : flowStatus === "validation_error" || flowStatus === "error"
+                      ? "bg-red-500/15 text-red-300"
+                      : "bg-amber-500/15 text-amber-300"
+                }
+              >
+                {flowStatus}
+              </Badge>
+              <span className="text-gray-500 dark:text-white/50">
+                {appointmentFlow.flowId
+                  ? `Flow ID: ${appointmentFlow.flowId}`
+                  : "No Flow created yet"}
+              </span>
+              {appointmentFlow.lastSyncedAt && (
+                <span className="text-gray-500 dark:text-white/50">
+                  Synced {new Date(appointmentFlow.lastSyncedAt).toLocaleString()}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:min-w-[260px]">
+            <Button
+              type="button"
+              disabled={isSyncingFlow}
+              onClick={async () => {
+                setIsSyncingFlow(true);
+                try {
+                  await onSyncFlow(false);
+                } finally {
+                  setIsSyncingFlow(false);
+                }
+              }}
+              className="rounded-xl border border-emerald-500 bg-transparent text-emerald-500 hover:bg-emerald-500/10"
+            >
+              {isSyncingFlow ? "Syncing..." : "Sync Draft with Meta"}
+            </Button>
+            <Button
+              type="button"
+              disabled={isPublishingFlow || flowValidationErrors.length > 0}
+              onClick={async () => {
+                setIsPublishingFlow(true);
+                try {
+                  await onPublishFlow();
+                } finally {
+                  setIsPublishingFlow(false);
+                }
+              }}
+              className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-60"
+            >
+              {isPublishingFlow ? "Publishing..." : "Publish Flow"}
+            </Button>
+          </div>
+        </div>
+        {appointmentFlow.lastError && (
+          <div className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+            {appointmentFlow.lastError}
+          </div>
+        )}
+        {flowValidationErrors.length > 0 && (
+          <div className="mt-4 grid gap-2">
+            {flowValidationErrors.slice(0, 5).map((error: any, index: number) => (
+              <div
+                key={`${error?.message || "flow-error"}-${index}`}
+                className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300"
+              >
+                {error?.message || JSON.stringify(error)}
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
         <section className={`rounded-2xl border ${cardClass} p-5`}>
@@ -797,6 +767,7 @@ function Appointments({
                 slotDurationMinutes: Number(settingsForm.slotDurationMinutes) || 30,
                 bufferMinutes: Number(settingsForm.bufferMinutes) || 0,
                 bookingWindowDays: Number(settingsForm.bookingWindowDays) || 14,
+                requiredFields: settingsForm.requiredFields,
                 services,
                 emergencyKeywords: settingsForm.emergencyKeywords
                   .split(",")
@@ -848,6 +819,40 @@ function Appointments({
                   setSettingsForm((current) => ({ ...current, bookingWindowDays: value }))
                 }
               />
+            </div>
+            <div className="grid gap-2">
+              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+                Details customer must share
+              </span>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {[
+                  ["patient_name", "Patient name"],
+                  ["phone", "Phone number"],
+                  ["symptoms", "Requirement / symptoms"],
+                  ["preferred_date", "Preferred date"],
+                  ["preferred_time", "Preferred time"],
+                ].map(([value, label]) => (
+                  <label
+                    key={value}
+                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-700 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white/70"
+                  >
+                    {label}
+                    <input
+                      type="checkbox"
+                      checked={settingsForm.requiredFields.includes(value)}
+                      onChange={(event) =>
+                        setSettingsForm((current) => ({
+                          ...current,
+                          requiredFields: event.target.checked
+                            ? [...current.requiredFields, value]
+                            : current.requiredFields.filter((field: string) => field !== value),
+                        }))
+                      }
+                      className="h-4 w-4 accent-emerald-500"
+                    />
+                  </label>
+                ))}
+              </div>
             </div>
             <label className="grid gap-1.5">
               <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
@@ -1051,84 +1056,271 @@ function Appointments({
   );
 }
 
-function Templates({
+function BusinessInfo({
   cardClass,
+  softCardClass,
   data,
+  onSave,
 }: {
   cardClass: string;
+  softCardClass: string;
   data: WhatsAppDashboardData;
+  onSave: (businessInfo: Record<string, any>) => Promise<void>;
 }) {
+  const info = data.businessInfo || {};
+  const [form, setForm] = useState({
+    websiteUrl: info.websiteUrl || data.workspace?.organization?.website || "",
+    summary: info.summary || "",
+    fileName: info.fileName || "",
+    fileType: info.fileType || "",
+    fileSize: Number(info.fileSize || 0),
+    fileText: info.fileText || "",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [fileError, setFileError] = useState("");
+
+  const handleFile = async (file?: File) => {
+    setFileError("");
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setFileError("File must be 10 MB or smaller.");
+      return;
+    }
+    const text = await file.text();
+    setForm((current) => ({
+      ...current,
+      fileName: file.name,
+      fileType: file.type || "text/plain",
+      fileSize: file.size,
+      fileText: text,
+    }));
+  };
+
   return (
     <section className={`rounded-2xl border ${cardClass} p-5`}>
-      <SectionTitle icon={FileText} title="Meta Template Library" />
-      <div className="mt-5 overflow-x-auto">
-        <table className="min-w-[760px] w-full text-left">
-          <thead className="text-xs uppercase tracking-widest text-gray-400">
-            <tr>
-              <th className="py-3">Template</th>
-              <th className="py-3">Category</th>
-              <th className="py-3">Status</th>
-              <th className="py-3">India Meta cost estimate</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100 text-sm dark:divide-white/[0.06]">
-            {data.templates.map((template: any) => {
-              const isArray = Array.isArray(template);
-              const name = isArray ? template[0] : template.name;
-              const category = isArray ? template[1] : template.category;
-              const status = isArray ? template[2] : template.status;
-              const cost = isArray ? template[3] : "Pass-through Meta rate";
-              return (
-              <tr key={name}>
-                <td className="py-4 font-bold">{name}</td>
-                <td className="py-4">{category}</td>
-                <td className="py-4">
-                  <Badge className={status === "Approved" || status === "approved" ? "bg-emerald-500/15 text-emerald-300" : "bg-amber-500/15 text-amber-300"}>
-                    {status}
-                  </Badge>
-                </td>
-                <td className="py-4 text-gray-500 dark:text-white/55">{cost}</td>
-              </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
+      <SectionTitle icon={FileText} title="Business Info Replies" />
+      <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/55">
+        Save the business facts WhatsApp should use for customer questions. The
+        website scrape and file knowledge are uploaded to Cloudinary, and only
+        the Cloudinary link plus metadata are stored in the dashboard database.
+      </p>
+      <form
+        className="mt-5 grid gap-4"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setIsSaving(true);
+          try {
+            await onSave(form);
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      >
+        <TextInput
+          label="Website link"
+          value={form.websiteUrl}
+          onChange={(value) =>
+            setForm((current) => ({ ...current, websiteUrl: value }))
+          }
+        />
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Business information
+          </span>
+          <textarea
+            value={form.summary}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, summary: event.target.value }))
+            }
+            rows={8}
+            placeholder="Services, pricing, address, opening hours, FAQs, policies, and anything customers commonly ask."
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+          />
+        </label>
+        <div className={`rounded-xl border ${softCardClass} p-4`}>
+          <label className="grid gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+              Upload business info file, max 10 MB
+            </span>
+            <input
+              type="file"
+              accept=".txt,.md,.csv,.json,.html,.log"
+              onChange={(event) => void handleFile(event.target.files?.[0])}
+              className="text-sm"
+            />
+          </label>
+          {fileError && <p className="mt-2 text-sm text-red-400">{fileError}</p>}
+          {form.fileName && (
+            <p className="mt-2 text-sm text-gray-500 dark:text-white/55">
+              Loaded {form.fileName} ({Math.ceil(form.fileSize / 1024)} KB)
+            </p>
+          )}
+          {info.knowledgeBaseUrl && (
+            <p className="mt-2 break-all text-xs text-emerald-500">
+              Cloudinary knowledge: {info.knowledgeBaseUrl}
+            </p>
+          )}
+        </div>
+        <Button
+          disabled={isSaving}
+          className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+        >
+          {isSaving ? "Saving..." : "Save Business Info"}
+        </Button>
+      </form>
     </section>
   );
 }
 
-function Contacts({
+function Templates({
   cardClass,
   data,
+  onSave,
+  onSubmit,
 }: {
   cardClass: string;
   data: WhatsAppDashboardData;
+  onSave: (greetingTemplate: Record<string, any>) => Promise<void>;
+  onSubmit: (greetingTemplate: Record<string, any>) => Promise<void>;
 }) {
+  const template = data.greetingTemplate || {};
+  const [form, setForm] = useState({
+    name: template.name || "rocket_whatsapp_greeting",
+    language: template.language || "en_US",
+    body:
+      template.body ||
+      "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
+    example:
+      template.example ||
+      "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const status = template.status || "draft";
+  const isApproved = status === "approved";
+
   return (
     <section className={`rounded-2xl border ${cardClass} p-5`}>
-      <SectionTitle icon={Users} title="Segments and Consent Health" />
-      <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {data.contacts.map((contact: any) => {
-          const isArray = Array.isArray(contact);
-          const name = isArray ? contact[0] : contact.name || contact.phone;
-          const count = isArray ? contact[1] : contact.intentScore;
-          const trend = isArray ? contact[2] : contact.lifecycleStage;
-          const description = isArray
-            ? contact[3]
-            : `${contact.consentStatus} ${contact.tags?.join(", ") || ""}`;
-          return (
-          <div key={contact._id || name} className="rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-white/[0.06] dark:bg-white/[0.03]">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold">{name}</h3>
-              <span className="text-xs font-bold text-emerald-400">{trend}</span>
-            </div>
-            <p className="mt-3 text-3xl font-black">{count}</p>
-            <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/50">{description}</p>
-          </div>
-          );
-        })}
+      <SectionTitle icon={MessageCircle} title="Greeting Template" />
+      <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/55">
+        Keep one greeting template. Edit the default copy, submit it for Meta
+        review, and use it as the first customer reply once approved. To create
+        a different greeting later, reset this one, edit the default again, and
+        resubmit it.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-3">
+        <Badge
+          className={
+            isApproved
+              ? "bg-emerald-500/15 text-emerald-300"
+              : status === "rejected"
+                ? "bg-red-500/15 text-red-300"
+                : "bg-amber-500/15 text-amber-300"
+          }
+        >
+          {status}
+        </Badge>
+        {template.lastError && (
+          <span className="text-sm text-red-400">{template.lastError}</span>
+        )}
       </div>
+      <form
+        className="mt-5 grid gap-4"
+        onSubmit={async (event) => {
+          event.preventDefault();
+          setIsSaving(true);
+          try {
+            await onSave(form);
+          } finally {
+            setIsSaving(false);
+          }
+        }}
+      >
+        <TextInput
+          label="Template name"
+          value={form.name}
+          onChange={(value) =>
+            setForm((current) => ({ ...current, name: value }))
+          }
+        />
+        <TextInput
+          label="Language"
+          value={form.language}
+          onChange={(value) =>
+            setForm((current) => ({ ...current, language: value }))
+          }
+        />
+        <label className="grid gap-1.5">
+          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            Greeting body
+          </span>
+          <textarea
+            value={form.body}
+            onChange={(event) =>
+              setForm((current) => ({ ...current, body: event.target.value }))
+            }
+            rows={5}
+            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+          />
+          <span className="text-xs text-gray-400">
+            Use {"{{1}}"} for business name. Meta requires examples for variables.
+          </span>
+        </label>
+        <TextInput
+          label="Example preview"
+          value={form.example}
+          onChange={(value) =>
+            setForm((current) => ({ ...current, example: value }))
+          }
+        />
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Button
+            disabled={isSaving}
+            className="rounded-xl border border-emerald-500 bg-transparent text-emerald-500 hover:bg-emerald-500/10"
+          >
+            {isSaving ? "Saving..." : "Save Draft"}
+          </Button>
+          <Button
+            type="button"
+            disabled={isSubmitting}
+            onClick={async () => {
+              setIsSubmitting(true);
+              try {
+                await onSubmit(form);
+              } finally {
+                setIsSubmitting(false);
+              }
+            }}
+            className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
+          >
+            {isSubmitting ? "Submitting..." : "Submit for Review"}
+          </Button>
+          <Button
+            type="button"
+            disabled={isSaving || isSubmitting}
+            onClick={async () => {
+              const defaultTemplate = {
+                name: "rocket_whatsapp_greeting",
+                language: "en_US",
+                body:
+                  "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
+                example:
+                  "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
+              };
+              setForm(defaultTemplate);
+              setIsSaving(true);
+              try {
+                await onSave(defaultTemplate);
+              } finally {
+                setIsSaving(false);
+              }
+            }}
+            className="rounded-xl bg-gray-600 text-white hover:bg-gray-700"
+          >
+            Reset Template
+          </Button>
+        </div>
+      </form>
     </section>
   );
 }
@@ -1215,8 +1407,8 @@ function Pricing({
           <div className="mt-5 space-y-3">
             {[
               ["Numbers", "1"],
-              ["Inbox", "1"],
-              ["AI agents", "3"],
+              ["Booking flow", "1"],
+              ["Greeting template", "1"],
               ["Messages", "10k/mo"],
             ].map(([label, value]) => (
               <div key={label} className="flex items-center justify-between rounded-xl bg-emerald-500/10 px-3 py-2.5">
@@ -2164,10 +2356,10 @@ function SettingsView({
         <SectionTitle icon={ShieldCheck} title="Production Guardrails" />
         <div className="mt-5 space-y-4">
           {[
-            ["Opt-in required", "Marketing broadcasts only target consented contacts."],
-            ["Template category control", "Marketing, utility, and authentication are priced and reviewed separately."],
-            ["Human handoff", "Any negative sentiment, payment issue, or repeated failed answer escalates."],
-            ["Rate and quality monitoring", "Dashboard tracks delivery, read, block, and opt-out signals."],
+            ["Booking consent", "Customers request appointments by messaging or choosing the booking option."],
+            ["Template review", "Greeting templates must be approved by Meta before template-based use."],
+            ["Owner alerts", "New appointment details are sent to configured email and WhatsApp alert numbers."],
+            ["Rate monitoring", "Dashboard tracks message usage against the current plan limit."],
           ].map(([title, desc]) => (
             <div key={title} className="flex gap-3">
               <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-400" />
@@ -2184,9 +2376,9 @@ function SettingsView({
               Delete WhatsApp Account Data
             </h3>
             <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/55">
-              Remove the connected Meta account details, WhatsApp contacts,
-              conversations, appointments, campaigns, templates, and automation
-              agents stored for this WhatsApp dashboard.
+              Remove the connected Meta account details, saved business info,
+              conversations, appointments, and greeting template stored for this
+              WhatsApp dashboard.
             </p>
             <Button
               type="button"
@@ -2205,7 +2397,7 @@ function SettingsView({
       onOpenChange={setIsDeleteDialogOpen}
       onConfirm={handleDeleteWhatsAppData}
       title="Delete WhatsApp Account Data"
-      description="This will permanently delete the WhatsApp dashboard workspace stored in RocketReplai, including Meta connection details, contacts, conversations, appointments, campaigns, templates, and automation agents. Razorpay billing is not cancelled by this action."
+      description="This will permanently delete the WhatsApp dashboard workspace stored in RocketReplai, including Meta connection details, business info, conversations, appointments, and greeting template. Razorpay billing is not cancelled by this action."
       confirmText="Delete WhatsApp Data"
       cancelText="Keep Data"
       isDestructive

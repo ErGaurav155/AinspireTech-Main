@@ -3,19 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  CreditCard,
-  Headphones,
+  FileText,
   LayoutDashboard,
   CalendarCheck,
-  Send,
+  MessageCircle,
+  Settings,
 } from "lucide-react";
 
 const ITEMS = [
   { label: "Home", href: "/whatsapp", icon: LayoutDashboard },
-  { label: "Inbox", href: "/whatsapp/inbox", icon: Headphones },
   { label: "Booking", href: "/whatsapp/appointments", icon: CalendarCheck },
-  { label: "Broadcasts", href: "/whatsapp/broadcasts", icon: Send },
-  { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
+  { label: "Info", href: "/whatsapp/business-info", icon: FileText },
+  { label: "Greeting", href: "/whatsapp/templates", icon: MessageCircle },
+  { label: "Settings", href: "/whatsapp/settings", icon: Settings },
 ] as const;
 
 export default function WhatsAppBottomNavbar() {

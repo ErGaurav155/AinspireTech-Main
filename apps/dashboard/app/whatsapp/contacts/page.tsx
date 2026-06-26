@@ -1,5 +1,5 @@
-import WhatsAppAutomationDashboard from "@/components/whatsapp/WhatsAppAutomationDashboard";
+import { redirect } from "next/navigation";
 
 export default function WhatsAppContactsPage() {
-  return <WhatsAppAutomationDashboard view="contacts" />;
+  redirect("/whatsapp/business-info");
 }

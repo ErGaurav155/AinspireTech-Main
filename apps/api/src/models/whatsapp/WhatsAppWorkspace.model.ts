@@ -88,11 +88,57 @@ export interface IWhatsAppWorkspace extends Document {
     confirmationTemplateName?: string;
     reminderTemplateName?: string;
   };
+  appointmentFlow: {
+    enabled: boolean;
+    name: string;
+    flowId?: string;
+    status:
+      | "draft"
+      | "validation_error"
+      | "published"
+      | "deprecated"
+      | "blocked"
+      | "error";
+    categories: string[];
+    jsonVersion: string;
+    validationErrors: Array<Record<string, any>>;
+    lastError?: string;
+    lastSyncedAt?: Date;
+    publishedAt?: Date;
+    updatedAt?: Date;
+  };
   notificationSettings: {
     email: string;
     whatsappNumber: string;
     emailEnabled: boolean;
     whatsappEnabled: boolean;
+  };
+  businessInfo: {
+    websiteUrl: string;
+    summary: string;
+    fileName?: string;
+    fileType?: string;
+    fileSize?: number;
+    fileText?: string;
+    websiteKnowledgeUrl?: string;
+    fileKnowledgeUrl?: string;
+    knowledgeBaseUrl?: string;
+    knowledgeBaseFileName?: string;
+    knowledgeUpdatedAt?: Date;
+    updatedAt?: Date;
+  };
+  greetingTemplate: {
+    name: string;
+    language: string;
+    category: "utility";
+    status: "draft" | "pending" | "approved" | "rejected";
+    body: string;
+    example: string;
+    metaTemplateId?: string;
+    submittedAt?: Date;
+    approvedAt?: Date;
+    lastError?: string;
+    updatedAt?: Date;
   };
   agents: Array<{
     name: string;
@@ -304,11 +350,78 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       confirmationTemplateName: String,
       reminderTemplateName: String,
     },
+    appointmentFlow: {
+      enabled: { type: Boolean, default: true },
+      name: { type: String, default: "RocketReplai Appointment Booking" },
+      flowId: { type: String, default: "" },
+      status: {
+        type: String,
+        enum: [
+          "draft",
+          "validation_error",
+          "published",
+          "deprecated",
+          "blocked",
+          "error",
+        ],
+        default: "draft",
+      },
+      categories: { type: [String], default: ["APPOINTMENT_BOOKING"] },
+      jsonVersion: { type: String, default: "7.1" },
+      validationErrors: { type: [Schema.Types.Mixed], default: [] },
+      lastError: { type: String, default: "" },
+      lastSyncedAt: Date,
+      publishedAt: Date,
+      updatedAt: Date,
+    },
     notificationSettings: {
       email: { type: String, default: "" },
       whatsappNumber: { type: String, default: "" },
       emailEnabled: { type: Boolean, default: true },
       whatsappEnabled: { type: Boolean, default: true },
+    },
+    businessInfo: {
+      websiteUrl: { type: String, default: "" },
+      summary: { type: String, default: "" },
+      fileName: String,
+      fileType: String,
+      fileSize: { type: Number, default: 0 },
+      fileText: { type: String, default: "" },
+      websiteKnowledgeUrl: { type: String, default: "" },
+      fileKnowledgeUrl: { type: String, default: "" },
+      knowledgeBaseUrl: { type: String, default: "" },
+      knowledgeBaseFileName: { type: String, default: "" },
+      knowledgeUpdatedAt: Date,
+      updatedAt: Date,
+    },
+    greetingTemplate: {
+      name: { type: String, default: "rocket_whatsapp_greeting" },
+      language: { type: String, default: "en_US" },
+      category: {
+        type: String,
+        enum: ["utility"],
+        default: "utility",
+      },
+      status: {
+        type: String,
+        enum: ["draft", "pending", "approved", "rejected"],
+        default: "draft",
+      },
+      body: {
+        type: String,
+        default:
+          "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
+      },
+      example: {
+        type: String,
+        default:
+          "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
+      },
+      metaTemplateId: String,
+      submittedAt: Date,
+      approvedAt: Date,
+      lastError: String,
+      updatedAt: Date,
     },
     agents: [
       {

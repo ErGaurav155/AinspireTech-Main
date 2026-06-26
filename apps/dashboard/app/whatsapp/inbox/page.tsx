@@ -1,5 +1,5 @@
-import WhatsAppAutomationDashboard from "@/components/whatsapp/WhatsAppAutomationDashboard";
+import { redirect } from "next/navigation";
 
 export default function WhatsAppInboxPage() {
-  return <WhatsAppAutomationDashboard view="inbox" />;
+  redirect("/whatsapp/appointments");
 }

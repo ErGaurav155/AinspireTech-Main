@@ -12,28 +12,21 @@ import {
   ChevronDown,
   CreditCard,
   FileText,
-  Headphones,
   Instagram,
   LayoutDashboard,
   MessageCircle,
   PackageCheck,
   Phone,
-  Send,
   Settings,
-  Users,
-  Workflow,
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
-  { label: "Inbox", href: "/whatsapp/inbox", icon: Headphones },
-  { label: "AI Agents", href: "/whatsapp/agents", icon: Workflow },
-  { label: "Broadcasts", href: "/whatsapp/broadcasts", icon: Send },
-  { label: "Appointments", href: "/whatsapp/appointments", icon: CalendarCheck },
-  { label: "Templates", href: "/whatsapp/templates", icon: FileText },
-  { label: "Contacts", href: "/whatsapp/contacts", icon: Users },
+  { label: "Booking Flow", href: "/whatsapp/appointments", icon: CalendarCheck },
+  { label: "Business Info", href: "/whatsapp/business-info", icon: FileText },
+  { label: "Greeting Template", href: "/whatsapp/templates", icon: MessageCircle },
   { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
   { label: "Packages", href: "/packages", icon: PackageCheck },
   { label: "Settings", href: "/whatsapp/settings", icon: Settings },
@@ -144,7 +137,7 @@ export default function WhatsAppSidebar({
                     WhatsApp Automation
                   </p>
                   <p className={isDark ? "text-xs text-white/45" : "text-xs text-gray-500"}>
-                    Business agents
+                    Booking and replies
                   </p>
                 </div>
                 <Badge className="ml-auto bg-emerald-500 text-white text-[10px] rounded-full">

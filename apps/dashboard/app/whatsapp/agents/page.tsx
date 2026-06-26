@@ -1,5 +1,5 @@
-import WhatsAppAutomationDashboard from "@/components/whatsapp/WhatsAppAutomationDashboard";
+import { redirect } from "next/navigation";
 
 export default function WhatsAppAgentsPage() {
-  return <WhatsAppAutomationDashboard view="agents" />;
+  redirect("/whatsapp/appointments");
 }
