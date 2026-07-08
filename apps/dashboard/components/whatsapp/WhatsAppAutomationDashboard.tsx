@@ -1078,6 +1078,7 @@ function BusinessInfo({
   });
   const [isSaving, setIsSaving] = useState(false);
   const [fileError, setFileError] = useState("");
+  const [saveStatus, setSaveStatus] = useState("");
 
   const handleFile = async (file?: File) => {
     setFileError("");
@@ -1109,10 +1110,18 @@ function BusinessInfo({
         onSubmit={async (event) => {
           event.preventDefault();
           setIsSaving(true);
+          setSaveStatus(
+            form.websiteUrl
+              ? "Scraping website and uploading knowledge to Cloudinary. This can take 1-2 minutes. Please do not close this page."
+              : form.fileText
+                ? "Uploading file knowledge to Cloudinary. Please do not close this page."
+                : "Saving business information.",
+          );
           try {
             await onSave(form);
           } finally {
             setIsSaving(false);
+            setSaveStatus("");
           }
         }}
       >
@@ -1161,11 +1170,19 @@ function BusinessInfo({
             </p>
           )}
         </div>
+        {isSaving && (
+          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4">
+            <Spinner label={saveStatus || "Processing business information..."} />
+            <p className="mt-3 text-sm font-semibold text-amber-500">
+              Keep this tab open while we scrape and store the knowledge base.
+            </p>
+          </div>
+        )}
         <Button
           disabled={isSaving}
           className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
         >
-          {isSaving ? "Saving..." : "Save Business Info"}
+          {isSaving ? "Processing..." : "Save Business Info"}
         </Button>
       </form>
     </section>

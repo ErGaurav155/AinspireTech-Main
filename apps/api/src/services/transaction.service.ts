@@ -1,3 +1,17 @@
+const sanitizeCloudinaryPublicId = (value: string) => {
+  const cleaned = String(value || "")
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/[\\/]+/g, "_")
+    .replace(/\./g, "_")
+    .replace(/[^a-zA-Z0-9_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 180);
+
+  return cleaned || `scraped_data_${Date.now()}`;
+};
+
 export const uploadTextToCloudinary = async (
   text: string,
   fileName: string,
@@ -16,7 +30,7 @@ export const uploadTextToCloudinary = async (
     const blob = new Blob([text], { type: "text/plain" });
     formData.append("file", blob);
     formData.append("upload_preset", "scraped_data"); // Your preset name
-    formData.append("public_id", fileName);
+    formData.append("public_id", sanitizeCloudinaryPublicId(fileName));
 
     // For unsigned uploads, we don't need API key/secret in the request
     const response = await fetch(
@@ -31,8 +45,8 @@ export const uploadTextToCloudinary = async (
       const errorResult = await response.json();
       console.error("Cloudinary API error:", errorResult);
       throw new Error(
-        // errorResult?.error?.message ||
-        `Upload failed with status: ${response.status}`,
+        errorResult?.error?.message ||
+          `Upload failed with status: ${response.status}`,
       );
     }
 
