@@ -537,7 +537,7 @@ async function buildBusinessInfoReply({
 }) {
   const text = inboundBody.toLowerCase();
 
-  if (/human|agent|call|complaint|refund|angry|bad/.test(text)) {
+  if (/human|agent|owner|support|call|complaint|refund|angry|bad/.test(text)) {
     return null;
   }
 
@@ -576,6 +576,9 @@ const isAppointmentStart = (body: string) =>
   /^(book appointment|start booking|appointment booking|book now)$/i.test(
     body.trim(),
   );
+
+const isGreetingIntent = (body: string) =>
+  /^(hi|hello|hey|menu|start)$/i.test(body.trim());
 
 const buildGreetingText = (workspace: IWhatsAppWorkspace) => {
   const businessName = workspace.organization?.name || "our business";
@@ -793,7 +796,9 @@ export async function processWhatsAppWebhook(payload: any) {
           phone: waId,
           lastMessage: body,
           owner: "ai",
-          status: body.match(/human|agent|call/i) ? "pending_human" : "open",
+          status: body.match(/human|agent|owner|support|call/i)
+            ? "pending_human"
+            : "open",
           intent: body.match(/refund|support|issue|problem/i)
             ? "support"
             : body.match(/price|demo|buy|plan|cost/i)
@@ -820,6 +825,10 @@ export async function processWhatsAppWebhook(payload: any) {
         createdAt: now,
       });
       results.push(message.id);
+
+      if (/human|agent|owner|support|call/i.test(body)) {
+        conversation.status = "pending_human";
+      }
 
       const canAutoReply =
         workspace.isConfigured &&
@@ -868,11 +877,41 @@ export async function processWhatsAppWebhook(payload: any) {
       }
 
       if (canAutoReply) {
+        if (isGreetingIntent(body)) {
+          const reply = buildGreetingText(workspace);
+          try {
+            const sendResult = await sendWhatsAppButtonMessage({
+              workspace,
+              to: waId,
+              body: reply,
+              buttons: [
+                { id: "book_appointment", title: "Book appointment" },
+                { id: "pricing_services", title: "Pricing/services" },
+                { id: "talk_to_owner", title: "Talk to owner" },
+              ],
+            });
+            conversation.lastMessage = reply;
+            conversation.owner = "ai";
+            conversation.messages.push({
+              providerMessageId: sendResult?.messages?.[0]?.id,
+              direction: "outbound",
+              type: "interactive",
+              body: `${reply}\n\n[Book appointment] [Pricing/services] [Talk to owner]`,
+              status: "sent",
+              createdAt: new Date(),
+            });
+            workspace.subscription.messagesUsed += 1;
+          } catch (error) {
+            console.error("WhatsApp greeting menu send failed:", error);
+            conversation.status = "pending_human";
+          }
+          continue;
+        }
+
         const shouldOfferAppointmentFlow =
           workspace.appointmentConfig?.enabled &&
           (isAppointmentStart(body) ||
-            hasAppointmentIntent(body) ||
-            /^(hi|hello|hey|menu|start)$/i.test(body.trim()));
+            hasAppointmentIntent(body));
 
         if (shouldOfferAppointmentFlow) {
           const reply = hasPublishedAppointmentFlow(workspace)

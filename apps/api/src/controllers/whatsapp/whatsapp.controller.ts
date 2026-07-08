@@ -416,7 +416,20 @@ const graphJsonRequest = async ({
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data?.error?.message || "Meta Graph API request failed");
+    const metaError = data?.error || {};
+    throw new Error(
+      [
+        metaError.message || "Meta Graph API request failed",
+        metaError.error_user_title,
+        metaError.error_user_msg,
+        metaError.type ? `type=${metaError.type}` : "",
+        metaError.code ? `code=${metaError.code}` : "",
+        metaError.error_subcode ? `subcode=${metaError.error_subcode}` : "",
+        metaError.fbtrace_id ? `fbtrace_id=${metaError.fbtrace_id}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
   }
   return data;
 };
@@ -437,8 +450,6 @@ const createAppointmentFlow = async (workspace: any, flowJson: Record<string, an
     body: {
       name,
       categories: ["APPOINTMENT_BOOKING"],
-      flow_json: JSON.stringify(flowJson),
-      publish: false,
     },
   });
   workspace.appointmentFlow = {
@@ -1553,8 +1564,13 @@ export const syncWhatsAppAppointmentFlowController = async (
         workspace.appointmentFlow?.status,
       );
     const meta = shouldCreateNewFlow
-      ? await createAppointmentFlow(workspace, flowJson)
-      : await uploadAppointmentFlowJson(workspace, flowJson);
+      ? {
+          create: await createAppointmentFlow(workspace, flowJson),
+          upload: await uploadAppointmentFlowJson(workspace, flowJson),
+        }
+      : {
+          upload: await uploadAppointmentFlowJson(workspace, flowJson),
+        };
 
     if (
       req.body?.publish &&
@@ -1620,6 +1636,7 @@ export const publishWhatsAppAppointmentFlowController = async (
     if (!workspace.appointmentFlow?.flowId) {
       const flowJson = buildAppointmentFlowJson(workspace);
       await createAppointmentFlow(workspace, flowJson);
+      await uploadAppointmentFlowJson(workspace, flowJson);
     } else {
       await syncAppointmentFlowStatus(workspace);
     }
