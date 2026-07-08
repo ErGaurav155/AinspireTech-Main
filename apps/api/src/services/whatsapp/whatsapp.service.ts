@@ -826,14 +826,26 @@ export async function processWhatsAppWebhook(payload: any) {
       });
       results.push(message.id);
 
-      if (/human|agent|owner|support|call/i.test(body)) {
+      const wantsHumanFollowup = /human|agent|owner|support|call/i.test(body);
+      const explicitAutomationIntent =
+        Boolean(flowResponse) ||
+        isGreetingIntent(body) ||
+        isAppointmentStart(body) ||
+        hasAppointmentIntent(body) ||
+        /pricing_services|pricing|services|price|cost|menu|start/i.test(body);
+
+      if (wantsHumanFollowup) {
         conversation.status = "pending_human";
+      } else if (explicitAutomationIntent && conversation.status === "pending_human") {
+        conversation.status = "open";
+        conversation.owner = "ai";
       }
 
       const canAutoReply =
         workspace.isConfigured &&
         workspace.subscription.messagesUsed < workspace.subscription.messageLimit &&
-        conversation.status !== "pending_human";
+        conversation.status !== "pending_human" &&
+        !wantsHumanFollowup;
 
       if (flowResponse && workspace.appointmentConfig?.enabled) {
         const appointmentPayload = createAppointmentFromFlowResponse({
@@ -980,6 +992,16 @@ export async function processWhatsAppWebhook(payload: any) {
         } else {
           conversation.status = "pending_human";
         }
+      } else {
+        console.info("[whatsapp:process] Auto-reply skipped", {
+          waId,
+          isConfigured: workspace.isConfigured,
+          messagesUsed: workspace.subscription.messagesUsed,
+          messageLimit: workspace.subscription.messageLimit,
+          conversationStatus: conversation.status,
+          wantsHumanFollowup,
+          explicitAutomationIntent,
+        });
       }
     }
 
