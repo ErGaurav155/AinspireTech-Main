@@ -76,6 +76,18 @@ export const maskSecret = (value?: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
+const getWhatsAppSendAccessToken = (workspace: IWhatsAppWorkspace) =>
+  process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN ||
+  workspace.meta?.accessToken ||
+  "";
+
+const getWhatsAppSendTokenSource = (workspace: IWhatsAppWorkspace) =>
+  process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN
+    ? "system_user_env"
+    : workspace.meta?.accessToken
+      ? "workspace_token"
+      : "missing";
+
 export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
   const data = workspace.toObject ? workspace.toObject() : workspace;
   return {
@@ -307,7 +319,8 @@ export async function sendWhatsAppTextMessage({
   to: string;
   body: string;
 }) {
-  if (!workspace.meta?.phoneNumberId || !workspace.meta?.accessToken) {
+  const accessToken = getWhatsAppSendAccessToken(workspace);
+  if (!workspace.meta?.phoneNumberId || !accessToken) {
     throw new Error("WhatsApp Meta credentials are not configured");
   }
 
@@ -317,7 +330,7 @@ export async function sendWhatsAppTextMessage({
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${workspace.meta.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -363,7 +376,8 @@ export async function sendWhatsAppFlowMessage({
   to: string;
   body?: string;
 }) {
-  if (!workspace.meta?.phoneNumberId || !workspace.meta?.accessToken) {
+  const accessToken = getWhatsAppSendAccessToken(workspace);
+  if (!workspace.meta?.phoneNumberId || !accessToken) {
     throw new Error("WhatsApp Meta credentials are not configured");
   }
 
@@ -379,7 +393,7 @@ export async function sendWhatsAppFlowMessage({
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${workspace.meta.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -436,7 +450,8 @@ export async function sendWhatsAppButtonMessage({
   body: string;
   buttons: Array<{ id: string; title: string }>;
 }) {
-  if (!workspace.meta?.phoneNumberId || !workspace.meta?.accessToken) {
+  const accessToken = getWhatsAppSendAccessToken(workspace);
+  if (!workspace.meta?.phoneNumberId || !accessToken) {
     throw new Error("WhatsApp Meta credentials are not configured");
   }
 
@@ -446,7 +461,7 @@ export async function sendWhatsAppButtonMessage({
     {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${workspace.meta.accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -641,6 +656,7 @@ const recordWhatsAppSendFailure = ({
     wabaId: workspace.meta?.wabaId || null,
     phoneNumberId: workspace.meta?.phoneNumberId || null,
     hasAccessToken: Boolean(workspace.meta?.accessToken),
+    tokenSource: getWhatsAppSendTokenSource(workspace),
     error: message,
   });
 };

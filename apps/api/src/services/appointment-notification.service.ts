@@ -177,6 +177,7 @@ const sendProviderWhatsAppTemplate = async ({
     process.env.APPOINTMENT_ALERT_WHATSAPP_ACCESS_TOKEN ||
     process.env.ROCKETREPLAI_WHATSAPP_ACCESS_TOKEN ||
     process.env.WHATSAPP_PROVIDER_ACCESS_TOKEN ||
+    process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN ||
     "";
   const graphVersion =
     process.env.APPOINTMENT_ALERT_WHATSAPP_GRAPH_VERSION ||
