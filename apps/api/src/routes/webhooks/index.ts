@@ -9,6 +9,7 @@ import {
   verifyInstagramInfoUpdateWebhookController,
 } from "@/controllers/webhooks/infoupdate.controller";
 import {
+  handleWhatsAppFlowEndpointController,
   handleWhatsAppWebhookController,
   verifyWhatsAppWebhookController,
 } from "@/controllers/webhooks/whatsapp.controller";
@@ -45,6 +46,9 @@ router.post(
 router.get("/whatsapp", verifyWhatsAppWebhookController);
 // POST /api/webhooks/whatsapp - Handle WhatsApp Cloud API webhooks
 router.post("/whatsapp", handleWhatsAppWebhookController);
+// GET/POST /api/webhooks/whatsapp/flow - WhatsApp Flow data exchange endpoint
+router.get("/whatsapp/flow", handleWhatsAppFlowEndpointController);
+router.post("/whatsapp/flow", handleWhatsAppFlowEndpointController);
 
 //meta app callbacks
 router.post("/meta/deauthorize", metaDeauthorizeController);

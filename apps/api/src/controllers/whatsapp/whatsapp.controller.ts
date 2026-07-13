@@ -80,6 +80,16 @@ const embeddedSignupConfigId =
 const whatsappOAuthRedirectUri =
   process.env.WHATSAPP_OAUTH_REDIRECT_URI ||
   "https://app.rocketreplai.com/whatsapp/settings";
+const publicApiBaseUrl =
+  process.env.PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL || "";
+const defaultWhatsAppFlowEndpointUri = publicApiBaseUrl
+  ? `${publicApiBaseUrl.replace(/\/+$/, "")}/api/webhooks/whatsapp/flow`
+  : "";
+const defaultWhatsAppFlowPublicKey = (
+  process.env.WHATSAPP_FLOW_PUBLIC_KEY || ""
+)
+  .replace(/\\n/g, "\n")
+  .trim();
 
 const cleanString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -315,8 +325,26 @@ const appointmentFlowFieldOrder = [
   "service",
 ];
 
+const toFlowDataSource = (values: unknown[] = [], fallback: string[]) =>
+  (values.length ? values : fallback)
+    .map((value) => cleanString(value))
+    .filter(Boolean)
+    .slice(0, 20)
+    .map((title, index) => ({
+      id:
+        title
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "_")
+          .replace(/^_|_$/g, "")
+          .slice(0, 40) || `option_${index + 1}`,
+      title: title.slice(0, 72),
+    }));
+
 const buildAppointmentFlowJson = (workspace: any) => {
   const config = workspace.appointmentConfig || {};
+  const flow = workspace.appointmentFlow || {};
+  const endpointUri =
+    cleanString(flow.endpointUri) || defaultWhatsAppFlowEndpointUri;
   const requiredFields = Array.isArray(config.requiredFields)
     ? config.requiredFields
     : [];
@@ -329,37 +357,101 @@ const buildAppointmentFlowJson = (workspace: any) => {
     .filter((service: any) => service?.isActive !== false && cleanString(service?.name))
     .map((service: any) => cleanString(service.name))
     .slice(0, 10);
-  if (serviceNames.length > 0 && !selectedFields.includes("service")) {
-    selectedFields.push("service");
-  }
   if (!selectedFields.includes("patient_name")) selectedFields.unshift("patient_name");
+  const departmentOptions = toFlowDataSource(flow.departmentOptions, [
+    "General",
+    "Sales",
+    "Support",
+  ]);
+  const locationOptions = toFlowDataSource(flow.locationOptions, [
+    "Main branch",
+    "Online consultation",
+  ]);
+  const serviceOptions = toFlowDataSource(serviceNames, [
+    "General consultation",
+  ]);
+  const flowFieldLabels: Record<string, string> = {
+    patient_name: flow.customerNameLabel || "Full name",
+    phone: flow.phoneLabel || "Phone number",
+    symptoms: flow.requirementLabel || "Requirement",
+    preferred_date: flow.dateLabel || "Preferred date",
+    preferred_time: flow.timeLabel || "Preferred time",
+  };
 
-  const inputComponents = selectedFields.map((field) => ({
+  const inputComponents = selectedFields
+    .filter((field) => field !== "service")
+    .map((field) => ({
     type: "TextInput",
     name: field,
-    label:
-      field === "service" && serviceNames.length > 0
-        ? `Service (${serviceNames.join(", ")})`
-        : appointmentFieldLabels[field] || field.replace(/_/g, " "),
+    label: flowFieldLabels[field] || appointmentFieldLabels[field] || field.replace(/_/g, " "),
     required: ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(field)
       ? true
       : requiredFields.includes(field),
     "input-type": field === "phone" ? "phone" : "text",
   }));
-  const payload = selectedFields.reduce<Record<string, string>>((acc, field) => {
-    acc[field] = `\${form.${field}}`;
-    return acc;
-  }, {});
+  const payload = {
+    action: "book_appointment",
+    workspace_id: String(workspace._id),
+    waba_id: workspace.meta?.wabaId || "",
+    phone_number_id: workspace.meta?.phoneNumberId || "",
+    department: "${form.department}",
+    location: "${form.location}",
+    service: "${form.service}",
+    patient_name: "${form.patient_name}",
+    phone: "${form.phone}",
+    symptoms: "${form.symptoms}",
+    preferred_date: "${form.preferred_date}",
+    preferred_time: "${form.preferred_time}",
+  };
 
   return {
-    version: workspace.appointmentFlow?.jsonVersion || "7.1",
+    version: flow.jsonVersion || "7.1",
+    data_api_version: "3.0",
+    ...(endpointUri ? { data_channel_uri: endpointUri } : {}),
+    routing_model: {
+      APPOINTMENT_FORM: [],
+    },
     screens: [
       {
         id: "APPOINTMENT_FORM",
         title: "Book Appointment",
         terminal: true,
         success: true,
-        data: {},
+        data: {
+          department_options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+              },
+            },
+            __example__: departmentOptions,
+          },
+          location_options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+              },
+            },
+            __example__: locationOptions,
+          },
+          service_options: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                title: { type: "string" },
+              },
+            },
+            __example__: serviceOptions,
+          },
+        },
         layout: {
           type: "SingleColumnLayout",
           children: [
@@ -375,12 +467,33 @@ const buildAppointmentFlowJson = (workspace: any) => {
                   type: "TextBody",
                   text: "Share your appointment details. The business team will confirm availability.",
                 },
+                {
+                  type: "Dropdown",
+                  name: "department",
+                  label: flow.departmentLabel || "Department",
+                  required: true,
+                  "data-source": "${data.department_options}",
+                },
+                {
+                  type: "Dropdown",
+                  name: "location",
+                  label: flow.locationLabel || "Location",
+                  required: true,
+                  "data-source": "${data.location_options}",
+                },
+                {
+                  type: "Dropdown",
+                  name: "service",
+                  label: flow.serviceLabel || "Service",
+                  required: true,
+                  "data-source": "${data.service_options}",
+                },
                 ...inputComponents,
                 {
                   type: "Footer",
-                  label: "Book appointment",
+                  label: flow.submitButtonLabel || "Book appointment",
                   "on-click-action": {
-                    name: "complete",
+                    name: "data_exchange",
                     payload,
                   },
                 },
@@ -432,6 +545,53 @@ const graphJsonRequest = async ({
     );
   }
   return data;
+};
+
+const syncAppointmentFlowEncryptionKey = async (workspace: any) => {
+  const publicKey =
+    cleanString(workspace.appointmentFlow?.publicKey) ||
+    defaultWhatsAppFlowPublicKey;
+
+  if (!publicKey) {
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      publicKeyStatus: "missing",
+      lastError:
+        "Add WHATSAPP_FLOW_PUBLIC_KEY or save a Flow public key before syncing the endpoint Flow.",
+      updatedAt: new Date(),
+    } as any;
+    throw new Error(workspace.appointmentFlow.lastError);
+  }
+
+  if (!workspace.meta?.phoneNumberId || !workspace.meta?.accessToken) {
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      publicKey,
+      publicKeyStatus: "error",
+      lastError:
+        "Connect a WhatsApp phone number before signing the Flow public key.",
+      updatedAt: new Date(),
+    } as any;
+    throw new Error(workspace.appointmentFlow.lastError);
+  }
+
+  const result = await graphJsonRequest({
+    path: `/${workspace.meta.phoneNumberId}/whatsapp_business_encryption`,
+    accessToken: workspace.meta.accessToken,
+    version: workspace.meta.graphApiVersion || metaGraphApiVersion,
+    body: {
+      business_public_key: publicKey,
+    },
+  });
+
+  workspace.appointmentFlow = {
+    ...workspace.appointmentFlow,
+    publicKey,
+    publicKeyStatus: "signed",
+    lastError: "",
+    updatedAt: new Date(),
+  } as any;
+  return result;
 };
 
 const createAppointmentFlow = async (workspace: any, flowJson: Record<string, any>) => {
@@ -1144,6 +1304,22 @@ export const getWhatsAppDashboardController = async (
     await syncWorkspaceMetaConnection(workspace);
     await syncGreetingTemplateStatus(workspace);
     await syncAppointmentFlowStatus(workspace);
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      endpointUri:
+        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
+      publicKey:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
+      endpointStatus:
+        workspace.appointmentFlow?.endpointStatus ||
+        (defaultWhatsAppFlowEndpointUri ? "configured" : "missing"),
+      phoneNumberStatus: workspace.meta?.phoneNumberId ? "added" : "missing",
+      metaAppStatus: workspace.meta?.wabaId ? "connected" : "missing",
+      publicKeyStatus:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey
+        ? workspace.appointmentFlow?.publicKeyStatus || "added"
+        : "missing",
+    } as any;
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     await workspace.save();
@@ -1227,6 +1403,7 @@ export const updateWhatsAppWorkspaceController = async (
       meta,
       subscription,
       appointmentConfig,
+      appointmentFlow,
       notificationSettings,
       businessInfo,
       greetingTemplate,
@@ -1300,6 +1477,94 @@ export const updateWhatsAppWorkspaceController = async (
           workspace.appointmentFlow?.status === "published"
             ? workspace.appointmentFlow.status
             : "draft",
+        validationErrors: [],
+        lastError: "",
+        updatedAt: new Date(),
+      } as any;
+    }
+
+    if (appointmentFlow) {
+      const currentFlow = workspace.appointmentFlow || {};
+      const endpointUri =
+        appointmentFlow.endpointUri !== undefined
+          ? cleanString(appointmentFlow.endpointUri)
+          : cleanString(currentFlow.endpointUri) || defaultWhatsAppFlowEndpointUri;
+      const publicKey =
+        appointmentFlow.publicKey !== undefined
+          ? cleanString(appointmentFlow.publicKey)
+          : cleanString(currentFlow.publicKey) || defaultWhatsAppFlowPublicKey;
+      workspace.appointmentFlow = {
+        ...currentFlow,
+        enabled:
+          appointmentFlow.enabled !== undefined
+            ? Boolean(appointmentFlow.enabled)
+            : currentFlow.enabled !== false,
+        name:
+          cleanString(appointmentFlow.name) ||
+          currentFlow.name ||
+          "RocketReplai Appointment Booking",
+        endpointUri,
+        publicKey,
+        endpointStatus: endpointUri
+          ? currentFlow.endpointStatus === "healthy"
+            ? "healthy"
+            : "configured"
+          : "missing",
+        publicKeyStatus: publicKey
+          ? currentFlow.publicKeyStatus === "signed"
+            ? "signed"
+            : "added"
+          : "missing",
+        phoneNumberStatus: workspace.meta?.phoneNumberId ? "added" : "missing",
+        metaAppStatus: workspace.meta?.wabaId ? "connected" : "missing",
+        departmentLabel:
+          cleanString(appointmentFlow.departmentLabel) ||
+          currentFlow.departmentLabel ||
+          "Department",
+        locationLabel:
+          cleanString(appointmentFlow.locationLabel) ||
+          currentFlow.locationLabel ||
+          "Location",
+        serviceLabel:
+          cleanString(appointmentFlow.serviceLabel) ||
+          currentFlow.serviceLabel ||
+          "Service",
+        customerNameLabel:
+          cleanString(appointmentFlow.customerNameLabel) ||
+          currentFlow.customerNameLabel ||
+          "Full name",
+        phoneLabel:
+          cleanString(appointmentFlow.phoneLabel) ||
+          currentFlow.phoneLabel ||
+          "Phone number",
+        requirementLabel:
+          cleanString(appointmentFlow.requirementLabel) ||
+          currentFlow.requirementLabel ||
+          "Requirement",
+        dateLabel:
+          cleanString(appointmentFlow.dateLabel) ||
+          currentFlow.dateLabel ||
+          "Preferred date",
+        timeLabel:
+          cleanString(appointmentFlow.timeLabel) ||
+          currentFlow.timeLabel ||
+          "Preferred time",
+        submitButtonLabel:
+          cleanString(appointmentFlow.submitButtonLabel) ||
+          currentFlow.submitButtonLabel ||
+          "Book appointment",
+        successMessage:
+          cleanString(appointmentFlow.successMessage) ||
+          currentFlow.successMessage ||
+          "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
+        departmentOptions: Array.isArray(appointmentFlow.departmentOptions)
+          ? appointmentFlow.departmentOptions.map(cleanString).filter(Boolean).slice(0, 20)
+          : currentFlow.departmentOptions || ["General", "Sales", "Support"],
+        locationOptions: Array.isArray(appointmentFlow.locationOptions)
+          ? appointmentFlow.locationOptions.map(cleanString).filter(Boolean).slice(0, 20)
+          : currentFlow.locationOptions || ["Main branch", "Online consultation"],
+        status:
+          currentFlow.status === "published" ? "draft" : currentFlow.status || "draft",
         validationErrors: [],
         lastError: "",
         updatedAt: new Date(),
@@ -1556,6 +1821,35 @@ export const syncWhatsAppAppointmentFlowController = async (
       });
     }
 
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      endpointUri:
+        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
+      publicKey:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
+      endpointStatus:
+        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri
+          ? "configured"
+          : "missing",
+      publicKeyStatus:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey
+          ? workspace.appointmentFlow?.publicKeyStatus || "added"
+          : "missing",
+      phoneNumberStatus: workspace.meta?.phoneNumberId ? "added" : "missing",
+      metaAppStatus: workspace.meta?.wabaId ? "connected" : "missing",
+    } as any;
+    if (!workspace.appointmentFlow?.endpointUri) {
+      await workspace.save();
+      return res.status(409).json({
+        success: false,
+        error:
+          "Set PUBLIC_API_URL or save a WhatsApp Flow endpoint URI before syncing the Flow.",
+        data: { appointmentFlow: workspace.appointmentFlow },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const encryption = await syncAppointmentFlowEncryptionKey(workspace);
     const flowJson = buildAppointmentFlowJson(workspace);
     await syncAppointmentFlowStatus(workspace);
     const shouldCreateNewFlow =
@@ -1565,10 +1859,12 @@ export const syncWhatsAppAppointmentFlowController = async (
       );
     const meta = shouldCreateNewFlow
       ? {
+          encryption,
           create: await createAppointmentFlow(workspace, flowJson),
           upload: await uploadAppointmentFlowJson(workspace, flowJson),
         }
       : {
+          encryption,
           upload: await uploadAppointmentFlowJson(workspace, flowJson),
         };
 
@@ -1632,6 +1928,36 @@ export const publishWhatsAppAppointmentFlowController = async (
         timestamp: new Date().toISOString(),
       });
     }
+
+    workspace.appointmentFlow = {
+      ...workspace.appointmentFlow,
+      endpointUri:
+        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
+      publicKey:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
+      endpointStatus:
+        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri
+          ? "configured"
+          : "missing",
+      publicKeyStatus:
+        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey
+          ? workspace.appointmentFlow?.publicKeyStatus || "added"
+          : "missing",
+      phoneNumberStatus: workspace.meta?.phoneNumberId ? "added" : "missing",
+      metaAppStatus: workspace.meta?.wabaId ? "connected" : "missing",
+    } as any;
+    if (!workspace.appointmentFlow?.endpointUri) {
+      await workspace.save();
+      return res.status(409).json({
+        success: false,
+        error:
+          "Set PUBLIC_API_URL or save a WhatsApp Flow endpoint URI before publishing the Flow.",
+        data: { appointmentFlow: workspace.appointmentFlow },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await syncAppointmentFlowEncryptionKey(workspace);
 
     if (!workspace.appointmentFlow?.flowId) {
       const flowJson = buildAppointmentFlowJson(workspace);

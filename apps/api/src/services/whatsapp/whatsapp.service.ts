@@ -157,6 +157,25 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         status: "draft",
         categories: ["APPOINTMENT_BOOKING"],
         jsonVersion: "7.1",
+        endpointUri: "",
+        publicKey: "",
+        endpointStatus: "missing",
+        publicKeyStatus: "missing",
+        phoneNumberStatus: "missing",
+        metaAppStatus: "missing",
+        departmentLabel: "Department",
+        locationLabel: "Location",
+        serviceLabel: "Service",
+        customerNameLabel: "Full name",
+        phoneLabel: "Phone number",
+        requirementLabel: "Requirement",
+        dateLabel: "Preferred date",
+        timeLabel: "Preferred time",
+        submitButtonLabel: "Book appointment",
+        successMessage:
+          "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
+        departmentOptions: ["General", "Sales", "Support"],
+        locationOptions: ["Main branch", "Online consultation"],
         validationErrors: [],
         lastError: "",
       } as any;
@@ -236,6 +255,25 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       status: "draft",
       categories: ["APPOINTMENT_BOOKING"],
       jsonVersion: "7.1",
+      endpointUri: "",
+      publicKey: "",
+      endpointStatus: "missing",
+      publicKeyStatus: "missing",
+      phoneNumberStatus: "missing",
+      metaAppStatus: "missing",
+      departmentLabel: "Department",
+      locationLabel: "Location",
+      serviceLabel: "Service",
+      customerNameLabel: "Full name",
+      phoneLabel: "Phone number",
+      requirementLabel: "Requirement",
+      dateLabel: "Preferred date",
+      timeLabel: "Preferred time",
+      submitButtonLabel: "Book appointment",
+      successMessage:
+        "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
+      departmentOptions: ["General", "Sales", "Support"],
+      locationOptions: ["Main branch", "Online consultation"],
       validationErrors: [],
       lastError: "",
     },
@@ -422,8 +460,14 @@ export async function sendWhatsAppFlowMessage({
               flow_id: flowId,
               flow_cta: "Book appointment",
               flow_action: "navigate",
+              flow_token: String(workspace._id),
               flow_action_payload: {
                 screen: "APPOINTMENT_FORM",
+                data: {
+                  workspace_id: String(workspace._id),
+                  waba_id: workspace.meta?.wabaId || "",
+                  phone_number_id: workspace.meta?.phoneNumberId || "",
+                },
               },
             },
           },
@@ -733,6 +777,8 @@ const createAppointmentFromFlowResponse = ({
   const service =
     normalizeFlowText(flowResponse.service) ||
     inferService(responseText, workspace.appointmentConfig?.services);
+  const department = normalizeFlowText(flowResponse.department);
+  const location = normalizeFlowText(flowResponse.location);
   const symptoms =
     normalizeFlowText(flowResponse.symptoms) ||
     normalizeFlowText(flowResponse.requirement) ||
@@ -759,11 +805,37 @@ const createAppointmentFromFlowResponse = ({
       responseText,
       workspace.appointmentConfig?.emergencyKeywords,
     ),
-    notes: "Created from native WhatsApp Flow submission.",
+    notes: [
+      "Created from native WhatsApp Flow submission.",
+      department ? `Department: ${department}` : "",
+      location ? `Location: ${location}` : "",
+    ]
+      .filter(Boolean)
+      .join(" "),
     conversationWaId: waId,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+};
+
+const hasRecentDuplicateAppointment = (
+  workspace: IWhatsAppWorkspace,
+  appointment: Record<string, any>,
+) => {
+  const createdAfter = Date.now() - 15 * 60 * 1000;
+  return workspace.appointments.some((item: any) => {
+    const createdAt = item.createdAt ? new Date(item.createdAt).getTime() : 0;
+    return (
+      createdAt >= createdAfter &&
+      normalizeFlowText(item.patientPhone) ===
+        normalizeFlowText(appointment.patientPhone) &&
+      normalizeFlowText(item.preferredDate) ===
+        normalizeFlowText(appointment.preferredDate) &&
+      normalizeFlowText(item.preferredTime) ===
+        normalizeFlowText(appointment.preferredTime) &&
+      normalizeFlowText(item.service) === normalizeFlowText(appointment.service)
+    );
+  });
 };
 
 const buildFlowNotReadyReply = (workspace: IWhatsAppWorkspace) =>
@@ -926,15 +998,23 @@ export async function processWhatsAppWebhook(payload: any) {
           contactName,
           waId,
         });
-        workspace.appointments.push(appointmentPayload);
-        createdAppointmentAlerts.push(appointmentPayload);
+        const duplicateAppointment = hasRecentDuplicateAppointment(
+          workspace,
+          appointmentPayload,
+        );
+        if (!duplicateAppointment) {
+          workspace.appointments.push(appointmentPayload);
+          createdAppointmentAlerts.push(appointmentPayload);
+        }
 
         if (canAutoReply) {
-          const reply = `Appointment request received for ${appointmentPayload.patientName}. ${
-            workspace.appointmentConfig?.clinicName ||
-            workspace.organization?.name ||
-            "Our team"
-          } will confirm the slot soon.`;
+          const reply =
+            workspace.appointmentFlow?.successMessage ||
+            `Appointment request received for ${appointmentPayload.patientName}. ${
+              workspace.appointmentConfig?.clinicName ||
+              workspace.organization?.name ||
+              "Our team"
+            } will confirm the slot soon.`;
           try {
             const sendResult = await sendWhatsAppTextMessage({
               workspace,

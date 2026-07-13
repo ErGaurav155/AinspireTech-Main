@@ -101,6 +101,24 @@ export interface IWhatsAppWorkspace extends Document {
       | "error";
     categories: string[];
     jsonVersion: string;
+    endpointUri?: string;
+    publicKey?: string;
+    endpointStatus?: "missing" | "configured" | "healthy" | "error";
+    publicKeyStatus?: "missing" | "added" | "signed" | "error";
+    phoneNumberStatus?: "missing" | "added";
+    metaAppStatus?: "missing" | "connected";
+    departmentLabel?: string;
+    locationLabel?: string;
+    serviceLabel?: string;
+    customerNameLabel?: string;
+    phoneLabel?: string;
+    requirementLabel?: string;
+    dateLabel?: string;
+    timeLabel?: string;
+    submitButtonLabel?: string;
+    successMessage?: string;
+    departmentOptions?: string[];
+    locationOptions?: string[];
     validationErrors: Array<Record<string, any>>;
     lastError?: string;
     lastSyncedAt?: Date;
@@ -368,6 +386,50 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       },
       categories: { type: [String], default: ["APPOINTMENT_BOOKING"] },
       jsonVersion: { type: String, default: "7.1" },
+      endpointUri: { type: String, default: "" },
+      publicKey: { type: String, default: "" },
+      endpointStatus: {
+        type: String,
+        enum: ["missing", "configured", "healthy", "error"],
+        default: "missing",
+      },
+      publicKeyStatus: {
+        type: String,
+        enum: ["missing", "added", "signed", "error"],
+        default: "missing",
+      },
+      phoneNumberStatus: {
+        type: String,
+        enum: ["missing", "added"],
+        default: "missing",
+      },
+      metaAppStatus: {
+        type: String,
+        enum: ["missing", "connected"],
+        default: "missing",
+      },
+      departmentLabel: { type: String, default: "Department" },
+      locationLabel: { type: String, default: "Location" },
+      serviceLabel: { type: String, default: "Service" },
+      customerNameLabel: { type: String, default: "Full name" },
+      phoneLabel: { type: String, default: "Phone number" },
+      requirementLabel: { type: String, default: "Requirement" },
+      dateLabel: { type: String, default: "Preferred date" },
+      timeLabel: { type: String, default: "Preferred time" },
+      submitButtonLabel: { type: String, default: "Book appointment" },
+      successMessage: {
+        type: String,
+        default:
+          "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
+      },
+      departmentOptions: {
+        type: [String],
+        default: ["General", "Sales", "Support"],
+      },
+      locationOptions: {
+        type: [String],
+        default: ["Main branch", "Online consultation"],
+      },
       validationErrors: { type: [Schema.Types.Mixed], default: [] },
       lastError: { type: String, default: "" },
       lastSyncedAt: Date,
