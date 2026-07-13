@@ -332,10 +332,27 @@ export async function sendWhatsAppTextMessage({
 
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result?.error?.message || "Failed to send WhatsApp message");
+    throw new Error(
+      buildWhatsAppSendError(result, "Failed to send WhatsApp message"),
+    );
   }
   return result;
 }
+
+const buildWhatsAppSendError = (result: any, fallback: string) => {
+  const error = result?.error || {};
+  return [
+    error.message || fallback,
+    error.error_user_title,
+    error.error_user_msg,
+    error.type ? `type=${error.type}` : "",
+    error.code ? `code=${error.code}` : "",
+    error.error_subcode ? `subcode=${error.error_subcode}` : "",
+    error.fbtrace_id ? `fbtrace_id=${error.fbtrace_id}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+};
 
 export async function sendWhatsAppFlowMessage({
   workspace,
@@ -403,7 +420,7 @@ export async function sendWhatsAppFlowMessage({
 
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result?.error?.message || "Failed to send WhatsApp Flow");
+    throw new Error(buildWhatsAppSendError(result, "Failed to send WhatsApp Flow"));
   }
   return result;
 }
@@ -456,7 +473,9 @@ export async function sendWhatsAppButtonMessage({
 
   const result = await response.json();
   if (!response.ok) {
-    throw new Error(result?.error?.message || "Failed to send WhatsApp buttons");
+    throw new Error(
+      buildWhatsAppSendError(result, "Failed to send WhatsApp buttons"),
+    );
   }
   return result;
 }
@@ -578,7 +597,9 @@ const isAppointmentStart = (body: string) =>
   );
 
 const isGreetingIntent = (body: string) =>
-  /^(hi|hello|hey|menu|start)$/i.test(body.trim());
+  /^(hi+|hii+|hello+|hey+|hy|namaste|menu|start|help)(\s|!|\.|,|$)/i.test(
+    body.trim(),
+  );
 
 const buildGreetingText = (workspace: IWhatsAppWorkspace) => {
   const businessName = workspace.organization?.name || "our business";
@@ -587,6 +608,41 @@ const buildGreetingText = (workspace: IWhatsAppWorkspace) => {
     return template.body.replace(/\{\{\s*1\s*\}\}/g, businessName);
   }
   return `Hi, thanks for messaging ${businessName}. How can we help you today?`;
+};
+
+const isMetaMessagingPermissionError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return /#200|necessary permission|send messages on behalf/i.test(message);
+};
+
+const recordWhatsAppSendFailure = ({
+  workspace,
+  error,
+  context,
+  waId,
+}: {
+  workspace: IWhatsAppWorkspace;
+  error: unknown;
+  context: string;
+  waId: string;
+}) => {
+  if (!isMetaMessagingPermissionError(error)) return;
+
+  const message = error instanceof Error ? error.message : String(error);
+  workspace.onboarding = {
+    ...workspace.onboarding,
+    lastError:
+      "Meta blocked outbound WhatsApp replies. Reconnect this WhatsApp Business account with whatsapp_business_messaging permission.",
+  } as any;
+  console.error("[whatsapp:send:permission-blocked]", {
+    context,
+    waId,
+    workspaceId: String(workspace._id),
+    wabaId: workspace.meta?.wabaId || null,
+    phoneNumberId: workspace.meta?.phoneNumberId || null,
+    hasAccessToken: Boolean(workspace.meta?.accessToken),
+    error: message,
+  });
 };
 
 const resolveUrgency = (
@@ -836,7 +892,7 @@ export async function processWhatsAppWebhook(payload: any) {
 
       if (wantsHumanFollowup) {
         conversation.status = "pending_human";
-      } else if (explicitAutomationIntent && conversation.status === "pending_human") {
+      } else if (conversation.status === "pending_human") {
         conversation.status = "open";
         conversation.owner = "ai";
       }
@@ -882,6 +938,12 @@ export async function processWhatsAppWebhook(payload: any) {
             workspace.subscription.messagesUsed += 1;
           } catch (error) {
             console.error("WhatsApp Flow confirmation failed:", error);
+            recordWhatsAppSendFailure({
+              workspace,
+              error,
+              context: "flow_confirmation",
+              waId,
+            });
             conversation.status = "pending_human";
           }
         }
@@ -915,6 +977,12 @@ export async function processWhatsAppWebhook(payload: any) {
             workspace.subscription.messagesUsed += 1;
           } catch (error) {
             console.error("WhatsApp greeting menu send failed:", error);
+            recordWhatsAppSendFailure({
+              workspace,
+              error,
+              context: "greeting_menu",
+              waId,
+            });
             conversation.status = "pending_human";
           }
           continue;
@@ -956,6 +1024,12 @@ export async function processWhatsAppWebhook(payload: any) {
             workspace.subscription.messagesUsed += 1;
           } catch (error) {
             console.error("WhatsApp appointment Flow send failed:", error);
+            recordWhatsAppSendFailure({
+              workspace,
+              error,
+              context: "appointment_flow",
+              waId,
+            });
             conversation.status = "pending_human";
           }
           continue;
@@ -987,6 +1061,12 @@ export async function processWhatsAppWebhook(payload: any) {
             workspace.subscription.messagesUsed += 1;
           } catch (error) {
             console.error("WhatsApp auto-reply failed:", error);
+            recordWhatsAppSendFailure({
+              workspace,
+              error,
+              context: "business_info_reply",
+              waId,
+            });
             conversation.status = "pending_human";
           }
         } else {
