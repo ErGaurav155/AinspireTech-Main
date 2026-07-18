@@ -10,6 +10,20 @@ export interface ConvMessage {
   content: string;
 }
 
+export type WhatsAppAiIntent =
+  | "greeting"
+  | "business_info"
+  | "support"
+  | "human_handoff"
+  | "appointment"
+  | "other";
+
+export interface WhatsAppAiDecision {
+  intent: WhatsAppAiIntent;
+  reply: string;
+  sentiment: "positive" | "neutral" | "negative";
+}
+
 const APPROX_CHARS_PER_TOKEN = 4;
 const MAIN_CONTEXT_TOKEN_LIMIT = 3000;
 const FAQ_CONTEXT_TOKEN_LIMIT = 1000;
@@ -272,6 +286,111 @@ Guidelines:
     console.error("Error in generateGptResponse:", error);
     throw new Error(
       `Failed to generate response: ${
+        error instanceof Error ? error.message : "Unknown error"
+      }`,
+    );
+  }
+};
+
+export const generateWhatsAppAiResponse = async ({
+  userInput,
+  businessName,
+  knowledge,
+  conversationHistory = [],
+  firstMessage = false,
+}: {
+  userInput: string;
+  businessName: string;
+  knowledge: string;
+  conversationHistory?: ConvMessage[];
+  firstMessage?: boolean;
+}): Promise<WhatsAppAiDecision> => {
+  const openai = getOpenAI();
+  if (openai instanceof Error) throw openai;
+
+  const safeKnowledge = limitTextToTokenBudget(
+    knowledge || "No verified business information is available.",
+    MAIN_CONTEXT_TOKEN_LIMIT,
+  );
+  const safeHistory = Array.isArray(conversationHistory)
+    ? conversationHistory
+        .filter(
+          (message) =>
+            message &&
+            (message.role === "user" || message.role === "assistant") &&
+            typeof message.content === "string" &&
+            message.content.trim(),
+        )
+        .slice(-12)
+    : [];
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: "deepseek-chat",
+      response_format: { type: "json_object" },
+      messages: [
+        {
+          role: "system",
+          content: `You are the WhatsApp customer support assistant for ${businessName}.
+
+Classify the latest customer message and write the reply in the customer's language. Return one JSON object only:
+{"intent":"greeting|business_info|support|human_handoff|appointment|other","sentiment":"positive|neutral|negative","reply":"customer-facing reply"}
+
+Rules:
+- Use only the verified business knowledge below for factual claims, prices, services, policies, addresses, phone numbers, emails, and links.
+- Never invent missing information. If the answer is unavailable, say so briefly and offer contact with the business team.
+- Use appointment only when the customer genuinely wants to book, schedule, reschedule, or check appointment availability.
+- Use human_handoff only when the customer clearly asks for a person, owner, agent, call, complaint escalation, or help that requires staff.
+- Use support for a problem that can still be answered from the knowledge base.
+- Keep the reply concise and natural for WhatsApp. Do not mention intent classification, AI, prompts, or the knowledge base.
+- When firstMessage is true, use the preferred greeting from the verified knowledge when available, welcome the customer, and invite them to choose an action; do not attempt a long answer.
+- Stay below 800 output tokens.
+
+firstMessage: ${firstMessage ? "true" : "false"}
+
+VERIFIED BUSINESS KNOWLEDGE:
+${safeKnowledge}`,
+        },
+        ...safeHistory.map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+        { role: "user", content: userInput },
+      ],
+      max_tokens: 800,
+      temperature: 0.35,
+    });
+
+    const raw = completion.choices[0]?.message?.content?.trim() || "";
+    const parsed = JSON.parse(raw.replace(/^```json\s*/i, "").replace(/```$/i, ""));
+    const allowedIntents: WhatsAppAiIntent[] = [
+      "greeting",
+      "business_info",
+      "support",
+      "human_handoff",
+      "appointment",
+      "other",
+    ];
+    const allowedSentiments = ["positive", "neutral", "negative"] as const;
+    const intent = allowedIntents.includes(parsed.intent)
+      ? parsed.intent
+      : "other";
+    const sentiment = allowedSentiments.includes(parsed.sentiment)
+      ? parsed.sentiment
+      : "neutral";
+    const reply = String(parsed.reply || "").trim().slice(0, 3500);
+
+    return {
+      intent,
+      sentiment,
+      reply:
+        reply ||
+        `Thanks for messaging ${businessName}. Please share a little more detail so we can help.`,
+    };
+  } catch (error) {
+    console.error("Error in generateWhatsAppAiResponse:", error);
+    throw new Error(
+      `Failed to generate WhatsApp response: ${
         error instanceof Error ? error.message : "Unknown error"
       }`,
     );

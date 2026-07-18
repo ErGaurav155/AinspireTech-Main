@@ -94,6 +94,24 @@ const defaultWhatsAppFlowPublicKey = (
 const cleanString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
 
+const appointmentChatQuestionFields = new Set([
+  "patientName",
+  "patientPhone",
+  "service",
+  "preferredDate",
+  "preferredTime",
+  "symptoms",
+]);
+
+const defaultAppointmentChatQuestions = [
+  { field: "patientName", question: "What is your full name?", required: true },
+  { field: "patientPhone", question: "What phone number should we use?", required: true },
+  { field: "service", question: "Which service do you want to book?", required: true },
+  { field: "preferredDate", question: "Which date do you prefer?", required: true },
+  { field: "preferredTime", question: "Which time do you prefer?", required: true },
+  { field: "symptoms", question: "Please describe your requirement.", required: true },
+];
+
 const safeCloudinaryFileName = (value: string) =>
   value
     .toLowerCase()
@@ -1563,6 +1581,21 @@ export const updateWhatsAppWorkspaceController = async (
         locationOptions: Array.isArray(appointmentFlow.locationOptions)
           ? appointmentFlow.locationOptions.map(cleanString).filter(Boolean).slice(0, 20)
           : currentFlow.locationOptions || ["Main branch", "Online consultation"],
+        chatQuestions: Array.isArray(appointmentFlow.chatQuestions)
+          ? appointmentFlow.chatQuestions
+              .map((item: any) => ({
+                field: cleanString(item?.field),
+                question: cleanString(item?.question).slice(0, 240),
+                required: item?.required !== false,
+              }))
+              .filter(
+                (item: any) =>
+                  appointmentChatQuestionFields.has(item.field) && item.question,
+              )
+              .slice(0, 10)
+          : currentFlow.chatQuestions?.length
+            ? currentFlow.chatQuestions
+            : defaultAppointmentChatQuestions,
         status:
           currentFlow.status === "published" ? "draft" : currentFlow.status || "draft",
         validationErrors: [],

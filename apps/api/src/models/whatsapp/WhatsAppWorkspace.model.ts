@@ -119,6 +119,17 @@ export interface IWhatsAppWorkspace extends Document {
     successMessage?: string;
     departmentOptions?: string[];
     locationOptions?: string[];
+    chatQuestions?: Array<{
+      field:
+        | "patientName"
+        | "patientPhone"
+        | "service"
+        | "preferredDate"
+        | "preferredTime"
+        | "symptoms";
+      question: string;
+      required: boolean;
+    }>;
     validationErrors: Array<Record<string, any>>;
     lastError?: string;
     lastSyncedAt?: Date;
@@ -211,6 +222,17 @@ export interface IWhatsAppWorkspace extends Document {
       status: "received" | "sent" | "delivered" | "read" | "failed";
       createdAt: Date;
     }>;
+    appointmentDraft?: {
+      status: "collecting";
+      currentQuestionIndex: number;
+      answers: Array<{
+        field: string;
+        question: string;
+        answer: string;
+      }>;
+      startedAt: Date;
+      updatedAt: Date;
+    };
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -430,6 +452,34 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         type: [String],
         default: ["Main branch", "Online consultation"],
       },
+      chatQuestions: {
+        type: [
+          {
+            field: {
+              type: String,
+              enum: [
+                "patientName",
+                "patientPhone",
+                "service",
+                "preferredDate",
+                "preferredTime",
+                "symptoms",
+              ],
+              required: true,
+            },
+            question: { type: String, required: true },
+            required: { type: Boolean, default: true },
+          },
+        ],
+        default: [
+          { field: "patientName", question: "What is your full name?", required: true },
+          { field: "patientPhone", question: "What phone number should we use?", required: true },
+          { field: "service", question: "Which service do you want to book?", required: true },
+          { field: "preferredDate", question: "Which date do you prefer?", required: true },
+          { field: "preferredTime", question: "Which time do you prefer?", required: true },
+          { field: "symptoms", question: "Please describe your requirement.", required: true },
+        ],
+      },
       validationErrors: { type: [Schema.Types.Mixed], default: [] },
       lastError: { type: String, default: "" },
       lastSyncedAt: Date,
@@ -595,6 +645,22 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
             createdAt: { type: Date, default: Date.now },
           },
         ],
+        appointmentDraft: {
+          status: {
+            type: String,
+            enum: ["collecting"],
+          },
+          currentQuestionIndex: { type: Number, default: 0 },
+          answers: [
+            {
+              field: String,
+              question: String,
+              answer: String,
+            },
+          ],
+          startedAt: Date,
+          updatedAt: Date,
+        },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },
       },

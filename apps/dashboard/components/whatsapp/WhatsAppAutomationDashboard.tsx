@@ -663,6 +663,12 @@ function Appointments({
             isActive: true,
           },
         ];
+    const chatQuestions = Object.fromEntries(
+      (Array.isArray(appointmentFlow.chatQuestions)
+        ? appointmentFlow.chatQuestions
+        : []
+      ).map((item: any) => [item.field, item.question]),
+    );
     return {
       enabled: appointmentFlow.enabled !== false,
       name: appointmentFlow.name || "RocketReplai Appointment Booking",
@@ -701,6 +707,18 @@ function Appointments({
             `${service.name}|${service.durationMinutes || 30}|${service.priceInr || 0}|${service.doctor || ""}`,
         )
         .join("\n"),
+      chatNameQuestion:
+        chatQuestions.patientName || "What is your full name?",
+      chatPhoneQuestion:
+        chatQuestions.patientPhone || "What phone number should we use?",
+      chatServiceQuestion:
+        chatQuestions.service || "Which service do you want to book?",
+      chatDateQuestion:
+        chatQuestions.preferredDate || "Which date do you prefer?",
+      chatTimeQuestion:
+        chatQuestions.preferredTime || "Which time do you prefer?",
+      chatRequirementQuestion:
+        chatQuestions.symptoms || "Please describe your requirement.",
     };
   };
   const [isSavingFlow, setIsSavingFlow] = useState(false);
@@ -961,6 +979,38 @@ function Appointments({
                     successMessage: flowForm.successMessage,
                     departmentOptions: splitLines(flowForm.departmentOptionsText),
                     locationOptions: splitLines(flowForm.locationOptionsText),
+                    chatQuestions: [
+                      {
+                        field: "patientName",
+                        question: flowForm.chatNameQuestion,
+                        required: true,
+                      },
+                      {
+                        field: "patientPhone",
+                        question: flowForm.chatPhoneQuestion,
+                        required: true,
+                      },
+                      {
+                        field: "service",
+                        question: flowForm.chatServiceQuestion,
+                        required: true,
+                      },
+                      {
+                        field: "preferredDate",
+                        question: flowForm.chatDateQuestion,
+                        required: true,
+                      },
+                      {
+                        field: "preferredTime",
+                        question: flowForm.chatTimeQuestion,
+                        required: true,
+                      },
+                      {
+                        field: "symptoms",
+                        question: flowForm.chatRequirementQuestion,
+                        required: true,
+                      },
+                    ],
                   },
                   appointmentConfig: {
                     enabled: flowForm.enabled,
@@ -1170,6 +1220,75 @@ function Appointments({
                 className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
               />
             </label>
+            <div className="border-t border-gray-200 pt-4 dark:border-white/[0.08]">
+              <p className="text-sm font-black">Chat appointment questions</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-white/50">
+                These questions are asked one at a time when a customer chooses
+                Book in chat. Answers are saved with the appointment request.
+              </p>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <TextInput
+                  label="Customer name question"
+                  value={flowForm.chatNameQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatNameQuestion: value,
+                    }))
+                  }
+                />
+                <TextInput
+                  label="Phone question"
+                  value={flowForm.chatPhoneQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatPhoneQuestion: value,
+                    }))
+                  }
+                />
+                <TextInput
+                  label="Service question"
+                  value={flowForm.chatServiceQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatServiceQuestion: value,
+                    }))
+                  }
+                />
+                <TextInput
+                  label="Preferred date question"
+                  value={flowForm.chatDateQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatDateQuestion: value,
+                    }))
+                  }
+                />
+                <TextInput
+                  label="Preferred time question"
+                  value={flowForm.chatTimeQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatTimeQuestion: value,
+                    }))
+                  }
+                />
+                <TextInput
+                  label="Requirement question"
+                  value={flowForm.chatRequirementQuestion}
+                  onChange={(value) =>
+                    setFlowForm((current) => ({
+                      ...current,
+                      chatRequirementQuestion: value,
+                    }))
+                  }
+                />
+              </div>
+            </div>
             <TextInput
               label="Customer success message"
               value={flowForm.successMessage}
