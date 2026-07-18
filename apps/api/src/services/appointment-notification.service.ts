@@ -141,9 +141,8 @@ export const objectToAppointmentAlert = (
   preferredTime: cleanString(value.preferredTime || value.time),
   summary: cleanString(
     value.summary ||
-      value.symptoms ||
+      [value.symptoms, value.notes].filter(Boolean).join(" | ") ||
       value.message ||
-      value.notes ||
       value.description ||
       value.interest,
   ),
@@ -212,7 +211,12 @@ const sendProviderWhatsAppTemplate = async ({
         {
           type: "text",
           text: truncate(
-            appointment.summary || appointment.service || "No details",
+            [
+              appointment.service ? `Service: ${appointment.service}` : "",
+              appointment.summary,
+            ]
+              .filter(Boolean)
+              .join(" | ") || "No details",
           ),
         },
       ],
@@ -220,11 +224,14 @@ const sendProviderWhatsAppTemplate = async ({
   ];
 
   if (includeDashboardButton) {
+    const dashboardButtonValue = dashboardUrl.startsWith(DASHBOARD_URL)
+      ? dashboardUrl.slice(DASHBOARD_URL.length).replace(/^\/+/, "")
+      : dashboardUrl;
     components.push({
       type: "button",
       sub_type: "url",
       index: "0",
-      parameters: [{ type: "text", text: dashboardUrl }],
+      parameters: [{ type: "text", text: dashboardButtonValue }],
     });
   }
 
@@ -250,7 +257,19 @@ const sendProviderWhatsAppTemplate = async ({
   );
   const data = await response.json().catch(() => ({}) as any);
   if (!response.ok) {
-    throw new Error(data?.error?.message || "WhatsApp template send failed");
+    const metaError = data?.error || {};
+    throw new Error(
+      [
+        metaError.message || "WhatsApp template send failed",
+        metaError.error_user_title,
+        metaError.error_user_msg,
+        metaError.code ? `code=${metaError.code}` : "",
+        metaError.error_subcode ? `subcode=${metaError.error_subcode}` : "",
+        metaError.fbtrace_id ? `fbtrace_id=${metaError.fbtrace_id}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
   }
   return data?.messages?.[0]?.id as string | undefined;
 };

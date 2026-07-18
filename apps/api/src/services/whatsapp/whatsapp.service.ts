@@ -1217,7 +1217,7 @@ export async function processWhatsAppWebhook(payload: any) {
             conversation,
             body: `Confirm that ${appointmentPayload.patientName}'s appointment request for ${appointmentPayload.service} was received and the team will confirm availability.`,
           });
-          await sendTrackedButtons({
+          await sendTrackedText({
             workspace,
             conversation,
             to: waId,
@@ -1225,10 +1225,6 @@ export async function processWhatsAppWebhook(payload: any) {
               confirmation.reply ||
               workspace.appointmentFlow?.successMessage ||
               "Your appointment request was received. The team will confirm availability soon.",
-            buttons: [
-              { id: "book_appointment", title: "Book another" },
-              { id: "talk_to_owner", title: "Talk to owner" },
-            ],
           });
           conversation.status = "open";
           continue;
@@ -1279,7 +1275,7 @@ export async function processWhatsAppWebhook(payload: any) {
               conversation,
               body: `Confirm that ${appointmentPayload.patientName}'s appointment request for ${appointmentPayload.service} was received. Mention the preferred date and time only if provided, and say the team will confirm availability.`,
             });
-            await sendTrackedButtons({
+            await sendTrackedText({
               workspace,
               conversation,
               to: waId,
@@ -1287,10 +1283,6 @@ export async function processWhatsAppWebhook(payload: any) {
                 confirmation.reply ||
                 workspace.appointmentFlow?.successMessage ||
                 "Your appointment request was received. The team will confirm availability soon.",
-              buttons: [
-                { id: "book_appointment", title: "Book another" },
-                { id: "talk_to_owner", title: "Talk to owner" },
-              ],
             });
           }
           conversation.status = "open";
@@ -1406,20 +1398,11 @@ export async function processWhatsAppWebhook(payload: any) {
         const humanHandoff =
           buttonReplyId === "talk_to_owner" ||
           decision.intent === "human_handoff";
-        await sendTrackedButtons({
+        await sendTrackedText({
           workspace,
           conversation,
           to: waId,
           body: decision.reply,
-          buttons: humanHandoff
-            ? [
-                { id: "continue_ai", title: "Continue here" },
-                { id: "book_appointment", title: "Book appointment" },
-              ]
-            : [
-                { id: "book_appointment", title: "Book appointment" },
-                { id: "talk_to_owner", title: "Talk to owner" },
-              ],
         });
         conversation.status = humanHandoff ? "pending_human" : "open";
         conversation.owner = humanHandoff ? "human" : "ai";
@@ -1447,22 +1430,33 @@ export async function processWhatsAppWebhook(payload: any) {
 
     await workspace.save();
     for (const appointment of createdAppointmentAlerts) {
-      sendAppointmentNotifications({
-        userId: workspace.clerkId,
-        source: "whatsapp",
-        sourceRef: `${phoneNumberId}:${appointment.patientWaId}:${new Date(
-          appointment.createdAt,
-        ).getTime()}`,
-        appointment: objectToAppointmentAlert(appointment),
-        ownerEmail: workspace.notificationSettings?.email,
-        ownerWhatsAppNumber: workspace.notificationSettings?.whatsappNumber,
-        emailEnabled: workspace.notificationSettings?.emailEnabled !== false,
-        whatsappEnabled:
-          workspace.notificationSettings?.whatsappEnabled !== false,
-        dashboardPath: "/whatsapp/appointments",
-      }).catch((error) => {
+      try {
+        const notificationChannels = await sendAppointmentNotifications({
+          userId: workspace.clerkId,
+          source: "whatsapp",
+          sourceRef: `${phoneNumberId}:${appointment.patientWaId}:${new Date(
+            appointment.createdAt,
+          ).getTime()}`,
+          appointment: objectToAppointmentAlert(appointment),
+          ownerEmail: workspace.notificationSettings?.email,
+          ownerWhatsAppNumber: workspace.notificationSettings?.whatsappNumber,
+          emailEnabled: workspace.notificationSettings?.emailEnabled !== false,
+          whatsappEnabled:
+            workspace.notificationSettings?.whatsappEnabled !== false,
+          dashboardPath: "/whatsapp/appointments",
+        });
+        console.info("[whatsapp:appointment-notification] Completed", {
+          workspaceId: String(workspace._id),
+          patientWaId: appointment.patientWaId,
+          channels: notificationChannels.map((channel) => ({
+            channel: channel.channel,
+            status: channel.status,
+            error: channel.error || undefined,
+          })),
+        });
+      } catch (error) {
         console.error("WhatsApp appointment notification error:", error);
-      });
+      }
     }
     console.info("[whatsapp:process] Workspace saved", {
       workspaceId: String(workspace._id),

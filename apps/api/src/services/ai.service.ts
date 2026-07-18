@@ -388,12 +388,87 @@ ${safeKnowledge}`,
         `Thanks for messaging ${businessName}. Please share a little more detail so we can help.`,
     };
   } catch (error) {
-    console.error("Error in generateWhatsAppAiResponse:", error);
-    throw new Error(
-      `Failed to generate WhatsApp response: ${
-        error instanceof Error ? error.message : "Unknown error"
-      }`,
+    console.warn(
+      "Structured WhatsApp AI response failed; retrying as plain text:",
+      error,
     );
+    try {
+      const fallbackCompletion = await openai.chat.completions.create({
+        model: "deepseek-chat",
+        messages: [
+          {
+            role: "system",
+            content: `You are the WhatsApp customer support assistant for ${businessName}.
+Use only the verified business knowledge below. Never invent prices, services, policies, contact details, addresses, or links. Answer in the customer's language and keep the reply concise.
+
+Your response must use this exact plain-text structure:
+INTENT: greeting|business_info|support|human_handoff|appointment|other
+SENTIMENT: positive|neutral|negative
+REPLY: the customer-facing answer
+
+Choose appointment only for a real booking or scheduling request. Choose human_handoff only when the customer clearly asks for a person or escalation. When firstMessage is true, send a short welcome based on the preferred greeting.
+
+firstMessage: ${firstMessage ? "true" : "false"}
+
+VERIFIED BUSINESS KNOWLEDGE:
+${safeKnowledge}`,
+          },
+          ...safeHistory.map((message) => ({
+            role: message.role,
+            content: message.content,
+          })),
+          { role: "user", content: userInput },
+        ],
+        max_tokens: 800,
+        temperature: 0.35,
+      });
+      const fallbackRaw =
+        fallbackCompletion.choices[0]?.message?.content?.trim() || "";
+      const intentMatch = fallbackRaw.match(
+        /INTENT:\s*(greeting|business_info|support|human_handoff|appointment|other)/i,
+      );
+      const sentimentMatch = fallbackRaw.match(
+        /SENTIMENT:\s*(positive|neutral|negative)/i,
+      );
+      const replyMatch = fallbackRaw.match(/REPLY:\s*([\s\S]*)$/i);
+      const fallbackIntent =
+        (intentMatch?.[1]?.toLowerCase() as WhatsAppAiIntent | undefined) ||
+        "other";
+      const fallbackSentiment =
+        (sentimentMatch?.[1]?.toLowerCase() as
+          | "positive"
+          | "neutral"
+          | "negative"
+          | undefined) || "neutral";
+      const fallbackReply = (replyMatch?.[1] || fallbackRaw)
+        .replace(/^```(?:text)?\s*/i, "")
+        .replace(/```$/i, "")
+        .trim()
+        .slice(0, 3500);
+
+      if (!fallbackReply) throw new Error("DeepSeek returned an empty reply");
+      return {
+        intent: fallbackIntent,
+        sentiment: fallbackSentiment,
+        reply: fallbackReply,
+      };
+    } catch (fallbackError) {
+      console.error("Error in generateWhatsAppAiResponse:", {
+        structuredError:
+          error instanceof Error ? error.message : String(error),
+        fallbackError:
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : String(fallbackError),
+      });
+      throw new Error(
+        `Failed to generate WhatsApp response: ${
+          fallbackError instanceof Error
+            ? fallbackError.message
+            : "Unknown error"
+        }`,
+      );
+    }
   }
 };
 

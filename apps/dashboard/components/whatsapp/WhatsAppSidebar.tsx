@@ -48,8 +48,8 @@ export default function WhatsAppSidebar({
   const styles = useMemo(
     () => ({
       sidebar: isDark
-        ? "fixed top-0 bottom-0 md:top-1 md:bottom-1 rounded-lg w-72 z-50 shadow-xl transition-transform duration-300 glass-sidebar border border-white/[0.05] overflow-hidden shimmer"
-        : "fixed top-0 bottom-0 md:top-1 md:bottom-1 rounded-lg w-72 z-50 shadow-xl transition-transform duration-300 bg-white border border-gray-200",
+        ? "fixed top-0 bottom-0 md:top-1 md:bottom-1 rounded-lg w-[min(18rem,calc(100vw-1rem))] md:w-72 z-50 shadow-xl transition-transform duration-300 glass-sidebar border border-white/[0.05] overflow-hidden shimmer"
+        : "fixed top-0 bottom-0 md:top-1 md:bottom-1 rounded-lg w-[min(18rem,calc(100vw-1rem))] md:w-72 z-50 shadow-xl transition-transform duration-300 bg-white border border-gray-200 overflow-hidden",
       overlay: isDark
         ? "fixed inset-0 bg-black/60 backdrop-blur-lg z-40 md:hidden"
         : "fixed inset-0 bg-black/40 z-40 md:hidden",
@@ -133,7 +133,7 @@ export default function WhatsAppSidebar({
                   <MessageCircle className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className={isDark ? "text-sm font-bold text-white" : "text-sm font-bold text-gray-900"}>
+                  <p className={isDark ? "break-words text-sm font-bold text-white" : "break-words text-sm font-bold text-gray-900"}>
                     WhatsApp Automation
                   </p>
                   <p className={isDark ? "text-xs text-white/45" : "text-xs text-gray-500"}>

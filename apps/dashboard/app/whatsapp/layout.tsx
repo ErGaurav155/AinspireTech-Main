@@ -22,11 +22,11 @@ export default function WhatsAppLayout({
   }
 
   return (
-    <div className="min-h-screen relative overflow-auto">
-      <div className="flex min-h-screen relative">
+    <div className="relative min-h-screen w-full overflow-x-hidden">
+      <div className="relative flex min-h-screen w-full min-w-0">
         <WhatsAppSidebar isOpen={isOpen} onToggle={toggle} />
         <main
-          className={`flex-1 min-w-0 transition-all duration-300 ${
+          className={`w-full min-w-0 flex-1 overflow-x-hidden transition-all duration-300 ${
             isOpen ? "md:ml-72 md:pl-1" : "md:ml-0"
           }`}
         >
@@ -35,10 +35,10 @@ export default function WhatsAppLayout({
             isSidebarOpen={isOpen}
             dashboardType="whatsapp"
           />
-          <div className="flex lg:hidden mt-2">
+          <div className="mt-2 min-w-0 overflow-x-auto lg:hidden">
             <BreadcrumbsDefault />
           </div>
-          <div className="pb-16 md:pb-0">{children}</div>
+          <div className="min-w-0 pb-20 md:pb-0">{children}</div>
           <Toaster />
         </main>
       </div>

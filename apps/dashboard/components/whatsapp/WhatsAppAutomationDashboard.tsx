@@ -191,8 +191,8 @@ export default function WhatsAppAutomationDashboard({
   }, [data]);
 
   const pageClass = isDark
-    ? "min-h-screen bg-[#0F0F11] text-white"
-    : "min-h-screen bg-[#F7FAF9] text-gray-950";
+    ? "min-h-screen w-full min-w-0 overflow-x-hidden bg-[#0F0F11] text-white"
+    : "min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7FAF9] text-gray-950";
   const cardClass = isDark
     ? "border-white/[0.08] bg-white/[0.04]"
     : "border-gray-200 bg-white";
@@ -203,7 +203,7 @@ export default function WhatsAppAutomationDashboard({
   return (
     <div className={pageClass}>
       {isDark && <Orbs />}
-      <div className="mx-auto max-w-7xl px-4 py-6 md:px-6 lg:px-8">
+      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full sm:px-4 sm:py-6 md:px-6 lg:px-8">
         <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
         {isLoading && (
           <div className={`rounded-2xl border ${cardClass} p-10`}>
@@ -366,14 +366,14 @@ function Header({
   };
 
   return (
-    <div className={`mb-6 rounded-2xl border ${cardClass} p-5 md:p-6`}>
+    <div className={`mb-5 min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5 md:mb-6 md:p-6`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div>
+        <div className="min-w-0">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-400">
             <MessageCircle className="h-3.5 w-3.5" />
             WhatsApp automation
           </div>
-          <h1 className="text-2xl font-black tracking-tight md:text-4xl">
+          <h1 className="break-words text-2xl font-black sm:text-3xl md:text-4xl">
             {titles[view]}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-white/55">
@@ -382,7 +382,7 @@ function Header({
             Meta setup status in one workspace.
           </p>
         </div>
-        <div className="grid min-w-[260px] grid-cols-2 gap-3">
+        <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:w-auto lg:min-w-[260px]">
           <StatusPill
             label="Meta app"
             value={workspace?.isConfigured ? "Connected" : "Business login"}
@@ -618,7 +618,7 @@ function MetricCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-5">
+    <div className="min-w-0 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-4 sm:p-5">
       <div className="flex items-center justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
           <Icon className="h-5 w-5" />
@@ -807,7 +807,7 @@ function Appointments({
         ].map(([label, value, note]) => (
           <div
             key={label}
-            className="rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-5"
+            className="min-w-0 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-4 sm:p-5"
           >
             <p className="text-sm text-gray-500 dark:text-white/50">{label}</p>
             <p className="mt-2 text-3xl font-black">{value}</p>
@@ -818,9 +818,9 @@ function Appointments({
         ))}
       </div>
 
-      <section className={`rounded-2xl border ${cardClass} p-5`}>
+      <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
+          <div className="min-w-0">
             <SectionTitle
               icon={FileText}
               title="Native WhatsApp Appointment Flow"
@@ -856,7 +856,7 @@ function Appointments({
               )}
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:min-w-[260px]">
+          <div className="flex w-full min-w-0 flex-col gap-2 sm:min-w-[260px] lg:w-auto">
             <Button
               type="button"
               disabled={isSyncingFlow}
@@ -911,7 +911,7 @@ function Appointments({
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
           <SectionTitle icon={CalendarCheck} title="Flow Setup" />
           <div className="mt-5 grid gap-3">
             {setupSteps.map((step) => (
@@ -932,7 +932,7 @@ function Appointments({
                     <span className="h-2 w-2 rounded-full bg-current" />
                   )}
                 </span>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm font-black">{step.label}</p>
                   <p className="mt-0.5 break-words text-xs text-gray-500 dark:text-white/50">
                     {step.detail}
@@ -1308,10 +1308,10 @@ function Appointments({
           </form>
         </section>
 
-        <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
           <SectionTitle icon={FileText} title="Customer Preview" />
-          <div className={`mt-5 rounded-[2rem] border ${softCardClass} p-4`}>
-            <div className="mx-auto max-w-sm rounded-[1.7rem] border border-gray-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-[#101214]">
+          <div className={`mt-5 min-w-0 rounded-2xl border ${softCardClass} p-2 sm:rounded-[2rem] sm:p-4`}>
+            <div className="mx-auto w-full min-w-0 max-w-sm rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/[0.08] dark:bg-[#101214] sm:rounded-[1.7rem] sm:p-4">
               <div className="rounded-t-[1.35rem] bg-emerald-500 px-4 py-3 text-sm font-black text-white">
                 {flowForm.name || "Appointment Booking"}
               </div>
@@ -1381,7 +1381,7 @@ function Appointments({
         </section>
       </div>
 
-      <section className={`rounded-2xl border ${cardClass} p-5`}>
+      <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
         <SectionTitle icon={CalendarCheck} title="Appointment Requests" />
         <div className="mt-5 grid gap-3">
           {appointments.length === 0 && (
@@ -1398,12 +1398,12 @@ function Appointments({
                 appointment._id ||
                 `${appointment.patientPhone}-${appointment.createdAt}`
               }
-              className={`rounded-xl border ${softCardClass} p-4`}
+              className={`min-w-0 rounded-xl border ${softCardClass} p-4`}
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <h3 className="font-black">{appointment.patientName}</h3>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-white/55">
+                  <p className="mt-1 break-words text-sm text-gray-500 dark:text-white/55">
                     {appointment.patientPhone} • {appointment.service}
                   </p>
                 </div>
@@ -1482,7 +1482,7 @@ function BusinessInfo({
   };
 
   return (
-    <section className={`rounded-2xl border ${cardClass} p-5`}>
+    <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
       <SectionTitle icon={FileText} title="Business Info Replies" />
       <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/55">
         Save the business facts WhatsApp should use for customer questions. The
@@ -1608,7 +1608,7 @@ function Templates({
   const isApproved = status === "approved";
 
   return (
-    <section className={`rounded-2xl border ${cardClass} p-5`}>
+    <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
       <SectionTitle icon={MessageCircle} title="Greeting Template" />
       <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/55">
         Keep one greeting template. Edit the default copy, submit it for Meta
@@ -1750,7 +1750,7 @@ function Pricing({
 }) {
   return (
     <div className="space-y-6">
-      <div className={`rounded-2xl border ${cardClass} p-5`}>
+      <div className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
         <SectionTitle icon={CreditCard} title="Recommended India Pricing" />
         <p className="mt-3 max-w-4xl text-sm leading-6 text-gray-500 dark:text-white/55">
           Plans include RocketReplai platform access. Meta WhatsApp Business
@@ -1765,7 +1765,7 @@ function Pricing({
           {plans.map((plan) => (
             <div
               key={plan.name}
-              className={`rounded-2xl border ${cardClass} p-5 ${plan.id === "launch" ? "ring-2 ring-emerald-400/40" : ""}`}
+              className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5 ${plan.id === "launch" ? "ring-2 ring-emerald-400/40" : ""}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-xl font-black">{plan.name}</h3>
@@ -1779,8 +1779,8 @@ function Pricing({
                   {plan.badge}
                 </Badge>
               </div>
-              <div className="mt-5 flex items-end gap-1">
-                <span className="text-3xl font-black">{plan.price}</span>
+              <div className="mt-5 flex flex-wrap items-end gap-1">
+                <span className="break-words text-3xl font-black">{plan.price}</span>
                 <span className="pb-1 text-sm text-gray-500 dark:text-white/50">
                   {plan.period}
                 </span>
@@ -1829,7 +1829,7 @@ function Pricing({
             </div>
           ))}
         </div>
-        <div className={`rounded-2xl border ${cardClass} p-5`}>
+        <div className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
           <h3 className="text-lg font-black">Plan limits</h3>
           <div className="mt-5 space-y-3">
             {[
@@ -2590,7 +2590,7 @@ function SettingsView({
   return (
     <>
       <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
           <SectionTitle icon={Settings} title="Connect WhatsApp Business" />
           <form
             className="mt-5 grid gap-3"
@@ -2772,7 +2772,7 @@ function SettingsView({
                 className={`rounded-xl border ${softCardClass} p-4`}
               >
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <h3 className="font-bold">{label}</h3>
                     <p className="mt-1 break-all text-sm text-gray-500 dark:text-white/50">
                       {note}
@@ -2798,7 +2798,7 @@ function SettingsView({
           </div>
         </section>
 
-        <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
           <SectionTitle icon={ShieldCheck} title="Production Guardrails" />
           <div className="mt-5 space-y-4">
             {[
@@ -2889,13 +2889,13 @@ function SectionTitle({
   action?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex items-center gap-2">
-        <Icon className="h-4 w-4 text-emerald-400" />
-        <h2 className="font-black">{title}</h2>
+    <div className="flex min-w-0 items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="h-4 w-4 flex-shrink-0 text-emerald-400" />
+        <h2 className="break-words font-black">{title}</h2>
       </div>
       {action && (
-        <Link href={action} className="text-xs font-bold text-emerald-400">
+        <Link href={action} className="flex-shrink-0 text-xs font-bold text-emerald-400">
           Open
         </Link>
       )}
@@ -2913,14 +2913,14 @@ function TextInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="grid gap-1.5">
-      <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+    <label className="grid min-w-0 gap-1.5">
+      <span className="break-words text-xs font-bold uppercase tracking-widest text-gray-400">
         {label}
       </span>
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
+        className="w-full min-w-0 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
       />
     </label>
   );
