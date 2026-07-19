@@ -110,17 +110,36 @@ export const maskSecret = (value?: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
-const getWhatsAppSendAccessToken = (workspace: IWhatsAppWorkspace) =>
-  process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN ||
-  workspace.meta?.accessToken ||
-  "";
+type WhatsAppAccessTokenCandidate = {
+  accessToken: string;
+  source: "system_user_env" | "workspace_token";
+};
+
+const getWhatsAppAccessTokenCandidates = (
+  workspace: IWhatsAppWorkspace,
+): WhatsAppAccessTokenCandidate[] => {
+  const candidates: WhatsAppAccessTokenCandidate[] = [];
+  const systemUserToken = process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim();
+  const workspaceToken = workspace.meta?.accessToken?.trim();
+
+  if (systemUserToken) {
+    candidates.push({
+      accessToken: systemUserToken,
+      source: "system_user_env",
+    });
+  }
+  if (workspaceToken && workspaceToken !== systemUserToken) {
+    candidates.push({
+      accessToken: workspaceToken,
+      source: "workspace_token",
+    });
+  }
+
+  return candidates;
+};
 
 const getWhatsAppSendTokenSource = (workspace: IWhatsAppWorkspace) =>
-  process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN
-    ? "system_user_env"
-    : workspace.meta?.accessToken
-      ? "workspace_token"
-      : "missing";
+  getWhatsAppAccessTokenCandidates(workspace)[0]?.source || "missing";
 
 export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
   const data = workspace.toObject ? workspace.toObject() : workspace;
@@ -388,48 +407,6 @@ export function verifyWhatsAppSignature(
   }
 }
 
-export async function sendWhatsAppTextMessage({
-  workspace,
-  to,
-  body,
-}: {
-  workspace: IWhatsAppWorkspace;
-  to: string;
-  body: string;
-}) {
-  const accessToken = getWhatsAppSendAccessToken(workspace);
-  if (!workspace.meta?.phoneNumberId || !accessToken) {
-    throw new Error("WhatsApp Meta credentials are not configured");
-  }
-
-  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
-  const response = await fetch(
-    `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "text",
-        text: { preview_url: false, body },
-      }),
-    },
-  );
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      buildWhatsAppSendError(result, "Failed to send WhatsApp message"),
-    );
-  }
-  return result;
-}
-
 const buildWhatsAppSendError = (result: any, fallback: string) => {
   const error = result?.error || {};
   return [
@@ -445,6 +422,126 @@ const buildWhatsAppSendError = (result: any, fallback: string) => {
     .join(" | ");
 };
 
+const isRetryableWhatsAppTokenError = (result: any) => {
+  const code = Number(result?.error?.code);
+  return code === 190 || code === 200;
+};
+
+const whatsappGraphMessagesRequest = async ({
+  workspace,
+  payload,
+  fallbackError,
+}: {
+  workspace: IWhatsAppWorkspace;
+  payload: Record<string, unknown>;
+  fallbackError: string;
+}) => {
+  if (!workspace.meta?.phoneNumberId) {
+    throw new Error("WhatsApp phone number ID is not configured");
+  }
+
+  const tokenCandidates = getWhatsAppAccessTokenCandidates(workspace);
+  if (!tokenCandidates.length) {
+    throw new Error("WhatsApp access token is not configured");
+  }
+
+  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
+  let lastResult: any;
+  let lastSource = tokenCandidates[0].source;
+
+  for (let index = 0; index < tokenCandidates.length; index += 1) {
+    const candidate = tokenCandidates[index];
+    lastSource = candidate.source;
+    const response = await fetch(
+      `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${candidate.accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+    const result = await response.json();
+    if (response.ok) {
+      if (index > 0) {
+        console.warn("[whatsapp:send] Primary token rejected; fallback succeeded", {
+          workspaceId: String(workspace._id),
+          phoneNumberId: workspace.meta.phoneNumberId,
+          tokenSource: candidate.source,
+        });
+      }
+      return result;
+    }
+
+    lastResult = result;
+    const hasFallback = index < tokenCandidates.length - 1;
+    if (!hasFallback || !isRetryableWhatsAppTokenError(result)) break;
+
+    console.warn("[whatsapp:send] Token rejected; trying workspace fallback", {
+      workspaceId: String(workspace._id),
+      phoneNumberId: workspace.meta.phoneNumberId,
+      tokenSource: candidate.source,
+      code: result?.error?.code,
+      subcode: result?.error?.error_subcode,
+    });
+  }
+
+  throw new Error(
+    `${buildWhatsAppSendError(lastResult, fallbackError)} | token_source=${lastSource}`,
+  );
+};
+
+export async function markWhatsAppMessageRead({
+  workspace,
+  messageId,
+  showTyping = false,
+}: {
+  workspace: IWhatsAppWorkspace;
+  messageId: string;
+  showTyping?: boolean;
+}) {
+  return whatsappGraphMessagesRequest({
+    workspace,
+    fallbackError: "Failed to update WhatsApp message activity",
+    payload: {
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: messageId,
+      ...(showTyping
+        ? {
+            typing_indicator: {
+              type: "text",
+            },
+          }
+        : {}),
+    },
+  });
+}
+
+export async function sendWhatsAppTextMessage({
+  workspace,
+  to,
+  body,
+}: {
+  workspace: IWhatsAppWorkspace;
+  to: string;
+  body: string;
+}) {
+  return whatsappGraphMessagesRequest({
+    workspace,
+    fallbackError: "Failed to send WhatsApp message",
+    payload: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "text",
+      text: { preview_url: false, body },
+    },
+  });
+}
+
 export async function sendWhatsAppFlowMessage({
   workspace,
   to,
@@ -454,73 +551,55 @@ export async function sendWhatsAppFlowMessage({
   to: string;
   body?: string;
 }) {
-  const accessToken = getWhatsAppSendAccessToken(workspace);
-  if (!workspace.meta?.phoneNumberId || !accessToken) {
-    throw new Error("WhatsApp Meta credentials are not configured");
-  }
-
   const flowId = workspace.appointmentFlow?.flowId;
   if (!flowId || workspace.appointmentFlow?.status !== "published") {
     throw new Error("Appointment WhatsApp Flow is not published");
   }
 
   const businessName = workspace.organization?.name || "our business";
-  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
-  const response = await fetch(
-    `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "flow",
-          header: {
-            type: "text",
-            text: "Book appointment",
-          },
-          body: {
-            text:
-              body ||
-              `Please fill the appointment form for ${businessName}. Our team will confirm the slot.`,
-          },
-          footer: {
-            text: "Powered by RocketReplai",
-          },
-          action: {
-            name: "flow",
-            parameters: {
-              flow_message_version: "3",
-              flow_id: flowId,
-              flow_cta: "Book appointment",
-              flow_action: "navigate",
-              flow_token: String(workspace._id),
-              flow_action_payload: {
-                screen: "APPOINTMENT_FORM",
-                data: {
-                  workspace_id: String(workspace._id),
-                  waba_id: workspace.meta?.wabaId || "",
-                  phone_number_id: workspace.meta?.phoneNumberId || "",
-                },
+  return whatsappGraphMessagesRequest({
+    workspace,
+    fallbackError: "Failed to send WhatsApp Flow",
+    payload: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "flow",
+        header: {
+          type: "text",
+          text: "Book appointment",
+        },
+        body: {
+          text:
+            body ||
+            `Please fill the appointment form for ${businessName}. Our team will confirm the slot.`,
+        },
+        footer: {
+          text: "Powered by RocketReplai",
+        },
+        action: {
+          name: "flow",
+          parameters: {
+            flow_message_version: "3",
+            flow_id: flowId,
+            flow_cta: "Book appointment",
+            flow_action: "navigate",
+            flow_token: String(workspace._id),
+            flow_action_payload: {
+              screen: "APPOINTMENT_FORM",
+              data: {
+                workspace_id: String(workspace._id),
+                waba_id: workspace.meta?.wabaId || "",
+                phone_number_id: workspace.meta?.phoneNumberId || "",
               },
             },
           },
         },
-      }),
+      },
     },
-  );
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(buildWhatsAppSendError(result, "Failed to send WhatsApp Flow"));
-  }
-  return result;
+  });
 }
 
 export async function sendWhatsAppButtonMessage({
@@ -534,49 +613,29 @@ export async function sendWhatsAppButtonMessage({
   body: string;
   buttons: Array<{ id: string; title: string }>;
 }) {
-  const accessToken = getWhatsAppSendAccessToken(workspace);
-  if (!workspace.meta?.phoneNumberId || !accessToken) {
-    throw new Error("WhatsApp Meta credentials are not configured");
-  }
-
-  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
-  const response = await fetch(
-    `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "interactive",
-        interactive: {
-          type: "button",
-          body: { text: body },
-          action: {
-            buttons: buttons.slice(0, 3).map((button) => ({
-              type: "reply",
-              reply: {
-                id: button.id,
-                title: button.title.slice(0, 20),
-              },
-            })),
-          },
+  return whatsappGraphMessagesRequest({
+    workspace,
+    fallbackError: "Failed to send WhatsApp buttons",
+    payload: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body: { text: body },
+        action: {
+          buttons: buttons.slice(0, 3).map((button) => ({
+            type: "reply",
+            reply: {
+              id: button.id,
+              title: button.title.slice(0, 20),
+            },
+          })),
         },
-      }),
+      },
     },
-  );
-
-  const result = await response.json();
-  if (!response.ok) {
-    throw new Error(
-      buildWhatsAppSendError(result, "Failed to send WhatsApp buttons"),
-    );
-  }
-  return result;
+  });
 }
 
 const businessKnowledgeCache = new Map<
@@ -737,7 +796,9 @@ const buildGreetingText = (workspace: IWhatsAppWorkspace) => {
 
 const isMetaMessagingPermissionError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  return /#200|necessary permission|send messages on behalf/i.test(message);
+  return /#200|code=190|Authentication Error|necessary permission|send messages on behalf/i.test(
+    message,
+  );
 };
 
 const recordWhatsAppSendFailure = ({
@@ -754,10 +815,12 @@ const recordWhatsAppSendFailure = ({
   if (!isMetaMessagingPermissionError(error)) return;
 
   const message = error instanceof Error ? error.message : String(error);
+  const authenticationFailed = /code=190|Authentication Error/i.test(message);
   workspace.onboarding = {
     ...workspace.onboarding,
-    lastError:
-      "Meta blocked outbound WhatsApp replies. Reconnect this WhatsApp Business account with whatsapp_business_messaging permission.",
+    lastError: authenticationFailed
+      ? "Meta rejected the WhatsApp access token. Replace WHATSAPP_SYSTEM_USER_ACCESS_TOKEN or reconnect this WhatsApp Business account."
+      : "Meta blocked outbound WhatsApp replies. Reconnect this WhatsApp Business account with whatsapp_business_messaging permission.",
   } as any;
   console.error("[whatsapp:send:permission-blocked]", {
     context,
@@ -1184,11 +1247,35 @@ export async function processWhatsAppWebhook(payload: any) {
         status: "received",
         createdAt: now,
       });
+      const trackedInboundMessage =
+        conversation.messages[conversation.messages.length - 1];
       results.push(message.id);
 
       const canAutoReply =
         workspace.isConfigured &&
         workspace.subscription.messagesUsed < workspace.subscription.messageLimit;
+
+      try {
+        await markWhatsAppMessageRead({
+          workspace,
+          messageId: message.id,
+          showTyping: canAutoReply,
+        });
+        trackedInboundMessage.status = "read";
+        console.info("[whatsapp:activity] Inbound message marked read", {
+          workspaceId: String(workspace._id),
+          messageId: message.id,
+          typing: canAutoReply,
+        });
+      } catch (error) {
+        console.warn("[whatsapp:activity] Read/typing update failed", {
+          workspaceId: String(workspace._id),
+          messageId: message.id,
+          tokenSource: getWhatsAppSendTokenSource(workspace),
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
       if (!canAutoReply) {
         console.info("[whatsapp:process] Auto-reply skipped", {
           waId,
@@ -1353,18 +1440,13 @@ export async function processWhatsAppWebhook(payload: any) {
               ? "support"
               : "general";
 
-        if (isFirstMessage) {
+        if (isFirstMessage && decision.intent === "greeting") {
           conversation.status = "open";
-          await sendTrackedButtons({
+          await sendTrackedText({
             workspace,
             conversation,
             to: waId,
             body: decision.reply,
-            buttons: [
-              { id: "book_appointment", title: "Book appointment" },
-              { id: "pricing_services", title: "Pricing/services" },
-              { id: "talk_to_owner", title: "Talk to owner" },
-            ],
           });
           continue;
         }

@@ -327,14 +327,15 @@ export const generateWhatsAppAiResponse = async ({
   try {
     const completion = await openai.chat.completions.create({
       model: "deepseek-chat",
-      response_format: { type: "json_object" },
       messages: [
         {
           role: "system",
           content: `You are the WhatsApp customer support assistant for ${businessName}.
 
-Classify the latest customer message and write the reply in the customer's language. Return one JSON object only:
-{"intent":"greeting|business_info|support|human_handoff|appointment|other","sentiment":"positive|neutral|negative","reply":"customer-facing reply"}
+Classify the latest customer message and write the reply in the customer's language. Return exactly this compact plain-text structure:
+INTENT: greeting|business_info|support|human_handoff|appointment|other
+SENTIMENT: positive|neutral|negative
+REPLY: customer-facing reply
 
 Rules:
 - Use only the verified business knowledge below for factual claims, prices, services, policies, addresses, phone numbers, emails, and links.
@@ -343,7 +344,8 @@ Rules:
 - Use human_handoff only when the customer clearly asks for a person, owner, agent, call, complaint escalation, or help that requires staff.
 - Use support for a problem that can still be answered from the knowledge base.
 - Keep the reply concise and natural for WhatsApp. Do not mention intent classification, AI, prompts, or the knowledge base.
-- When firstMessage is true, use the preferred greeting from the verified knowledge when available, welcome the customer, and invite them to choose an action; do not attempt a long answer.
+- When firstMessage is true and the customer only greets the business, use the preferred greeting from the verified knowledge. If their first message asks a real question, answer that question directly and classify its actual intent.
+- Keep the customer-facing reply below 250 words. Give a direct answer before offering any next step.
 - Stay below 800 output tokens.
 
 firstMessage: ${firstMessage ? "true" : "false"}
@@ -362,7 +364,6 @@ ${safeKnowledge}`,
     });
 
     const raw = completion.choices[0]?.message?.content?.trim() || "";
-    const parsed = JSON.parse(raw.replace(/^```json\s*/i, "").replace(/```$/i, ""));
     const allowedIntents: WhatsAppAiIntent[] = [
       "greeting",
       "business_info",
@@ -372,26 +373,46 @@ ${safeKnowledge}`,
       "other",
     ];
     const allowedSentiments = ["positive", "neutral", "negative"] as const;
-    const intent = allowedIntents.includes(parsed.intent)
-      ? parsed.intent
-      : "other";
-    const sentiment = allowedSentiments.includes(parsed.sentiment)
-      ? parsed.sentiment
-      : "neutral";
-    const reply = String(parsed.reply || "").trim().slice(0, 3500);
+    const intentMatch = raw.match(
+      /(?:^|\n)INTENT:\s*(greeting|business_info|support|human_handoff|appointment|other)/i,
+    );
+    const sentimentMatch = raw.match(
+      /(?:^|\n)SENTIMENT:\s*(positive|neutral|negative)/i,
+    );
+    const replyMatch = raw.match(/(?:^|\n)REPLY:\s*([\s\S]*)$/i);
+    const parsedIntent = intentMatch?.[1]?.toLowerCase() as
+      | WhatsAppAiIntent
+      | undefined;
+    const parsedSentiment = sentimentMatch?.[1]?.toLowerCase() as
+      | "positive"
+      | "neutral"
+      | "negative"
+      | undefined;
+    const intent =
+      parsedIntent && allowedIntents.includes(parsedIntent)
+        ? parsedIntent
+        : "other";
+    const sentiment =
+      parsedSentiment && allowedSentiments.includes(parsedSentiment)
+        ? parsedSentiment
+        : "neutral";
+    const reply = String(replyMatch?.[1] || raw)
+      .replace(/^```(?:text)?\s*/i, "")
+      .replace(/```$/i, "")
+      .trim()
+      .slice(0, 3500);
+
+    if (!reply) throw new Error("DeepSeek returned an empty reply");
 
     return {
       intent,
       sentiment,
-      reply:
-        reply ||
-        `Thanks for messaging ${businessName}. Please share a little more detail so we can help.`,
+      reply,
     };
   } catch (error) {
-    console.warn(
-      "Structured WhatsApp AI response failed; retrying as plain text:",
-      error,
-    );
+    console.warn("WhatsApp AI response failed; retrying once", {
+      error: error instanceof Error ? error.message : String(error),
+    });
     try {
       const fallbackCompletion = await openai.chat.completions.create({
         model: "deepseek-chat",
@@ -406,7 +427,7 @@ INTENT: greeting|business_info|support|human_handoff|appointment|other
 SENTIMENT: positive|neutral|negative
 REPLY: the customer-facing answer
 
-Choose appointment only for a real booking or scheduling request. Choose human_handoff only when the customer clearly asks for a person or escalation. When firstMessage is true, send a short welcome based on the preferred greeting.
+Choose appointment only for a real booking or scheduling request. Choose human_handoff only when the customer clearly asks for a person or escalation. When firstMessage is true and the customer only greets the business, send a short welcome. If the first message asks a question, answer it directly and classify its actual intent. Keep the customer-facing reply below 250 words and give the direct answer before offering a next step.
 
 firstMessage: ${firstMessage ? "true" : "false"}
 

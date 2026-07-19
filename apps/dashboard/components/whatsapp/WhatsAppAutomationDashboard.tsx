@@ -366,7 +366,9 @@ function Header({
   };
 
   return (
-    <div className={`mb-5 min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5 md:mb-6 md:p-6`}>
+    <div
+      className={`mb-5 min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5 md:mb-6 md:p-6`}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3 py-1 text-xs font-bold uppercase tracking-widest text-emerald-400">
@@ -652,17 +654,18 @@ function Appointments({
   const config = data.appointmentConfig || {};
   const appointmentFlow = data.appointmentFlow || {};
   const buildFlowFormState = () => {
-    const services = Array.isArray(config.services) && config.services.length
-      ? config.services
-      : [
-          {
-            name: "General consultation",
-            durationMinutes: 30,
-            priceInr: 0,
-            doctor: "",
-            isActive: true,
-          },
-        ];
+    const services =
+      Array.isArray(config.services) && config.services.length
+        ? config.services
+        : [
+            {
+              name: "General consultation",
+              durationMinutes: 30,
+              priceInr: 0,
+              doctor: "",
+              isActive: true,
+            },
+          ];
     const chatQuestions = Object.fromEntries(
       (Array.isArray(appointmentFlow.chatQuestions)
         ? appointmentFlow.chatQuestions
@@ -691,15 +694,13 @@ function Appointments({
       successMessage:
         appointmentFlow.successMessage ||
         "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
-      departmentOptionsText: (
-        appointmentFlow.departmentOptions?.length
-          ? appointmentFlow.departmentOptions
-          : ["General", "Sales", "Support"]
+      departmentOptionsText: (appointmentFlow.departmentOptions?.length
+        ? appointmentFlow.departmentOptions
+        : ["General", "Sales", "Support"]
       ).join("\n"),
-      locationOptionsText: (
-        appointmentFlow.locationOptions?.length
-          ? appointmentFlow.locationOptions
-          : ["Main branch", "Online consultation"]
+      locationOptionsText: (appointmentFlow.locationOptions?.length
+        ? appointmentFlow.locationOptions
+        : ["Main branch", "Online consultation"]
       ).join("\n"),
       servicesText: services
         .map(
@@ -707,8 +708,7 @@ function Appointments({
             `${service.name}|${service.durationMinutes || 30}|${service.priceInr || 0}|${service.doctor || ""}`,
         )
         .join("\n"),
-      chatNameQuestion:
-        chatQuestions.patientName || "What is your full name?",
+      chatNameQuestion: chatQuestions.patientName || "What is your full name?",
       chatPhoneQuestion:
         chatQuestions.patientPhone || "What phone number should we use?",
       chatServiceQuestion:
@@ -911,7 +911,9 @@ function Appointments({
       </section>
 
       <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
+        <section
+          className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
+        >
           <SectionTitle icon={CalendarCheck} title="Flow Setup" />
           <div className="mt-5 grid gap-3">
             {setupSteps.map((step) => (
@@ -977,7 +979,9 @@ function Appointments({
                     timeLabel: flowForm.timeLabel,
                     submitButtonLabel: flowForm.submitButtonLabel,
                     successMessage: flowForm.successMessage,
-                    departmentOptions: splitLines(flowForm.departmentOptionsText),
+                    departmentOptions: splitLines(
+                      flowForm.departmentOptionsText,
+                    ),
                     locationOptions: splitLines(flowForm.locationOptionsText),
                     chatQuestions: [
                       {
@@ -1031,7 +1035,9 @@ function Appointments({
             }}
           >
             <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-white/[0.08] dark:bg-white/[0.04]">
-              <span className="text-sm font-bold">Enable WhatsApp Flow booking</span>
+              <span className="text-sm font-bold">
+                Enable WhatsApp Flow booking
+              </span>
               <input
                 type="checkbox"
                 checked={flowForm.enabled}
@@ -1308,9 +1314,13 @@ function Appointments({
           </form>
         </section>
 
-        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
+        <section
+          className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
+        >
           <SectionTitle icon={FileText} title="Customer Preview" />
-          <div className={`mt-5 min-w-0 rounded-2xl border ${softCardClass} p-2 sm:rounded-[2rem] sm:p-4`}>
+          <div
+            className={`mt-5 min-w-0 rounded-2xl border ${softCardClass} p-2 sm:rounded-[2rem] sm:p-4`}
+          >
             <div className="mx-auto w-full min-w-0 max-w-sm rounded-2xl border border-gray-200 bg-white p-3 shadow-sm dark:border-white/[0.08] dark:bg-[#101214] sm:rounded-[1.7rem] sm:p-4">
               <div className="rounded-t-[1.35rem] bg-emerald-500 px-4 py-3 text-sm font-black text-white">
                 {flowForm.name || "Appointment Booking"}
@@ -1318,10 +1328,12 @@ function Appointments({
               <div className="space-y-3 rounded-b-[1.35rem] border border-t-0 border-gray-100 p-4 dark:border-white/[0.08]">
                 <div>
                   <p className="text-base font-black">
-                    Book appointment with {flowForm.clinicName || "this business"}
+                    Book appointment with{" "}
+                    {flowForm.clinicName || "this business"}
                   </p>
                   <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-white/50">
-                    Share your appointment details. The business team will confirm availability.
+                    Share your appointment details. The business team will
+                    confirm availability.
                   </p>
                 </div>
                 {[
@@ -1542,7 +1554,7 @@ function BusinessInfo({
               type="file"
               accept=".txt,.md,.csv,.json,.html,.log"
               onChange={(event) => void handleFile(event.target.files?.[0])}
-              className="text-sm"
+              className="text-sm w-full"
             />
           </label>
           {fileError && (
@@ -1780,7 +1792,9 @@ function Pricing({
                 </Badge>
               </div>
               <div className="mt-5 flex flex-wrap items-end gap-1">
-                <span className="break-words text-3xl font-black">{plan.price}</span>
+                <span className="break-words text-3xl font-black">
+                  {plan.price}
+                </span>
                 <span className="pb-1 text-sm text-gray-500 dark:text-white/50">
                   {plan.period}
                 </span>
@@ -2590,7 +2604,9 @@ function SettingsView({
   return (
     <>
       <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
+        <section
+          className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
+        >
           <SectionTitle icon={Settings} title="Connect WhatsApp Business" />
           <form
             className="mt-5 grid gap-3"
@@ -2798,7 +2814,9 @@ function SettingsView({
           </div>
         </section>
 
-        <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
+        <section
+          className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
+        >
           <SectionTitle icon={ShieldCheck} title="Production Guardrails" />
           <div className="mt-5 space-y-4">
             {[
@@ -2895,7 +2913,10 @@ function SectionTitle({
         <h2 className="break-words font-black">{title}</h2>
       </div>
       {action && (
-        <Link href={action} className="flex-shrink-0 text-xs font-bold text-emerald-400">
+        <Link
+          href={action}
+          className="flex-shrink-0 text-xs font-bold text-emerald-400"
+        >
           Open
         </Link>
       )}
