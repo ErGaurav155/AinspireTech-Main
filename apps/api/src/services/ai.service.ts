@@ -31,7 +31,7 @@ const FULL_CONTEXT_TOKEN_LIMIT = 4000;
 
 // ─── DeepSeek client (singleton) ─────────────────────────────────────────────
 
-let openaiInstance: OpenAI | Error | null = null;
+let openaiInstance: OpenAI | null = null;
 
 function getOpenAI(): OpenAI | Error {
   if (openaiInstance) {
@@ -39,8 +39,7 @@ function getOpenAI(): OpenAI | Error {
   }
 
   if (!process.env.DEEPSEEK_API_KEY) {
-    openaiInstance = new Error("DEEPSEEK_API_KEY is not set");
-    return openaiInstance;
+    return new Error("DEEPSEEK_API_KEY is not set");
   }
 
   openaiInstance = new OpenAI({

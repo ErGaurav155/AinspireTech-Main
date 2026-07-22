@@ -723,12 +723,6 @@ async function buildBusinessKnowledgeContext(
           .map((service) => service.name)
           .join(", ")}`
       : "",
-    workspace.greetingTemplate?.body
-      ? `Preferred greeting: ${workspace.greetingTemplate.body.replace(
-          /\{\{\s*1\s*\}\}/g,
-          workspace.organization?.name || "our business",
-        )}`
-      : "",
     businessInfo?.summary,
     formatBusinessKnowledge(cloudinaryKnowledge),
     businessInfo?.fileText,
@@ -749,6 +743,38 @@ const toAiConversationHistory = (conversation: any): ConvMessage[] =>
       content: String(message.body).slice(0, 1200),
     }));
 
+const buildKnowledgeFallbackReply = (
+  workspace: IWhatsAppWorkspace,
+  knowledge: string,
+) => {
+  const businessName = workspace.organization?.name || "the business";
+  const summary = String(workspace.businessInfo?.summary || "").trim();
+  const knowledgeExcerpt = knowledge.trim().slice(0, 1800);
+  const services = (workspace.appointmentConfig?.services || [])
+    .filter((service) => service.isActive)
+    .map((service) => {
+      const price = Number(service.priceInr || 0);
+      return price > 0
+        ? `${service.name} - INR ${price.toLocaleString("en-IN")}`
+        : service.name;
+    })
+    .filter(Boolean);
+  const website = String(
+    workspace.businessInfo?.websiteUrl || workspace.organization?.website || "",
+  ).trim();
+
+  return [
+    summary ||
+      knowledgeExcerpt ||
+      `${businessName}'s business information is temporarily unavailable.`,
+    services.length ? `Available services: ${services.join(", ")}.` : "",
+    website ? `More information: ${website}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n\n")
+    .slice(0, 3500);
+};
+
 const generateWorkspaceAiDecision = async ({
   workspace,
   conversation,
@@ -761,26 +787,47 @@ const generateWorkspaceAiDecision = async ({
   firstMessage?: boolean;
 }): Promise<WhatsAppAiDecision> => {
   const businessName = workspace.organization?.name || "our business";
+  let knowledge = "";
   try {
-    const knowledge = await buildBusinessKnowledgeContext(workspace);
-    return await generateWhatsAppAiResponse({
+    knowledge = await buildBusinessKnowledgeContext(workspace);
+    console.info("[whatsapp:ai] Generating response", {
+      workspaceId: String(workspace._id),
+      firstMessage,
+      inputCharacters: body.length,
+      historyMessages: toAiConversationHistory(conversation).length,
+      knowledgeCharacters: knowledge.length,
+      hasKnowledgeUrl: Boolean(
+        workspace.businessInfo?.knowledgeBaseUrl ||
+          workspace.businessInfo?.websiteKnowledgeUrl ||
+          workspace.businessInfo?.fileKnowledgeUrl,
+      ),
+      deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+    });
+    const decision = await generateWhatsAppAiResponse({
       userInput: body,
       businessName,
       knowledge,
       conversationHistory: toAiConversationHistory(conversation),
       firstMessage,
     });
+    console.info("[whatsapp:ai] Response generated", {
+      workspaceId: String(workspace._id),
+      intent: decision.intent,
+      sentiment: decision.sentiment,
+      replyCharacters: decision.reply.length,
+    });
+    return decision;
   } catch (error) {
     console.error("[whatsapp:ai] Response generation failed", {
       workspaceId: String(workspace._id),
+      deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+      knowledgeCharacters: knowledge.length,
       error: error instanceof Error ? error.message : String(error),
     });
     return {
-      intent: firstMessage ? "greeting" : "other",
+      intent: "other",
       sentiment: "neutral",
-      reply: firstMessage
-        ? buildGreetingText(workspace)
-        : `Thanks for messaging ${businessName}. Please choose an option below or share more detail.`,
+      reply: buildKnowledgeFallbackReply(workspace, knowledge),
     };
   }
 };
@@ -1446,7 +1493,7 @@ export async function processWhatsAppWebhook(payload: any) {
             workspace,
             conversation,
             to: waId,
-            body: decision.reply,
+            body: buildGreetingText(workspace),
           });
           continue;
         }
