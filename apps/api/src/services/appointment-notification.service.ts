@@ -43,6 +43,9 @@ const escapeHtml = (value: string | number | undefined | null) =>
 const truncate = (value: string, max = 180) =>
   value.length > max ? `${value.slice(0, max - 3)}...` : value;
 
+const maskPhone = (value: string) =>
+  value.length > 4 ? `${"*".repeat(Math.min(value.length - 4, 8))}${value.slice(-4)}` : value;
+
 export const normalizeAppointmentPhone = (value?: string) => {
   const raw = cleanString(value);
   if (!raw) return "";
@@ -182,11 +185,21 @@ const sendProviderWhatsAppTemplate = async ({
     process.env.APPOINTMENT_ALERT_WHATSAPP_GRAPH_VERSION ||
     process.env.WHATSAPP_GRAPH_API_VERSION ||
     "v25.0";
-  const templateName =
+  const configuredTemplateName = cleanString(
     process.env.APPOINTMENT_ALERT_WHATSAPP_TEMPLATE_NAME ||
-    "appointment_booked";
-  const languageCode =
-    process.env.APPOINTMENT_ALERT_WHATSAPP_TEMPLATE_LANGUAGE || "en_US";
+      process.env.WHATSAPP_APPOINTMENT_TEMPLATE_NAME ||
+      process.env.WHATSAPP_APPOINTMENT_CONFIRMATION_TEMPLATE_NAME ||
+      "appointment_confirmation_v1",
+  ).toLowerCase();
+  const templateName =
+    configuredTemplateName === "appointment_booked"
+      ? "appointment_confirmation_v1"
+      : configuredTemplateName;
+  const languageCode = cleanString(
+    process.env.APPOINTMENT_ALERT_WHATSAPP_TEMPLATE_LANGUAGE ||
+      process.env.WHATSAPP_APPOINTMENT_TEMPLATE_LANGUAGE ||
+      "en_US",
+  );
   const includeDashboardButton =
     process.env.APPOINTMENT_ALERT_WHATSAPP_INCLUDE_DASHBOARD_BUTTON !== "false";
 
@@ -235,6 +248,15 @@ const sendProviderWhatsAppTemplate = async ({
     });
   }
 
+  console.info("[appointment-notification:whatsapp] Sending template", {
+    senderPhoneNumberId: phoneNumberId,
+    recipient: maskPhone(to),
+    templateName,
+    languageCode,
+    bodyParameterCount: components[0]?.parameters?.length || 0,
+    includesDashboardButton: includeDashboardButton,
+  });
+
   const response = await fetch(
     `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
     {
@@ -245,6 +267,7 @@ const sendProviderWhatsAppTemplate = async ({
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
+        recipient_type: "individual",
         to,
         type: "template",
         template: {
@@ -258,9 +281,14 @@ const sendProviderWhatsAppTemplate = async ({
   const data = await response.json().catch(() => ({}) as any);
   if (!response.ok) {
     const metaError = data?.error || {};
+    const templateTranslationHint =
+      Number(metaError.code) === 132001
+        ? `Template ${templateName} (${languageCode}) is not available on the WABA that owns sender Phone Number ID ${phoneNumberId}`
+        : "";
     throw new Error(
       [
         metaError.message || "WhatsApp template send failed",
+        templateTranslationHint,
         metaError.error_user_title,
         metaError.error_user_msg,
         metaError.code ? `code=${metaError.code}` : "",
@@ -271,7 +299,15 @@ const sendProviderWhatsAppTemplate = async ({
         .join(" | "),
     );
   }
-  return data?.messages?.[0]?.id as string | undefined;
+  const providerMessageId = data?.messages?.[0]?.id as string | undefined;
+  console.info("[appointment-notification:whatsapp] Template accepted", {
+    senderPhoneNumberId: phoneNumberId,
+    recipient: maskPhone(to),
+    templateName,
+    languageCode,
+    providerMessageId: providerMessageId || null,
+  });
+  return providerMessageId;
 };
 
 export const sendAppointmentNotifications = async ({
