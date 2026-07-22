@@ -46,6 +46,15 @@ const truncate = (value: string, max = 180) =>
 const maskPhone = (value: string) =>
   value.length > 4 ? `${"*".repeat(Math.min(value.length - 4, 8))}${value.slice(-4)}` : value;
 
+const getTemplateVariables = (text: unknown) =>
+  Array.from(
+    new Set(
+      Array.from(String(text || "").matchAll(/\{\{\s*([^{}]+?)\s*\}\}/g)).map(
+        (match) => match[1].trim(),
+      ),
+    ),
+  );
+
 export const normalizeAppointmentPhone = (value?: string) => {
   const raw = cleanString(value);
   if (!raw) return "";
@@ -218,6 +227,7 @@ const sendProviderWhatsAppTemplate = async ({
     throw new Error("RocketReplai WhatsApp alert sender is not configured");
   }
 
+  let approvedTemplates: any[] = [];
   let approvedTemplateLanguages: string[] = [];
   if (wabaId) {
     try {
@@ -225,19 +235,22 @@ const sendProviderWhatsAppTemplate = async ({
         `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
       );
       lookupUrl.searchParams.set("name", templateName);
-      lookupUrl.searchParams.set("fields", "name,status,language,components");
+      lookupUrl.searchParams.set(
+        "fields",
+        "name,status,language,parameter_format,components",
+      );
       const lookupResponse = await fetch(lookupUrl, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const lookupData = await lookupResponse.json().catch(() => ({}) as any);
       if (lookupResponse.ok) {
         const matches = Array.isArray(lookupData?.data) ? lookupData.data : [];
-        approvedTemplateLanguages = matches
-          .filter(
-            (template: any) =>
-              cleanString(template?.name).toLowerCase() === templateName &&
-              cleanString(template?.status).toUpperCase() === "APPROVED",
-          )
+        approvedTemplates = matches.filter(
+          (template: any) =>
+            cleanString(template?.name).toLowerCase() === templateName &&
+            cleanString(template?.status).toUpperCase() === "APPROVED",
+        );
+        approvedTemplateLanguages = approvedTemplates
           .map((template: any) => cleanString(template?.language))
           .filter(Boolean);
         console.info(
@@ -250,6 +263,23 @@ const sendProviderWhatsAppTemplate = async ({
               name: cleanString(template?.name),
               status: cleanString(template?.status),
               language: cleanString(template?.language),
+              parameterFormat: cleanString(template?.parameter_format),
+              bodyVariables: getTemplateVariables(
+                template?.components?.find(
+                  (component: any) =>
+                    cleanString(component?.type).toUpperCase() === "BODY",
+                )?.text,
+              ),
+              buttons:
+                template?.components
+                  ?.find(
+                    (component: any) =>
+                      cleanString(component?.type).toUpperCase() === "BUTTONS",
+                  )
+                  ?.buttons?.map((button: any) => ({
+                    type: cleanString(button?.type),
+                    urlVariables: getTemplateVariables(button?.url),
+                  })) || [],
             })),
           },
         );
@@ -289,43 +319,106 @@ const sendProviderWhatsAppTemplate = async ({
     ]),
   );
 
-  const components: any[] = [
-    {
-      type: "body",
-      parameters: [
-        { type: "text", text: whatsappTemplateSourceLabel(source) },
-        { type: "text", text: appointment.customerName || "Not captured" },
-        { type: "text", text: appointment.customerPhone || "Not captured" },
-        {
-          type: "text",
-          text:
-            [appointment.preferredDate, appointment.preferredTime]
-              .filter(Boolean)
-              .join(" ") || "Not captured",
-        },
-        {
-          type: "text",
-          text: truncate(
-            [
-              appointment.service ? `Service: ${appointment.service}` : "",
-              appointment.summary,
-            ]
-              .filter(Boolean)
-              .join(" | ") || "No details",
-          ),
-        },
-      ],
-    },
+  const approvedTemplate =
+    approvedTemplates.find(
+      (template) => cleanString(template?.language) === languageCandidates[0],
+    ) || approvedTemplates[0];
+  const templateComponents = Array.isArray(approvedTemplate?.components)
+    ? approvedTemplate.components
+    : [];
+  const bodyDefinition = templateComponents.find(
+    (component: any) =>
+      cleanString(component?.type).toUpperCase() === "BODY",
+  );
+  const bodyVariables = getTemplateVariables(bodyDefinition?.text);
+  const parameterFormat = cleanString(
+    approvedTemplate?.parameter_format,
+  ).toUpperCase();
+  const dateTimeValue =
+    [appointment.preferredDate, appointment.preferredTime]
+      .filter(Boolean)
+      .join(" ") || "Not captured";
+  const requirementValue = truncate(
+    [
+      appointment.service ? `Service: ${appointment.service}` : "",
+      appointment.summary,
+    ]
+      .filter(Boolean)
+      .join(" | ") || "No details",
+  );
+  const allPositionalValues = [
+    whatsappTemplateSourceLabel(source),
+    appointment.customerName || "Not captured",
+    appointment.customerPhone || "Not captured",
+    dateTimeValue,
+    requirementValue,
   ];
+  const expectedBodyParameterCount = approvedTemplate
+    ? bodyVariables.length
+    : allPositionalValues.length;
+  const positionalValues =
+    expectedBodyParameterCount === 4
+      ? allPositionalValues.slice(1)
+      : allPositionalValues.slice(0, expectedBodyParameterCount);
+  while (positionalValues.length < expectedBodyParameterCount) {
+    positionalValues.push("Not captured");
+  }
 
-  if (includeDashboardButton) {
+  const resolveNamedBodyValue = (variable: string, index: number) => {
+    const name = variable.toLowerCase();
+    if (/source|channel|platform|through/.test(name)) {
+      return whatsappTemplateSourceLabel(source);
+    }
+    if (/customer.*name|patient.*name|^name$/.test(name)) {
+      return appointment.customerName || "Not captured";
+    }
+    if (/phone|mobile|whatsapp/.test(name)) {
+      return appointment.customerPhone || "Not captured";
+    }
+    if (/date|time|slot/.test(name)) return dateTimeValue;
+    if (/requirement|detail|summary|service|reason/.test(name)) {
+      return requirementValue;
+    }
+    return positionalValues[index] || "Not captured";
+  };
+
+  const bodyParameters = bodyVariables.map((variable, index) => ({
+    type: "text",
+    text:
+      parameterFormat === "NAMED"
+        ? resolveNamedBodyValue(variable, index)
+        : positionalValues[index] || "Not captured",
+    ...(parameterFormat === "NAMED" ? { parameter_name: variable } : {}),
+  }));
+
+  const components: any[] = bodyParameters.length
+    ? [{ type: "body", parameters: bodyParameters }]
+    : [];
+
+  const buttonDefinition = templateComponents.find(
+    (component: any) =>
+      cleanString(component?.type).toUpperCase() === "BUTTONS",
+  );
+  const dynamicUrlButtonIndex = Array.isArray(buttonDefinition?.buttons)
+    ? buttonDefinition.buttons.findIndex(
+        (button: any) =>
+          cleanString(button?.type).toUpperCase() === "URL" &&
+          getTemplateVariables(button?.url).length > 0,
+      )
+    : approvedTemplate
+      ? -1
+      : 0;
+  const shouldIncludeDashboardButton =
+    includeDashboardButton && dynamicUrlButtonIndex >= 0;
+
+  if (shouldIncludeDashboardButton) {
     const dashboardButtonValue = dashboardUrl.startsWith(DASHBOARD_URL)
       ? dashboardUrl.slice(DASHBOARD_URL.length).replace(/^\/+/, "")
       : dashboardUrl;
     components.push({
       type: "button",
       sub_type: "url",
-      index: "0",
+      index: String(dynamicUrlButtonIndex),
       parameters: [{ type: "text", text: dashboardButtonValue }],
     });
   }
@@ -344,8 +437,11 @@ const sendProviderWhatsAppTemplate = async ({
       languageCode: candidateLanguageCode,
       attempt: index + 1,
       languageCandidates,
-      bodyParameterCount: components[0]?.parameters?.length || 0,
-      includesDashboardButton: includeDashboardButton,
+      parameterFormat: parameterFormat || "POSITIONAL",
+      bodyVariables,
+      bodyParameterCount: bodyParameters.length,
+      dynamicUrlButtonIndex,
+      includesDashboardButton: shouldIncludeDashboardButton,
     });
 
     const response = await fetch(
