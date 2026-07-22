@@ -185,6 +185,11 @@ const sendProviderWhatsAppTemplate = async ({
     process.env.APPOINTMENT_ALERT_WHATSAPP_GRAPH_VERSION ||
     process.env.WHATSAPP_GRAPH_API_VERSION ||
     "v25.0";
+  const wabaId = cleanString(
+    process.env.APPOINTMENT_ALERT_WHATSAPP_WABA_ID ||
+      process.env.ROCKETREPLAI_WHATSAPP_WABA_ID ||
+      process.env.WHATSAPP_PROVIDER_WABA_ID,
+  );
   const configuredTemplateName = cleanString(
     process.env.APPOINTMENT_ALERT_WHATSAPP_TEMPLATE_NAME ||
       process.env.WHATSAPP_APPOINTMENT_TEMPLATE_NAME ||
@@ -200,12 +205,89 @@ const sendProviderWhatsAppTemplate = async ({
       process.env.WHATSAPP_APPOINTMENT_TEMPLATE_LANGUAGE ||
       "en_US",
   );
+  const configuredLanguageFallbacks = cleanString(
+    process.env.APPOINTMENT_ALERT_WHATSAPP_TEMPLATE_LANGUAGE_FALLBACKS,
+  )
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
   const includeDashboardButton =
     process.env.APPOINTMENT_ALERT_WHATSAPP_INCLUDE_DASHBOARD_BUTTON !== "false";
 
   if (!phoneNumberId || !accessToken) {
     throw new Error("RocketReplai WhatsApp alert sender is not configured");
   }
+
+  let approvedTemplateLanguages: string[] = [];
+  if (wabaId) {
+    try {
+      const lookupUrl = new URL(
+        `https://graph.facebook.com/${graphVersion}/${wabaId}/message_templates`,
+      );
+      lookupUrl.searchParams.set("name", templateName);
+      lookupUrl.searchParams.set("fields", "name,status,language,components");
+      const lookupResponse = await fetch(lookupUrl, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const lookupData = await lookupResponse.json().catch(() => ({}) as any);
+      if (lookupResponse.ok) {
+        const matches = Array.isArray(lookupData?.data) ? lookupData.data : [];
+        approvedTemplateLanguages = matches
+          .filter(
+            (template: any) =>
+              cleanString(template?.name).toLowerCase() === templateName &&
+              cleanString(template?.status).toUpperCase() === "APPROVED",
+          )
+          .map((template: any) => cleanString(template?.language))
+          .filter(Boolean);
+        console.info(
+          "[appointment-notification:whatsapp] Template lookup completed",
+          {
+            wabaId,
+            senderPhoneNumberId: phoneNumberId,
+            templateName,
+            matches: matches.map((template: any) => ({
+              name: cleanString(template?.name),
+              status: cleanString(template?.status),
+              language: cleanString(template?.language),
+            })),
+          },
+        );
+      } else {
+        console.warn(
+          "[appointment-notification:whatsapp] Template lookup failed",
+          {
+            wabaId,
+            senderPhoneNumberId: phoneNumberId,
+            templateName,
+            code: lookupData?.error?.code,
+            error: lookupData?.error?.message || `HTTP ${lookupResponse.status}`,
+          },
+        );
+      }
+    } catch (error) {
+      console.warn(
+        "[appointment-notification:whatsapp] Template lookup failed",
+        {
+          wabaId,
+          senderPhoneNumberId: phoneNumberId,
+          templateName,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+  }
+
+  const languageCandidates = Array.from(
+    new Set([
+      ...approvedTemplateLanguages,
+      languageCode,
+      ...configuredLanguageFallbacks,
+      "en",
+      "en_US",
+      "en_GB",
+    ]),
+  );
 
   const components: any[] = [
     {
@@ -248,66 +330,98 @@ const sendProviderWhatsAppTemplate = async ({
     });
   }
 
-  console.info("[appointment-notification:whatsapp] Sending template", {
-    senderPhoneNumberId: phoneNumberId,
-    recipient: maskPhone(to),
-    templateName,
-    languageCode,
-    bodyParameterCount: components[0]?.parameters?.length || 0,
-    includesDashboardButton: includeDashboardButton,
-  });
+  let lastData: any = {};
+  let lastLanguageCode = languageCandidates[0] || languageCode;
 
-  const response = await fetch(
-    `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "template",
-        template: {
-          name: templateName,
-          language: { code: languageCode },
-          components,
+  for (let index = 0; index < languageCandidates.length; index += 1) {
+    const candidateLanguageCode = languageCandidates[index];
+    lastLanguageCode = candidateLanguageCode;
+    console.info("[appointment-notification:whatsapp] Sending template", {
+      senderPhoneNumberId: phoneNumberId,
+      wabaId: wabaId || null,
+      recipient: maskPhone(to),
+      templateName,
+      languageCode: candidateLanguageCode,
+      attempt: index + 1,
+      languageCandidates,
+      bodyParameterCount: components[0]?.parameters?.length || 0,
+      includesDashboardButton: includeDashboardButton,
+    });
+
+    const response = await fetch(
+      `https://graph.facebook.com/${graphVersion}/${phoneNumberId}/messages`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
-      }),
-    },
-  );
-  const data = await response.json().catch(() => ({}) as any);
-  if (!response.ok) {
-    const metaError = data?.error || {};
-    const templateTranslationHint =
-      Number(metaError.code) === 132001
-        ? `Template ${templateName} (${languageCode}) is not available on the WABA that owns sender Phone Number ID ${phoneNumberId}`
-        : "";
-    throw new Error(
-      [
-        metaError.message || "WhatsApp template send failed",
-        templateTranslationHint,
-        metaError.error_user_title,
-        metaError.error_user_msg,
-        metaError.code ? `code=${metaError.code}` : "",
-        metaError.error_subcode ? `subcode=${metaError.error_subcode}` : "",
-        metaError.fbtrace_id ? `fbtrace_id=${metaError.fbtrace_id}` : "",
-      ]
-        .filter(Boolean)
-        .join(" | "),
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to,
+          type: "template",
+          template: {
+            name: templateName,
+            language: { code: candidateLanguageCode },
+            components,
+          },
+        }),
+      },
+    );
+    const data = await response.json().catch(() => ({}) as any);
+    lastData = data;
+    if (response.ok) {
+      const providerMessageId = data?.messages?.[0]?.id as string | undefined;
+      console.info("[appointment-notification:whatsapp] Template accepted", {
+        senderPhoneNumberId: phoneNumberId,
+        wabaId: wabaId || null,
+        recipient: maskPhone(to),
+        templateName,
+        languageCode: candidateLanguageCode,
+        providerMessageId: providerMessageId || null,
+      });
+      return providerMessageId;
+    }
+
+    const metaErrorCode = Number(data?.error?.code);
+    if (
+      metaErrorCode !== 132001 ||
+      index === languageCandidates.length - 1
+    ) {
+      break;
+    }
+    console.warn(
+      "[appointment-notification:whatsapp] Template translation unavailable; retrying locale",
+      {
+        senderPhoneNumberId: phoneNumberId,
+        wabaId: wabaId || null,
+        templateName,
+        failedLanguageCode: candidateLanguageCode,
+        nextLanguageCode: languageCandidates[index + 1],
+      },
     );
   }
-  const providerMessageId = data?.messages?.[0]?.id as string | undefined;
-  console.info("[appointment-notification:whatsapp] Template accepted", {
-    senderPhoneNumberId: phoneNumberId,
-    recipient: maskPhone(to),
-    templateName,
-    languageCode,
-    providerMessageId: providerMessageId || null,
-  });
-  return providerMessageId;
+
+  const metaError = lastData?.error || {};
+  const templateTranslationHint =
+    Number(metaError.code) === 132001
+      ? `Template ${templateName} was unavailable for languages ${languageCandidates.join(", ")} on the WABA that owns sender Phone Number ID ${phoneNumberId}${wabaId ? `; configured WABA ID ${wabaId}` : "; configure APPOINTMENT_ALERT_WHATSAPP_WABA_ID to verify the owning WABA and approved locale"}`
+      : "";
+  throw new Error(
+    [
+      metaError.message || "WhatsApp template send failed",
+      templateTranslationHint,
+      metaError.error_user_title,
+      metaError.error_user_msg,
+      metaError.code ? `code=${metaError.code}` : "",
+      metaError.error_subcode ? `subcode=${metaError.error_subcode}` : "",
+      `language=${lastLanguageCode}`,
+      metaError.fbtrace_id ? `fbtrace_id=${metaError.fbtrace_id}` : "",
+    ]
+      .filter(Boolean)
+      .join(" | "),
+  );
 };
 
 export const sendAppointmentNotifications = async ({

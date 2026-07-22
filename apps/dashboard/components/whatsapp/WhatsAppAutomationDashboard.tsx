@@ -581,7 +581,7 @@ function Overview({
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Current source
             </p>
-            <p className="mt-2 text-sm font-semibold">
+            <p className="mt-2 text-sm font-semibold overflow-hidden">
               {data.businessInfo?.knowledgeBaseUrl ||
                 data.businessInfo?.fileName ||
                 data.businessInfo?.websiteUrl ||
