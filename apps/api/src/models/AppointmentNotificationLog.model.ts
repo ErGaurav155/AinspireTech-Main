@@ -19,6 +19,12 @@ export interface IAppointmentNotificationLog extends Document {
     address: string;
     status: "sent" | "skipped" | "failed";
     providerMessageId?: string;
+    providerStatus?: string;
+    providerErrorCode?: string;
+    providerError?: string;
+    providerStatusUpdatedAt?: Date;
+    deliveredAt?: Date;
+    readAt?: Date;
     error?: string;
     sentAt?: Date;
   }>;
@@ -57,6 +63,12 @@ const AppointmentNotificationLogSchema =
             required: true,
           },
           providerMessageId: String,
+          providerStatus: String,
+          providerErrorCode: String,
+          providerError: String,
+          providerStatusUpdatedAt: Date,
+          deliveredAt: Date,
+          readAt: Date,
           error: String,
           sentAt: Date,
         },
@@ -67,6 +79,7 @@ const AppointmentNotificationLogSchema =
 
 AppointmentNotificationLogSchema.index({ userId: 1, createdAt: -1 });
 AppointmentNotificationLogSchema.index({ source: 1, createdAt: -1 });
+AppointmentNotificationLogSchema.index({ "channels.providerMessageId": 1 });
 
 const AppointmentNotificationLog =
   (models?.AppointmentNotificationLog ||

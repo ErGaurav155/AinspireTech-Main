@@ -5,6 +5,7 @@ import WhatsAppWorkspace, {
 } from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   objectToAppointmentAlert,
+  processAppointmentWhatsAppStatuses,
   sendAppointmentNotifications,
 } from "@/services/appointment-notification.service";
 import {
@@ -1222,13 +1223,34 @@ export async function processWhatsAppWebhook(payload: any) {
       continue;
     }
 
+    const appointmentStatusUpdates = statuses.length
+      ? await processAppointmentWhatsAppStatuses({
+          phoneNumberId,
+          statuses,
+        })
+      : 0;
+
     const workspace = await WhatsAppWorkspace.findOne({
       "meta.phoneNumberId": phoneNumberId,
     });
     if (!workspace) {
-      console.warn("[whatsapp:process] No workspace found for phone number ID", {
-        phoneNumberId,
-      });
+      if (statuses.length && appointmentStatusUpdates > 0) {
+        console.info(
+          "[whatsapp:process] Provider notification status processed without workspace",
+          {
+            phoneNumberId,
+            statuses: statuses.length,
+            appointmentStatusUpdates,
+          },
+        );
+      } else {
+        console.warn("[whatsapp:process] No workspace found for phone number ID", {
+          phoneNumberId,
+          messages: messages.length,
+          statuses: statuses.length,
+          appointmentStatusUpdates,
+        });
+      }
       continue;
     }
 

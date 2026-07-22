@@ -21,6 +21,12 @@ type NotificationResult = {
   address: string;
   status: "sent" | "skipped" | "failed";
   providerMessageId?: string;
+  providerStatus?: string;
+  providerErrorCode?: string;
+  providerError?: string;
+  providerStatusUpdatedAt?: Date;
+  deliveredAt?: Date;
+  readAt?: Date;
   error?: string;
   sentAt?: Date;
 };
@@ -28,6 +34,12 @@ type NotificationResult = {
 const DASHBOARD_URL = "https://app.rocketreplai.com";
 const DEFAULT_COUNTRY_CODE =
   process.env.APPOINTMENT_ALERT_DEFAULT_COUNTRY_CODE || "91";
+
+const getAppointmentAlertPhoneNumberId = () =>
+  process.env.APPOINTMENT_ALERT_WHATSAPP_PHONE_NUMBER_ID ||
+  process.env.ROCKETREPLAI_WHATSAPP_PHONE_NUMBER_ID ||
+  process.env.WHATSAPP_PROVIDER_PHONE_NUMBER_ID ||
+  "";
 
 const cleanString = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -179,11 +191,7 @@ const sendProviderWhatsAppTemplate = async ({
   appointment: Required<AppointmentAlert>;
   dashboardUrl: string;
 }) => {
-  const phoneNumberId =
-    process.env.APPOINTMENT_ALERT_WHATSAPP_PHONE_NUMBER_ID ||
-    process.env.ROCKETREPLAI_WHATSAPP_PHONE_NUMBER_ID ||
-    process.env.WHATSAPP_PROVIDER_PHONE_NUMBER_ID ||
-    "";
+  const phoneNumberId = getAppointmentAlertPhoneNumberId();
   const accessToken =
     process.env.APPOINTMENT_ALERT_WHATSAPP_ACCESS_TOKEN ||
     process.env.ROCKETREPLAI_WHATSAPP_ACCESS_TOKEN ||
@@ -618,6 +626,8 @@ export const sendAppointmentNotifications = async ({
         address: whatsappTo,
         status: "sent",
         providerMessageId,
+        providerStatus: "accepted",
+        providerStatusUpdatedAt: new Date(),
         sentAt: new Date(),
       });
     } catch (error) {
@@ -658,4 +668,134 @@ export const sendAppointmentNotifications = async ({
   });
 
   return channels;
+};
+
+type WhatsAppProviderStatus = {
+  id?: string;
+  status?: string;
+  timestamp?: string;
+  recipient_id?: string;
+  errors?: Array<{
+    code?: number | string;
+    title?: string;
+    message?: string;
+    error_data?: { details?: string };
+  }>;
+};
+
+const waitForNotificationLog = (delayMs: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+
+const providerStatusDate = (timestamp?: string) => {
+  const seconds = Number(timestamp);
+  return Number.isFinite(seconds) && seconds > 0
+    ? new Date(seconds * 1000)
+    : new Date();
+};
+
+const providerStatusError = (status: WhatsAppProviderStatus) => {
+  const error = status.errors?.[0];
+  const message = [error?.title, error?.message, error?.error_data?.details]
+    .map(cleanString)
+    .filter(Boolean)
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .join(" | ");
+
+  return {
+    code: error?.code ? String(error.code) : "",
+    message,
+  };
+};
+
+export const processAppointmentWhatsAppStatuses = async ({
+  phoneNumberId,
+  statuses,
+}: {
+  phoneNumberId: string;
+  statuses: WhatsAppProviderStatus[];
+}) => {
+  if (!statuses.length) return 0;
+  if (phoneNumberId !== getAppointmentAlertPhoneNumberId()) return 0;
+
+  await connectToDatabase();
+  let matchedStatuses = 0;
+
+  for (const status of statuses) {
+    const providerMessageId = cleanString(status.id);
+    if (!providerMessageId) continue;
+
+    const providerStatus = cleanString(status.status).toLowerCase() || "unknown";
+    const statusDate = providerStatusDate(status.timestamp);
+    const statusError = providerStatusError(status);
+    const setFields: Record<string, unknown> = {
+      "channels.$[channel].providerStatus": providerStatus,
+      "channels.$[channel].providerStatusUpdatedAt": statusDate,
+    };
+    const unsetFields: Record<string, 1> = {};
+
+    if (providerStatus === "delivered") {
+      setFields["channels.$[channel].deliveredAt"] = statusDate;
+    }
+    if (providerStatus === "read") {
+      setFields["channels.$[channel].readAt"] = statusDate;
+    }
+    if (providerStatus === "failed") {
+      setFields["channels.$[channel].status"] = "failed";
+      setFields["channels.$[channel].error"] =
+        statusError.message || "WhatsApp delivery failed";
+      setFields["channels.$[channel].providerError"] =
+        statusError.message || "WhatsApp delivery failed";
+      if (statusError.code) {
+        setFields["channels.$[channel].providerErrorCode"] = statusError.code;
+      }
+    } else {
+      unsetFields["channels.$[channel].providerError"] = 1;
+      unsetFields["channels.$[channel].providerErrorCode"] = 1;
+    }
+
+    let matched = false;
+    for (const delayMs of [0, 250, 750, 1500]) {
+      if (delayMs) await waitForNotificationLog(delayMs);
+
+      const update: Record<string, unknown> = { $set: setFields };
+      if (Object.keys(unsetFields).length) update.$unset = unsetFields;
+      const result = await AppointmentNotificationLog.updateOne(
+        {
+          channels: {
+            $elemMatch: {
+              channel: "whatsapp",
+              providerMessageId,
+            },
+          },
+        },
+        update,
+        {
+          arrayFilters: [
+            {
+              "channel.channel": "whatsapp",
+              "channel.providerMessageId": providerMessageId,
+            },
+          ],
+        },
+      );
+
+      if (result.matchedCount > 0) {
+        matched = true;
+        matchedStatuses += 1;
+        break;
+      }
+    }
+
+    console.info("[appointment-notification:whatsapp] Delivery status", {
+      senderPhoneNumberId: phoneNumberId,
+      providerMessageId,
+      recipient: maskPhone(cleanString(status.recipient_id)),
+      status: providerStatus,
+      errorCode: statusError.code || undefined,
+      error: statusError.message || undefined,
+      notificationLogFound: matched,
+    });
+  }
+
+  return matchedStatuses;
 };
