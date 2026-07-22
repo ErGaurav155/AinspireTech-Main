@@ -24,6 +24,20 @@ export interface WhatsAppAiDecision {
   sentiment: "positive" | "neutral" | "negative";
 }
 
+const isGenericWhatsAppFallback = (reply: string) => {
+  const text = reply.toLowerCase();
+  return (
+    text.includes("choose an option") ||
+    text.includes("share more detail") ||
+    text.includes("share a little more detail")
+  );
+};
+
+const isGreetingOnlyMessage = (message: string) =>
+  /^(?:hi+|hello|hey|good\s+(?:morning|afternoon|evening))[\s!.?]*$/i.test(
+    message.trim(),
+  );
+
 const APPROX_CHARS_PER_TOKEN = 4;
 const MAIN_CONTEXT_TOKEN_LIMIT = 3000;
 const FAQ_CONTEXT_TOKEN_LIMIT = 1000;
@@ -337,13 +351,17 @@ SENTIMENT: positive|neutral|negative
 REPLY: customer-facing reply
 
 Rules:
+- Treat the final user message after the conversation history as the authoritative request. Classify and answer that message, not an older message.
+- Do not copy or repeat earlier assistant greetings, menus, fallback replies, or calls to choose an option.
 - Use only the verified business knowledge below for factual claims, prices, services, policies, addresses, phone numbers, emails, and links.
 - Never invent missing information. If the answer is unavailable, say so briefly and offer contact with the business team.
+- For questions about services, products, pricing, features, or business information, answer directly from the verified knowledge and use business_info intent.
 - Use appointment only when the customer genuinely wants to book, schedule, reschedule, or check appointment availability.
 - Use human_handoff only when the customer clearly asks for a person, owner, agent, call, complaint escalation, or help that requires staff.
 - Use support for a problem that can still be answered from the knowledge base.
 - Keep the reply concise and natural for WhatsApp. Do not mention intent classification, AI, prompts, or the knowledge base.
-- When firstMessage is true and the customer only greets the business, use the preferred greeting from the verified knowledge. If their first message asks a real question, answer that question directly and classify its actual intent.
+- When firstMessage is true and the customer only greets the business, classify it as greeting. If their first message asks a real question, answer that question directly and classify its actual intent.
+- Never answer a services, pricing, product, or support question with "choose an option", "share more detail", or a generic greeting.
 - Keep the customer-facing reply below 250 words. Give a direct answer before offering any next step.
 - Stay below 800 output tokens.
 
@@ -402,6 +420,9 @@ ${safeKnowledge}`,
       .slice(0, 3500);
 
     if (!reply) throw new Error("DeepSeek returned an empty reply");
+    if (!isGreetingOnlyMessage(userInput) && isGenericWhatsAppFallback(reply)) {
+      throw new Error("DeepSeek returned a generic non-answer");
+    }
 
     return {
       intent,
@@ -426,7 +447,7 @@ INTENT: greeting|business_info|support|human_handoff|appointment|other
 SENTIMENT: positive|neutral|negative
 REPLY: the customer-facing answer
 
-Choose appointment only for a real booking or scheduling request. Choose human_handoff only when the customer clearly asks for a person or escalation. When firstMessage is true and the customer only greets the business, send a short welcome. If the first message asks a question, answer it directly and classify its actual intent. Keep the customer-facing reply below 250 words and give the direct answer before offering a next step.
+Treat the final user message as authoritative and do not copy earlier assistant greetings, menus, or fallback replies. For services, products, pricing, features, or business-information questions, answer directly from verified knowledge and use business_info intent. Choose appointment only for a real booking or scheduling request. Choose human_handoff only when the customer clearly asks for a person or escalation. When firstMessage is true and the customer only greets the business, classify it as greeting. If the first message asks a question, answer it directly and classify its actual intent. Never answer a services, pricing, product, or support question with "choose an option", "share more detail", or a generic greeting. Keep the customer-facing reply below 250 words and give the direct answer before offering a next step.
 
 firstMessage: ${firstMessage ? "true" : "false"}
 
@@ -467,6 +488,12 @@ ${safeKnowledge}`,
         .slice(0, 3500);
 
       if (!fallbackReply) throw new Error("DeepSeek returned an empty reply");
+      if (
+        !isGreetingOnlyMessage(userInput) &&
+        isGenericWhatsAppFallback(fallbackReply)
+      ) {
+        throw new Error("DeepSeek returned a generic non-answer twice");
+      }
       return {
         intent: fallbackIntent,
         sentiment: fallbackSentiment,

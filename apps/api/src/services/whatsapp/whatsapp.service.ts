@@ -733,11 +733,25 @@ async function buildBusinessKnowledgeContext(
     .slice(0, 12000);
 }
 
+const isStaleAutomationHistory = (message: any) => {
+  if (message?.direction !== "outbound") return false;
+  const text = String(message?.body || "").toLowerCase();
+  return (
+    (text.includes("thanks for messaging") &&
+      (text.includes("choose an option") || text.includes("share more detail"))) ||
+    text.includes("[pricing/services]") ||
+    text.includes("[book appointment]") ||
+    text.includes("[talk to owner]")
+  );
+};
+
 const toAiConversationHistory = (conversation: any): ConvMessage[] =>
   (conversation?.messages || [])
     .slice(0, -1)
-    .filter((message: any) => message?.body)
-    .slice(-12)
+    .filter(
+      (message: any) => message?.body && !isStaleAutomationHistory(message),
+    )
+    .slice(-8)
     .map((message: any) => ({
       role: message.direction === "outbound" ? "assistant" : "user",
       content: String(message.body).slice(0, 1200),
@@ -790,11 +804,13 @@ const generateWorkspaceAiDecision = async ({
   let knowledge = "";
   try {
     knowledge = await buildBusinessKnowledgeContext(workspace);
+    const conversationHistory = toAiConversationHistory(conversation);
     console.info("[whatsapp:ai] Generating response", {
       workspaceId: String(workspace._id),
       firstMessage,
+      input: body.slice(0, 500),
       inputCharacters: body.length,
-      historyMessages: toAiConversationHistory(conversation).length,
+      historyMessages: conversationHistory.length,
       knowledgeCharacters: knowledge.length,
       hasKnowledgeUrl: Boolean(
         workspace.businessInfo?.knowledgeBaseUrl ||
@@ -807,7 +823,7 @@ const generateWorkspaceAiDecision = async ({
       userInput: body,
       businessName,
       knowledge,
-      conversationHistory: toAiConversationHistory(conversation),
+      conversationHistory,
       firstMessage,
     });
     console.info("[whatsapp:ai] Response generated", {
@@ -815,6 +831,7 @@ const generateWorkspaceAiDecision = async ({
       intent: decision.intent,
       sentiment: decision.sentiment,
       replyCharacters: decision.reply.length,
+      reply: decision.reply,
     });
     return decision;
   } catch (error) {
