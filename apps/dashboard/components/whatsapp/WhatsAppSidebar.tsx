@@ -10,6 +10,7 @@ import {
   CalendarCheck,
   Check,
   ChevronDown,
+  CircleHelp,
   CreditCard,
   FileText,
   Instagram,
@@ -18,15 +19,17 @@ import {
   PackageCheck,
   Phone,
   Settings,
+  Workflow,
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
-  { label: "Booking Flow", href: "/whatsapp/appointments", icon: CalendarCheck },
+  { label: "Automations", href: "/whatsapp/automations", icon: Workflow },
+  { label: "Appointments", href: "/whatsapp/appointments", icon: CalendarCheck },
+  { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp },
   { label: "Business Info", href: "/whatsapp/business-info", icon: FileText },
-  { label: "Greeting Template", href: "/whatsapp/templates", icon: MessageCircle },
   { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
   { label: "Packages", href: "/packages", icon: PackageCheck },
   { label: "Settings", href: "/whatsapp/settings", icon: Settings },

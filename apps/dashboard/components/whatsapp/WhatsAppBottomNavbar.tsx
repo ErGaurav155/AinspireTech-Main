@@ -3,18 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  FileText,
   LayoutDashboard,
   CalendarCheck,
-  MessageCircle,
+  CircleHelp,
   Settings,
+  Workflow,
 } from "lucide-react";
 
 const ITEMS = [
   { label: "Home", href: "/whatsapp", icon: LayoutDashboard },
+  { label: "Automate", href: "/whatsapp/automations", icon: Workflow },
   { label: "Booking", href: "/whatsapp/appointments", icon: CalendarCheck },
-  { label: "Info", href: "/whatsapp/business-info", icon: FileText },
-  { label: "Greeting", href: "/whatsapp/templates", icon: MessageCircle },
+  { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp },
   { label: "Settings", href: "/whatsapp/settings", icon: Settings },
 ] as const;
 

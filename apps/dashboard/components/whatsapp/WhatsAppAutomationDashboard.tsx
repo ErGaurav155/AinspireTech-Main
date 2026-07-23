@@ -30,9 +30,7 @@ import {
   deleteWhatsAppWorkspace,
   getWhatsAppFacebookConfig,
   getWhatsAppDashboard,
-  publishWhatsAppAppointmentFlow,
-  syncWhatsAppAppointmentFlow,
-  submitWhatsAppGreetingTemplate,
+  updateWhatsAppAppointmentStatus,
   updateWhatsAppWorkspace,
 } from "@/lib/services/whatsapp-actions.api";
 import {
@@ -41,6 +39,11 @@ import {
 } from "@/lib/services/subscription-actions.api";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import {
+  WhatsAppAppointmentsPanel,
+  WhatsAppAutomationsPanel,
+  WhatsAppFaqsPanel,
+} from "@/components/whatsapp/WhatsAppOperationsPanels";
 
 declare global {
   interface Window {
@@ -57,9 +60,10 @@ const WHATSAPP_FIRST_MONTH_OFFER_ID = "offer_T3WZjvSEGwtewO";
 
 type WhatsAppView =
   | "overview"
+  | "automations"
   | "appointments"
+  | "faqs"
   | "business-info"
-  | "templates"
   | "pricing"
   | "settings";
 
@@ -84,9 +88,11 @@ type WhatsAppDashboardData = {
   recentConversations: any[];
   appointments: any[];
   appointmentConfig: any;
-  appointmentFlow: any;
+  automationConfig: any;
+  faqs: any[];
   businessInfo: any;
-  greetingTemplate: any;
+  appointmentFlow?: any;
+  greetingTemplate?: any;
 };
 
 const plans = [
@@ -102,7 +108,7 @@ const plans = [
     features: [
       "Created automatically after Meta/Facebook setup",
       "1 connected WhatsApp number",
-      "Appointment booking flow",
+      "Guided appointment booking",
       "Business info replies",
       "Upgrade anytime when you need more volume",
     ],
@@ -118,9 +124,9 @@ const plans = [
     limit: "10k business-initiated messages",
     features: [
       "1 connected WhatsApp number",
-      "Appointment booking flow",
+      "Guided appointment booking",
       "Business info replies from saved website/file notes",
-      "Greeting template review tracker",
+      "Configurable menus, services and FAQs",
       "Owner alerts by email and WhatsApp",
     ],
   },
@@ -182,11 +188,10 @@ export default function WhatsAppAutomationDashboard({
       appointments: data.appointments || [],
       appointmentConfig:
         data.appointmentConfig || data.workspace?.appointmentConfig,
-      appointmentFlow:
-        data.appointmentFlow || data.workspace?.appointmentFlow || {},
+      automationConfig:
+        data.automationConfig || data.workspace?.automationConfig || {},
+      faqs: data.faqs || data.workspace?.faqs || [],
       businessInfo: data.businessInfo || data.workspace?.businessInfo || {},
-      greetingTemplate:
-        data.greetingTemplate || data.workspace?.greetingTemplate || {},
     };
   }, [data]);
 
@@ -225,40 +230,53 @@ export default function WhatsAppAutomationDashboard({
               />
             )}
             {view === "appointments" && (
-              <Appointments
+              <WhatsAppAppointmentsPanel
                 cardClass={cardClass}
                 softCardClass={softCardClass}
-                data={mergedData}
-                onSaveFlow={async (payload) => {
-                  await updateWhatsAppWorkspace(apiRequest, {
-                    appointmentFlow: payload.appointmentFlow,
-                    appointmentConfig: payload.appointmentConfig,
-                  });
+                appointments={mergedData.appointments}
+                onStatusChange={async (appointmentId, status) => {
+                  await updateWhatsAppAppointmentStatus(
+                    apiRequest,
+                    appointmentId,
+                    status,
+                  );
                   toast({
-                    title: "Flow setup saved",
-                    description:
-                      "Sync the WhatsApp Flow with Meta before publishing it.",
-                  });
-                  await loadDashboard();
-                }}
-                onSyncFlow={async (publish = false) => {
-                  await syncWhatsAppAppointmentFlow(apiRequest, { publish });
-                  toast({
-                    title: publish
-                      ? "Flow synced and published"
-                      : "Flow synced",
-                    description: publish
-                      ? "Meta accepted the appointment Flow for publishing."
-                      : "Meta validation status has been refreshed.",
+                    title: "Appointment updated",
+                    description: `Status changed to ${status.replace("_", " ")}.`,
                   });
                   await loadDashboard();
                 }}
-                onPublishFlow={async () => {
-                  await publishWhatsAppAppointmentFlow(apiRequest);
+              />
+            )}
+            {view === "automations" && (
+              <WhatsAppAutomationsPanel
+                cardClass={cardClass}
+                softCardClass={softCardClass}
+                automationConfig={mergedData.automationConfig}
+                appointmentConfig={mergedData.appointmentConfig}
+                notificationSettings={
+                  mergedData.workspace?.notificationSettings
+                }
+                onSave={async (payload) => {
+                  await updateWhatsAppWorkspace(apiRequest, payload);
                   toast({
-                    title: "Flow published",
-                    description:
-                      "Customers can now open the native WhatsApp appointment form.",
+                    title: "Automations saved",
+                    description: "Customer menus and booking logic were updated.",
+                  });
+                  await loadDashboard();
+                }}
+              />
+            )}
+            {view === "faqs" && (
+              <WhatsAppFaqsPanel
+                cardClass={cardClass}
+                softCardClass={softCardClass}
+                faqs={mergedData.faqs}
+                onSave={async (faqs) => {
+                  await updateWhatsAppWorkspace(apiRequest, { faqs });
+                  toast({
+                    title: "FAQs saved",
+                    description: "The WhatsApp FAQ menu was updated.",
                   });
                   await loadDashboard();
                 }}
@@ -275,35 +293,6 @@ export default function WhatsAppAutomationDashboard({
                     title: "Business info saved",
                     description:
                       "WhatsApp replies will use the saved business details.",
-                  });
-                  await loadDashboard();
-                }}
-              />
-            )}
-            {view === "templates" && (
-              <Templates
-                cardClass={cardClass}
-                data={mergedData}
-                onSave={async (greetingTemplate) => {
-                  await updateWhatsAppWorkspace(apiRequest, {
-                    greetingTemplate,
-                  });
-                  toast({
-                    title: "Greeting template saved",
-                    description:
-                      "Submit it for Meta review when the copy is ready.",
-                  });
-                  await loadDashboard();
-                }}
-                onSubmit={async (greetingTemplate) => {
-                  await submitWhatsAppGreetingTemplate(
-                    apiRequest,
-                    greetingTemplate,
-                  );
-                  toast({
-                    title: "Submitted to Meta",
-                    description:
-                      "Template status will update after Meta review.",
                   });
                   await loadDashboard();
                 }}
@@ -339,8 +328,8 @@ export default function WhatsAppAutomationDashboard({
           </>
         )}
         <p className={`mt-8 text-xs ${styles.text.muted}`}>
-          WhatsApp automation currently supports appointment booking, business
-          info replies, greeting template tracking, Meta setup, and billing.
+          WhatsApp automation supports guided booking, AI business replies,
+          service pricing, FAQs, owner handoff, follow-ups, and appointment alerts.
         </p>
       </div>
     </div>
@@ -358,9 +347,10 @@ function Header({
 }) {
   const titles: Record<WhatsAppView, string> = {
     overview: "WhatsApp Automation",
-    appointments: "Appointment Booking",
+    automations: "Automations",
+    appointments: "Appointments",
+    faqs: "FAQs",
     "business-info": "Business Info Replies",
-    templates: "Greeting Template",
     pricing: "WhatsApp Automation Pricing",
     settings: "Meta Setup & Compliance",
   };
@@ -379,9 +369,8 @@ function Header({
             {titles[view]}
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-gray-500 dark:text-white/55">
-            Built for local businesses that need WhatsApp appointment booking,
-            owner alerts, business-info replies, greeting template review, and
-            Meta setup status in one workspace.
+            Manage WhatsApp customer menus, AI replies, appointments, FAQs,
+            service pricing, follow-ups, owner alerts, and Meta setup.
           </p>
         </div>
         <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:w-auto lg:min-w-[260px]">
@@ -457,10 +446,10 @@ function Overview({
       icon: MessageCircle,
     },
     {
-      label: "Greeting template",
-      value: data.greetingTemplate?.status || "draft",
-      change: data.greetingTemplate?.name || "default",
-      icon: FileText,
+      label: "Automations",
+      value: data.automationConfig?.enabled !== false ? "Active" : "Paused",
+      change: `${data.automationConfig?.menuOptions?.filter((item: any) => item.enabled !== false).length || 0} menu options`,
+      icon: Settings,
     },
     {
       label: "Business info",
@@ -487,7 +476,7 @@ function Overview({
 
       <div className="grid gap-6 xl:grid-cols-[1.35fr_0.65fr]">
         <section className={`rounded-2xl border ${cardClass} p-5`}>
-          <SectionTitle icon={CalendarCheck} title="WhatsApp Booking Flow" />
+          <SectionTitle icon={CalendarCheck} title="Guided WhatsApp Booking" />
           <div className="mt-5 grid gap-3 md:grid-cols-3">
             {[
               [
@@ -592,15 +581,15 @@ function Overview({
         <section className={`rounded-2xl border ${cardClass} p-5`}>
           <SectionTitle
             icon={MessageCircle}
-            title="Greeting Template"
-            action="/whatsapp/templates"
+            title="Customer Automations"
+            action="/whatsapp/automations"
           />
           <p className="mt-4 text-sm leading-6 text-gray-500 dark:text-white/55">
-            Keep one greeting template for Meta review. Approved copy can be
-            used as the first reply when customers message the business.
+            Greeting menu, appointment questions, service pricing, support,
+            owner handoff, and follow-ups.
           </p>
           <Badge className="mt-4 bg-emerald-500/15 text-emerald-300">
-            {data.greetingTemplate?.status || "draft"}
+            {data.automationConfig?.enabled !== false ? "active" : "paused"}
           </Badge>
         </section>
       </div>
@@ -2825,8 +2814,8 @@ function SettingsView({
                 "Customers request appointments by messaging or choosing the booking option.",
               ],
               [
-                "Template review",
-                "Greeting templates must be approved by Meta before template-based use.",
+                "Customer-service window",
+                "Interactive menus and AI replies are sent inside Meta's customer-service window.",
               ],
               [
                 "Owner alerts",
@@ -2855,7 +2844,7 @@ function SettingsView({
               </h3>
               <p className="mt-2 text-sm leading-6 text-gray-500 dark:text-white/55">
                 Remove the connected Meta account details, saved business info,
-                conversations, appointments, and greeting template stored for
+                conversations, appointments, FAQs, and automations stored for
                 this WhatsApp dashboard.
               </p>
               <Button
@@ -2875,7 +2864,7 @@ function SettingsView({
         onOpenChange={setIsDeleteDialogOpen}
         onConfirm={handleDeleteWhatsAppData}
         title="Delete WhatsApp Account Data"
-        description="This will permanently delete the WhatsApp dashboard workspace stored in RocketReplai, including Meta connection details, business info, conversations, appointments, and greeting template. Razorpay billing is not cancelled by this action."
+        description="This will permanently delete the WhatsApp dashboard workspace stored in RocketReplai, including Meta connection details, business info, conversations, appointments, FAQs, and automations. Razorpay billing is not cancelled by this action."
         confirmText="Delete WhatsApp Data"
         cancelText="Keep Data"
         isDestructive

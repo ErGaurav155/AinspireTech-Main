@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { connectToDatabase } from "@/config/database.config";
 import WhatsAppWorkspace, {
   IWhatsAppWorkspace,
   WhatsAppPlanId,
@@ -15,33 +16,116 @@ import {
 } from "@/services/ai.service";
 
 const defaultAppointmentChatQuestions = [
-  { field: "patientName", question: "What is your full name?", required: true },
   {
-    field: "patientPhone",
-    question: "What phone number should we use?",
+    id: "name",
+    field: "patientName",
+    question: "What is your full name?",
+    type: "text",
     required: true,
+    options: [],
   },
   {
+    id: "email",
+    field: "patientEmail",
+    question: "What is your email address?",
+    type: "email",
+    required: false,
+    options: [],
+  },
+  {
+    id: "service",
     field: "service",
-    question: "Which service do you want to book?",
+    question: "Which service do you need?",
+    type: "select",
     required: true,
+    options: [],
   },
   {
+    id: "date",
     field: "preferredDate",
-    question: "Which date do you prefer?",
+    question: "Choose your preferred date.",
+    type: "date",
     required: true,
+    options: [],
   },
   {
+    id: "time",
     field: "preferredTime",
-    question: "Which time do you prefer?",
+    question: "Choose your preferred time.",
+    type: "time",
     required: true,
+    options: [],
   },
   {
+    id: "requirement",
     field: "symptoms",
     question: "Please describe your requirement.",
+    type: "textarea",
     required: true,
+    options: [],
   },
 ] as const;
+
+const defaultAutomationMenuOptions = [
+  {
+    id: "book_appointment",
+    title: "Book appointment",
+    description: "Choose a service, date and time",
+    enabled: true,
+  },
+  {
+    id: "talk_to_owner",
+    title: "Talk to owner",
+    description: "Get the owner's contact details",
+    enabled: true,
+  },
+  {
+    id: "need_support",
+    title: "Need support",
+    description: "Describe an issue for assistance",
+    enabled: true,
+  },
+  {
+    id: "service_pricing",
+    title: "Service pricing",
+    description: "View services and prices",
+    enabled: true,
+  },
+  {
+    id: "browse_faqs",
+    title: "FAQs",
+    description: "Browse common questions",
+    enabled: true,
+  },
+] as const;
+
+const createDefaultAutomationConfig = () => ({
+  enabled: true,
+  greetingMessage: "Hi, thanks for messaging us. How can we help you today?",
+  menuMessage:
+    "Choose an option below, or type your question for an AI-assisted reply.",
+  supportPrompt:
+    "We are listening. Please explain the issue in detail and we will help you.",
+  pricingMessage: "Choose a service to view pricing and booking options.",
+  negotiationMessage:
+    "Need a custom quote? We are open to discussing your requirements.",
+  ownerContactMessage:
+    "You can contact the business owner using the details below.",
+  menuOptions: defaultAutomationMenuOptions.map((item) => ({ ...item })),
+  appointmentQuestions: defaultAppointmentChatQuestions.map((item) => ({
+    ...item,
+    options: [...item.options],
+  })),
+  followUps: {
+    enabled: true,
+    firstDelayMinutes: 30,
+    secondDelayMinutes: 180,
+    firstMessage:
+      "Do you need any more information or help booking an appointment?",
+    secondMessage:
+      "We are still available if you would like to discuss your requirement or book an appointment.",
+  },
+});
 
 export const whatsappPlans = [
   {
@@ -57,7 +141,7 @@ export const whatsappPlans = [
     features: [
       "10 free automations",
       "1 connected WhatsApp number",
-      "Appointment booking flow",
+      "Guided appointment booking",
       "Business info replies",
     ],
   },
@@ -73,9 +157,9 @@ export const whatsappPlans = [
     agentsLimit: 3,
     features: [
       "1 connected WhatsApp number",
-      "Appointment booking flow",
+      "Guided appointment booking",
       "Business info replies from website/file notes",
-      "Greeting template review tracker",
+      "Configurable menus, services and FAQs",
       "Appointment alerts by email and WhatsApp",
     ],
   },
@@ -92,9 +176,9 @@ export const whatsappPlans = [
     features: [
       "Included in common dashboard package",
       "1 connected WhatsApp number",
-      "Appointment booking flow",
+      "Guided appointment booking",
       "Business info replies",
-      "Greeting template review tracker",
+      "Configurable menus, services and FAQs",
     ],
   },
 ] as const;
@@ -144,14 +228,57 @@ const getWhatsAppSendTokenSource = (workspace: IWhatsAppWorkspace) =>
 
 export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
   const data = workspace.toObject ? workspace.toObject() : workspace;
+  const {
+    appointmentFlow: _appointmentFlow,
+    greetingTemplate: _greetingTemplate,
+    agents: _agents,
+    templates: _templates,
+    campaigns: _campaigns,
+    ...workspaceData
+  } = data as any;
   return {
-    ...data,
+    ...workspaceData,
     meta: {
-      ...data.meta,
-      appSecret: maskSecret(data.meta?.appSecret),
-      accessToken: maskSecret(data.meta?.accessToken),
+      ...workspaceData.meta,
+      appSecret: maskSecret(workspaceData.meta?.appSecret),
+      accessToken: maskSecret(workspaceData.meta?.accessToken),
     },
   };
+};
+
+export const pruneExpiredWhatsAppAppointments = (
+  workspace: IWhatsAppWorkspace,
+) => {
+  const now = Date.now();
+  let changed = false;
+  const originalCount = workspace.appointments?.length || 0;
+  const retained = (workspace.appointments || []).filter((appointment: any) => {
+    const createdAt = appointment.createdAt
+      ? new Date(appointment.createdAt).getTime()
+      : now;
+    const expiresAt = appointment.expiresAt
+      ? new Date(appointment.expiresAt).getTime()
+      : createdAt + 14 * 24 * 60 * 60 * 1000;
+    if (!appointment.expiresAt) {
+      appointment.expiresAt = new Date(expiresAt);
+      changed = true;
+    }
+    if (appointment.status === "requested") {
+      appointment.status = "active";
+      changed = true;
+    }
+    if (expiresAt <= now) {
+      changed = true;
+      return false;
+    }
+    return true;
+  });
+
+  if (changed) {
+    workspace.appointments = retained as any;
+    workspace.markModified("appointments");
+  }
+  return originalCount - retained.length;
 };
 
 export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
@@ -191,6 +318,13 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         knowledgeBaseFileName: "",
       } as any;
     }
+    if (!workspace.automationConfig) {
+      workspace.automationConfig = createDefaultAutomationConfig() as any;
+    }
+    if (!Array.isArray(workspace.faqs)) {
+      workspace.faqs = [] as any;
+    }
+    pruneExpiredWhatsAppAppointments(workspace);
     if (!workspace.greetingTemplate) {
       workspace.greetingTemplate = {
         name: "rocket_whatsapp_greeting",
@@ -305,6 +439,8 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       confirmationTemplateName: "",
       reminderTemplateName: "",
     },
+    automationConfig: createDefaultAutomationConfig(),
+    faqs: [],
     appointmentFlow: {
       enabled: true,
       name: "RocketReplai Appointment Booking",
@@ -624,7 +760,7 @@ export async function sendWhatsAppButtonMessage({
       type: "interactive",
       interactive: {
         type: "button",
-        body: { text: body },
+        body: { text: body.slice(0, 1024) },
         action: {
           buttons: buttons.slice(0, 3).map((button) => ({
             type: "reply",
@@ -633,6 +769,48 @@ export async function sendWhatsAppButtonMessage({
               title: button.title.slice(0, 20),
             },
           })),
+        },
+      },
+    },
+  });
+}
+
+export async function sendWhatsAppListMessage({
+  workspace,
+  to,
+  body,
+  buttonText,
+  rows,
+}: {
+  workspace: IWhatsAppWorkspace;
+  to: string;
+  body: string;
+  buttonText: string;
+  rows: Array<{ id: string; title: string; description?: string }>;
+}) {
+  return whatsappGraphMessagesRequest({
+    workspace,
+    fallbackError: "Failed to send WhatsApp list",
+    payload: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        body: { text: body.slice(0, 1024) },
+        action: {
+          button: buttonText.slice(0, 20),
+          sections: [
+            {
+              title: "Options",
+              rows: rows.slice(0, 10).map((row) => ({
+                id: row.id.slice(0, 200),
+                title: row.title.slice(0, 24),
+                description: String(row.description || "").slice(0, 72),
+              })),
+            },
+          ],
         },
       },
     },
@@ -719,10 +897,33 @@ async function buildBusinessKnowledgeContext(
       ? `Industry: ${workspace.organization.industry}`
       : "",
     workspace.appointmentConfig?.services?.length
-      ? `Appointment services: ${workspace.appointmentConfig.services
+      ? `Services and pricing:\n${workspace.appointmentConfig.services
           .filter((service) => service.isActive)
-          .map((service) => service.name)
-          .join(", ")}`
+          .map((service) =>
+            [
+              `- ${service.name}`,
+              service.priceInr
+                ? `INR ${Number(service.priceInr).toLocaleString("en-IN")}`
+                : "",
+              service.description || "",
+            ]
+              .filter(Boolean)
+              .join(" | "),
+          )
+          .join("\n")}`
+      : "",
+    workspace.faqs?.some((faq) => faq.isActive)
+      ? `Frequently asked questions:\n${workspace.faqs
+          .filter((faq) => faq.isActive)
+          .slice(0, 20)
+          .map((faq) => `Q: ${faq.question}\nA: ${faq.answer}`)
+          .join("\n\n")}`
+      : "",
+    workspace.notificationSettings?.email
+      ? `Owner support email: ${workspace.notificationSettings.email}`
+      : "",
+    workspace.notificationSettings?.whatsappNumber
+      ? `Owner contact number: ${workspace.notificationSettings.whatsappNumber}`
       : "",
     businessInfo?.summary,
     formatBusinessKnowledge(cloudinaryKnowledge),
@@ -852,11 +1053,40 @@ const generateWorkspaceAiDecision = async ({
 
 const buildGreetingText = (workspace: IWhatsAppWorkspace) => {
   const businessName = workspace.organization?.name || "our business";
-  const template = workspace.greetingTemplate;
-  if (template?.status === "approved" && template.body) {
-    return template.body.replace(/\{\{\s*1\s*\}\}/g, businessName);
-  }
-  return `Hi, thanks for messaging ${businessName}. How can we help you today?`;
+  return String(
+    workspace.automationConfig?.greetingMessage ||
+      `Hi, thanks for messaging ${businessName}. How can we help you today?`,
+  ).replace(/\{\{\s*(business|1)\s*\}\}/gi, businessName);
+};
+
+const getAutomationMenuRows = (workspace: IWhatsAppWorkspace) =>
+  (workspace.automationConfig?.menuOptions || defaultAutomationMenuOptions)
+    .filter((option: any) => option.enabled !== false)
+    .slice(0, 10)
+    .map((option: any) => ({
+      id: String(option.id),
+      title: String(option.title || option.id),
+      description: String(option.description || ""),
+    }));
+
+const ownerContactReply = (workspace: IWhatsAppWorkspace) => {
+  const settings = workspace.notificationSettings;
+  const details = [
+    settings?.whatsappNumber
+      ? `WhatsApp/phone: ${settings.whatsappNumber}`
+      : "",
+    settings?.email ? `Email: ${settings.email}` : "",
+    workspace.organization?.website
+      ? `Website: ${workspace.organization.website}`
+      : "",
+  ].filter(Boolean);
+  return [
+    workspace.automationConfig?.ownerContactMessage ||
+      "You can contact the business owner using the details below.",
+    details.length
+      ? details.join("\n")
+      : "The owner has not added contact details yet. Please share your requirement here and the team will follow up.",
+  ].join("\n\n");
 };
 
 const isMetaMessagingPermissionError = (error: unknown) => {
@@ -1038,18 +1268,26 @@ const buildFlowNotReadyReply = (workspace: IWhatsAppWorkspace) =>
   }. Please message your requirement and the team will follow up.`;
 
 const getAppointmentChatQuestions = (workspace: IWhatsAppWorkspace) => {
-  const configured = workspace.appointmentFlow?.chatQuestions || [];
+  const configured = workspace.automationConfig?.appointmentQuestions || [];
   const questions = configured
-    .filter((item: any) => item?.field && item?.question)
+    .filter((item: any) => item?.id && item?.field && item?.question)
     .slice(0, 10)
     .map((item: any) => ({
+      id: String(item.id),
       field: String(item.field),
       question: String(item.question).trim().slice(0, 240),
+      type: String(item.type || "text"),
       required: item.required !== false,
+      options: Array.isArray(item.options)
+        ? item.options.map(String).filter(Boolean).slice(0, 10)
+        : [],
     }));
   return questions.length
     ? questions
-    : defaultAppointmentChatQuestions.map((item) => ({ ...item }));
+    : defaultAppointmentChatQuestions.map((item) => ({
+        ...item,
+        options: [...item.options],
+      }));
 };
 
 const createAppointmentFromChatDraft = ({
@@ -1063,34 +1301,245 @@ const createAppointmentFromChatDraft = ({
   contactName: string;
   waId: string;
 }) => {
+  const answers = conversation.appointmentDraft?.answers || [];
   const answerMap = Object.fromEntries(
-    (conversation.appointmentDraft?.answers || []).map((item: any) => [
+    answers.map((item: any) => [
       item.field,
       normalizeFlowText(item.answer),
     ]),
   );
+  const customAnswers = answers
+    .filter((item: any) => String(item.field).startsWith("custom:"))
+    .map(
+      (item: any) =>
+        `${normalizeFlowText(item.question)}: ${normalizeFlowText(item.answer)}`,
+    )
+    .filter(Boolean);
   const responseText = JSON.stringify(answerMap);
   return {
     patientName: answerMap.patientName || contactName || "Unknown patient",
-    patientPhone: answerMap.patientPhone || waId,
+    patientPhone: waId,
     patientWaId: waId,
+    patientEmail: answerMap.patientEmail || "",
     service:
       answerMap.service ||
       inferService(responseText, workspace.appointmentConfig?.services),
     symptoms: answerMap.symptoms || "Submitted through WhatsApp chat booking",
     preferredDate: answerMap.preferredDate || "",
     preferredTime: answerMap.preferredTime || "",
-    status: "requested" as const,
+    status: "active" as const,
     source: "whatsapp" as const,
     urgency: resolveUrgency(
       responseText,
       workspace.appointmentConfig?.emergencyKeywords,
     ),
-    notes: "Created from guided WhatsApp chat booking.",
+    notes: [
+      "Created from guided WhatsApp chat booking.",
+      ...customAnswers,
+    ].join(" "),
     conversationWaId: waId,
+    expiresAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
     createdAt: new Date(),
     updatedAt: new Date(),
   };
+};
+
+const zonedDateParts = (date: Date, timeZone: string) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value || 0);
+  return {
+    year: value("year"),
+    month: value("month"),
+    day: value("day"),
+    hour: value("hour"),
+    minute: value("minute"),
+  };
+};
+
+const dateKeyFromUtcDate = (date: Date) =>
+  `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}-${String(date.getUTCDate()).padStart(2, "0")}`;
+
+const getWorkingHoursForDate = (
+  workspace: IWhatsAppWorkspace,
+  dateKey: string,
+) => {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const dayName = new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    timeZone: "UTC",
+  })
+    .format(new Date(Date.UTC(year, month - 1, day)))
+    .toLowerCase();
+  return workspace.appointmentConfig?.workingHours?.find(
+    (hours) => hours.day.toLowerCase() === dayName,
+  );
+};
+
+const getAvailableTimeRows = (
+  workspace: IWhatsAppWorkspace,
+  dateKey: string,
+) => {
+  const workingHours = getWorkingHoursForDate(workspace, dateKey);
+  if (!workingHours?.isOpen) return [];
+  const parseMinutes = (value: string) => {
+    const [hour, minute] = String(value || "").split(":").map(Number);
+    return hour * 60 + minute;
+  };
+  const openMinutes = parseMinutes(workingHours.open || "10:00");
+  const closeMinutes = parseMinutes(workingHours.close || "18:00");
+  const interval = Math.max(
+    15,
+    Number(workspace.appointmentConfig?.slotDurationMinutes || 30),
+  );
+  const timezone =
+    workspace.appointmentConfig?.timezone ||
+    workspace.organization?.timeZone ||
+    "Asia/Kolkata";
+  const nowParts = zonedDateParts(new Date(), timezone);
+  const todayKey = `${nowParts.year}-${String(nowParts.month).padStart(2, "0")}-${String(nowParts.day).padStart(2, "0")}`;
+  const minimumMinutes =
+    dateKey === todayKey
+      ? nowParts.hour * 60 +
+        nowParts.minute +
+        Number(workspace.appointmentConfig?.bufferMinutes || 0)
+      : openMinutes;
+  const rows: Array<{ id: string; title: string; description: string }> = [];
+  for (let minutes = openMinutes; minutes < closeMinutes; minutes += interval) {
+    if (minutes < minimumMinutes) continue;
+    const hour = Math.floor(minutes / 60);
+    const minute = minutes % 60;
+    const value = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+    const title = new Intl.DateTimeFormat("en-IN", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC",
+    }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
+    rows.push({
+      id: `appointment_answer:preferredTime:${encodeURIComponent(value)}`,
+      title,
+      description: `${interval}-minute slot`,
+    });
+    if (rows.length >= 10) break;
+  }
+  return rows;
+};
+
+const getAvailableDateRows = (workspace: IWhatsAppWorkspace) => {
+  const timezone =
+    workspace.appointmentConfig?.timezone ||
+    workspace.organization?.timeZone ||
+    "Asia/Kolkata";
+  const nowParts = zonedDateParts(new Date(), timezone);
+  const start = new Date(
+    Date.UTC(nowParts.year, nowParts.month - 1, nowParts.day),
+  );
+  const bookingWindow = Math.min(
+    60,
+    Math.max(1, Number(workspace.appointmentConfig?.bookingWindowDays || 14)),
+  );
+  const rows: Array<{ id: string; title: string; description: string }> = [];
+  for (let offset = 0; offset < bookingWindow && rows.length < 10; offset += 1) {
+    const date = new Date(start.getTime() + offset * 24 * 60 * 60 * 1000);
+    const dateKey = dateKeyFromUtcDate(date);
+    if (!getAvailableTimeRows(workspace, dateKey).length) continue;
+    rows.push({
+      id: `appointment_answer:preferredDate:${encodeURIComponent(dateKey)}`,
+      title: new Intl.DateTimeFormat("en-IN", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        timeZone: "UTC",
+      }).format(date),
+      description: dateKey,
+    });
+  }
+  return rows;
+};
+
+const getAppointmentQuestionRows = ({
+  workspace,
+  conversation,
+  question,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  question: any;
+}) => {
+  if (question.type === "date") return getAvailableDateRows(workspace);
+  if (question.type === "time") {
+    const dateAnswer = conversation.appointmentDraft?.answers?.find(
+      (answer: any) => answer.field === "preferredDate",
+    )?.answer;
+    return dateAnswer ? getAvailableTimeRows(workspace, dateAnswer) : [];
+  }
+  if (question.type !== "select") return [];
+
+  const options =
+    question.field === "service" && !question.options?.length
+      ? (workspace.appointmentConfig?.services || [])
+          .filter((service) => service.isActive)
+          .map((service) => service.name)
+      : question.options || [];
+  return options.slice(0, 10).map((option: string) => ({
+    id: `appointment_answer:${question.field}:${encodeURIComponent(option)}`,
+    title: option,
+    description: "Select this option",
+  }));
+};
+
+const resolveAppointmentAnswer = (replyId: string, fallbackBody: string) => {
+  if (!replyId.startsWith("appointment_answer:")) return fallbackBody.trim();
+  const value = replyId.split(":").slice(2).join(":");
+  try {
+    return decodeURIComponent(value).trim();
+  } catch {
+    return value.trim();
+  }
+};
+
+const sendAppointmentQuestion = async ({
+  workspace,
+  conversation,
+  to,
+  question,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+  question: any;
+}) => {
+  const rows = getAppointmentQuestionRows({ workspace, conversation, question });
+  if (rows.length) {
+    return sendTrackedList({
+      workspace,
+      conversation,
+      to,
+      body: question.question,
+      buttonText:
+        question.type === "date"
+          ? "Choose date"
+          : question.type === "time"
+            ? "Choose time"
+            : "Choose option",
+      rows,
+    });
+  }
+  return sendTrackedText({
+    workspace,
+    conversation,
+    to,
+    body: question.question,
+  });
 };
 
 const trackOutboundMessage = ({
@@ -1168,6 +1617,38 @@ const sendTrackedButtons = async ({
   return result;
 };
 
+const sendTrackedList = async ({
+  workspace,
+  conversation,
+  to,
+  body,
+  buttonText,
+  rows,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+  body: string;
+  buttonText: string;
+  rows: Array<{ id: string; title: string; description?: string }>;
+}) => {
+  const result = await sendWhatsAppListMessage({
+    workspace,
+    to,
+    body,
+    buttonText,
+    rows,
+  });
+  trackOutboundMessage({
+    conversation,
+    providerMessageId: result?.messages?.[0]?.id,
+    type: "interactive",
+    body: `${body}\n\n${rows.map((row) => `[${row.title}]`).join(" ")}`,
+  });
+  workspace.subscription.messagesUsed += 1;
+  return result;
+};
+
 const sendTrackedFlow = async ({
   workspace,
   conversation,
@@ -1188,6 +1669,142 @@ const sendTrackedFlow = async ({
   });
   workspace.subscription.messagesUsed += 1;
   return result;
+};
+
+const sendMainAutomationMenu = async ({
+  workspace,
+  conversation,
+  to,
+  includeGreeting = false,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+  includeGreeting?: boolean;
+}) => {
+  const rows = getAutomationMenuRows(workspace);
+  const body = [
+    includeGreeting ? buildGreetingText(workspace) : "",
+    workspace.automationConfig?.menuMessage ||
+      "Choose an option below, or type your question.",
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+  if (!rows.length) {
+    return sendTrackedText({ workspace, conversation, to, body });
+  }
+  return sendTrackedList({
+    workspace,
+    conversation,
+    to,
+    body,
+    buttonText: "View options",
+    rows,
+  });
+};
+
+const sendPricingMenu = async ({
+  workspace,
+  conversation,
+  to,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+}) => {
+  const services = (workspace.appointmentConfig?.services || []).filter(
+    (service) => service.isActive,
+  );
+  if (!services.length) {
+    return sendTrackedButtons({
+      workspace,
+      conversation,
+      to,
+      body: "Service pricing has not been added yet. You can book an appointment or contact the owner for a quote.",
+      buttons: [
+        { id: "book_appointment", title: "Book appointment" },
+        { id: "talk_to_owner", title: "Talk to owner" },
+      ],
+    });
+  }
+  return sendTrackedList({
+    workspace,
+    conversation,
+    to,
+    body:
+      workspace.automationConfig?.pricingMessage ||
+      "Choose a service to view pricing.",
+    buttonText: "View services",
+    rows: services.slice(0, 10).map((service, index) => ({
+      id: `pricing_service:${index}`,
+      title: service.name,
+      description: service.priceInr
+        ? `INR ${Number(service.priceInr).toLocaleString("en-IN")}`
+        : "Contact for pricing",
+    })),
+  });
+};
+
+const sendFaqMenu = async ({
+  workspace,
+  conversation,
+  to,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+}) => {
+  const faqs = (workspace.faqs || [])
+    .filter((faq) => faq.isActive)
+    .sort((a, b) => a.order - b.order)
+    .slice(0, 10);
+  if (!faqs.length) {
+    return sendTrackedText({
+      workspace,
+      conversation,
+      to,
+      body: "No FAQs are available yet. Type your question and we will answer using the business information.",
+    });
+  }
+  return sendTrackedList({
+    workspace,
+    conversation,
+    to,
+    body: "Choose a frequently asked question.",
+    buttonText: "View FAQs",
+    rows: faqs.map((faq) => ({
+      id: `faq:${faq.id}`,
+      title: faq.question,
+      description: faq.answer.slice(0, 72),
+    })),
+  });
+};
+
+const startChatAppointment = async ({
+  workspace,
+  conversation,
+  to,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+}) => {
+  const questions = getAppointmentChatQuestions(workspace);
+  conversation.appointmentDraft = {
+    status: "collecting",
+    currentQuestionIndex: 0,
+    answers: [],
+    startedAt: new Date(),
+    updatedAt: new Date(),
+  } as any;
+  conversation.automationMode = undefined;
+  conversation.status = "open";
+  await sendAppointmentQuestion({
+    workspace,
+    conversation,
+    to,
+    question: questions[0],
+  });
 };
 
 export async function processWhatsAppWebhook(payload: any) {
@@ -1254,6 +1871,8 @@ export async function processWhatsAppWebhook(payload: any) {
       continue;
     }
 
+    pruneExpiredWhatsAppAppointments(workspace);
+
     console.info("[whatsapp:process] Workspace matched", {
       phoneNumberId,
       workspaceId: String(workspace._id),
@@ -1268,11 +1887,15 @@ export async function processWhatsAppWebhook(payload: any) {
       const profile = value.contacts?.find((contact: any) => contact.wa_id === waId);
       const flowResponse = parseWhatsAppFlowResponse(message);
       const buttonReplyId =
-        message.interactive?.button_reply?.id || message.button?.payload || "";
+        message.interactive?.button_reply?.id ||
+        message.interactive?.list_reply?.id ||
+        message.button?.payload ||
+        "";
       const body =
         message.text?.body ||
         message.button?.text ||
         message.interactive?.button_reply?.title ||
+        message.interactive?.list_reply?.title ||
         message.interactive?.nfm_reply?.body ||
         (flowResponse ? "WhatsApp Flow submission" : "") ||
         message.type ||
@@ -1315,6 +1938,19 @@ export async function processWhatsAppWebhook(payload: any) {
           intent: "general",
           sentiment: "neutral",
           messages: [],
+          lastCustomerMessageAt: now,
+          followUp: {
+            stage: 0,
+            nextAt: new Date(
+              now.getTime() +
+                Number(
+                  workspace.automationConfig?.followUps?.firstDelayMinutes || 30,
+                ) *
+                  60 *
+                  1000,
+            ),
+            completed: false,
+          },
           createdAt: now,
           updatedAt: now,
         });
@@ -1323,6 +1959,21 @@ export async function processWhatsAppWebhook(payload: any) {
 
       conversation.lastMessage = body;
       conversation.updatedAt = now;
+      conversation.lastCustomerMessageAt = now;
+      if (workspace.automationConfig?.followUps?.enabled !== false) {
+        conversation.followUp = {
+          stage: 0,
+          nextAt: new Date(
+            now.getTime() +
+              Number(
+                workspace.automationConfig?.followUps?.firstDelayMinutes || 30,
+              ) *
+                60 *
+                1000,
+          ),
+          completed: false,
+        } as any;
+      }
       conversation.messages.push({
         providerMessageId: message.id,
         direction: "inbound",
@@ -1374,35 +2025,6 @@ export async function processWhatsAppWebhook(payload: any) {
       }
 
       try {
-        if (flowResponse && workspace.appointmentConfig?.enabled) {
-          const appointmentPayload = createAppointmentFromFlowResponse({
-            workspace,
-            flowResponse,
-            contactName,
-            waId,
-          });
-          if (!hasRecentDuplicateAppointment(workspace, appointmentPayload)) {
-            workspace.appointments.push(appointmentPayload);
-            createdAppointmentAlerts.push(appointmentPayload);
-          }
-          const confirmation = await generateWorkspaceAiDecision({
-            workspace,
-            conversation,
-            body: `Confirm that ${appointmentPayload.patientName}'s appointment request for ${appointmentPayload.service} was received and the team will confirm availability.`,
-          });
-          await sendTrackedText({
-            workspace,
-            conversation,
-            to: waId,
-            body:
-              confirmation.reply ||
-              workspace.appointmentFlow?.successMessage ||
-              "Your appointment request was received. The team will confirm availability soon.",
-          });
-          conversation.status = "open";
-          continue;
-        }
-
         if (conversation.appointmentDraft?.status === "collecting") {
           const questions = getAppointmentChatQuestions(workspace);
           const currentIndex = Math.max(
@@ -1411,13 +2033,53 @@ export async function processWhatsAppWebhook(payload: any) {
           );
           const currentQuestion = questions[currentIndex];
           if (currentQuestion) {
+            const answer = resolveAppointmentAnswer(buttonReplyId, body);
+            const optionRows = getAppointmentQuestionRows({
+              workspace,
+              conversation,
+              question: currentQuestion,
+            });
+            const allowedAnswers = optionRows.map((row: { id: string; title: string }) =>
+              resolveAppointmentAnswer(row.id, row.title),
+            );
+            if (allowedAnswers.length && !allowedAnswers.includes(answer)) {
+              await sendAppointmentQuestion({
+                workspace,
+                conversation,
+                to: waId,
+                question: {
+                  ...currentQuestion,
+                  question: `Please choose one of the available options.\n\n${currentQuestion.question}`,
+                },
+              });
+              continue;
+            }
+            if (
+              currentQuestion.type === "email" &&
+              answer &&
+              !(currentQuestion.required === false && /^skip$/i.test(answer)) &&
+              !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(answer)
+            ) {
+              await sendTrackedText({
+                workspace,
+                conversation,
+                to: waId,
+                body: "Please enter a valid email address, or type skip if this field is optional.",
+              });
+              continue;
+            }
+            const answerField =
+              currentQuestion.field === "custom"
+                ? `custom:${currentQuestion.id}`
+                : currentQuestion.field;
             conversation.appointmentDraft.answers = (
               conversation.appointmentDraft.answers || []
-            ).filter((answer: any) => answer.field !== currentQuestion.field);
+            ).filter((answer: any) => answer.field !== answerField);
             conversation.appointmentDraft.answers.push({
-              field: currentQuestion.field,
+              field: answerField,
               question: currentQuestion.question,
-              answer: body.trim(),
+              answer:
+                !currentQuestion.required && /^skip$/i.test(answer) ? "" : answer,
             });
           }
           const nextIndex = currentIndex + 1;
@@ -1425,11 +2087,11 @@ export async function processWhatsAppWebhook(payload: any) {
           conversation.appointmentDraft.updatedAt = new Date();
 
           if (nextIndex < questions.length) {
-            await sendTrackedText({
+            await sendAppointmentQuestion({
               workspace,
               conversation,
               to: waId,
-              body: questions[nextIndex].question,
+              question: questions[nextIndex],
             });
           } else {
             const appointmentPayload = createAppointmentFromChatDraft({
@@ -1443,6 +2105,10 @@ export async function processWhatsAppWebhook(payload: any) {
               createdAppointmentAlerts.push(appointmentPayload);
             }
             conversation.appointmentDraft = undefined as any;
+            conversation.followUp = {
+              stage: 2,
+              completed: true,
+            } as any;
             const confirmation = await generateWorkspaceAiDecision({
               workspace,
               conversation,
@@ -1454,7 +2120,6 @@ export async function processWhatsAppWebhook(payload: any) {
               to: waId,
               body:
                 confirmation.reply ||
-                workspace.appointmentFlow?.successMessage ||
                 "Your appointment request was received. The team will confirm availability soon.",
             });
           }
@@ -1462,59 +2127,125 @@ export async function processWhatsAppWebhook(payload: any) {
           continue;
         }
 
-        if (buttonReplyId === "appointment_chat") {
-          const questions = getAppointmentChatQuestions(workspace);
-          conversation.appointmentDraft = {
-            status: "collecting",
-            currentQuestionIndex: 0,
-            answers: [],
-            startedAt: new Date(),
-            updatedAt: new Date(),
-          } as any;
+        if (
+          buttonReplyId === "appointment_chat" ||
+          buttonReplyId === "book_appointment"
+        ) {
+          await startChatAppointment({ workspace, conversation, to: waId });
+          continue;
+        }
+
+        if (isFirstMessage && workspace.automationConfig?.enabled !== false) {
+          conversation.status = "open";
+          await sendMainAutomationMenu({
+            workspace,
+            conversation,
+            to: waId,
+            includeGreeting: true,
+          });
+          continue;
+        }
+
+        if (buttonReplyId === "talk_to_owner") {
+          await sendTrackedText({
+            workspace,
+            conversation,
+            to: waId,
+            body: ownerContactReply(workspace),
+          });
+          conversation.status = "pending_human";
+          conversation.owner = "human";
+          continue;
+        }
+
+        if (buttonReplyId === "need_support") {
+          conversation.automationMode = "support";
           conversation.status = "open";
           await sendTrackedText({
             workspace,
             conversation,
             to: waId,
-            body: questions[0].question,
+            body:
+              workspace.automationConfig?.supportPrompt ||
+              "We are listening. Please explain the issue in detail.",
           });
           continue;
         }
 
-        if (buttonReplyId === "appointment_flow") {
-          if (hasPublishedAppointmentFlow(workspace)) {
-            await sendTrackedFlow({
+        if (buttonReplyId === "service_pricing") {
+          await sendPricingMenu({ workspace, conversation, to: waId });
+          continue;
+        }
+
+        if (buttonReplyId.startsWith("pricing_service:")) {
+          const index = Number(buttonReplyId.split(":")[1]);
+          const services = (workspace.appointmentConfig?.services || []).filter(
+            (service) => service.isActive,
+          );
+          const service = services[index];
+          if (service) {
+            const price = Number(service.priceInr || 0);
+            await sendTrackedButtons({
               workspace,
               conversation,
               to: waId,
-              body: `Please complete the appointment form for ${workspace.organization?.name || "this business"}.`,
+              body: [
+                `*${service.name}*`,
+                service.description || "",
+                price > 0
+                  ? `Price: INR ${price.toLocaleString("en-IN")}`
+                  : "Contact us for pricing.",
+                workspace.automationConfig?.negotiationMessage || "",
+              ]
+                .filter(Boolean)
+                .join("\n\n"),
+              buttons: [
+                { id: "book_appointment", title: "Book appointment" },
+                { id: "talk_to_owner", title: "Talk to owner" },
+              ],
             });
           } else {
-            const questions = getAppointmentChatQuestions(workspace);
-            conversation.appointmentDraft = {
-              status: "collecting",
-              currentQuestionIndex: 0,
-              answers: [],
-              startedAt: new Date(),
-              updatedAt: new Date(),
-            } as any;
-            await sendTrackedText({
+            await sendPricingMenu({ workspace, conversation, to: waId });
+          }
+          continue;
+        }
+
+        if (buttonReplyId === "browse_faqs") {
+          await sendFaqMenu({ workspace, conversation, to: waId });
+          continue;
+        }
+
+        if (buttonReplyId.startsWith("faq:")) {
+          const faqId = buttonReplyId.slice(4);
+          const faq = (workspace.faqs || []).find(
+            (item) => item.id === faqId && item.isActive,
+          );
+          if (faq) {
+            await sendTrackedButtons({
               workspace,
               conversation,
               to: waId,
-              body: `${buildFlowNotReadyReply(workspace)}\n\n${questions[0].question}`,
+              body: `*${faq.question}*\n\n${faq.answer}`,
+              buttons: [
+                { id: "browse_faqs", title: "More FAQs" },
+                { id: "book_appointment", title: "Book appointment" },
+              ],
             });
+          } else {
+            await sendFaqMenu({ workspace, conversation, to: waId });
           }
+          continue;
+        }
+
+        if (buttonReplyId === "show_menu") {
+          await sendMainAutomationMenu({ workspace, conversation, to: waId });
           continue;
         }
 
         const decision = await generateWorkspaceAiDecision({
           workspace,
           conversation,
-          body:
-            buttonReplyId === "talk_to_owner"
-              ? "I want to speak with a person. Share only verified contact details."
-              : body,
+          body,
           firstMessage: isFirstMessage,
         });
         conversation.sentiment = decision.sentiment;
@@ -1526,54 +2257,26 @@ export async function processWhatsAppWebhook(payload: any) {
               ? "support"
               : "general";
 
-        if (isFirstMessage && decision.intent === "greeting") {
-          conversation.status = "open";
-          await sendTrackedText({
-            workspace,
-            conversation,
-            to: waId,
-            body: buildGreetingText(workspace),
-          });
-          continue;
-        }
-
         if (
           workspace.appointmentConfig?.enabled &&
-          (buttonReplyId === "book_appointment" ||
-            decision.intent === "appointment")
+          decision.intent === "appointment"
         ) {
-          const buttons = hasPublishedAppointmentFlow(workspace)
-            ? [
-                { id: "appointment_flow", title: "Book with Flow" },
-                { id: "appointment_chat", title: "Book in chat" },
-                { id: "talk_to_owner", title: "Talk to owner" },
-              ]
-            : [
-                { id: "appointment_chat", title: "Book in chat" },
-                { id: "talk_to_owner", title: "Talk to owner" },
-              ];
-          conversation.status = "open";
-          await sendTrackedButtons({
-            workspace,
-            conversation,
-            to: waId,
-            body: decision.reply,
-            buttons,
-          });
+          await startChatAppointment({ workspace, conversation, to: waId });
           continue;
         }
 
-        const humanHandoff =
-          buttonReplyId === "talk_to_owner" ||
-          decision.intent === "human_handoff";
+        const humanHandoff = decision.intent === "human_handoff";
         await sendTrackedText({
           workspace,
           conversation,
           to: waId,
-          body: decision.reply,
+          body: humanHandoff
+            ? `${decision.reply}\n\n${ownerContactReply(workspace)}`
+            : decision.reply,
         });
         conversation.status = humanHandoff ? "pending_human" : "open";
         conversation.owner = humanHandoff ? "human" : "ai";
+        if (!humanHandoff) conversation.automationMode = undefined;
       } catch (error) {
         console.error("WhatsApp AI automation send failed:", error);
         recordWhatsAppSendFailure({
@@ -1636,4 +2339,134 @@ export async function processWhatsAppWebhook(payload: any) {
   }
 
   return { processedMessageIds: results };
+}
+
+export async function processWhatsAppFollowUps(): Promise<{
+  processed: number;
+  sent: number;
+  expiredAppointments: number;
+  errors: string[];
+}> {
+  await connectToDatabase();
+  const now = new Date();
+  const expiryCutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const cleanup = await WhatsAppWorkspace.updateMany(
+    {},
+    {
+      $pull: {
+        appointments: {
+          $or: [
+            { expiresAt: { $lte: now } },
+            { expiresAt: { $exists: false }, createdAt: { $lte: expiryCutoff } },
+          ],
+        },
+      },
+    },
+  );
+  const result = {
+    processed: 0,
+    sent: 0,
+    expiredAppointments: cleanup.modifiedCount || 0,
+    errors: [] as string[],
+  };
+  const workspaces = await WhatsAppWorkspace.find({
+    "automationConfig.followUps.enabled": true,
+    conversations: {
+      $elemMatch: {
+        "followUp.completed": false,
+        "followUp.nextAt": { $lte: now },
+      },
+    },
+  });
+
+  for (const workspace of workspaces) {
+    let changed = false;
+    for (const conversation of workspace.conversations || []) {
+      const followUp = conversation.followUp;
+      if (
+        !followUp ||
+        followUp.completed ||
+        !followUp.nextAt ||
+        new Date(followUp.nextAt).getTime() > now.getTime()
+      ) {
+        continue;
+      }
+      result.processed += 1;
+      const lastCustomerMessageAt = conversation.lastCustomerMessageAt
+        ? new Date(conversation.lastCustomerMessageAt)
+        : new Date(conversation.updatedAt);
+      if (
+        now.getTime() - lastCustomerMessageAt.getTime() >=
+        23 * 60 * 60 * 1000
+      ) {
+        followUp.completed = true;
+        changed = true;
+        continue;
+      }
+      if (
+        !workspace.isConfigured ||
+        workspace.subscription.messagesUsed >= workspace.subscription.messageLimit
+      ) {
+        followUp.nextAt = new Date(now.getTime() + 15 * 60 * 1000);
+        changed = true;
+        continue;
+      }
+
+      const stage = Math.max(0, Number(followUp.stage || 0));
+      const configuredMessage =
+        stage === 0
+          ? workspace.automationConfig?.followUps?.firstMessage
+          : workspace.automationConfig?.followUps?.secondMessage;
+      try {
+        const decision = await generateWorkspaceAiDecision({
+          workspace,
+          conversation,
+          body: `Write one short, natural follow-up based on the customer's latest conversation. Do not claim an appointment is booked. Invite them to continue or book. Use this owner-approved message as guidance: ${configuredMessage}`,
+        });
+        await sendTrackedButtons({
+          workspace,
+          conversation,
+          to: conversation.waId,
+          body:
+            decision.reply ||
+            configuredMessage ||
+            "Would you like more information or help booking an appointment?",
+          buttons: [
+            { id: "book_appointment", title: "Book appointment" },
+            { id: "show_menu", title: "View options" },
+          ],
+        });
+        followUp.stage = stage + 1;
+        followUp.lastSentAt = now;
+        if (stage >= 1) {
+          followUp.completed = true;
+          followUp.nextAt = undefined;
+        } else {
+          followUp.nextAt = new Date(
+            now.getTime() +
+              Math.max(
+                1,
+                Number(
+                  workspace.automationConfig?.followUps?.secondDelayMinutes ||
+                    180,
+                ),
+              ) *
+                60 *
+                1000,
+          );
+        }
+        result.sent += 1;
+        changed = true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        result.errors.push(`${workspace._id}:${conversation.waId}: ${message}`);
+        followUp.nextAt = new Date(now.getTime() + 15 * 60 * 1000);
+        changed = true;
+      }
+    }
+    if (changed) await workspace.save();
+  }
+
+  console.info("[whatsapp:follow-up] Completed", result);
+  return result;
 }

@@ -27,29 +27,6 @@ export const updateWhatsAppWorkspace = (
     body: JSON.stringify(payload),
   });
 
-export const submitWhatsAppGreetingTemplate = (
-  apiRequest: ApiRequestFn,
-  payload: Record<string, any>,
-) =>
-  apiRequest("/whatsapp/greeting-template/submit", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
-export const syncWhatsAppAppointmentFlow = (
-  apiRequest: ApiRequestFn,
-  payload: Record<string, any> = {},
-) =>
-  apiRequest("/whatsapp/appointment-flow/sync", {
-    method: "POST",
-    body: JSON.stringify(payload),
-  });
-
-export const publishWhatsAppAppointmentFlow = (apiRequest: ApiRequestFn) =>
-  apiRequest("/whatsapp/appointment-flow/publish", {
-    method: "POST",
-  });
-
 export const deleteWhatsAppWorkspace = (apiRequest: ApiRequestFn) =>
   apiRequest("/whatsapp/workspace", {
     method: "DELETE",
@@ -77,4 +54,14 @@ export const createWhatsAppCollectionItem = (
   apiRequest(`/whatsapp/${collection}`, {
     method: "POST",
     body: JSON.stringify(payload),
+  });
+
+export const updateWhatsAppAppointmentStatus = (
+  apiRequest: ApiRequestFn,
+  appointmentId: string,
+  status: string,
+) =>
+  apiRequest(`/whatsapp/appointments/${appointmentId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
   });

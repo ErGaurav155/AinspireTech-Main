@@ -78,6 +78,7 @@ export interface IWhatsAppWorkspace extends Document {
     }>;
     services: Array<{
       name: string;
+      description?: string;
       durationMinutes: number;
       priceInr: number;
       doctor?: string;
@@ -88,6 +89,58 @@ export interface IWhatsAppWorkspace extends Document {
     confirmationTemplateName?: string;
     reminderTemplateName?: string;
   };
+  automationConfig: {
+    enabled: boolean;
+    greetingMessage: string;
+    menuMessage: string;
+    supportPrompt: string;
+    pricingMessage: string;
+    negotiationMessage: string;
+    ownerContactMessage: string;
+    menuOptions: Array<{
+      id:
+        | "book_appointment"
+        | "talk_to_owner"
+        | "need_support"
+        | "service_pricing"
+        | "browse_faqs";
+      title: string;
+      description: string;
+      enabled: boolean;
+    }>;
+    appointmentQuestions: Array<{
+      id: string;
+      field:
+        | "patientName"
+        | "patientEmail"
+        | "service"
+        | "preferredDate"
+        | "preferredTime"
+        | "symptoms"
+        | "custom";
+      question: string;
+      type: "text" | "email" | "select" | "date" | "time" | "textarea";
+      required: boolean;
+      options: string[];
+    }>;
+    followUps: {
+      enabled: boolean;
+      firstDelayMinutes: number;
+      secondDelayMinutes: number;
+      firstMessage: string;
+      secondMessage: string;
+    };
+    updatedAt?: Date;
+  };
+  faqs: Array<{
+    id: string;
+    question: string;
+    answer: string;
+    isActive: boolean;
+    order: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }>;
   appointmentFlow: {
     enabled: boolean;
     name: string;
@@ -233,6 +286,14 @@ export interface IWhatsAppWorkspace extends Document {
       startedAt: Date;
       updatedAt: Date;
     };
+    automationMode?: "support";
+    lastCustomerMessageAt?: Date;
+    followUp?: {
+      stage: number;
+      nextAt?: Date;
+      lastSentAt?: Date;
+      completed: boolean;
+    };
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -260,11 +321,19 @@ export interface IWhatsAppWorkspace extends Document {
     preferredDate?: string;
     preferredTime?: string;
     scheduledAt?: Date;
-    status: "requested" | "confirmed" | "cancelled" | "completed" | "no_show";
+    status:
+      | "requested"
+      | "active"
+      | "confirmed"
+      | "resolved"
+      | "cancelled"
+      | "completed"
+      | "no_show";
     source: "whatsapp" | "manual";
     urgency: "routine" | "urgent" | "emergency";
     notes?: string;
     conversationWaId?: string;
+    expiresAt: Date;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -379,6 +448,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       services: [
         {
           name: String,
+          description: String,
           durationMinutes: { type: Number, default: 30 },
           priceInr: { type: Number, default: 0 },
           doctor: String,
@@ -390,6 +460,121 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       confirmationTemplateName: String,
       reminderTemplateName: String,
     },
+    automationConfig: {
+      enabled: { type: Boolean, default: true },
+      greetingMessage: {
+        type: String,
+        default: "Hi, thanks for messaging us. How can we help you today?",
+      },
+      menuMessage: {
+        type: String,
+        default: "Choose an option below, or type your question for an AI-assisted reply.",
+      },
+      supportPrompt: {
+        type: String,
+        default: "We are listening. Please explain the issue in detail and we will help you.",
+      },
+      pricingMessage: {
+        type: String,
+        default: "Choose a service to view pricing and booking options.",
+      },
+      negotiationMessage: {
+        type: String,
+        default: "Need a custom quote? We are open to discussing your requirements.",
+      },
+      ownerContactMessage: {
+        type: String,
+        default: "You can contact the business owner using the details below.",
+      },
+      menuOptions: {
+        type: [
+          {
+            id: {
+              type: String,
+              enum: [
+                "book_appointment",
+                "talk_to_owner",
+                "need_support",
+                "service_pricing",
+                "browse_faqs",
+              ],
+              required: true,
+            },
+            title: { type: String, required: true },
+            description: { type: String, default: "" },
+            enabled: { type: Boolean, default: true },
+          },
+        ],
+        default: [
+          { id: "book_appointment", title: "Book appointment", description: "Choose a service, date and time", enabled: true },
+          { id: "talk_to_owner", title: "Talk to owner", description: "Get the owner's contact details", enabled: true },
+          { id: "need_support", title: "Need support", description: "Describe an issue for assistance", enabled: true },
+          { id: "service_pricing", title: "Service pricing", description: "View services and prices", enabled: true },
+          { id: "browse_faqs", title: "FAQs", description: "Browse common questions", enabled: true },
+        ],
+      },
+      appointmentQuestions: {
+        type: [
+          {
+            id: { type: String, required: true },
+            field: {
+              type: String,
+              enum: [
+                "patientName",
+                "patientEmail",
+                "service",
+                "preferredDate",
+                "preferredTime",
+                "symptoms",
+                "custom",
+              ],
+              required: true,
+            },
+            question: { type: String, required: true },
+            type: {
+              type: String,
+              enum: ["text", "email", "select", "date", "time", "textarea"],
+              default: "text",
+            },
+            required: { type: Boolean, default: true },
+            options: { type: [String], default: [] },
+          },
+        ],
+        default: [
+          { id: "name", field: "patientName", question: "What is your full name?", type: "text", required: true, options: [] },
+          { id: "email", field: "patientEmail", question: "What is your email address?", type: "email", required: false, options: [] },
+          { id: "service", field: "service", question: "Which service do you need?", type: "select", required: true, options: [] },
+          { id: "date", field: "preferredDate", question: "Choose your preferred date.", type: "date", required: true, options: [] },
+          { id: "time", field: "preferredTime", question: "Choose your preferred time.", type: "time", required: true, options: [] },
+          { id: "requirement", field: "symptoms", question: "Please describe your requirement.", type: "textarea", required: true, options: [] },
+        ],
+      },
+      followUps: {
+        enabled: { type: Boolean, default: true },
+        firstDelayMinutes: { type: Number, default: 30 },
+        secondDelayMinutes: { type: Number, default: 180 },
+        firstMessage: {
+          type: String,
+          default: "Do you need any more information or help booking an appointment?",
+        },
+        secondMessage: {
+          type: String,
+          default: "We are still available if you would like to discuss your requirement or book an appointment.",
+        },
+      },
+      updatedAt: Date,
+    },
+    faqs: [
+      {
+        id: { type: String, required: true },
+        question: { type: String, required: true },
+        answer: { type: String, required: true },
+        isActive: { type: Boolean, default: true },
+        order: { type: Number, default: 0 },
+        createdAt: { type: Date, default: Date.now },
+        updatedAt: { type: Date, default: Date.now },
+      },
+    ],
     appointmentFlow: {
       enabled: { type: Boolean, default: true },
       name: { type: String, default: "RocketReplai Appointment Booking" },
@@ -661,6 +846,17 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
           startedAt: Date,
           updatedAt: Date,
         },
+        automationMode: {
+          type: String,
+          enum: ["support"],
+        },
+        lastCustomerMessageAt: Date,
+        followUp: {
+          stage: { type: Number, default: 0 },
+          nextAt: Date,
+          lastSentAt: Date,
+          completed: { type: Boolean, default: false },
+        },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },
       },
@@ -698,8 +894,16 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         scheduledAt: Date,
         status: {
           type: String,
-          enum: ["requested", "confirmed", "cancelled", "completed", "no_show"],
-          default: "requested",
+          enum: [
+            "requested",
+            "active",
+            "confirmed",
+            "resolved",
+            "cancelled",
+            "completed",
+            "no_show",
+          ],
+          default: "active",
         },
         source: {
           type: String,
@@ -713,6 +917,10 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         },
         notes: String,
         conversationWaId: String,
+        expiresAt: {
+          type: Date,
+          default: () => new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },
       },

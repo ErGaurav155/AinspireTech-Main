@@ -5,6 +5,7 @@ import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   getOrCreateWhatsAppWorkspace,
   getPlanById,
+  pruneExpiredWhatsAppAppointments,
   resolveWorkspaceConfigured,
   sanitizeWorkspace,
   sendWhatsAppTextMessage,
@@ -111,6 +112,34 @@ const defaultAppointmentChatQuestions = [
   { field: "preferredTime", question: "Which time do you prefer?", required: true },
   { field: "symptoms", question: "Please describe your requirement.", required: true },
 ];
+
+const automationMenuIds = new Set([
+  "book_appointment",
+  "talk_to_owner",
+  "need_support",
+  "service_pricing",
+  "browse_faqs",
+]);
+const automationQuestionFields = new Set([
+  "patientName",
+  "patientEmail",
+  "service",
+  "preferredDate",
+  "preferredTime",
+  "symptoms",
+  "custom",
+]);
+const automationQuestionTypes = new Set([
+  "text",
+  "email",
+  "select",
+  "date",
+  "time",
+  "textarea",
+]);
+
+const clampNumber = (value: unknown, minimum: number, maximum: number) =>
+  Math.min(maximum, Math.max(minimum, Number(value) || minimum));
 
 const safeCloudinaryFileName = (value: string) =>
   value
@@ -1320,24 +1349,7 @@ export const getWhatsAppDashboardController = async (
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
     await syncWorkspaceMetaConnection(workspace);
-    await syncGreetingTemplateStatus(workspace);
-    await syncAppointmentFlowStatus(workspace);
-    workspace.appointmentFlow = {
-      ...workspace.appointmentFlow,
-      endpointUri:
-        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
-      publicKey:
-        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
-      endpointStatus:
-        workspace.appointmentFlow?.endpointStatus ||
-        (defaultWhatsAppFlowEndpointUri ? "configured" : "missing"),
-      phoneNumberStatus: workspace.meta?.phoneNumberId ? "added" : "missing",
-      metaAppStatus: workspace.meta?.wabaId ? "connected" : "missing",
-      publicKeyStatus:
-        workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey
-        ? workspace.appointmentFlow?.publicKeyStatus || "added"
-        : "missing",
-    } as any;
+    pruneExpiredWhatsAppAppointments(workspace);
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     await workspace.save();
@@ -1364,7 +1376,9 @@ export const getWhatsAppDashboardController = async (
         pendingHuman: conversations.filter((item) => item.status === "pending_human").length,
         totalAppointments: workspace.appointments?.length || 0,
         requestedAppointments:
-          workspace.appointments?.filter((item) => item.status === "requested")
+          workspace.appointments?.filter((item) =>
+            ["requested", "active"].includes(item.status),
+          )
             .length || 0,
         messagesUsed: workspace.subscription.messagesUsed,
         messageLimit: workspace.subscription.messageLimit,
@@ -1392,9 +1406,9 @@ export const getWhatsAppDashboardController = async (
         )
         .slice(0, 25),
       appointmentConfig: workspace.appointmentConfig,
-      appointmentFlow: workspace.appointmentFlow,
+      automationConfig: workspace.automationConfig,
+      faqs: workspace.faqs || [],
       businessInfo: workspace.businessInfo,
-      greetingTemplate: workspace.greetingTemplate,
     });
   } catch (error: any) {
     console.error("WhatsApp dashboard error:", error);
@@ -1422,10 +1436,21 @@ export const updateWhatsAppWorkspaceController = async (
       subscription,
       appointmentConfig,
       appointmentFlow,
+      automationConfig,
+      faqs,
       notificationSettings,
       businessInfo,
       greetingTemplate,
     } = req.body || {};
+
+    if (appointmentFlow || greetingTemplate) {
+      return res.status(410).json({
+        success: false,
+        error:
+          "Native WhatsApp Flow and greeting-template configuration have been removed. Use Automations instead.",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     if (subscription?.plan && subscription.plan !== "free") {
       const activePackage = await getActivePackageSubscription(userId);
@@ -1488,6 +1513,23 @@ export const updateWhatsAppWorkspaceController = async (
       workspace.appointmentConfig = {
         ...workspace.appointmentConfig,
         ...appointmentConfig,
+        services: Array.isArray(appointmentConfig.services)
+          ? appointmentConfig.services
+              .map((service: any) => ({
+                name: cleanString(service?.name).slice(0, 80),
+                description: cleanString(service?.description).slice(0, 500),
+                durationMinutes: clampNumber(
+                  service?.durationMinutes || 30,
+                  15,
+                  480,
+                ),
+                priceInr: Math.max(0, Number(service?.priceInr || 0)),
+                doctor: cleanString(service?.doctor).slice(0, 80),
+                isActive: service?.isActive !== false,
+              }))
+              .filter((service: any) => service.name)
+              .slice(0, 20)
+          : workspace.appointmentConfig.services,
       } as any;
       workspace.appointmentFlow = {
         ...workspace.appointmentFlow,
@@ -1499,6 +1541,126 @@ export const updateWhatsAppWorkspaceController = async (
         lastError: "",
         updatedAt: new Date(),
       } as any;
+    }
+
+    if (automationConfig) {
+      const currentAutomation = workspace.automationConfig || ({} as any);
+      const currentFollowUps = currentAutomation.followUps || {};
+      const menuOptions = Array.isArray(automationConfig.menuOptions)
+        ? automationConfig.menuOptions
+            .map((option: any) => ({
+              id: cleanString(option?.id),
+              title: cleanString(option?.title).slice(0, 24),
+              description: cleanString(option?.description).slice(0, 72),
+              enabled: option?.enabled !== false,
+            }))
+            .filter(
+              (option: any) =>
+                automationMenuIds.has(option.id) && option.title,
+            )
+            .slice(0, 10)
+        : currentAutomation.menuOptions;
+      const appointmentQuestions = Array.isArray(
+        automationConfig.appointmentQuestions,
+      )
+        ? automationConfig.appointmentQuestions
+            .map((question: any, index: number) => ({
+              id:
+                cleanString(question?.id)
+                  .replace(/[^a-zA-Z0-9_-]/g, "_")
+                  .slice(0, 60) || `question_${index + 1}`,
+              field: cleanString(question?.field),
+              question: cleanString(question?.question).slice(0, 240),
+              type: cleanString(question?.type) || "text",
+              required: question?.required !== false,
+              options: Array.isArray(question?.options)
+                ? question.options
+                    .map(cleanString)
+                    .filter(Boolean)
+                    .slice(0, 10)
+                : [],
+            }))
+            .filter(
+              (question: any) =>
+                automationQuestionFields.has(question.field) &&
+                automationQuestionTypes.has(question.type) &&
+                question.question,
+            )
+            .slice(0, 10)
+        : currentAutomation.appointmentQuestions;
+      const followUps = automationConfig.followUps || {};
+      workspace.automationConfig = {
+        ...currentAutomation,
+        enabled:
+          automationConfig.enabled !== undefined
+            ? Boolean(automationConfig.enabled)
+            : currentAutomation.enabled !== false,
+        greetingMessage:
+          cleanString(automationConfig.greetingMessage).slice(0, 1024) ||
+          currentAutomation.greetingMessage,
+        menuMessage:
+          cleanString(automationConfig.menuMessage).slice(0, 1024) ||
+          currentAutomation.menuMessage,
+        supportPrompt:
+          cleanString(automationConfig.supportPrompt).slice(0, 1024) ||
+          currentAutomation.supportPrompt,
+        pricingMessage:
+          cleanString(automationConfig.pricingMessage).slice(0, 1024) ||
+          currentAutomation.pricingMessage,
+        negotiationMessage:
+          cleanString(automationConfig.negotiationMessage).slice(0, 1024) ||
+          currentAutomation.negotiationMessage,
+        ownerContactMessage:
+          cleanString(automationConfig.ownerContactMessage).slice(0, 1024) ||
+          currentAutomation.ownerContactMessage,
+        menuOptions,
+        appointmentQuestions,
+        followUps: {
+          ...currentFollowUps,
+          enabled:
+            followUps.enabled !== undefined
+              ? Boolean(followUps.enabled)
+              : currentFollowUps.enabled !== false,
+          firstDelayMinutes: clampNumber(
+            followUps.firstDelayMinutes || currentFollowUps.firstDelayMinutes || 30,
+            5,
+            1440,
+          ),
+          secondDelayMinutes: clampNumber(
+            followUps.secondDelayMinutes ||
+              currentFollowUps.secondDelayMinutes ||
+              180,
+            5,
+            1440,
+          ),
+          firstMessage:
+            cleanString(followUps.firstMessage).slice(0, 1024) ||
+            currentFollowUps.firstMessage,
+          secondMessage:
+            cleanString(followUps.secondMessage).slice(0, 1024) ||
+            currentFollowUps.secondMessage,
+        },
+        updatedAt: new Date(),
+      } as any;
+    }
+
+    if (Array.isArray(faqs)) {
+      const now = new Date();
+      workspace.faqs = faqs
+        .map((faq: any, index: number) => ({
+          id:
+            cleanString(faq?.id)
+              .replace(/[^a-zA-Z0-9_-]/g, "_")
+              .slice(0, 80) || `faq_${Date.now()}_${index}`,
+          question: cleanString(faq?.question).slice(0, 240),
+          answer: cleanString(faq?.answer).slice(0, 2000),
+          isActive: faq?.isActive !== false,
+          order: index,
+          createdAt: faq?.createdAt ? new Date(faq.createdAt) : now,
+          updatedAt: now,
+        }))
+        .filter((faq: any) => faq.question && faq.answer)
+        .slice(0, 50) as any;
     }
 
     if (appointmentFlow) {
@@ -1726,7 +1888,7 @@ export const deleteWhatsAppWorkspaceController = async (
     return ok(res, {
       deleted: Boolean(deletedWorkspace),
       message:
-        "WhatsApp dashboard data, Meta connection data, business info, conversations, appointments, and greeting template were deleted.",
+        "WhatsApp dashboard data, Meta connection data, business info, conversations, appointments, FAQs, and automations were deleted.",
     });
   } catch (error: any) {
     console.error("WhatsApp workspace delete error:", error);
@@ -2047,6 +2209,12 @@ export const getWhatsAppCollectionController = async (
 
     await connectToDatabase();
     const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    if (collection === "appointments") {
+      const removed = pruneExpiredWhatsAppAppointments(workspace);
+      if (removed > 0) {
+        await workspace.save();
+      }
+    }
     return ok(res, { [collection]: workspace[collection] || [] });
   } catch (error: any) {
     return res.status(500).json({
@@ -2113,6 +2281,61 @@ export const createWhatsAppCollectionItemController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to create WhatsApp item",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+export const updateWhatsAppAppointmentStatusController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const userId = authUserId(req);
+    if (!userId) return unauthorized(res);
+    const status = cleanString(req.body?.status);
+    const allowedStatuses = new Set([
+      "active",
+      "confirmed",
+      "resolved",
+      "cancelled",
+      "no_show",
+    ]);
+    if (!allowedStatuses.has(status)) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid appointment status",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await connectToDatabase();
+    const workspace = await getOrCreateWhatsAppWorkspace(userId);
+    pruneExpiredWhatsAppAppointments(workspace);
+    const appointment = workspace.appointments.find(
+      (item: any) => String(item._id) === req.params.appointmentId,
+    );
+    if (!appointment) {
+      return res.status(404).json({
+        success: false,
+        error: "Appointment not found or already expired",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    appointment.status = status as any;
+    appointment.updatedAt = new Date();
+    if (["resolved", "cancelled", "no_show"].includes(status)) {
+      const conversation = workspace.conversations.find(
+        (item) => item.waId === appointment.patientWaId,
+      );
+      if (conversation?.followUp) conversation.followUp.completed = true;
+    }
+    await workspace.save();
+    return ok(res, { appointment });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: error.message || "Failed to update appointment status",
       timestamp: new Date().toISOString(),
     });
   }
