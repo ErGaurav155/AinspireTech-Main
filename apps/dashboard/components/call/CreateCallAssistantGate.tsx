@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth, useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
-import { Bot, Check, Phone, Sparkles } from "lucide-react";
+import { Check, Phone, Sparkles } from "lucide-react";
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import { createCallAssistant } from "@/lib/services/call-actions.api";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 const DEFAULT_PROMPT =
   "You are CatchCustomerCall's inbound voice assistant for prospective customers. Speak warmly, clearly, and briefly. Your job is to qualify new leads interested in AI call answering for businesses. Explain only these verified basics: the service helps businesses avoid missed inbound calls by using AI to answer, collect lead details, and support routing/notifications. Pricing: Free includes 10 minutes and 1 concurrent inbound call. Business is 5000 rupees per month, with the first month at 2500 rupees during the 50% launch offer, and includes 200 minutes with 3 concurrent inbound calls. Collect: caller name, phone number, business name, and the service or plan they want. Never invent features, pricing, or promises. If unsure, say Gaurav will follow up. End by confirming captured details and saying Gaurav will call back soon.";
@@ -31,9 +36,15 @@ export default function CreateCallAssistantGate({
 }: {
   onCreated: () => void;
 }) {
+  const { userId } = useAuth();
+  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const [saving, setSaving] = useState(false);
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
   const [form, setForm] = useState({
     ownerName: "Gaurav",
     businessName: "CatchCustomerCall",
@@ -61,6 +72,15 @@ export default function CreateCallAssistantGate({
     );
 
   const submit = async () => {
+    if (!isCallAdmin) {
+      toast({
+        title: "AI Call Assistant coming soon",
+        description:
+          "Setup is temporarily available only for admin while Exotel activation is completed.",
+      });
+      return;
+    }
+
     const missingFields = [
       ["ownerName", "Owner name"],
       ["businessName", "Business name"],
@@ -97,6 +117,33 @@ export default function CreateCallAssistantGate({
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
+        {!isCallAdmin ? (
+          <motion.section
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`${styles.card} overflow-hidden p-5 md:p-8 lg:p-10 text-center`}
+          >
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2 mb-5">
+              <Phone className="h-4 w-4 text-cyan-400" />
+              <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">
+                {CALL_ASSISTANT_COMING_SOON_TEXT}
+              </span>
+            </div>
+            <h1 className={`text-3xl md:text-5xl font-black ${styles.text.primary}`}>
+              AI Call Assistant is coming soon.
+            </h1>
+            <p className={`font-montserrat mt-4 text-sm leading-relaxed ${styles.text.secondary}`}>
+              We are finishing Exotel production activation before opening call
+              setup for all users.
+            </p>
+            <Button
+              disabled
+              className="mt-6 rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white opacity-80"
+            >
+              {CALL_ASSISTANT_COMING_SOON_TEXT}
+            </Button>
+          </motion.section>
+        ) : (
         <motion.section
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -230,6 +277,7 @@ export default function CreateCallAssistantGate({
             </div>
           </div>
         </motion.section>
+        )}
       </div>
     </div>
   );

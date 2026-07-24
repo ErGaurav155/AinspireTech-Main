@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Bot,
@@ -23,6 +24,10 @@ import {
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
@@ -45,8 +50,14 @@ export default function WhatsAppSidebar({
   onToggle,
 }: WhatsAppSidebarProps) {
   const pathname = usePathname();
+  const { userId } = useAuth();
+  const { user } = useUser();
   const { isDark } = useThemeStyles();
   const [isProductOpen, setIsProductOpen] = useState(false);
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   const styles = useMemo(
     () => ({
@@ -191,13 +202,27 @@ export default function WhatsAppSidebar({
                       <p className={productMetaClass}>Website Chatbot</p>
                     </div>
                   </Link>
-                  <Link href="/call" className={styles.productOption(false)}>
-                    <Phone className="h-4 w-4" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">Call Dashboard</p>
-                      <p className={productMetaClass}>AI Receptionist</p>
+                  {isCallAdmin ? (
+                    <Link href="/call" className={styles.productOption(false)}>
+                      <Phone className="h-4 w-4" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">Call Dashboard</p>
+                        <p className={productMetaClass}>AI Receptionist</p>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div
+                      className={`${styles.productOption(false)} cursor-not-allowed opacity-60`}
+                    >
+                      <Phone className="h-4 w-4" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">Call Dashboard</p>
+                        <p className={productMetaClass}>
+                          {CALL_ASSISTANT_COMING_SOON_TEXT}
+                        </p>
+                      </div>
                     </div>
-                  </Link>
+                  )}
                   <Link href="/whatsapp" className={styles.productOption(true)}>
                     <MessageCircle className="h-4 w-4 text-emerald-500" />
                     <div className="min-w-0">

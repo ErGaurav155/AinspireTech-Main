@@ -45,6 +45,31 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   },
 };
 
+const splitEnvList = (value = "") =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const isCallAssistantPublicEnabled = () =>
+  process.env.CALL_ASSISTANT_PUBLIC_ENABLED === "true";
+
+const isCallAssistantAdminUser = (clerkId?: string) => {
+  if (!clerkId) return false;
+  const adminIds = splitEnvList(
+    process.env.CALL_ASSISTANT_ADMIN_CLERK_IDS || process.env.OWNERID || "",
+  );
+  return adminIds.includes(clerkId);
+};
+
+const rejectCallAssistantUnavailable = (res: Response) =>
+  res.status(403).json({
+    success: false,
+    error:
+      "AI Call Assistant is temporarily available only for admin while Exotel activation is completed.",
+    timestamp: new Date().toISOString(),
+  });
+
 const getMonthlyFirstCycleOfferId = (
   subscriptionType: string,
   productId: string,
@@ -199,6 +224,14 @@ export const createRazorpaySubscriptionController = async (
           error: "Invalid dashboard package",
           timestamp: new Date().toISOString(),
         });
+      }
+
+      if (
+        packagePlan.includedServices.includes("call") &&
+        !isCallAssistantPublicEnabled() &&
+        !isCallAssistantAdminUser(buyerId)
+      ) {
+        return rejectCallAssistantUnavailable(res);
       }
 
       if (activePackage) {
@@ -391,6 +424,13 @@ export const createRazorpaySubscriptionController = async (
           error: "Call subscription buyer does not match authenticated user",
           timestamp: new Date().toISOString(),
         });
+      }
+
+      if (
+        !isCallAssistantPublicEnabled() &&
+        !isCallAssistantAdminUser(buyerId)
+      ) {
+        return rejectCallAssistantUnavailable(res);
       }
 
       if (billingCycle !== "monthly") {

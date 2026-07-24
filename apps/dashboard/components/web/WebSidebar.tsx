@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 
 import {
@@ -40,6 +40,10 @@ import {
   getSubscriptions,
   getTokenBalance,
 } from "@/lib/services/web-actions.api";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 // Chatbot items
 const CHATBOT_ITEMS = [
@@ -108,8 +112,13 @@ export default function WebSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { userId } = useAuth();
+  const { user } = useUser();
   const { apiRequest } = useApi();
   const { isDark } = useThemeStyles();
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   const [isLoading, setIsLoading] = useState(true);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
@@ -772,17 +781,31 @@ export default function WebSidebar({
                   </div>
                   <Check className="ml-auto h-4 w-4 text-purple-500" />
                 </Link>
-                <Link
-                  href="/call"
-                  className={styles.productOption(false)}
-                  onClick={() => setIsProductOpen(false)}
-                >
-                  <Phone className={styles.productIcon(false)} />
-                  <div className="min-w-0">
-                    <p className={styles.productLabel}>Call Dashboard</p>
-                    <p className={styles.productMeta}>AI Receptionist</p>
+                {isCallAdmin ? (
+                  <Link
+                    href="/call"
+                    className={styles.productOption(false)}
+                    onClick={() => setIsProductOpen(false)}
+                  >
+                    <Phone className={styles.productIcon(false)} />
+                    <div className="min-w-0">
+                      <p className={styles.productLabel}>Call Dashboard</p>
+                      <p className={styles.productMeta}>AI Receptionist</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div
+                    className={`${styles.productOption(false)} cursor-not-allowed opacity-60`}
+                  >
+                    <Phone className={styles.productIcon(false)} />
+                    <div className="min-w-0">
+                      <p className={styles.productLabel}>Call Dashboard</p>
+                      <p className={styles.productMeta}>
+                        {CALL_ASSISTANT_COMING_SOON_TEXT}
+                      </p>
+                    </div>
                   </div>
-                </Link>
+                )}
                 <Link
                   href="/whatsapp"
                   className={styles.productOption(false)}

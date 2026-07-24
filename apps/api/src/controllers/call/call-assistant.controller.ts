@@ -399,6 +399,36 @@ const unauthorized = (res: Response) =>
     timestamp: new Date().toISOString(),
   });
 
+const splitEnvList = (value = "") =>
+  value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const isCallAssistantPublicEnabled = () =>
+  process.env.CALL_ASSISTANT_PUBLIC_ENABLED === "true";
+
+const isCallAssistantAdminUser = (clerkId?: string | null) => {
+  if (!clerkId) return false;
+  const adminIds = splitEnvList(
+    process.env.CALL_ASSISTANT_ADMIN_CLERK_IDS || process.env.OWNERID || "",
+  );
+  return adminIds.includes(clerkId);
+};
+
+const requireCallAssistantAdminAccess = (userId: string, res: Response) => {
+  if (isCallAssistantPublicEnabled() || isCallAssistantAdminUser(userId)) {
+    return null;
+  }
+
+  return res.status(403).json({
+    success: false,
+    error:
+      "AI Call Assistant is temporarily available only for admin while Exotel activation is completed.",
+    timestamp: new Date().toISOString(),
+  });
+};
+
 const ok = (res: Response, data: any) =>
   res.status(200).json({ success: true, data, timestamp: new Date().toISOString() });
 
@@ -560,6 +590,8 @@ export const updateCallWorkspaceController = async (req: Request, res: Response)
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
@@ -626,6 +658,8 @@ export const createCallAssistantController = async (req: Request, res: Response)
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     await connectToDatabase();
     const workspace = await getOrCreateWorkspace(userId);
@@ -765,6 +799,8 @@ export const selectDedicatedCallNumberController = async (
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     const { phoneNumber } = req.body;
     if (!phoneNumber) {
@@ -815,6 +851,8 @@ export const createCallItemController = async (req: Request, res: Response) => {
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     const { collection } = req.params;
     const allowed = ["flows", "leads"];
@@ -842,6 +880,8 @@ export const sendCallSmsController = async (req: Request, res: Response) => {
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     const { to, body } = req.body;
     if (!to || !body) {
@@ -865,6 +905,8 @@ export const connectCallController = async (req: Request, res: Response) => {
   try {
     const userId = authUserId(req);
     if (!userId) return unauthorized(res);
+    const accessDenied = requireCallAssistantAdminAccess(userId, res);
+    if (accessDenied) return accessDenied;
 
     const { from, to, callerId, url } = req.body;
     if (!from || !to) {

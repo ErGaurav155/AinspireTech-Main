@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Home,
@@ -35,6 +35,10 @@ import { useApi } from "@/lib/useApi";
 import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
 import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -80,8 +84,13 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { userId } = useAuth();
+  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   // ✅ All account data comes from context — no local fetch needed
   const {
@@ -601,17 +610,31 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                     <p className={localStyles.productMeta}>Website Chatbot</p>
                   </div>
                 </Link>
-                <Link
-                  href="/call"
-                  className={localStyles.productOption(false)}
-                  onClick={() => setIsProductOpen(false)}
-                >
-                  <Phone className={localStyles.productIcon(false)} />
-                  <div className="min-w-0">
-                    <p className={localStyles.productLabel}>Call Dashboard</p>
-                    <p className={localStyles.productMeta}>AI Receptionist</p>
+                {isCallAdmin ? (
+                  <Link
+                    href="/call"
+                    className={localStyles.productOption(false)}
+                    onClick={() => setIsProductOpen(false)}
+                  >
+                    <Phone className={localStyles.productIcon(false)} />
+                    <div className="min-w-0">
+                      <p className={localStyles.productLabel}>Call Dashboard</p>
+                      <p className={localStyles.productMeta}>AI Receptionist</p>
+                    </div>
+                  </Link>
+                ) : (
+                  <div
+                    className={`${localStyles.productOption(false)} cursor-not-allowed opacity-60`}
+                  >
+                    <Phone className={localStyles.productIcon(false)} />
+                    <div className="min-w-0">
+                      <p className={localStyles.productLabel}>Call Dashboard</p>
+                      <p className={localStyles.productMeta}>
+                        {CALL_ASSISTANT_COMING_SOON_TEXT}
+                      </p>
+                    </div>
                   </div>
-                </Link>
+                )}
                 <Link
                   href="/whatsapp"
                   className={localStyles.productOption(false)}

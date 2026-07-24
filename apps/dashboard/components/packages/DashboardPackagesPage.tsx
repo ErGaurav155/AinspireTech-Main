@@ -40,6 +40,10 @@ import {
   getRazerpayPlanInfo,
   verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -97,6 +101,9 @@ const sleep = (ms: number) =>
   new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+
+const packageIncludesCall = (plan: DashboardPackagePlan) =>
+  plan.includedServices.includes("call");
 
 type CancelTarget =
   | "package"
@@ -194,6 +201,10 @@ export function DashboardPackagesPage() {
   const activeSeparateServices = status?.activeSeparateServices || [];
   const hasSeparateServiceSubscriptions = activeSeparateServices.length > 0;
   const isChecking = Boolean(checkingPackageId);
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   const loadRazorpayScript = useCallback((): Promise<void> => {
     if (typeof window === "undefined") {
@@ -647,6 +658,15 @@ export function DashboardPackagesPage() {
   };
 
   const handlePackageAction = async (plan: DashboardPackagePlan) => {
+    if (!isCallAdmin && packageIncludesCall(plan)) {
+      toast({
+        title: "AI Call Assistant coming soon",
+        description:
+          "Call packages are temporarily available only for admin while Exotel activation is completed.",
+      });
+      return;
+    }
+
     if (activePackage) {
       toast({
         title: "One package is already active",
@@ -1043,6 +1063,8 @@ export function DashboardPackagesPage() {
           {(status?.plans || []).map((plan) => {
             const isSelected = selectedPackage?.id === plan.id;
             const isCurrent = activePackage?.packageId === plan.id;
+            const isCallPackageLocked =
+              !isCallAdmin && packageIncludesCall(plan);
             const firstMonthPrice = Math.round(plan.amountInr / 2);
             return (
               <article
@@ -1094,16 +1116,27 @@ export function DashboardPackagesPage() {
                 </div>
 
                 <div className="mt-5 flex flex-wrap gap-2">
-                  {plan.includedServices.map((service) => (
-                    <span
-                      key={service}
-                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
-                        serviceStyles[service].badge
-                      }`}
-                    >
-                      {serviceLabels[service]}
-                    </span>
-                  ))}
+                  {plan.includedServices.map((service) => {
+                    const serviceComingSoon =
+                      service === "call" && !isCallAdmin;
+                    return (
+                      <span
+                        key={service}
+                        className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-bold ${
+                          serviceComingSoon
+                            ? "border-gray-300 bg-gray-500/10 text-gray-500"
+                            : serviceStyles[service].badge
+                        }`}
+                      >
+                        {serviceLabels[service]}
+                        {serviceComingSoon ? (
+                          <span className="ml-1 rounded-full bg-gray-500/10 px-1.5 py-0.5 text-[10px] uppercase">
+                            {CALL_ASSISTANT_COMING_SOON_TEXT}
+                          </span>
+                        ) : null}
+                      </span>
+                    );
+                  })}
                 </div>
 
                 <ul className="mt-5 flex-1 space-y-2">
@@ -1125,15 +1158,20 @@ export function DashboardPackagesPage() {
                     checkingPackageId === plan.id ||
                     payingPackageId === plan.id ||
                     Boolean(activePackage) ||
-                    hasSeparateServiceSubscriptions
+                    hasSeparateServiceSubscriptions ||
+                    isCallPackageLocked
                   }
                   className={`mt-6 w-full rounded-xl py-6 font-bold ${
-                    isCurrent
+                    isCallPackageLocked
+                      ? "bg-gray-500 text-white opacity-80"
+                      : isCurrent
                       ? "bg-emerald-500 text-white"
                       : "bg-gradient-to-r from-pink-500 to-purple-500 text-white hover:opacity-90"
                   }`}
                 >
-                  {checkingPackageId === plan.id ? (
+                  {isCallPackageLocked ? (
+                    <CircleAlert className="mr-2 h-4 w-4" />
+                  ) : checkingPackageId === plan.id ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : payingPackageId === plan.id ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1142,7 +1180,9 @@ export function DashboardPackagesPage() {
                   ) : (
                     <ArrowRight className="mr-2 h-4 w-4" />
                   )}
-                  {isCurrent
+                  {isCallPackageLocked
+                    ? CALL_ASSISTANT_COMING_SOON_TEXT
+                    : isCurrent
                     ? "Current Package"
                     : hasSeparateServiceSubscriptions
                       ? "Cancel direct service first"

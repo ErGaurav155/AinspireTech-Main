@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
+import { SignedIn, SignedOut, useAuth, useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
@@ -9,7 +9,6 @@ import {
   CreditCard,
   Headphones,
   Phone,
-  Rocket,
   Sparkles,
   X,
 } from "lucide-react";
@@ -26,6 +25,10 @@ import { useApi } from "@/lib/useApi";
 import { getCallSubscriptions } from "@/lib/services/call-actions.api";
 import { CallCheckout } from "@/components/call/CallCheckout";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 const CALL_PLANS = [
   {
@@ -88,10 +91,15 @@ const fadeUp = {
 
 export default function CallPricingPage() {
   const { userId, isLoaded } = useAuth();
+  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   const fetchSubscriptions = useCallback(async () => {
     if (!isLoaded || !userId) {
@@ -164,8 +172,9 @@ export default function CallPricingPage() {
             <p
               className={`font-montserrat text-sm md:text-lg max-w-2xl mx-auto ${styles.text.secondary}`}
             >
-              Free starts with 10 inbound minutes. Business gives 200 inbound
-              minutes and handles up to 3 calls at the same time.
+              {isCallAdmin
+                ? "Free starts with 10 inbound minutes. Business gives 200 inbound minutes and handles up to 3 calls at the same time."
+                : "AI Call Assistant is coming soon while live Exotel activation is being completed."}
             </p>
 
             <Tabs value="call" className="mt-8">
@@ -302,15 +311,21 @@ export default function CallPricingPage() {
                 <div className="mt-6">
                   <SignedOut>
                     <Button
-                      onClick={() => (window.location.href = "/sign-in")}
-                      className="w-full rounded-xl bg-gradient-to-r from-pink-500 to-rose-500 text-white hover:from-pink-600 hover:to-rose-600"
+                      disabled
+                      className="w-full rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white opacity-80"
                     >
-                      <Rocket className="h-4 w-4 mr-2" />
-                      Get Started
+                      {CALL_ASSISTANT_COMING_SOON_TEXT}
                     </Button>
                   </SignedOut>
                   <SignedIn>
-                    {plan.id === "free" ? (
+                    {!isCallAdmin ? (
+                      <Button
+                        disabled
+                        className="w-full rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white opacity-80"
+                      >
+                        {CALL_ASSISTANT_COMING_SOON_TEXT}
+                      </Button>
+                    ) : plan.id === "free" ? (
                       <Button
                         disabled
                         className="w-full rounded-xl bg-gradient-to-r from-gray-500 to-gray-600 text-white opacity-80"

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useAuth, useUser } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Bot,
@@ -22,6 +23,10 @@ import {
   X,
 } from "lucide-react";
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import {
+  CALL_ASSISTANT_COMING_SOON_TEXT,
+  isCallAssistantAdmin,
+} from "@/lib/call-access";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/call", icon: LayoutDashboard },
@@ -40,8 +45,14 @@ interface CallSidebarProps {
 
 export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
   const pathname = usePathname();
+  const { userId } = useAuth();
+  const { user } = useUser();
   const { isDark } = useThemeStyles();
   const [isProductOpen, setIsProductOpen] = useState(false);
+  const isCallAdmin = isCallAssistantAdmin({
+    userId,
+    email: user?.primaryEmailAddress?.emailAddress,
+  });
 
   const styles = useMemo(
     () => ({
@@ -133,11 +144,11 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                     AI Call Assistant
                   </p>
                   <p className={isDark ? "text-xs text-white/45" : "text-xs text-gray-500"}>
-                    24/7 receptionist
+                    {isCallAdmin ? "24/7 receptionist" : CALL_ASSISTANT_COMING_SOON_TEXT}
                   </p>
                 </div>
                 <Badge className="ml-auto bg-cyan-500 text-white text-[10px] rounded-full">
-                  NEW
+                  {isCallAdmin ? "NEW" : "SOON"}
                 </Badge>
               </div>
             </div>
@@ -188,16 +199,31 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                       </p>
                     </div>
                   </Link>
-                  <Link href="/call" className={styles.productOption(true)}>
-                    <Phone className="h-4 w-4 text-cyan-500" />
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold">Call Dashboard</p>
-                      <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                        AI Receptionist
-                      </p>
+                  {isCallAdmin ? (
+                    <Link href="/call" className={styles.productOption(true)}>
+                      <Phone className="h-4 w-4 text-cyan-500" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">Call Dashboard</p>
+                        <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
+                          AI Receptionist
+                        </p>
+                      </div>
+                      <Check className="ml-auto h-4 w-4 text-cyan-500" />
+                    </Link>
+                  ) : (
+                    <div
+                      className={`${styles.productOption(true)} cursor-not-allowed opacity-70`}
+                    >
+                      <Phone className="h-4 w-4 text-cyan-500" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">Call Dashboard</p>
+                        <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
+                          {CALL_ASSISTANT_COMING_SOON_TEXT}
+                        </p>
+                      </div>
+                      <Check className="ml-auto h-4 w-4 text-cyan-500" />
                     </div>
-                    <Check className="ml-auto h-4 w-4 text-cyan-500" />
-                  </Link>
+                  )}
                   <Link href="/whatsapp" className={styles.productOption(false)}>
                     <MessageCircle className="h-4 w-4" />
                     <div className="min-w-0">
@@ -219,7 +245,7 @@ export default function CallSidebar({ isOpen, onToggle }: CallSidebarProps) {
                   <div className="min-w-0">
                     <p className="text-sm font-semibold">Call Dashboard</p>
                     <p className={isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400"}>
-                      AI Receptionist
+                      {isCallAdmin ? "AI Receptionist" : CALL_ASSISTANT_COMING_SOON_TEXT}
                     </p>
                   </div>
                 </div>
