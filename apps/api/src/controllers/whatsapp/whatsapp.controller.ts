@@ -991,7 +991,12 @@ const resolveMetaWhatsAppConnection = async ({
 };
 
 const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
-  if (!wabaId) return;
+  if (!wabaId) {
+    return {
+      subscribed: false,
+      error: "WhatsApp Business Account ID is missing",
+    };
+  }
 
   const url = new URL(
     `https://graph.facebook.com/${metaGraphApiVersion}/${wabaId}/subscribed_apps`,
@@ -1001,14 +1006,27 @@ const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
   const data: any = await response.json().catch(() => ({}));
 
   if (!response.ok) {
+    const error =
+      data?.error?.message ||
+      data?.error?.error_user_msg ||
+      response.statusText ||
+      "Meta rejected the webhook subscription";
     console.warn("[whatsapp:connect] Could not subscribe app to WABA", {
       wabaId,
-      error: data?.error?.message || response.statusText,
+      error,
+      code: data?.error?.code,
+      subcode: data?.error?.error_subcode,
     });
-    return;
+    return {
+      subscribed: false,
+      error,
+      code: data?.error?.code,
+      subcode: data?.error?.error_subcode,
+    };
   }
 
   console.info("[whatsapp:connect] App subscribed to WABA", { wabaId });
+  return { subscribed: true };
 };
 
 const syncWorkspaceMetaConnection = async (workspace: any) => {
@@ -1071,7 +1089,15 @@ const syncWorkspaceMetaConnection = async (workspace: any) => {
   }
 
   if (resolvedConnection.wabaId) {
-    await subscribeAppToWaba(resolvedConnection.wabaId, accessToken);
+    const subscription = await subscribeAppToWaba(
+      resolvedConnection.wabaId,
+      accessToken,
+    );
+    if (!subscription.subscribed) {
+      throw new Error(
+        `Could not subscribe the Meta app to the connected WABA: ${subscription.error}`,
+      );
+    }
   }
 
   console.info("[whatsapp:connect] Workspace Meta connection synced", {
@@ -1250,8 +1276,37 @@ export const connectWhatsAppFacebookController = async (
       connected,
     });
 
-    if (wabaId) {
-      await subscribeAppToWaba(wabaId, accessToken);
+    if (!connected) {
+      return res.status(422).json({
+        success: false,
+        error:
+          "Meta login completed, but the selected WhatsApp Business Account and phone number could not be resolved. Reopen Embedded Signup, select the WABA and phone number, and approve both WhatsApp permissions.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const conflictingWorkspace = await WhatsAppWorkspace.findOne({
+      clerkId: { $ne: userId },
+      "meta.phoneNumberId": phoneNumberId,
+    })
+      .select("_id clerkId")
+      .lean();
+    if (conflictingWorkspace) {
+      return res.status(409).json({
+        success: false,
+        error:
+          "This WhatsApp phone number is already connected to another RocketReplai workspace. Delete that connection before using the number here.",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const subscription = await subscribeAppToWaba(wabaId, accessToken);
+    if (!subscription.subscribed) {
+      return res.status(502).json({
+        success: false,
+        error: `Meta login succeeded, but webhook subscription failed: ${subscription.error}. Approve whatsapp_business_management and reconnect the account.`,
+        timestamp: new Date().toISOString(),
+      });
     }
 
     workspace.organization = {
@@ -1318,27 +1373,31 @@ export const connectWhatsAppFacebookController = async (
 
     workspace.meta = {
       ...workspace.meta,
-      businessManagerId: businessId || workspace.meta?.businessManagerId || "",
-      wabaId: wabaId || workspace.meta?.wabaId || "",
-      phoneNumberId: phoneNumberId || workspace.meta?.phoneNumberId || "",
+      businessManagerId: businessId || "",
+      wabaId,
+      phoneNumberId,
       displayPhoneNumber:
-        displayPhoneNumber ||
-        requestedPhoneNumber ||
-        workspace.meta?.displayPhoneNumber ||
-        "",
+        displayPhoneNumber || requestedPhoneNumber || "",
       appId: metaAppId,
       graphApiVersion: metaGraphApiVersion,
       accessToken,
       qualityRating:
-        (resolvedConnection.qualityRating as any) ||
-        workspace.meta?.qualityRating ||
-        "unknown",
+        (resolvedConnection.qualityRating as any) || "unknown",
     } as any;
 
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     if (workspace.isConfigured) workspace.meta.lastVerifiedAt = new Date();
     await workspace.save();
+
+    console.info("[whatsapp:connect] Workspace connection saved", {
+      workspaceId: String(workspace._id),
+      businessId: workspace.meta.businessManagerId || null,
+      wabaId: workspace.meta.wabaId,
+      phoneNumberId: workspace.meta.phoneNumberId,
+      webhookSubscribed: subscription.subscribed,
+      isConfigured: workspace.isConfigured,
+    });
 
     return ok(res, {
       workspace: sanitizeWorkspace(workspace),

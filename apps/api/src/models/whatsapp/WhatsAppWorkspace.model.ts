@@ -175,6 +175,7 @@ export interface IWhatsAppWorkspace extends Document {
     chatQuestions?: Array<{
       field:
         | "patientName"
+        | "patientEmail"
         | "patientPhone"
         | "service"
         | "preferredDate"
@@ -650,6 +651,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
               type: String,
               enum: [
                 "patientName",
+                "patientEmail",
                 "patientPhone",
                 "service",
                 "preferredDate",

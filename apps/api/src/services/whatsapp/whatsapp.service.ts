@@ -331,8 +331,7 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         language: "en_US",
         category: "utility",
         status: "draft",
-        body:
-          "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
+        body: "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
         example:
           "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
       } as any;
@@ -434,8 +433,19 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
           isActive: true,
         },
       ],
-      requiredFields: ["patient_name", "symptoms", "preferred_date", "preferred_time"],
-      emergencyKeywords: ["emergency", "bleeding", "chest pain", "severe pain", "accident"],
+      requiredFields: [
+        "patient_name",
+        "symptoms",
+        "preferred_date",
+        "preferred_time",
+      ],
+      emergencyKeywords: [
+        "emergency",
+        "bleeding",
+        "chest pain",
+        "severe pain",
+        "accident",
+      ],
       confirmationTemplateName: "",
       reminderTemplateName: "",
     },
@@ -496,8 +506,7 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       language: "en_US",
       category: "utility",
       status: "draft",
-      body:
-        "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
+      body: "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.",
       example:
         "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
     },
@@ -515,8 +524,8 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
 export function resolveWorkspaceConfigured(workspace: IWhatsAppWorkspace) {
   return Boolean(
     workspace.meta?.wabaId &&
-      workspace.meta?.phoneNumberId &&
-      workspace.meta?.accessToken,
+    workspace.meta?.phoneNumberId &&
+    workspace.meta?.accessToken,
   );
 }
 
@@ -582,7 +591,8 @@ const whatsappGraphMessagesRequest = async ({
     throw new Error("WhatsApp access token is not configured");
   }
 
-  const version = workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
+  const version =
+    workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
   let lastResult: any;
   let lastSource = tokenCandidates[0].source;
 
@@ -603,11 +613,14 @@ const whatsappGraphMessagesRequest = async ({
     const result = await response.json();
     if (response.ok) {
       if (index > 0) {
-        console.warn("[whatsapp:send] Primary token rejected; fallback succeeded", {
-          workspaceId: String(workspace._id),
-          phoneNumberId: workspace.meta.phoneNumberId,
-          tokenSource: candidate.source,
-        });
+        console.warn(
+          "[whatsapp:send] Primary token rejected; fallback succeeded",
+          {
+            workspaceId: String(workspace._id),
+            phoneNumberId: workspace.meta.phoneNumberId,
+            tokenSource: candidate.source,
+          },
+        );
       }
       return result;
     }
@@ -844,10 +857,13 @@ const downloadBusinessKnowledge = async (url?: string) => {
     });
     return text;
   } catch (error) {
-    console.warn("[whatsapp:business-info] Could not load Cloudinary knowledge", {
-      url,
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.warn(
+      "[whatsapp:business-info] Could not load Cloudinary knowledge",
+      {
+        url,
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
     return "";
   } finally {
     clearTimeout(timeout);
@@ -865,7 +881,10 @@ const formatBusinessKnowledge = (rawKnowledge: string) => {
         : [];
     const websiteContent = websitePages
       .map((page: any) =>
-        [`Page: ${page?.url || "Website"}`, page?.content || page?.fullText || ""]
+        [
+          `Page: ${page?.url || "Website"}`,
+          page?.content || page?.fullText || "",
+        ]
           .filter(Boolean)
           .join("\n"),
       )
@@ -887,9 +906,7 @@ const formatBusinessKnowledge = (rawKnowledge: string) => {
   }
 };
 
-async function buildBusinessKnowledgeContext(
-  workspace: IWhatsAppWorkspace,
-) {
+async function buildBusinessKnowledgeContext(workspace: IWhatsAppWorkspace) {
   const businessInfo = workspace.businessInfo;
   const cloudinaryKnowledge = await downloadBusinessKnowledge(
     businessInfo?.knowledgeBaseUrl ||
@@ -945,7 +962,8 @@ const isStaleAutomationHistory = (message: any) => {
   const text = String(message?.body || "").toLowerCase();
   return (
     (text.includes("thanks for messaging") &&
-      (text.includes("choose an option") || text.includes("share more detail"))) ||
+      (text.includes("choose an option") ||
+        text.includes("share more detail"))) ||
     text.includes("[pricing/services]") ||
     text.includes("[book appointment]") ||
     text.includes("[talk to owner]")
@@ -1021,8 +1039,8 @@ const generateWorkspaceAiDecision = async ({
       knowledgeCharacters: knowledge.length,
       hasKnowledgeUrl: Boolean(
         workspace.businessInfo?.knowledgeBaseUrl ||
-          workspace.businessInfo?.websiteKnowledgeUrl ||
-          workspace.businessInfo?.fileKnowledgeUrl,
+        workspace.businessInfo?.websiteKnowledgeUrl ||
+        workspace.businessInfo?.fileKnowledgeUrl,
       ),
       deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
     });
@@ -1169,7 +1187,9 @@ const resolveUrgency = (
   emergencyKeywords: string[] = [],
 ): "routine" | "urgent" | "emergency" => {
   const text = body.toLowerCase();
-  if (emergencyKeywords.some((keyword) => text.includes(keyword.toLowerCase()))) {
+  if (
+    emergencyKeywords.some((keyword) => text.includes(keyword.toLowerCase()))
+  ) {
     return "emergency";
   }
   if (/urgent|asap|today|pain|fever|swelling/i.test(body)) return "urgent";
@@ -1182,7 +1202,9 @@ const inferService = (body: string, services: any[] = []) => {
   );
   if (matchedService) return matchedService.name;
   if (/dental|tooth|teeth|gum/i.test(body)) return "Dental consultation";
-  return services.find((service) => service.isActive)?.name || "General consultation";
+  return (
+    services.find((service) => service.isActive)?.name || "General consultation"
+  );
 };
 
 const parseWhatsAppFlowResponse = (message: any) => {
@@ -1204,9 +1226,9 @@ const parseWhatsAppFlowResponse = (message: any) => {
 const hasPublishedAppointmentFlow = (workspace: IWhatsAppWorkspace) =>
   Boolean(
     workspace.appointmentConfig?.enabled &&
-      workspace.appointmentFlow?.enabled !== false &&
-      workspace.appointmentFlow?.flowId &&
-      workspace.appointmentFlow?.status === "published",
+    workspace.appointmentFlow?.enabled !== false &&
+    workspace.appointmentFlow?.flowId &&
+    workspace.appointmentFlow?.status === "published",
   );
 
 const normalizeFlowText = (value: unknown) =>
@@ -1338,10 +1360,7 @@ const createAppointmentFromChatDraft = ({
 }) => {
   const answers = conversation.appointmentDraft?.answers || [];
   const answerMap = Object.fromEntries(
-    answers.map((item: any) => [
-      item.field,
-      normalizeFlowText(item.answer),
-    ]),
+    answers.map((item: any) => [item.field, normalizeFlowText(item.answer)]),
   );
   const customAnswers = answers
     .filter((item: any) => String(item.field).startsWith("custom:"))
@@ -1427,7 +1446,9 @@ const getAvailableTimeRows = (
   const workingHours = getWorkingHoursForDate(workspace, dateKey);
   if (!workingHours?.isOpen) return [];
   const parseMinutes = (value: string) => {
-    const [hour, minute] = String(value || "").split(":").map(Number);
+    const [hour, minute] = String(value || "")
+      .split(":")
+      .map(Number);
     return hour * 60 + minute;
   };
   const openMinutes = parseMinutes(workingHours.open || "09:00");
@@ -1505,7 +1526,11 @@ const getAvailableDateRows = (workspace: IWhatsAppWorkspace) => {
     Math.max(1, Number(workspace.appointmentConfig?.bookingWindowDays || 14)),
   );
   const rows: Array<{ id: string; title: string; description: string }> = [];
-  for (let offset = 0; offset < bookingWindow && rows.length < 10; offset += 1) {
+  for (
+    let offset = 0;
+    offset < bookingWindow && rows.length < 10;
+    offset += 1
+  ) {
     const date = new Date(start.getTime() + offset * 24 * 60 * 60 * 1000);
     const dateKey = dateKeyFromUtcDate(date);
     if (!getAvailableTimeRows(workspace, dateKey).length) continue;
@@ -1581,7 +1606,11 @@ const sendAppointmentQuestion = async ({
   to: string;
   question: any;
 }) => {
-  const rows = getAppointmentQuestionRows({ workspace, conversation, question });
+  const rows = getAppointmentQuestionRows({
+    workspace,
+    conversation,
+    question,
+  });
   if (rows.length) {
     return sendTrackedList({
       workspace,
@@ -1931,7 +1960,8 @@ const startChatAppointment = async ({
 };
 
 export async function processWhatsAppWebhook(payload: any) {
-  const changes = payload?.entry?.flatMap((entry: any) => entry.changes || []) || [];
+  const changes =
+    payload?.entry?.flatMap((entry: any) => entry.changes || []) || [];
   const results: string[] = [];
   console.info("[whatsapp:process] Processing webhook payload", {
     entries: payload?.entry?.length || 0,
@@ -1955,11 +1985,14 @@ export async function processWhatsAppWebhook(payload: any) {
         continue;
       }
 
-      console.warn("[whatsapp:process] Skipping processable change without phone number ID", {
-        field: change.field || "unknown",
-        messages: messages.length,
-        statuses: statuses.length,
-      });
+      console.warn(
+        "[whatsapp:process] Skipping processable change without phone number ID",
+        {
+          field: change.field || "unknown",
+          messages: messages.length,
+          statuses: statuses.length,
+        },
+      );
       continue;
     }
 
@@ -1984,12 +2017,15 @@ export async function processWhatsAppWebhook(payload: any) {
           },
         );
       } else {
-        console.warn("[whatsapp:process] No workspace found for phone number ID", {
-          phoneNumberId,
-          messages: messages.length,
-          statuses: statuses.length,
-          appointmentStatusUpdates,
-        });
+        console.warn(
+          "[whatsapp:process] No workspace found for phone number ID",
+          {
+            phoneNumberId,
+            messages: messages.length,
+            statuses: statuses.length,
+            appointmentStatusUpdates,
+          },
+        );
       }
       continue;
     }
@@ -2007,7 +2043,9 @@ export async function processWhatsAppWebhook(payload: any) {
 
     for (const message of messages) {
       const waId = message.from;
-      const profile = value.contacts?.find((contact: any) => contact.wa_id === waId);
+      const profile = value.contacts?.find(
+        (contact: any) => contact.wa_id === waId,
+      );
       const flowResponse = parseWhatsAppFlowResponse(message);
       const buttonReplyId =
         message.interactive?.button_reply?.id ||
@@ -2089,7 +2127,8 @@ export async function processWhatsAppWebhook(payload: any) {
           createdAt: now,
           updatedAt: now,
         });
-        conversation = workspace.conversations[workspace.conversations.length - 1];
+        conversation =
+          workspace.conversations[workspace.conversations.length - 1];
       }
 
       conversation.lastMessage = body;
@@ -2121,7 +2160,9 @@ export async function processWhatsAppWebhook(payload: any) {
       conversation.messages.push({
         providerMessageId: message.id,
         direction: "inbound",
-        type: ["text", "template", "image", "interactive"].includes(message.type)
+        type: ["text", "template", "image", "interactive"].includes(
+          message.type,
+        )
           ? message.type
           : "text",
         body,
@@ -2134,7 +2175,8 @@ export async function processWhatsAppWebhook(payload: any) {
 
       const canAutoReply =
         workspace.isConfigured &&
-        workspace.subscription.messagesUsed < workspace.subscription.messageLimit;
+        workspace.subscription.messagesUsed <
+          workspace.subscription.messageLimit;
 
       try {
         await markWhatsAppMessageRead({
@@ -2203,8 +2245,9 @@ export async function processWhatsAppWebhook(payload: any) {
               conversation,
               question: currentQuestion,
             });
-            const allowedAnswers = optionRows.map((row: { id: string; title: string }) =>
-              resolveAppointmentAnswer(row.id, row.title),
+            const allowedAnswers = optionRows.map(
+              (row: { id: string; title: string }) =>
+                resolveAppointmentAnswer(row.id, row.title),
             );
             if (allowedAnswers.length && !allowedAnswers.includes(answer)) {
               await sendAppointmentQuestion({
@@ -2243,7 +2286,9 @@ export async function processWhatsAppWebhook(payload: any) {
               field: answerField,
               question: currentQuestion.question,
               answer:
-                !currentQuestion.required && /^skip$/i.test(answer) ? "" : answer,
+                !currentQuestion.required && /^skip$/i.test(answer)
+                  ? ""
+                  : answer,
             });
             if (currentQuestion.field === "preferredDate") {
               conversation.appointmentDraft.timePage = 0;
@@ -2490,7 +2535,9 @@ export async function processWhatsAppWebhook(payload: any) {
 
     for (const status of statuses) {
       const conversation = workspace.conversations.find((item) =>
-        item.messages.some((message) => message.providerMessageId === status.id),
+        item.messages.some(
+          (message) => message.providerMessageId === status.id,
+        ),
       );
       const trackedMessage = conversation?.messages.find(
         (message) => message.providerMessageId === status.id,
@@ -2556,7 +2603,10 @@ export async function processWhatsAppFollowUps(): Promise<{
         appointments: {
           $or: [
             { expiresAt: { $lte: now } },
-            { expiresAt: { $exists: false }, createdAt: { $lte: expiryCutoff } },
+            {
+              expiresAt: { $exists: false },
+              createdAt: { $lte: expiryCutoff },
+            },
           ],
         },
       },
@@ -2628,7 +2678,8 @@ export async function processWhatsAppFollowUps(): Promise<{
       }
       if (
         !workspace.isConfigured ||
-        workspace.subscription.messagesUsed >= workspace.subscription.messageLimit
+        workspace.subscription.messagesUsed >=
+          workspace.subscription.messageLimit
       ) {
         followUp.nextAt = new Date(now.getTime() + 15 * 60 * 1000);
         changed = true;
