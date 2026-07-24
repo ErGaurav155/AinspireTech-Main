@@ -804,11 +804,16 @@ export async function sendWhatsAppListMessage({
           sections: [
             {
               title: "Options",
-              rows: rows.slice(0, 10).map((row) => ({
-                id: row.id.slice(0, 200),
-                title: row.title.slice(0, 24),
-                description: String(row.description || "").slice(0, 72),
-              })),
+              rows: rows.slice(0, 10).map((row) => {
+                const description = String(row.description || "")
+                  .trim()
+                  .slice(0, 72);
+                return {
+                  id: row.id.slice(0, 200),
+                  title: row.title.slice(0, 24),
+                  ...(description ? { description } : {}),
+                };
+              }),
             },
           ],
         },
@@ -1068,6 +1073,36 @@ const getAutomationMenuRows = (workspace: IWhatsAppWorkspace) =>
       title: String(option.title || option.id),
       description: String(option.description || ""),
     }));
+
+const getInboundMessageCount = (conversation: any) =>
+  (conversation?.messages || []).filter(
+    (message: any) => message.direction === "inbound",
+  ).length;
+
+const canShowAutomationMenu = ({
+  conversation,
+  force = false,
+}: {
+  conversation: any;
+  force?: boolean;
+}) => {
+  if (force) return true;
+  const inboundMessageCount = getInboundMessageCount(conversation);
+  const lastShownInboundCount = Number(
+    conversation.automationMenu?.lastShownInboundCount || 0,
+  );
+  return (
+    lastShownInboundCount === 0 ||
+    inboundMessageCount - lastShownInboundCount >= 5
+  );
+};
+
+const markAutomationMenuShown = (conversation: any) => {
+  conversation.automationMenu = {
+    lastShownAt: new Date(),
+    lastShownInboundCount: getInboundMessageCount(conversation),
+  };
+};
 
 const ownerContactReply = (workspace: IWhatsAppWorkspace) => {
   const settings = workspace.notificationSettings;
@@ -1691,16 +1726,75 @@ const sendMainAutomationMenu = async ({
     .filter(Boolean)
     .join("\n\n");
   if (!rows.length) {
+    console.info("[whatsapp:menu] No enabled menu options", {
+      workspaceId: String(workspace._id),
+      waId: to,
+    });
     return sendTrackedText({ workspace, conversation, to, body });
   }
-  return sendTrackedList({
+  const priorityIds = ["book_appointment", "service_pricing"];
+  const orderedRows = [
+    ...priorityIds
+      .map((id) => rows.find((row) => row.id === id))
+      .filter(Boolean),
+    ...rows.filter((row) => !priorityIds.includes(row.id)),
+  ] as typeof rows;
+  const quickRows = orderedRows.slice(0, rows.length > 3 ? 2 : 3);
+  const buttons = quickRows.map((row) => ({
+    id: row.id,
+    title: row.title,
+  }));
+  if (rows.length > 3) {
+    buttons.push({ id: "show_more_options", title: "More options" });
+  }
+
+  console.info("[whatsapp:menu] Sending quick actions", {
+    workspaceId: String(workspace._id),
+    waId: to,
+    inboundMessageCount: getInboundMessageCount(conversation),
+    optionIds: buttons.map((button) => button.id),
+  });
+  const result = await sendTrackedButtons({
     workspace,
     conversation,
     to,
     body,
-    buttonText: "View options",
+    buttons,
+  });
+  markAutomationMenuShown(conversation);
+  return result;
+};
+
+const sendFullAutomationMenu = async ({
+  workspace,
+  conversation,
+  to,
+}: {
+  workspace: IWhatsAppWorkspace;
+  conversation: any;
+  to: string;
+}) => {
+  const rows = getAutomationMenuRows(workspace);
+  if (rows.length <= 3) {
+    return sendMainAutomationMenu({ workspace, conversation, to });
+  }
+  console.info("[whatsapp:menu] Sending full option list", {
+    workspaceId: String(workspace._id),
+    waId: to,
+    optionIds: rows.map((row) => row.id),
+  });
+  const result = await sendTrackedList({
+    workspace,
+    conversation,
+    to,
+    body:
+      workspace.automationConfig?.menuMessage ||
+      "Choose an option below, or type your question.",
+    buttonText: "View all options",
     rows,
   });
+  markAutomationMenuShown(conversation);
+  return result;
 };
 
 const sendPricingMenu = async ({
@@ -2135,17 +2229,6 @@ export async function processWhatsAppWebhook(payload: any) {
           continue;
         }
 
-        if (isFirstMessage && workspace.automationConfig?.enabled !== false) {
-          conversation.status = "open";
-          await sendMainAutomationMenu({
-            workspace,
-            conversation,
-            to: waId,
-            includeGreeting: true,
-          });
-          continue;
-        }
-
         if (buttonReplyId === "talk_to_owner") {
           await sendTrackedText({
             workspace,
@@ -2242,6 +2325,11 @@ export async function processWhatsAppWebhook(payload: any) {
           continue;
         }
 
+        if (buttonReplyId === "show_more_options") {
+          await sendFullAutomationMenu({ workspace, conversation, to: waId });
+          continue;
+        }
+
         const decision = await generateWorkspaceAiDecision({
           workspace,
           conversation,
@@ -2272,11 +2360,48 @@ export async function processWhatsAppWebhook(payload: any) {
           to: waId,
           body: humanHandoff
             ? `${decision.reply}\n\n${ownerContactReply(workspace)}`
-            : decision.reply,
+            : decision.intent === "greeting"
+              ? buildGreetingText(workspace)
+              : decision.reply,
         });
         conversation.status = humanHandoff ? "pending_human" : "open";
         conversation.owner = humanHandoff ? "human" : "ai";
         if (!humanHandoff) conversation.automationMode = undefined;
+        const shouldAppendMenu =
+          workspace.automationConfig?.enabled !== false &&
+          !humanHandoff &&
+          workspace.subscription.messagesUsed <
+            workspace.subscription.messageLimit &&
+          (isFirstMessage || decision.intent === "greeting") &&
+          canShowAutomationMenu({ conversation });
+        console.info("[whatsapp:menu] Menu policy evaluated", {
+          workspaceId: String(workspace._id),
+          waId,
+          isFirstMessage,
+          intent: decision.intent,
+          inboundMessageCount: getInboundMessageCount(conversation),
+          lastShownInboundCount:
+            conversation.automationMenu?.lastShownInboundCount || 0,
+          shouldAppendMenu,
+        });
+        if (shouldAppendMenu) {
+          try {
+            await sendMainAutomationMenu({
+              workspace,
+              conversation,
+              to: waId,
+            });
+          } catch (menuError) {
+            console.error("[whatsapp:menu] Quick-action send failed", {
+              workspaceId: String(workspace._id),
+              waId,
+              error:
+                menuError instanceof Error
+                  ? menuError.message
+                  : String(menuError),
+            });
+          }
+        }
       } catch (error) {
         console.error("WhatsApp AI automation send failed:", error);
         recordWhatsAppSendFailure({

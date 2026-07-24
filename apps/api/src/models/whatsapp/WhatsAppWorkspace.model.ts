@@ -287,6 +287,10 @@ export interface IWhatsAppWorkspace extends Document {
       updatedAt: Date;
     };
     automationMode?: "support";
+    automationMenu?: {
+      lastShownAt?: Date;
+      lastShownInboundCount: number;
+    };
     lastCustomerMessageAt?: Date;
     followUp?: {
       stage: number;
@@ -849,6 +853,10 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         automationMode: {
           type: String,
           enum: ["support"],
+        },
+        automationMenu: {
+          lastShownAt: Date,
+          lastShownInboundCount: { type: Number, default: 0 },
         },
         lastCustomerMessageAt: Date,
         followUp: {
