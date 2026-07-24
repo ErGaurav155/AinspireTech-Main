@@ -137,6 +137,22 @@ const automationQuestionTypes = new Set([
   "time",
   "textarea",
 ]);
+const appointmentWeekdays = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
+] as const;
+const isClockTime = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+const clockTimeToMinutes = (value: string) => {
+  const [hour, minute] = value.split(":").map(Number);
+  return hour * 60 + minute;
+};
 
 const clampNumber = (value: unknown, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, Number(value) || minimum));
@@ -1510,9 +1526,86 @@ export const updateWhatsAppWorkspaceController = async (
     }
 
     if (appointmentConfig) {
+      const currentAppointmentConfig = workspace.appointmentConfig;
+      const requestedWorkingHours = Array.isArray(
+        appointmentConfig.workingHours,
+      )
+        ? appointmentConfig.workingHours
+        : null;
+      const invalidWorkingHours = requestedWorkingHours?.find((hours: any) => {
+        if (hours?.isOpen === false) return false;
+        const open = cleanString(hours?.open);
+        const close = cleanString(hours?.close);
+        return (
+          !isClockTime(open) ||
+          !isClockTime(close) ||
+          clockTimeToMinutes(close) <= clockTimeToMinutes(open)
+        );
+      });
+      if (invalidWorkingHours) {
+        return res.status(400).json({
+          success: false,
+          error: `Closing time must be later than opening time for ${cleanString(
+            invalidWorkingHours.day,
+          ) || "each open day"}.`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+      const workingHours = requestedWorkingHours
+        ? appointmentWeekdays.map((day) => {
+            const requested = requestedWorkingHours.find(
+              (hours: any) => cleanString(hours?.day).toLowerCase() === day,
+            );
+            const current = currentAppointmentConfig.workingHours?.find(
+              (hours: any) => cleanString(hours?.day).toLowerCase() === day,
+            );
+            return {
+              day,
+              isOpen:
+                requested?.isOpen !== undefined
+                  ? Boolean(requested.isOpen)
+                  : current?.isOpen !== false,
+              open: isClockTime(requested?.open)
+                ? requested.open
+                : current?.open || "09:00",
+              close: isClockTime(requested?.close)
+                ? requested.close
+                : current?.close || "17:00",
+            };
+          })
+        : currentAppointmentConfig.workingHours;
       workspace.appointmentConfig = {
-        ...workspace.appointmentConfig,
+        ...currentAppointmentConfig,
         ...appointmentConfig,
+        slotDurationMinutes:
+          Math.round(
+            clampNumber(
+              appointmentConfig.slotDurationMinutes ||
+                currentAppointmentConfig.slotDurationMinutes ||
+                30,
+              15,
+              120,
+            ) / 15,
+          ) * 15,
+        bufferMinutes: clampNumber(
+          appointmentConfig.bufferMinutes ??
+            currentAppointmentConfig.bufferMinutes ??
+            10,
+          0,
+          240,
+        ),
+        bookingWindowDays: clampNumber(
+          appointmentConfig.bookingWindowDays ??
+            currentAppointmentConfig.bookingWindowDays ??
+            14,
+          1,
+          60,
+        ),
+        timezone:
+          cleanString(appointmentConfig.timezone) ||
+          currentAppointmentConfig.timezone ||
+          "Asia/Kolkata",
+        workingHours,
         services: Array.isArray(appointmentConfig.services)
           ? appointmentConfig.services
               .map((service: any) => ({

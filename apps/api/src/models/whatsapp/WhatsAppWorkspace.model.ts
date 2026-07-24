@@ -278,6 +278,7 @@ export interface IWhatsAppWorkspace extends Document {
     appointmentDraft?: {
       status: "collecting";
       currentQuestionIndex: number;
+      timePage?: number;
       answers: Array<{
         field: string;
         question: string;
@@ -297,6 +298,7 @@ export interface IWhatsAppWorkspace extends Document {
       nextAt?: Date;
       lastSentAt?: Date;
       completed: boolean;
+      suppressedByAppointment?: boolean;
     };
     createdAt: Date;
     updatedAt: Date;
@@ -445,8 +447,8 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         {
           day: String,
           isOpen: { type: Boolean, default: true },
-          open: { type: String, default: "10:00" },
-          close: { type: String, default: "18:00" },
+          open: { type: String, default: "09:00" },
+          close: { type: String, default: "17:00" },
         },
       ],
       services: [
@@ -840,6 +842,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
             enum: ["collecting"],
           },
           currentQuestionIndex: { type: Number, default: 0 },
+          timePage: { type: Number, default: 0 },
           answers: [
             {
               field: String,
@@ -864,6 +867,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
           nextAt: Date,
           lastSentAt: Date,
           completed: { type: Boolean, default: false },
+          suppressedByAppointment: { type: Boolean, default: false },
         },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },

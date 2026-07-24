@@ -410,13 +410,13 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       bufferMinutes: 10,
       bookingWindowDays: 14,
       workingHours: [
-        { day: "monday", isOpen: true, open: "10:00", close: "18:00" },
-        { day: "tuesday", isOpen: true, open: "10:00", close: "18:00" },
-        { day: "wednesday", isOpen: true, open: "10:00", close: "18:00" },
-        { day: "thursday", isOpen: true, open: "10:00", close: "18:00" },
-        { day: "friday", isOpen: true, open: "10:00", close: "18:00" },
-        { day: "saturday", isOpen: true, open: "10:00", close: "15:00" },
-        { day: "sunday", isOpen: false, open: "10:00", close: "15:00" },
+        { day: "monday", isOpen: true, open: "09:00", close: "17:00" },
+        { day: "tuesday", isOpen: true, open: "09:00", close: "17:00" },
+        { day: "wednesday", isOpen: true, open: "09:00", close: "17:00" },
+        { day: "thursday", isOpen: true, open: "09:00", close: "17:00" },
+        { day: "friday", isOpen: true, open: "09:00", close: "17:00" },
+        { day: "saturday", isOpen: true, open: "09:00", close: "14:00" },
+        { day: "sunday", isOpen: false, open: "09:00", close: "14:00" },
       ],
       services: [
         {
@@ -1422,6 +1422,7 @@ const getWorkingHoursForDate = (
 const getAvailableTimeRows = (
   workspace: IWhatsAppWorkspace,
   dateKey: string,
+  requestedPage = 0,
 ) => {
   const workingHours = getWorkingHoursForDate(workspace, dateKey);
   if (!workingHours?.isOpen) return [];
@@ -1429,8 +1430,8 @@ const getAvailableTimeRows = (
     const [hour, minute] = String(value || "").split(":").map(Number);
     return hour * 60 + minute;
   };
-  const openMinutes = parseMinutes(workingHours.open || "10:00");
-  const closeMinutes = parseMinutes(workingHours.close || "18:00");
+  const openMinutes = parseMinutes(workingHours.open || "09:00");
+  const closeMinutes = parseMinutes(workingHours.close || "17:00");
   const interval = Math.max(
     15,
     Number(workspace.appointmentConfig?.slotDurationMinutes || 30),
@@ -1447,7 +1448,7 @@ const getAvailableTimeRows = (
         nowParts.minute +
         Number(workspace.appointmentConfig?.bufferMinutes || 0)
       : openMinutes;
-  const rows: Array<{ id: string; title: string; description: string }> = [];
+  const allRows: Array<{ id: string; title: string; description: string }> = [];
   for (let minutes = openMinutes; minutes < closeMinutes; minutes += interval) {
     if (minutes < minimumMinutes) continue;
     const hour = Math.floor(minutes / 60);
@@ -1459,12 +1460,33 @@ const getAvailableTimeRows = (
       hour12: true,
       timeZone: "UTC",
     }).format(new Date(Date.UTC(2020, 0, 1, hour, minute)));
-    rows.push({
+    allRows.push({
       id: `appointment_answer:preferredTime:${encodeURIComponent(value)}`,
       title,
       description: `${interval}-minute slot`,
     });
-    if (rows.length >= 10) break;
+  }
+  const pageSize = 8;
+  const totalPages = Math.max(1, Math.ceil(allRows.length / pageSize));
+  const numericPage = Number(requestedPage || 0);
+  const page = Math.min(
+    totalPages - 1,
+    Math.max(0, Number.isFinite(numericPage) ? numericPage : 0),
+  );
+  const rows = allRows.slice(page * pageSize, (page + 1) * pageSize);
+  if (page > 0) {
+    rows.unshift({
+      id: `appointment_time_page:${page - 1}`,
+      title: "Earlier times",
+      description: `Page ${page} of ${totalPages}`,
+    });
+  }
+  if (page < totalPages - 1) {
+    rows.push({
+      id: `appointment_time_page:${page + 1}`,
+      title: "Later times",
+      description: `Page ${page + 2} of ${totalPages}`,
+    });
   }
   return rows;
 };
@@ -1515,7 +1537,13 @@ const getAppointmentQuestionRows = ({
     const dateAnswer = conversation.appointmentDraft?.answers?.find(
       (answer: any) => answer.field === "preferredDate",
     )?.answer;
-    return dateAnswer ? getAvailableTimeRows(workspace, dateAnswer) : [];
+    return dateAnswer
+      ? getAvailableTimeRows(
+          workspace,
+          dateAnswer,
+          conversation.appointmentDraft?.timePage || 0,
+        )
+      : [];
   }
   if (question.type !== "select") return [];
 
@@ -1887,6 +1915,7 @@ const startChatAppointment = async ({
   conversation.appointmentDraft = {
     status: "collecting",
     currentQuestionIndex: 0,
+    timePage: 0,
     answers: [],
     startedAt: new Date(),
     updatedAt: new Date(),
@@ -2020,6 +2049,11 @@ export async function processWhatsAppWebhook(payload: any) {
       let conversation = workspace.conversations.find(
         (item) => item.waId === waId && item.status !== "resolved",
       );
+      const hasBookedAppointment = workspace.appointments.some(
+        (appointment) =>
+          appointment.patientWaId === waId ||
+          appointment.conversationWaId === waId,
+      );
       const isFirstMessage = !conversation;
       if (!conversation) {
         workspace.conversations.push({
@@ -2033,18 +2067,25 @@ export async function processWhatsAppWebhook(payload: any) {
           sentiment: "neutral",
           messages: [],
           lastCustomerMessageAt: now,
-          followUp: {
-            stage: 0,
-            nextAt: new Date(
-              now.getTime() +
-                Number(
-                  workspace.automationConfig?.followUps?.firstDelayMinutes || 30,
-                ) *
-                  60 *
-                  1000,
-            ),
-            completed: false,
-          },
+          followUp: hasBookedAppointment
+            ? {
+                stage: 2,
+                completed: true,
+                suppressedByAppointment: true,
+              }
+            : {
+                stage: 0,
+                nextAt: new Date(
+                  now.getTime() +
+                    Number(
+                      workspace.automationConfig?.followUps
+                        ?.firstDelayMinutes || 30,
+                    ) *
+                      60 *
+                      1000,
+                ),
+                completed: false,
+              },
           createdAt: now,
           updatedAt: now,
         });
@@ -2054,7 +2095,16 @@ export async function processWhatsAppWebhook(payload: any) {
       conversation.lastMessage = body;
       conversation.updatedAt = now;
       conversation.lastCustomerMessageAt = now;
-      if (workspace.automationConfig?.followUps?.enabled !== false) {
+      const followUpSuppressed =
+        hasBookedAppointment ||
+        conversation.followUp?.suppressedByAppointment === true;
+      if (followUpSuppressed) {
+        conversation.followUp = {
+          stage: Math.max(2, Number(conversation.followUp?.stage || 0)),
+          completed: true,
+          suppressedByAppointment: true,
+        } as any;
+      } else if (workspace.automationConfig?.followUps?.enabled !== false) {
         conversation.followUp = {
           stage: 0,
           nextAt: new Date(
@@ -2127,6 +2177,26 @@ export async function processWhatsAppWebhook(payload: any) {
           );
           const currentQuestion = questions[currentIndex];
           if (currentQuestion) {
+            if (
+              currentQuestion.type === "time" &&
+              buttonReplyId.startsWith("appointment_time_page:")
+            ) {
+              const requestedTimePage = Number(
+                buttonReplyId.split(":")[1] || 0,
+              );
+              conversation.appointmentDraft.timePage = Math.max(
+                0,
+                Number.isFinite(requestedTimePage) ? requestedTimePage : 0,
+              );
+              conversation.appointmentDraft.updatedAt = new Date();
+              await sendAppointmentQuestion({
+                workspace,
+                conversation,
+                to: waId,
+                question: currentQuestion,
+              });
+              continue;
+            }
             const answer = resolveAppointmentAnswer(buttonReplyId, body);
             const optionRows = getAppointmentQuestionRows({
               workspace,
@@ -2175,6 +2245,9 @@ export async function processWhatsAppWebhook(payload: any) {
               answer:
                 !currentQuestion.required && /^skip$/i.test(answer) ? "" : answer,
             });
+            if (currentQuestion.field === "preferredDate") {
+              conversation.appointmentDraft.timePage = 0;
+            }
           }
           const nextIndex = currentIndex + 1;
           conversation.appointmentDraft.currentQuestionIndex = nextIndex;
@@ -2202,6 +2275,7 @@ export async function processWhatsAppWebhook(payload: any) {
             conversation.followUp = {
               stage: 2,
               completed: true,
+              suppressedByAppointment: true,
             } as any;
             const confirmation = await generateWorkspaceAiDecision({
               workspace,
@@ -2508,6 +2582,13 @@ export async function processWhatsAppFollowUps(): Promise<{
     let changed = false;
     for (const conversation of workspace.conversations || []) {
       const followUp = conversation.followUp;
+      if (followUp?.suppressedByAppointment) {
+        followUp.stage = Math.max(2, Number(followUp.stage || 0));
+        followUp.completed = true;
+        followUp.nextAt = undefined;
+        changed = true;
+        continue;
+      }
       if (
         !followUp ||
         followUp.completed ||
@@ -2517,6 +2598,23 @@ export async function processWhatsAppFollowUps(): Promise<{
         continue;
       }
       result.processed += 1;
+      const hasBookedAppointment = workspace.appointments.some(
+        (appointment) =>
+          appointment.patientWaId === conversation.waId ||
+          appointment.conversationWaId === conversation.waId,
+      );
+      if (hasBookedAppointment) {
+        followUp.stage = Math.max(2, Number(followUp.stage || 0));
+        followUp.completed = true;
+        followUp.suppressedByAppointment = true;
+        followUp.nextAt = undefined;
+        changed = true;
+        console.info("[whatsapp:follow-up] Suppressed after appointment", {
+          workspaceId: String(workspace._id),
+          waId: conversation.waId,
+        });
+        continue;
+      }
       const lastCustomerMessageAt = conversation.lastCustomerMessageAt
         ? new Date(conversation.lastCustomerMessageAt)
         : new Date(conversation.updatedAt);

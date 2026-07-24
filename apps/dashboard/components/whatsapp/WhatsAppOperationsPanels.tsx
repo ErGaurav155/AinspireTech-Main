@@ -113,6 +113,27 @@ const DEFAULT_QUESTIONS = [
     options: [],
   },
 ];
+const WEEKDAYS = [
+  { id: "monday", label: "Monday" },
+  { id: "tuesday", label: "Tuesday" },
+  { id: "wednesday", label: "Wednesday" },
+  { id: "thursday", label: "Thursday" },
+  { id: "friday", label: "Friday" },
+  { id: "saturday", label: "Saturday" },
+  { id: "sunday", label: "Sunday" },
+];
+const normalizeWorkingHours = (value: any[] = []) =>
+  WEEKDAYS.map((day, index) => {
+    const existing = value.find(
+      (item) => String(item?.day).toLowerCase() === day.id,
+    );
+    return {
+      day: day.id,
+      isOpen: existing ? existing.isOpen !== false : index < 6,
+      open: existing?.open || "09:00",
+      close: existing?.close || (index === 5 ? "14:00" : "17:00"),
+    };
+  });
 
 const normalizeAutomation = (value: any) => ({
   enabled: value?.enabled !== false,
@@ -178,6 +199,12 @@ export function WhatsAppAutomationsPanel({
   const [services, setServices] = useState<any[]>(
     appointmentConfig?.services || [],
   );
+  const [workingHours, setWorkingHours] = useState(() =>
+    normalizeWorkingHours(appointmentConfig?.workingHours),
+  );
+  const [slotDurationMinutes, setSlotDurationMinutes] = useState(
+    appointmentConfig?.slotDurationMinutes || 30,
+  );
   const [ownerWhatsAppNumber, setOwnerWhatsAppNumber] = useState(
     notificationSettings?.whatsappNumber || "",
   );
@@ -186,6 +213,8 @@ export function WhatsAppAutomationsPanel({
   useEffect(() => {
     setAutomation(normalizeAutomation(automationConfig));
     setServices(appointmentConfig?.services || []);
+    setWorkingHours(normalizeWorkingHours(appointmentConfig?.workingHours));
+    setSlotDurationMinutes(appointmentConfig?.slotDurationMinutes || 30);
     setOwnerWhatsAppNumber(notificationSettings?.whatsappNumber || "");
   }, [automationConfig, appointmentConfig, notificationSettings]);
 
@@ -197,6 +226,8 @@ export function WhatsAppAutomationsPanel({
         appointmentConfig: {
           ...appointmentConfig,
           services,
+          workingHours,
+          slotDurationMinutes,
         },
         notificationSettings: {
           ...notificationSettings,
@@ -542,7 +573,104 @@ export function WhatsAppAutomationsPanel({
 
       {section === "services" && (
         <section className={`rounded-xl border ${cardClass} p-4 sm:p-5`}>
-          <div className="flex items-center justify-between gap-3">
+          <div className="border-b border-gray-200 pb-5 dark:border-white/[0.08]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Clock3 className="h-4 w-4 text-emerald-500" />
+                  <h2 className="font-black">Appointment Availability</h2>
+                </div>
+              </div>
+              <label className="grid w-full gap-1.5 sm:w-48">
+                <span className={labelClass}>Slot duration</span>
+                <select
+                  value={slotDurationMinutes}
+                  onChange={(event) =>
+                    setSlotDurationMinutes(Number(event.target.value))
+                  }
+                  className={fieldClass}
+                >
+                  {[15, 30, 45, 60, 90, 120].map((minutes) => (
+                    <option key={minutes} value={minutes}>
+                      {minutes} minutes
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 divide-y divide-gray-200 border-y border-gray-200 dark:divide-white/[0.08] dark:border-white/[0.08]">
+              {WEEKDAYS.map((day, index) => {
+                const hours = workingHours[index];
+                return (
+                  <div
+                    key={day.id}
+                    className="grid min-h-14 grid-cols-[minmax(7rem,1fr)_auto] items-center gap-3 py-2 sm:grid-cols-[1fr_8rem_8rem]"
+                  >
+                    <label className="flex min-w-0 items-center gap-3 text-sm font-semibold">
+                      <input
+                        type="checkbox"
+                        checked={hours.isOpen}
+                        onChange={(event) =>
+                          setWorkingHours((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, isOpen: event.target.checked }
+                                : item,
+                            ),
+                          )
+                        }
+                        className="h-4 w-4 flex-shrink-0 accent-emerald-500"
+                      />
+                      <span className="truncate">{day.label}</span>
+                    </label>
+                    <span className="text-xs font-semibold text-gray-400 sm:hidden">
+                      {hours.isOpen ? "Open" : "Closed"}
+                    </span>
+                    <label className="col-span-1 grid gap-1 sm:col-auto">
+                      <span className={`${labelClass} sm:sr-only`}>Opens</span>
+                      <input
+                        type="time"
+                        step={900}
+                        disabled={!hours.isOpen}
+                        value={hours.open}
+                        onChange={(event) =>
+                          setWorkingHours((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, open: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={`${fieldClass} disabled:cursor-not-allowed disabled:opacity-40`}
+                      />
+                    </label>
+                    <label className="grid gap-1">
+                      <span className={`${labelClass} sm:sr-only`}>Closes</span>
+                      <input
+                        type="time"
+                        step={900}
+                        disabled={!hours.isOpen}
+                        value={hours.close}
+                        onChange={(event) =>
+                          setWorkingHours((current) =>
+                            current.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? { ...item, close: event.target.value }
+                                : item,
+                            ),
+                          )
+                        }
+                        className={`${fieldClass} disabled:cursor-not-allowed disabled:opacity-40`}
+                      />
+                    </label>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-5 flex items-center justify-between gap-3">
             <h2 className="font-black">Services and Pricing</h2>
             <Button
               type="button"
