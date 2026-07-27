@@ -52,7 +52,6 @@ const NAV_ITEMS = [
   },
   { label: "Accounts", href: "/insta/accounts", icon: Users, isNew: false },
   { label: "Contacts", href: "/insta/lead", icon: Contact, isNew: false },
-  { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
   { label: "Settings", href: "/insta/settings", icon: Settings, isNew: false },
   {
     label: "Pricing",
@@ -66,6 +65,7 @@ const NAV_ITEMS = [
     icon: PackageCheck,
     isNew: true,
   },
+  { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
 ] as const;
 
 const FREE_DM_LIMIT = 1000;
@@ -156,6 +156,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         : `absolute top-4 right-4 p-1.5 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors md:hidden`,
       closeIcon: `h-4 w-4 ${styles.text.muted}`,
       logoContainer: `p-3 border-b ${styles.divider}`,
+      navDivider: isDark
+        ? "border-t border-white/[0.06] my-2"
+        : "border-t border-gray-100 my-2",
       selectorButton: isDark
         ? "w-full flex items-center justify-between p-3 rounded-xl glass-pill hover:bg-white/[0.09] transition-colors group"
         : "w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group",
@@ -475,9 +478,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             </div>
             <div className={`${localStyles.quotaRow} mt-1.5`}>
               <span className={localStyles.quotaLabel}>Follow checks</span>
-              <span
-                className={localStyles.quotaValue(followCheckLimitReached)}
-              >
+              <span className={localStyles.quotaValue(followCheckLimitReached)}>
                 {followChecks.toLocaleString()} /{" "}
                 {isSubscribed ? "Unlimited" : FREE_FOLLOW_CHECK_LIMIT}
               </span>
@@ -502,32 +503,38 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
-              <Link
-                key={item.href}
-                href={
-                  accountLimit === 1 && item.label === "Contacts"
-                    ? "/insta/pricing"
-                    : item.href
-                }
-                onClick={() => {
-                  if (window.innerWidth < 768) onToggle();
-                }}
-                className={localStyles.navLink(active)}
-              >
-                <div className="flex items-center gap-3">
-                  <Icon className={localStyles.navIcon(active)} />
-                  <span className={localStyles.navLabel}>{item.label}</span>
-                </div>
-                {item.isNew && (
-                  <Badge className={localStyles.newBadge}>NEW</Badge>
+              <div key={item.href}>
+                {item.label === "Pricing" && (
+                  <div className={localStyles.navDivider} />
                 )}
-                {accountLimit === 1 && item.label === "Contacts" && (
-                  <Badge className="p-2 text-red-400/40 bg-red-400/10  hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
-                    <Lock className="h-4 w-4" />
-                  </Badge>
-                )}
-                {active && <div className="w-1 h-6 rounded-full bg-pink-500" />}
-              </Link>
+                <Link
+                  href={
+                    accountLimit === 1 && item.label === "Contacts"
+                      ? "/insta/pricing"
+                      : item.href
+                  }
+                  onClick={() => {
+                    if (window.innerWidth < 768) onToggle();
+                  }}
+                  className={localStyles.navLink(active)}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={localStyles.navIcon(active)} />
+                    <span className={localStyles.navLabel}>{item.label}</span>
+                  </div>
+                  {item.isNew && (
+                    <Badge className={localStyles.newBadge}>NEW</Badge>
+                  )}
+                  {accountLimit === 1 && item.label === "Contacts" && (
+                    <Badge className="p-2 text-red-400/40 bg-red-400/10  hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
+                      <Lock className="h-4 w-4" />
+                    </Badge>
+                  )}
+                  {active && (
+                    <div className="w-1 h-6 rounded-full bg-pink-500" />
+                  )}
+                </Link>
+              </div>
             );
           })}
         </nav>

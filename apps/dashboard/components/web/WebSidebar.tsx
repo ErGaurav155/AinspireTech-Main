@@ -62,12 +62,6 @@ const CHATBOT_ITEMS = [
 
 const BOTTOM_NAV_ITEMS = [
   {
-    label: "Refer & Earn",
-    href: "/web/refer",
-    icon: Share2,
-    isNew: true,
-  },
-  {
     label: "Pricing",
     href: "/web/pricing",
     icon: CreditCard,
@@ -77,6 +71,12 @@ const BOTTOM_NAV_ITEMS = [
     label: "Packages",
     href: "/packages",
     icon: PackageCheck,
+    isNew: true,
+  },
+  {
+    label: "Refer & Earn",
+    href: "/web/refer",
+    icon: Share2,
     isNew: true,
   },
 ];

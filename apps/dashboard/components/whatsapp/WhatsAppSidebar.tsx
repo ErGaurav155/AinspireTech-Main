@@ -20,6 +20,7 @@ import {
   PackageCheck,
   Phone,
   Settings,
+  Share2,
   Workflow,
   X,
 } from "lucide-react";
@@ -32,12 +33,17 @@ import {
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
   { label: "Automations", href: "/whatsapp/automations", icon: Workflow },
-  { label: "Appointments", href: "/whatsapp/appointments", icon: CalendarCheck },
+  {
+    label: "Appointments",
+    href: "/whatsapp/appointments",
+    icon: CalendarCheck,
+  },
   { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp },
   { label: "Business Info", href: "/whatsapp/business-info", icon: FileText },
+  { label: "Settings", href: "/whatsapp/settings", icon: Settings },
   { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
   { label: "Packages", href: "/packages", icon: PackageCheck },
-  { label: "Settings", href: "/whatsapp/settings", icon: Settings },
+  { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
 ] as const;
 
 interface WhatsAppSidebarProps {
@@ -73,6 +79,9 @@ export default function WhatsAppSidebar({
       logoContainer: isDark
         ? "p-3 border-b border-white/[0.06]"
         : "p-3 border-b border-gray-100",
+      navDivider: isDark
+        ? "border-t border-white/[0.06] my-2"
+        : "border-t border-gray-100 my-2",
       navLink: (active: boolean) =>
         isDark
           ? `flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group ${
@@ -113,7 +122,9 @@ export default function WhatsAppSidebar({
   const isActive = (href: string) =>
     pathname === href || (href !== "/whatsapp" && pathname.startsWith(href));
 
-  const productMetaClass = isDark ? "text-[11px] text-white/35" : "text-[11px] text-gray-400";
+  const productMetaClass = isDark
+    ? "text-[11px] text-white/35"
+    : "text-[11px] text-gray-400";
 
   return (
     <>
@@ -124,13 +135,21 @@ export default function WhatsAppSidebar({
         } backdrop-blur-xl`}
       >
         <button type="button" onClick={onToggle} className={styles.closeButton}>
-          <X className={isDark ? "h-4 w-4 text-white/60" : "h-4 w-4 text-gray-600"} />
+          <X
+            className={
+              isDark ? "h-4 w-4 text-white/60" : "h-4 w-4 text-gray-600"
+            }
+          />
         </button>
 
         <div className="flex h-full flex-col relative z-10">
           <div className={styles.logoContainer}>
             <Link href="/whatsapp" className="flex items-center">
-              <Image alt="Logo" src={Logo} className="object-cover h-14 w-full" />
+              <Image
+                alt="Logo"
+                src={Logo}
+                className="object-cover h-14 w-full"
+              />
             </Link>
           </div>
 
@@ -147,10 +166,20 @@ export default function WhatsAppSidebar({
                   <MessageCircle className="h-4 w-4" />
                 </div>
                 <div className="min-w-0">
-                  <p className={isDark ? "break-words text-sm font-bold text-white" : "break-words text-sm font-bold text-gray-900"}>
+                  <p
+                    className={
+                      isDark
+                        ? "break-words text-sm font-bold text-white"
+                        : "break-words text-sm font-bold text-gray-900"
+                    }
+                  >
                     WhatsApp Automation
                   </p>
-                  <p className={isDark ? "text-xs text-white/45" : "text-xs text-gray-500"}>
+                  <p
+                    className={
+                      isDark ? "text-xs text-white/45" : "text-xs text-gray-500"
+                    }
+                  >
                     Booking and replies
                   </p>
                 </div>
@@ -166,20 +195,26 @@ export default function WhatsAppSidebar({
               const active = isActive(item.href);
               const Icon = item.icon;
               return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => {
-                    if (window.innerWidth < 768) onToggle();
-                  }}
-                  className={styles.navLink(active)}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={styles.navIcon(active)} />
-                    <span className="text-sm font-medium">{item.label}</span>
-                  </div>
-                  {active && <div className="w-1 h-6 rounded-full bg-emerald-500" />}
-                </Link>
+                <div key={item.href}>
+                  {item.label === "Pricing" && (
+                    <div className={styles.navDivider} />
+                  )}
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      if (window.innerWidth < 768) onToggle();
+                    }}
+                    className={styles.navLink(active)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Icon className={styles.navIcon(active)} />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </div>
+                    {active && (
+                      <div className="w-1 h-6 rounded-full bg-emerald-500" />
+                    )}
+                  </Link>
+                </div>
               );
             })}
           </nav>
@@ -226,7 +261,9 @@ export default function WhatsAppSidebar({
                   <Link href="/whatsapp" className={styles.productOption(true)}>
                     <MessageCircle className="h-4 w-4 text-emerald-500" />
                     <div className="min-w-0">
-                      <p className="text-sm font-semibold">WhatsApp Dashboard</p>
+                      <p className="text-sm font-semibold">
+                        WhatsApp Dashboard
+                      </p>
                       <p className={productMetaClass}>Business Automation</p>
                     </div>
                     <Check className="ml-auto h-4 w-4 text-emerald-500" />
