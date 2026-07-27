@@ -11,7 +11,6 @@ import {
   Loader2,
   X,
   CreditCard,
-  GraduationCap,
   CheckCircle,
   Trash2,
   ExternalLink,
@@ -27,7 +26,7 @@ import {
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+type ChatbotTypeId = "chatbot-lead-generation";
 type BuildStep = "details" | "scraping" | "creating";
 
 interface ExistingChatbot {
@@ -38,10 +37,7 @@ interface ExistingChatbot {
   createdAt?: string;
 }
 
-const VALID_IDS: ChatbotTypeId[] = [
-  "chatbot-lead-generation",
-  "chatbot-education",
-];
+const VALID_IDS: ChatbotTypeId[] = ["chatbot-lead-generation"];
 
 const CONFIG: Record<
   ChatbotTypeId,
@@ -60,13 +56,6 @@ const CONFIG: Record<
     buttonText: "Build Chatbot",
     overviewPath: "/web/chatbot-lead-generation",
   },
-  "chatbot-education": {
-    label: "Education Chatbot",
-    desc: "Create an interactive MCQ education chatbot for students",
-    gradient: "from-green-500 to-emerald-500",
-    buttonText: "Create Chatbot",
-    overviewPath: "/web/chatbot-education",
-  },
 };
 
 export default function BuildChatbotPage() {
@@ -80,7 +69,6 @@ export default function BuildChatbotPage() {
   const isValidId = VALID_IDS.includes(rawId as ChatbotTypeId);
   const chatbotType = isValidId ? (rawId as ChatbotTypeId) : null;
   const cfg = chatbotType ? CONFIG[chatbotType] : null;
-  const isLead = chatbotType === "chatbot-lead-generation";
 
   const [pageStatus, setPageStatus] = useState<
     "checking" | "not-built" | "already-built"
@@ -134,21 +122,19 @@ export default function BuildChatbotPage() {
       setError("Please enter a chatbot name");
       return;
     }
-    if (isLead) {
-      if (!websiteUrl.trim()) {
-        setError("Please enter a website URL");
-        return;
-      }
-      if (!/^https?:\/\//i.test(websiteUrl.trim())) {
-        setError("URL must start with http:// or https://");
-        return;
-      }
-      try {
-        new URL(websiteUrl.trim());
-      } catch {
-        setError("Invalid URL format");
-        return;
-      }
+    if (!websiteUrl.trim()) {
+      setError("Please enter a website URL");
+      return;
+    }
+    if (!/^https?:\/\//i.test(websiteUrl.trim())) {
+      setError("URL must start with http:// or https://");
+      return;
+    }
+    try {
+      new URL(websiteUrl.trim());
+    } catch {
+      setError("Invalid URL format");
+      return;
     }
 
     setIsLoading(true);
@@ -159,11 +145,11 @@ export default function BuildChatbotPage() {
       const chatbotData = await createWebChatbot(apiRequest, {
         name: chatbotName.trim(),
         type: chatbotType,
-        websiteUrl: isLead ? websiteUrl.trim() : undefined,
+        websiteUrl: websiteUrl.trim(),
       });
       const newId = chatbotData.chatbot?.id;
 
-      if (isLead && newId) {
+      if (newId) {
         setStep("scraping");
         const scrapeResult = await scrapeWebsite(
           apiRequest,
@@ -287,7 +273,7 @@ export default function BuildChatbotPage() {
                   Type
                 </span>
                 <span className={`text-sm ${styles.text.primary}`}>
-                  {isLead ? "Lead Generation" : "Education (MCQ)"}
+                  Lead Generation
                 </span>
               </div>
               {existingChatbot.websiteUrl && (
@@ -339,11 +325,7 @@ export default function BuildChatbotPage() {
                 href={cfg.overviewPath}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 bg-gradient-to-r ${cfg.gradient} text-white font-medium rounded-xl hover:opacity-90 transition-opacity`}
               >
-                {isLead ? (
-                  <Bot className="h-4 w-4" />
-                ) : (
-                  <GraduationCap className="h-4 w-4" />
-                )}
+                <Bot className="h-4 w-4" />
                 Go to Dashboard
               </Link>
               <button
@@ -397,11 +379,7 @@ export default function BuildChatbotPage() {
             <div
               className={`w-16 h-16 rounded-full bg-gradient-to-br ${cfg.gradient} flex items-center justify-center mx-auto mb-4`}
             >
-              {isLead ? (
-                <Bot className="h-8 w-8 text-white" />
-              ) : (
-                <GraduationCap className="h-8 w-8 text-white" />
-              )}
+              <Bot className="h-8 w-8 text-white" />
             </div>
             <h1 className={`text-2xl font-bold ${styles.text.primary} mb-2`}>
               Build {cfg.label}
@@ -421,48 +399,44 @@ export default function BuildChatbotPage() {
                   type="text"
                   value={chatbotName}
                   onChange={(e) => setChatbotName(e.target.value)}
-                  placeholder={
-                    isLead ? "e.g., My Lead Gen Bot" : "e.g., My MCQ Bot"
-                  }
+                  placeholder="e.g., My Lead Gen Bot"
                   className={`${styles.input} w-full rounded-lg p-2`}
                   required
                 />
               </div>
 
-              {isLead && (
-                <div>
-                  <label
-                    className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
-                  >
-                    Website URL
-                  </label>
-                  <div
-                    className={`flex items-center gap-2 px-4 py-3 ${
+              <div>
+                <label
+                  className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
+                >
+                  Website URL
+                </label>
+                <div
+                  className={`flex items-center gap-2 px-4 py-3 ${
+                    isDark
+                      ? "bg-white/[0.05] border border-white/[0.09]"
+                      : "bg-white border border-gray-200"
+                  } rounded-xl focus-within:ring-2 focus-within:ring-purple-500/50`}
+                >
+                  <Globe
+                    className={`h-5 w-5 flex-shrink-0 ${
+                      isDark ? "text-white/40" : "text-gray-400"
+                    }`}
+                  />
+                  <input
+                    type="url"
+                    value={websiteUrl}
+                    onChange={(e) => setWebsiteUrl(e.target.value)}
+                    placeholder="https://yourwebsite.com"
+                    className={`flex-1 text-sm ${
                       isDark
-                        ? "bg-white/[0.05] border border-white/[0.09]"
-                        : "bg-white border border-gray-200"
-                    } rounded-xl focus-within:ring-2 focus-within:ring-purple-500/50`}
-                  >
-                    <Globe
-                      className={`h-5 w-5 flex-shrink-0 ${
-                        isDark ? "text-white/40" : "text-gray-400"
-                      }`}
-                    />
-                    <input
-                      type="url"
-                      value={websiteUrl}
-                      onChange={(e) => setWebsiteUrl(e.target.value)}
-                      placeholder="https://yourwebsite.com"
-                      className={`flex-1 text-sm ${
-                        isDark
-                          ? "text-white placeholder-white/25 bg-transparent"
-                          : "text-gray-700 placeholder-gray-400 bg-transparent"
-                      } focus:outline-none`}
-                      required
-                    />
-                  </div>
+                        ? "text-white placeholder-white/25 bg-transparent"
+                        : "text-gray-700 placeholder-gray-400 bg-transparent"
+                    } focus:outline-none`}
+                    required
+                  />
                 </div>
-              )}
+              </div>
 
               {error && (
                 <div
@@ -509,35 +483,22 @@ export default function BuildChatbotPage() {
                       What happens next?
                     </p>
                     <ul className="space-y-1">
-                      {isLead ? (
-                        <>
-                          <li
-                            className={`text-xs flex items-center gap-2 ${
-                              isDark ? "text-purple-400/80" : "text-purple-600"
-                            }`}
-                          >
-                            <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
-                            We will scrape your website to train the chatbot
-                          </li>
-                          <li
-                            className={`text-xs flex items-center gap-2 ${
-                              isDark ? "text-purple-400/80" : "text-purple-600"
-                            }`}
-                          >
-                            <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
-                            This may take 1–2 minutes
-                          </li>
-                        </>
-                      ) : (
-                        <li
-                          className={`text-xs flex items-center gap-2 ${
-                            isDark ? "text-purple-400/80" : "text-purple-600"
-                          }`}
-                        >
-                          <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
-                          Your education chatbot will be created immediately
-                        </li>
-                      )}
+                      <li
+                        className={`text-xs flex items-center gap-2 ${
+                          isDark ? "text-purple-400/80" : "text-purple-600"
+                        }`}
+                      >
+                        <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
+                        We will scrape your website to train the chatbot
+                      </li>
+                      <li
+                        className={`text-xs flex items-center gap-2 ${
+                          isDark ? "text-purple-400/80" : "text-purple-600"
+                        }`}
+                      >
+                        <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
+                        This may take 1–2 minutes
+                      </li>
                       <li
                         className={`text-xs flex items-center gap-2 ${
                           isDark ? "text-purple-400/80" : "text-purple-600"
@@ -584,16 +545,12 @@ export default function BuildChatbotPage() {
               <h3
                 className={`text-lg font-semibold ${styles.text.primary} mb-2`}
               >
-                {step === "scraping"
-                  ? "Scraping Website…"
-                  : `Creating ${isLead ? "" : "Education "}Chatbot…`}
+                {step === "scraping" ? "Scraping Website…" : "Creating Chatbot…"}
               </h3>
               <p className={`text-sm ${styles.text.secondary} mb-6`}>
                 {step === "scraping"
                   ? "Please wait while we analyse your website. This may take 1–2 minutes."
-                  : isLead
-                    ? "Setting up your chatbot with the scraped data."
-                    : "Setting up your education chatbot."}
+                  : "Setting up your chatbot with the scraped data."}
               </p>
               <div
                 className={`flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}

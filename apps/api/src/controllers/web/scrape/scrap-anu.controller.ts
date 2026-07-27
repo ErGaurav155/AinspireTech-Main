@@ -677,6 +677,7 @@ export const scrapAnuController = async (req: Request, res: Response) => {
     const chatbot = await WebChatbot.findOne({
       _id: chatbotId,
       clerkId: userId,
+      type: "chatbot-lead-generation",
     });
 
     if (!chatbot) {

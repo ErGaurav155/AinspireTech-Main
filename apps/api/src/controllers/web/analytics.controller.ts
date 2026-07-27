@@ -21,6 +21,14 @@ export const getWebAnalyticsController = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const period = (req.query.period as string) || "7d";
 
     // Validate period parameter
@@ -122,54 +130,18 @@ export const getWebAnalyticsController = async (
       )
       .slice(0, 10);
 
-    // Build overview based on chatbot type
-    let overview: any = {
+    const overview = {
       totalConversations,
       totalMessages: conversations.reduce(
         (sum: number, conv: any) => sum + (conv.messages?.length || 0),
         0,
       ),
       averageResponseTime,
+      totalLeads: totalConversations,
+      qualifiedLeads: totalAppointments,
+      conversionRate: Math.round(conversionRate * 10) / 10,
+      formCompletions: totalAppointments,
     };
-
-    if (chatbotType === "chatbot-lead-generation") {
-      overview = {
-        ...overview,
-        totalLeads: totalConversations,
-        qualifiedLeads: totalAppointments,
-        conversionRate: Math.round(conversionRate * 10) / 10,
-        formCompletions: totalAppointments,
-      };
-    } else if (chatbotType === "chatbot-education") {
-      // For education, calculate additional metrics
-      const completedQuizzes = conversations.filter(
-        (conv: any) =>
-          conv.status === "resolved" || conv.status === "completed",
-      ).length;
-
-      const scores: number[] = [];
-      conversations.forEach((conv: any) => {
-        if (conv.score && typeof conv.score === "number") {
-          scores.push(conv.score);
-        }
-      });
-
-      const averageScore =
-        scores.length > 0
-          ? scores.reduce((a, b) => a + b, 0) / scores.length
-          : 0;
-
-      overview = {
-        ...overview,
-        totalStudents: totalConversations,
-        completedQuizzes,
-        averageScore: Math.round(averageScore * 10) / 10,
-        totalQuestions: conversations.reduce(
-          (sum: number, conv: any) => sum + (conv.totalQuestions || 0),
-          0,
-        ),
-      };
-    }
 
     const satisfactionDistribution =
       calculateSatisfactionDistribution(conversations);

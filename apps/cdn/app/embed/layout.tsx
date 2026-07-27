@@ -1,16 +1,12 @@
 // apps/cdn/app/embed/layout.tsx
-// Legacy embed layout - redirects to new structure
-// Kept for backward compatibility
-
-import { redirect } from "next/navigation";
+// Legacy embed layout kept for backward compatibility.
 
 export default function EmbedLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // This layout is kept for backward compatibility
-  // New embeds should use /lead/embed or /mcq/embed
+  // New embeds should use /lead/embed.
   return (
     <div
       style={{

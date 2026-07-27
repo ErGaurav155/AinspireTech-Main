@@ -3,7 +3,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IFAQ extends Document {
   clerkId: string;
-  chatbotType: string;
+  chatbotType: "chatbot-lead-generation";
   questions: {
     id: string;
     question: string;
@@ -23,7 +23,7 @@ const FAQSchema = new Schema<IFAQ>(
     chatbotType: {
       type: String,
       required: true,
-      enum: ["chatbot-lead-generation", "chatbot-education"],
+      enum: ["chatbot-lead-generation"],
     },
     questions: [
       {

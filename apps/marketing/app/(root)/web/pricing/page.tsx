@@ -7,7 +7,6 @@ import {
   HeadsetIcon,
   AmbulanceIcon,
   BotIcon,
-  GraduationCapIcon,
   ShoppingCartIcon,
   Building2Icon,
   Bot,
@@ -60,7 +59,6 @@ const iconMapping: Record<string, LucideIcon> = {
   AmbulanceIcon,
   BotIcon,
   Bot,
-  GraduationCapIcon,
   ShoppingCartIcon,
   Building2Icon,
 };
@@ -174,9 +172,6 @@ const PricingContent = () => {
 
     if (productId === "chatbot-lead-generation") {
       return `from-[#B026FF]/${opacity}`;
-    }
-    if (productId === "chatbot-education") {
-      return `from-[#00F0FF]/${opacity}`;
     }
     return `from-[#FF2E9F]/${opacity}`;
   };

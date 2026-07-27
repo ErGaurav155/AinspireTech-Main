@@ -325,6 +325,7 @@ export async function getActiveSeparateServiceSubscriptions(
       .lean(),
     WebSubscription.find({
       clerkId,
+      chatbotType: "chatbot-lead-generation",
       status: "active",
       expiresAt: { $gt: new Date() },
       subscriptionId: { $not: /^pkg:/ },
@@ -357,10 +358,7 @@ export async function getActiveSeparateServiceSubscriptions(
   for (const subscription of webSubs) {
     activeServices.push({
       service: "web",
-      label:
-        subscription.chatbotType === "chatbot-education"
-          ? "Web Education Chatbot"
-          : "Website Lead Chatbot",
+      label: "Website Lead Chatbot",
       plan: subscription.plan || subscription.chatbotType,
       subscriptionId: subscription.subscriptionId,
       manageUrl: "/web/pricing",
@@ -413,7 +411,10 @@ export async function buildDashboardPackageStatus(clerkId: string) {
     getActivePackageSubscription(clerkId),
     PackageSubscription.exists({ clerkId }),
     InstaSubscription.exists({ clerkId }),
-    WebSubscription.exists({ clerkId }),
+    WebSubscription.exists({
+      clerkId,
+      chatbotType: "chatbot-lead-generation",
+    }),
     CallSubscription.exists({ clerkId }),
     InstagramAccount.findOne({ userId: clerkId, isActive: true }).lean(),
     WebChatbot.findOne({
@@ -842,7 +843,10 @@ async function grantPackageServices({
     tasks.push(initializeSubscriptionTokens(clerkId, "chatbot-lead-generation"));
     tasks.push(
       WebSubscription.findOneAndUpdate(
-        { subscriptionId: packageGrantId(subscriptionId, "web") },
+        {
+          subscriptionId: packageGrantId(subscriptionId, "web"),
+          chatbotType: "chatbot-lead-generation",
+        },
         {
           $set: {
             clerkId,
@@ -965,7 +969,11 @@ export async function cancelDashboardPackageLocally({
       },
     ),
     WebSubscription.updateMany(
-      { clerkId, subscriptionId: packageGrantId(subscriptionId, "web") },
+      {
+        clerkId,
+        subscriptionId: packageGrantId(subscriptionId, "web"),
+        chatbotType: "chatbot-lead-generation",
+      },
       { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } },
     ),
     InstaSubscription.updateMany(

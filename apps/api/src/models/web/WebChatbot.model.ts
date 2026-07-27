@@ -1,6 +1,6 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
-export type ChatbotType = "chatbot-lead-generation" | "chatbot-education";
+export type ChatbotType = "chatbot-lead-generation";
 export type WidgetPosition = "bottom-right" | "bottom-left";
 
 export interface IChatbotSettings {
@@ -107,7 +107,7 @@ const ChatbotSchema = new Schema<IChatbot>(
     type: {
       type: String,
       required: true,
-      enum: ["chatbot-lead-generation", "chatbot-education"],
+      enum: ["chatbot-lead-generation"],
     },
     websiteUrl: {
       type: String,

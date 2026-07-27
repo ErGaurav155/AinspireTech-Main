@@ -104,7 +104,6 @@ const getChatbotIcon = (type: string) => {
   const icons: Record<string, JSX.Element> = {
     "chatbot-lead-generation": <Target className="h-4 w-4" />,
     "chatbot-customer-support": <MessageCircle className="h-4 w-4" />,
-    "chatbot-education": <GraduationCap className="h-4 w-4" />,
     "chatbot-e-commerce": <ShoppingCart className="h-4 w-4" />,
   };
   return icons[type] || <Bot className="h-4 w-4" />;
@@ -114,7 +113,6 @@ const getChatbotColor = (type: string) => {
   const colors: Record<string, string> = {
     "chatbot-lead-generation": "bg-purple-100 text-purple-600",
     "chatbot-customer-support": "bg-blue-100 text-blue-600",
-    "chatbot-education": "bg-green-100 text-green-600",
     "chatbot-e-commerce": "bg-amber-100 text-amber-600",
   };
   return colors[type] || "bg-gray-100 text-gray-600";

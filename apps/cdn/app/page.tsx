@@ -123,61 +123,6 @@ export default function HomePage() {
         </p>
       </div>
 
-      {/* MCQ/Education Bot */}
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #e5e7eb",
-          borderRadius: 18,
-          padding: "22px 26px",
-          maxWidth: 560,
-          width: "100%",
-          textAlign: "left",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.06)",
-          marginBottom: 16,
-        }}
-      >
-        <p
-          style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: "#374151",
-            textTransform: "uppercase",
-            letterSpacing: "0.08em",
-            margin: "0 0 12px",
-          }}
-        >
-          📚 MCQ / Education Bot
-        </p>
-        <pre
-          style={{
-            background: "#0d0d0d",
-            color: "#86efac",
-            borderRadius: 10,
-            padding: "14px 16px",
-            fontSize: 12,
-            overflowX: "auto",
-            margin: 0,
-            lineHeight: 1.65,
-            fontFamily: "'Fira Code', 'Cascadia Code', 'Consolas', monospace",
-          }}
-        >
-          {`<!-- Embed on your website -->\n<script\n  src="https://cdn.rocketreplai.com/mcq-bot.js"\n  defer\n>userId,chatbot-education</script>`}
-        </pre>
-        <p style={{ marginTop: 12, fontSize: 12, color: "#6b7280" }}>
-          🔗 Landing page:{" "}
-          <code
-            style={{
-              background: "#f3f4f6",
-              padding: "2px 6px",
-              borderRadius: 6,
-            }}
-          >
-            https://cdn.rocketreplai.com/mcq/&#123;userId&#125;/&#123;chatbotType&#125;
-          </code>
-        </p>
-      </div>
-
       <p style={{ fontSize: 12, color: "#9ca3af", marginTop: 16 }}>
         Get your embed code from the{" "}
         <a

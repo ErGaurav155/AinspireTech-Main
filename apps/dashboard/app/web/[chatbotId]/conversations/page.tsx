@@ -8,7 +8,6 @@ import Link from "next/link";
 import {
   MessageCircle,
   Bot,
-  GraduationCap,
   ExternalLink,
   Search,
   Loader2,
@@ -38,7 +37,7 @@ import { Orbs, useThemeStyles } from "@rocketreplai/ui";
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type Status = "active" | "resolved";
-type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+type ChatbotTypeId = "chatbot-lead-generation";
 
 interface Message {
   id: string;
@@ -120,12 +119,6 @@ const TYPE_CONFIG = {
     gradient: "from-purple-500 to-pink-500",
     pc: "#8b5cf6",
     buildPath: "/web/chatbot-lead-generation/create",
-  },
-  "chatbot-education": {
-    label: "Education (MCQ)",
-    gradient: "from-green-500 to-emerald-500",
-    pc: "#10b981",
-    buildPath: "/web/chatbot-education/create",
   },
 } as const;
 
@@ -642,9 +635,7 @@ export default function ConversationsPage() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const isValid = ["chatbot-lead-generation", "chatbot-education"].includes(
-    rawId,
-  );
+  const isValid = rawId === "chatbot-lead-generation";
   const chatbotType = isValid ? (rawId as ChatbotTypeId) : null;
   const cfg = chatbotType ? TYPE_CONFIG[chatbotType] : null;
   const pc = cfg?.pc || "#8b5cf6";
@@ -817,11 +808,7 @@ export default function ConversationsPage() {
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center mb-6`}
           >
-            {rawId === "chatbot-lead-generation" ? (
-              <Bot className="h-10 w-10 text-white" />
-            ) : (
-              <GraduationCap className="h-10 w-10 text-white" />
-            )}
+            <Bot className="h-10 w-10 text-white" />
           </div>
           <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
             Build your chatbot first

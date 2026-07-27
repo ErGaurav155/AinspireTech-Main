@@ -54,25 +54,15 @@ type CheckoutStep =
   | "payment"
   | "subscription-activate";
 
-// Define schema based on chatbot type
-const createWebsiteFormSchema = (isEducationChatbot: boolean) => {
-  if (isEducationChatbot) {
-    return z.object({
-      chatbotName: z.string().min(1, "Chatbot name is required"),
-      websiteUrl: z.string().optional(),
-    });
-  } else {
-    return z.object({
-      chatbotName: z.string().min(1, "Chatbot name is required"),
-      websiteUrl: z
-        .string()
-        .min(1, "Website URL is required")
-        .url("Please enter a valid URL"),
-    });
-  }
-};
+const websiteFormSchema = z.object({
+  chatbotName: z.string().min(1, "Chatbot name is required"),
+  websiteUrl: z
+    .string()
+    .min(1, "Website URL is required")
+    .url("Please enter a valid URL"),
+});
 
-type WebsiteFormData = z.infer<ReturnType<typeof createWebsiteFormSchema>>;
+type WebsiteFormData = z.infer<typeof websiteFormSchema>;
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -130,12 +120,6 @@ export const Checkout = ({
   );
   const userEmailRef = useRef<string>("");
 
-  // Check if this is an education chatbot
-  const isEducationChatbot = productId === "chatbot-education";
-
-  // Create form schema based on chatbot type
-  const websiteFormSchema = createWebsiteFormSchema(isEducationChatbot);
-
   const {
     handleSubmit: handleWebsiteSubmit,
     register: registerWebsite,
@@ -149,8 +133,6 @@ export const Checkout = ({
     switch (productId) {
       case "chatbot-lead-generation":
         return "from-purple-500 to-pink-500";
-      case "chatbot-education":
-        return "from-cyan-500 to-blue-500";
       default:
         return "from-pink-500 to-rose-500";
     }
@@ -190,9 +172,6 @@ export const Checkout = ({
   };
 
   const getModalTitle = () => {
-    if (isEducationChatbot) {
-      return "Create Your MCQ Education Chatbot";
-    }
     switch (currentStep) {
       case "weblink":
         return "Create Your Chatbot";
@@ -208,14 +187,9 @@ export const Checkout = ({
   };
 
   const getModalDescription = () => {
-    if (isEducationChatbot) {
-      return "Configure your MCQ education chatbot details";
-    }
     switch (currentStep) {
       case "weblink":
-        return isEducationChatbot
-          ? "Configure your MCQ chatbot details"
-          : "Add your website details before subscription";
+        return "Add your website details before subscription";
       case "chatbot-create":
         return "We're creating your chatbot";
       case "scraping":
@@ -228,9 +202,6 @@ export const Checkout = ({
   };
 
   const getStepTitle = () => {
-    if (isEducationChatbot) {
-      return "CONFIGURE YOUR MCQ CHATBOT";
-    }
     switch (currentStep) {
       case "weblink":
         return "CONFIGURE YOUR CHATBOT";
@@ -246,18 +217,11 @@ export const Checkout = ({
   };
 
   const getStepDescription = () => {
-    if (isEducationChatbot) {
-      return "Enter your MCQ chatbot details";
-    }
     switch (currentStep) {
       case "weblink":
-        return isEducationChatbot
-          ? "Enter your MCQ chatbot details"
-          : "Enter your live website URL. We will scan public pages to train your chatbot.";
+        return "Enter your live website URL. We will scan public pages to train your chatbot.";
       case "chatbot-create":
-        return isEducationChatbot
-          ? "We're setting up your chatbot instance"
-          : "We're creating your chatbot. Website scraping will start next and may take 1-2 minutes.";
+        return "We're creating your chatbot. Website scraping will start next and may take 1-2 minutes.";
       case "scraping":
         return "Please wait while we scrape and process your website. This may take 1-2 minutes, please do not close this window.";
       case "subscription-activate":
@@ -268,16 +232,10 @@ export const Checkout = ({
   };
 
   const getStatusMessage = () => {
-    if (isEducationChatbot) {
-      return "Education chatbot created successfully!";
-    }
     return scrapingStatus || "Initializing...";
   };
 
   const getFooterText = () => {
-    if (isEducationChatbot) {
-      return "MCQ EDUCATION CHATBOT CONFIGURATION";
-    }
     switch (currentStep) {
       case "weblink":
         return "CUSTOM CHATBOT CONFIGURATION";
@@ -541,10 +499,6 @@ export const Checkout = ({
       // If chatbot is already created, go directly to payment without showing modal
       setCurrentStep("payment");
       await processChatbotPayment();
-    } else if (isEducationChatbot) {
-      // For education chatbot, show modal with just chatbot name field
-      setShowModal(true);
-      setCurrentStep("weblink");
     } else {
       // For new lead chatbot purchases, show the pricing-page modal with website form
       setShowModal(true);
@@ -565,24 +519,16 @@ export const Checkout = ({
         setCreatedChatbotId(chatbot.id);
         setChatbotCreationComplete(true);
 
-        if (isEducationChatbot) {
-          // For education chatbot, no scraping needed
-          setScrapingStatus("Education chatbot created successfully!");
-          setScrapingComplete(true);
-        } else {
-          // For non-education chatbots, proceed with scraping
-          setScrapingStatus(
-            "Chatbot created. Starting website scraping now. This might take 1-2 minutes, please do not close this window.",
-          );
+        setScrapingStatus(
+          "Chatbot created. Starting website scraping now. This might take 1-2 minutes, please do not close this window.",
+        );
 
-          // Step 2: Process scraping (only for non-education chatbots)
-          if (data.websiteUrl) {
-            await processScraping(data.websiteUrl, chatbot.id);
-          }
-
-          setScrapingComplete(true);
-          setScrapingStatus("Chatbot setup complete! Proceeding to payment...");
+        if (data.websiteUrl) {
+          await processScraping(data.websiteUrl, chatbot.id);
         }
+
+        setScrapingComplete(true);
+        setScrapingStatus("Chatbot setup complete! Proceeding to payment...");
 
         // Step 3: After successful creation, proceed to payment
         setTimeout(() => {
@@ -850,11 +796,7 @@ export const Checkout = ({
                   <input
                     {...registerWebsite("chatbotName")}
                     className={`w-full px-4 py-3 rounded-xl text-sm ${styles.input}`}
-                    placeholder={
-                      isEducationChatbot
-                        ? "My MCQ Education Chatbot"
-                        : "My Support Chatbot"
-                    }
+                    placeholder="My Lead Generation Chatbot"
                     disabled={isSubmitting || processing}
                   />
                   {websiteErrors.chatbotName && (
@@ -864,26 +806,24 @@ export const Checkout = ({
                   )}
                 </div>
 
-                {!isEducationChatbot && (
-                  <div>
-                    <label
-                      className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
-                    >
-                      Website URL
-                    </label>
-                    <input
-                      {...registerWebsite("websiteUrl")}
-                      className={`w-full px-4 py-3 rounded-xl text-sm ${styles.input}`}
-                      placeholder="https://example.com"
-                      disabled={isSubmitting || processing}
-                    />
-                    {websiteErrors.websiteUrl && (
-                      <p className="text-red-500 text-sm mt-1">
-                        {websiteErrors.websiteUrl.message}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <label
+                    className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
+                  >
+                    Website URL
+                  </label>
+                  <input
+                    {...registerWebsite("websiteUrl")}
+                    className={`w-full px-4 py-3 rounded-xl text-sm ${styles.input}`}
+                    placeholder="https://example.com"
+                    disabled={isSubmitting || processing}
+                  />
+                  {websiteErrors.websiteUrl && (
+                    <p className="text-red-500 text-sm mt-1">
+                      {websiteErrors.websiteUrl.message}
+                    </p>
+                  )}
+                </div>
 
                 <div
                   className={`${isDark ? "bg-pink-500/10 border border-pink-500/20" : "bg-pink-50 border border-pink-200"} rounded-xl p-3`}
@@ -892,9 +832,8 @@ export const Checkout = ({
                     className={`${isDark ? "text-pink-400" : "text-pink-600"} text-sm flex items-center`}
                   >
                     <Bot className="h-4 w-4 mr-2" />
-                    {isEducationChatbot
-                      ? "Education chatbot is designed for MCQ-based learning and doesn't require website scraping"
-                      : "Website scraping may take 1-2 minutes. Please do not close this window after you submit."}
+                    Website scraping may take 1-2 minutes. Please do not close
+                    this window after you submit.
                   </p>
                 </div>
               </div>

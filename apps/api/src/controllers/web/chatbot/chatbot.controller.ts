@@ -13,10 +13,7 @@ import multer from "multer";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const VALID_CHATBOT_TYPES = [
-  "chatbot-lead-generation",
-  "chatbot-education",
-] as const;
+const VALID_CHATBOT_TYPES = ["chatbot-lead-generation"] as const;
 
 type ChatbotTypeId = (typeof VALID_CHATBOT_TYPES)[number];
 
@@ -32,10 +29,6 @@ const TYPE_DEFAULTS: Record<
   "chatbot-lead-generation": {
     welcomeMessage: "Hi! How can I help you today?",
     primaryColor: "#8B5CF6",
-  },
-  "chatbot-education": {
-    welcomeMessage: "Hello! How can I help you today?",
-    primaryColor: "#10B981",
   },
 };
 
@@ -211,23 +204,21 @@ export const createChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    if (type === "chatbot-lead-generation") {
-      if (!websiteUrl?.trim()) {
-        return res.status(400).json({
-          success: false,
-          error: "websiteUrl is required for lead generation chatbot",
-          timestamp: new Date().toISOString(),
-        });
-      }
-      try {
-        new URL(websiteUrl.trim());
-      } catch {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid websiteUrl format",
-          timestamp: new Date().toISOString(),
-        });
-      }
+    if (!websiteUrl?.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "websiteUrl is required for lead generation chatbot",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    try {
+      new URL(websiteUrl.trim());
+    } catch {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid websiteUrl format",
+        timestamp: new Date().toISOString(),
+      });
     }
 
     await connectToDatabase();
@@ -251,7 +242,7 @@ export const createChatbotController = async (req: Request, res: Response) => {
       clerkId: userId,
       name: name.trim(),
       type,
-      websiteUrl: type === "chatbot-lead-generation" ? websiteUrl.trim() : null,
+      websiteUrl: websiteUrl.trim(),
       embedCode,
       isScrapped: false,
       scrappedFile: null,
@@ -274,22 +265,20 @@ export const createChatbotController = async (req: Request, res: Response) => {
 
     const created = await newChatbot.save();
 
-    if (type === "chatbot-lead-generation") {
-      try {
-        await WebAppointmentQuestions.findOneAndUpdate(
-          { clerkId: userId, chatbotType: type },
-          {
-            $setOnInsert: {
-              clerkId: userId,
-              chatbotType: type,
-              questions: DEFAULT_APPOINTMENT_QUESTIONS,
-            },
+    try {
+      await WebAppointmentQuestions.findOneAndUpdate(
+        { clerkId: userId, chatbotType: type },
+        {
+          $setOnInsert: {
+            clerkId: userId,
+            chatbotType: type,
+            questions: DEFAULT_APPOINTMENT_QUESTIONS,
           },
-          { upsert: true, new: true },
-        );
-      } catch (apptErr) {
-        console.error("Failed to seed default appointment questions:", apptErr);
-      }
+        },
+        { upsert: true, new: true },
+      );
+    } catch (apptErr) {
+      console.error("Failed to seed default appointment questions:", apptErr);
     }
 
     return res.status(201).json({
@@ -335,7 +324,10 @@ export const getChatbotsController = async (req: Request, res: Response) => {
 
     await connectToDatabase();
 
-    const chatbots = await WebChatbot.find({ clerkId: userId })
+    const chatbots = await WebChatbot.find({
+      clerkId: userId,
+      type: "chatbot-lead-generation",
+    })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -377,7 +369,10 @@ export const getUserChatbotsController = async (
 
     await connectToDatabase();
 
-    const userChatbots = await WebChatbot.find({ clerkId: userId })
+    const userChatbots = await WebChatbot.find({
+      clerkId: userId,
+      type: "chatbot-lead-generation",
+    })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -407,6 +402,14 @@ export const getChatbotByIdController = async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!isValidType(chatbotId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
         timestamp: new Date().toISOString(),
       });
     }
@@ -456,6 +459,14 @@ export const updateChatbotController = async (req: Request, res: Response) => {
       });
     }
 
+    if (!isValidType(chatbotId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const updateData = req.body;
 
     await connectToDatabase();
@@ -499,6 +510,14 @@ export const deleteChatbotController = async (req: Request, res: Response) => {
       return res.status(401).json({
         success: false,
         error: "Unauthorized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (!isValidType(chatbotId)) {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
         timestamp: new Date().toISOString(),
       });
     }
@@ -581,6 +600,7 @@ export const updateWebsiteKnowledgeController = async (
     const chatbot = await WebChatbot.findOne({
       _id: chatbotId,
       clerkId: userId,
+      type: "chatbot-lead-generation",
     });
 
     if (!chatbot) {
@@ -610,7 +630,11 @@ export const updateWebsiteKnowledgeController = async (
 
     // Update the website URL first
     await WebChatbot.updateOne(
-      { _id: chatbotId, clerkId: userId },
+      {
+        _id: chatbotId,
+        clerkId: userId,
+        type: "chatbot-lead-generation",
+      },
       {
         $set: {
           websiteUrl: url,
@@ -636,7 +660,11 @@ export const updateWebsiteKnowledgeController = async (
 
     // Update chatbot with scraped data
     await WebChatbot.updateOne(
-      { _id: chatbotId, clerkId: userId },
+      {
+        _id: chatbotId,
+        clerkId: userId,
+        type: "chatbot-lead-generation",
+      },
       {
         $set: {
           scrappedFile: cloudinaryUrl,
@@ -709,6 +737,7 @@ export const uploadKnowledgeFileController = async (
     const chatbot = await WebChatbot.findOne({
       _id: chatbotId,
       clerkId: userId,
+      type: "chatbot-lead-generation",
     });
 
     if (!chatbot) {
@@ -752,7 +781,11 @@ export const uploadKnowledgeFileController = async (
 
     // Update chatbot
     await WebChatbot.updateOne(
-      { _id: chatbotId, clerkId: userId },
+      {
+        _id: chatbotId,
+        clerkId: userId,
+        type: "chatbot-lead-generation",
+      },
       {
         $set: {
           scrappedFile: mergedCloudinaryUrl,
@@ -804,6 +837,7 @@ export const getKnowledgeStatusController = async (
     const chatbot = await WebChatbot.findOne({
       _id: chatbotId,
       clerkId: userId,
+      type: "chatbot-lead-generation",
     });
 
     if (!chatbot) {

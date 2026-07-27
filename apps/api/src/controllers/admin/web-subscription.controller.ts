@@ -12,7 +12,9 @@ export const getWebSubscriptionsController = async (
     await connectToDatabase();
 
     // Get all web subscriptions sorted by creation date (newest first)
-    const subscriptions = await WebSubscription.find({})
+    const subscriptions = await WebSubscription.find({
+      chatbotType: "chatbot-lead-generation",
+    })
       .sort({ createdAt: -1 })
       .lean();
 

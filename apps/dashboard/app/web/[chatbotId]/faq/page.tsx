@@ -13,7 +13,6 @@ import {
   Edit,
   CheckCircle,
   Search,
-  GraduationCap,
   Bot,
   ExternalLink,
 } from "lucide-react";
@@ -22,7 +21,7 @@ import { getFAQ, saveFAQ, getChatbots } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+type ChatbotTypeId = "chatbot-lead-generation";
 
 interface FAQQuestion {
   id: string;
@@ -31,10 +30,7 @@ interface FAQQuestion {
   category: string;
 }
 
-const VALID_IDS: ChatbotTypeId[] = [
-  "chatbot-lead-generation",
-  "chatbot-education",
-];
+const VALID_IDS: ChatbotTypeId[] = ["chatbot-lead-generation"];
 
 const TYPE_CONFIG: Record<
   ChatbotTypeId,
@@ -52,13 +48,6 @@ const TYPE_CONFIG: Record<
     accentDark: "text-purple-400",
     accentLight: "text-purple-600",
     buildPath: "/web/chatbot-lead-generation/create",
-  },
-  "chatbot-education": {
-    label: "Education (MCQ)",
-    gradient: "from-green-500 to-emerald-500",
-    accentDark: "text-green-400",
-    accentLight: "text-green-600",
-    buildPath: "/web/chatbot-education/create",
   },
 };
 
@@ -237,11 +226,7 @@ export default function FAQPage() {
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center mb-6 shadow-lg`}
           >
-            {isLead ? (
-              <Bot className="h-10 w-10 text-white" />
-            ) : (
-              <GraduationCap className="h-10 w-10 text-white" />
-            )}
+            <Bot className="h-10 w-10 text-white" />
           </div>
           <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
             Build your {cfg.label} chatbot first
@@ -328,11 +313,7 @@ export default function FAQPage() {
                 : "bg-green-50 border border-green-100 text-green-700"
           }`}
         >
-          {isLead ? (
-            <Bot className="h-3.5 w-3.5" />
-          ) : (
-            <GraduationCap className="h-3.5 w-3.5" />
-          )}
+          <Bot className="h-3.5 w-3.5" />
           Showing FAQ for {cfg.label} chatbot only
         </div>
 

@@ -85,6 +85,7 @@ export const processScrapedDataController = async (
     const chatbot = await WebChatbot.findOne({
       _id: chatbotId,
       clerkId: userId,
+      type: "chatbot-lead-generation",
     });
 
     if (!chatbot) {
@@ -102,7 +103,11 @@ export const processScrapedDataController = async (
 
     // Update chatbot with scraped data
     await WebChatbot.updateOne(
-      { _id: chatbotId, clerkId: userId },
+      {
+        _id: chatbotId,
+        clerkId: userId,
+        type: "chatbot-lead-generation",
+      },
       {
         $set: {
           scrappedFile: cloudinaryUrl,

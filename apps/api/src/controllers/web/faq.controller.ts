@@ -22,6 +22,14 @@ export const createOrUpdateFaqController = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Find existing FAQ or create new one
     let faq = await webFaq.findOne({ clerkId: userId, chatbotType });
 
@@ -64,10 +72,10 @@ export const getFaqController = async (req: Request, res: Response) => {
     const { userId: clerkId } = getAuth(req);
     const chatbotType = req.query.chatbotType as string;
 
-    if (!clerkId) {
+    if (!clerkId || chatbotType !== "chatbot-lead-generation") {
       return res.status(400).json({
         success: false,
-        error: "userId  are required",
+        error: "A valid user and lead-generation chatbot type are required",
         timestamp: new Date().toISOString(),
       });
     }

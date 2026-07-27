@@ -374,7 +374,11 @@ export async function checkActiveSubscriptions(
   await connectToDatabase();
 
   const [webSubscriptions, instaSubscriptions] = await Promise.all([
-    WebSubscription.find({ clerkId, status: "active" }),
+    WebSubscription.find({
+      clerkId,
+      chatbotType: "chatbot-lead-generation",
+      status: "active",
+    }),
     InstaSubscription.find({ clerkId, status: "active" }),
   ]);
 
@@ -443,6 +447,7 @@ export async function checkAndPrepareScrape({
   const chatbot = await WebChatbot.findOne({
     _id: chatbotId,
     clerkId: userId,
+    type: "chatbot-lead-generation",
   });
 
   if (!chatbot) {

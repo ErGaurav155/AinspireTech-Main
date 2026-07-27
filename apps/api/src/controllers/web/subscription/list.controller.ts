@@ -21,17 +21,9 @@ export const listSubscriptionsController = async (
 
     await connectToDatabase();
 
-    // Define allowed chatbot types
-    const allowedChatbotTypes = [
-      "chatbot-lead-generation",
-      "chatbot-education",
-    ];
-
     const subscriptions = await WebSubscription.find({
       clerkId: userId,
-      chatbotType: {
-        $in: allowedChatbotTypes,
-      },
+      chatbotType: "chatbot-lead-generation",
       status: "active",
     }).sort({ createdAt: -1 });
 

@@ -8,7 +8,6 @@ import Link from "next/link";
 import {
   Settings,
   Bot,
-  GraduationCap,
   ExternalLink,
   Save,
   Loader2,
@@ -40,7 +39,7 @@ import {
 import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
-type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+type ChatbotTypeId = "chatbot-lead-generation";
 
 interface BotSettings {
   name: string;
@@ -61,12 +60,6 @@ const TYPE_CONFIG: Record<
     gradient: "from-purple-500 to-pink-500",
     defaultColor: "#8B5CF6",
     buildPath: "/web/chatbot-lead-generation/build",
-  },
-  "chatbot-education": {
-    label: "Education (MCQ)",
-    gradient: "from-green-500 to-emerald-500",
-    defaultColor: "#10B981",
-    buildPath: "/web/chatbot-education/build",
   },
 };
 
@@ -148,11 +141,9 @@ function ColorPicker({
 function WidgetPreview({
   settings,
   isDark,
-  isLead,
 }: {
   settings: BotSettings;
   isDark: boolean;
-  isLead: boolean;
 }) {
   const pc = settings.primaryColor || "#1a56db";
   return (
@@ -200,33 +191,19 @@ function WidgetPreview({
         </div>
       </div>
       <div className="flex border-t border-gray-200 bg-white">
-        {isLead
-          ? ["Chat", "FAQ", "Book"].map((t, i) => (
-              <div
-                key={t}
-                className="flex-1 text-center py-1.5 text-[10px] font-medium"
-                style={
-                  i === 0
-                    ? { color: pc, borderTop: `2px solid ${pc}` }
-                    : { color: "#9ca3af" }
-                }
-              >
-                {t}
-              </div>
-            ))
-          : ["Chat", "Quiz", "Progress"].map((t, i) => (
-              <div
-                key={t}
-                className="flex-1 text-center py-1.5 text-[10px] font-medium"
-                style={
-                  i === 0
-                    ? { color: pc, borderTop: `2px solid ${pc}` }
-                    : { color: "#9ca3af" }
-                }
-              >
-                {t}
-              </div>
-            ))}
+        {["Chat", "FAQ", "Book"].map((t, i) => (
+          <div
+            key={t}
+            className="flex-1 text-center py-1.5 text-[10px] font-medium"
+            style={
+              i === 0
+                ? { color: pc, borderTop: `2px solid ${pc}` }
+                : { color: "#9ca3af" }
+            }
+          >
+            {t}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -240,9 +217,7 @@ export default function ChatbotSettingsPage() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const isValid = ["chatbot-lead-generation", "chatbot-education"].includes(
-    rawId,
-  );
+  const isValid = rawId === "chatbot-lead-generation";
   const chatbotType = isValid ? (rawId as ChatbotTypeId) : null;
   const cfg = chatbotType ? TYPE_CONFIG[chatbotType] : null;
   const isLead = chatbotType === "chatbot-lead-generation";
@@ -329,8 +304,8 @@ export default function ChatbotSettingsPage() {
     try {
       await updateWebChatbot(apiRequest, chatbotType, {
         name: settings.name.trim(),
-        websiteUrl: isLead ? settings.websiteUrl : undefined,
-        phone: isLead ? settings.whatsappNumber : undefined,
+        websiteUrl: settings.websiteUrl,
+        phone: settings.whatsappNumber,
         settings: {
           welcomeMessage: settings.welcomeMessage.trim(),
           primaryColor: settings.primaryColor,
@@ -353,7 +328,7 @@ export default function ChatbotSettingsPage() {
 
   // Handle website URL update and rescrape
   const handleUpdateAndRescrape = async () => {
-    if (!chatbotType || !isLead) return;
+    if (!chatbotType) return;
 
     const url = settings.websiteUrl.trim();
     if (!url) {
@@ -540,11 +515,7 @@ export default function ChatbotSettingsPage() {
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center mb-6`}
           >
-            {isLead ? (
-              <Bot className="h-10 w-10 text-white" />
-            ) : (
-              <GraduationCap className="h-10 w-10 text-white" />
-            )}
+            <Bot className="h-10 w-10 text-white" />
           </div>
           <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
             Build your chatbot first
@@ -669,11 +640,7 @@ export default function ChatbotSettingsPage() {
                         <button
                           onClick={handleUpdateAndRescrape}
                           disabled={isUpdatingUrl}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                            isLead
-                              ? "bg-purple-500 hover:bg-purple-600 text-white"
-                              : "bg-green-500 hover:bg-green-600 text-white"
-                          } disabled:opacity-50`}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all bg-purple-500 hover:bg-purple-600 text-white disabled:opacity-50"
                         >
                           {isUpdatingUrl ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -733,11 +700,7 @@ export default function ChatbotSettingsPage() {
                         <button
                           onClick={handleFileUpload}
                           disabled={isUploading || !uploadedFile}
-                          className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all ${
-                            isLead
-                              ? "bg-purple-500 hover:bg-purple-600 text-white"
-                              : "bg-green-500 hover:bg-green-600 text-white"
-                          } disabled:opacity-50`}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-medium transition-all bg-purple-500 hover:bg-purple-600 text-white disabled:opacity-50"
                         >
                           {isUploading ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
@@ -863,8 +826,8 @@ export default function ChatbotSettingsPage() {
                     className={`flex items-center gap-2 p-3 rounded-xl border text-sm font-medium transition-all ${
                       settings.position === pos
                         ? isDark
-                          ? `border-${isLead ? "purple-500" : "green-500"} bg-${isLead ? "purple-500/10" : "green-500/10"} text-${isLead ? "purple-400" : "green-400"}`
-                          : `border-${isLead ? "purple-500" : "green-500"} bg-${isLead ? "purple-50" : "green-50"} text-${isLead ? "purple-700" : "green-700"}`
+                          ? "border-purple-500 bg-purple-500/10 text-purple-400"
+                          : "border-purple-500 bg-purple-50 text-purple-700"
                         : isDark
                           ? "border-white/[0.08] text-white/60 hover:bg-white/[0.04]"
                           : "border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -908,9 +871,7 @@ export default function ChatbotSettingsPage() {
                   onClick={() => update("autoExpand", !settings.autoExpand)}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
                     settings.autoExpand
-                      ? isLead
-                        ? "bg-purple-500"
-                        : "bg-green-500"
+                      ? "bg-purple-500"
                       : "bg-gray-300 dark:bg-white/[0.1]"
                   }`}
                 >
@@ -945,11 +906,7 @@ export default function ChatbotSettingsPage() {
                 </button>
               </div>
               {previewEnabled ? (
-                <WidgetPreview
-                  settings={settings}
-                  isDark={isDark}
-                  isLead={isLead}
-                />
+                <WidgetPreview settings={settings} isDark={isDark} />
               ) : (
                 <div
                   className={`rounded-2xl p-6 text-center border ${

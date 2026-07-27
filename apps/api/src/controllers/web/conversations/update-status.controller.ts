@@ -34,7 +34,11 @@ export const updateConversationStatusController = async (
 
     // Find and update the conversation
     const conversation = await WebChatConversation.findOneAndUpdate(
-      { _id: conversationId, clerkId: userId },
+      {
+        _id: conversationId,
+        clerkId: userId,
+        chatbotType: "chatbot-lead-generation",
+      },
       { status, lastActivity: new Date() },
       { new: true },
     );

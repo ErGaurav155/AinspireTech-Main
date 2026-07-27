@@ -42,7 +42,6 @@ const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
   },
   web: {
     "chatbot-lead-generation": 499,
-    "chatbot-education": 499,
   },
   call: {
     "call-business": 2500,
@@ -126,6 +125,7 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
           : await WebSubscription.findOne({
               subscriptionId: previousSubscriptionId,
               clerkId,
+              chatbotType: "chatbot-lead-generation",
               status: "active",
             });
 
@@ -171,7 +171,11 @@ async function finalizeSubscriptionReplacementFromNotes(notes: any) {
     await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
   } else {
     await WebSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
+      {
+        subscriptionId: previousSubscriptionId,
+        clerkId,
+        chatbotType: "chatbot-lead-generation",
+      },
       cancellationUpdate,
     );
   }
@@ -199,6 +203,16 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   if (NON_CORE_SUBSCRIPTION_TYPES.has(subscriptionType)) {
     console.info("Skipping core subscription webhook handling", {
       subscriptionType,
+      subscriptionId: subscriptionData?.id,
+    });
+    return { subscription: null, referral: null };
+  }
+
+  if (
+    subscriptionType === "web" &&
+    chatbotType !== "chatbot-lead-generation"
+  ) {
+    console.info("Skipping unsupported web chatbot subscription", {
       subscriptionId: subscriptionData?.id,
     });
     return { subscription: null, referral: null };
@@ -269,6 +283,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   } else {
     existingSubscription = await WebSubscription.findOne({
       subscriptionId: subscriptionData.id,
+      chatbotType: "chatbot-lead-generation",
     });
   }
 
@@ -356,7 +371,11 @@ async function handleWebhookSubscriptionCreate(payload: any) {
 
     if (notes.chatbotId) {
       await WebChatbot.findOneAndUpdate(
-        { _id: notes.chatbotId, clerkId },
+        {
+          _id: notes.chatbotId,
+          clerkId,
+          type: "chatbot-lead-generation",
+        },
         {
           $set: {
             subscriptionId: subscriptionData.id,
@@ -599,7 +618,10 @@ async function handleSubscriptionCharged(
       { new: true },
     ),
     WebSubscription.findOneAndUpdate(
-      { subscriptionId },
+      {
+        subscriptionId,
+        chatbotType: "chatbot-lead-generation",
+      },
       {
         $set: {
           status: "active",
@@ -811,7 +833,10 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
       case "subscription.activated":
       case "subscription.charged": {
         const instaExists = await InstaSubscription.findOne({ subscriptionId });
-        const webExists = await WebSubscription.findOne({ subscriptionId });
+        const webExists = await WebSubscription.findOne({
+          subscriptionId,
+          chatbotType: "chatbot-lead-generation",
+        });
         const callExists = await CallSubscription.findOne({ subscriptionId });
         const whatsAppExists = await WhatsAppWorkspace.findOne({
           "subscription.subscriptionId": subscriptionId,

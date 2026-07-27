@@ -24,7 +24,6 @@ import {
   X,
   Target,
   MessageCircle,
-  GraduationCap,
   Sparkles,
   Coins,
   CreditCard,
@@ -59,18 +58,6 @@ const CHATBOT_ITEMS = [
     displayName: "Lead Generation",
     type: "lead",
   },
-  {
-    id: "chatbot-education",
-    label: "Education",
-    href: "/web/chatbot-education",
-    icon: GraduationCap,
-    gradient: "from-green-500 to-emerald-500",
-    iconBg: "bg-green-50",
-    iconColor: "text-green-600",
-    isNew: true,
-    displayName: "Education",
-    type: "education",
-  },
 ];
 
 const BOTTOM_NAV_ITEMS = [
@@ -104,7 +91,6 @@ interface WebSidebarProps {
 
 export default function WebSidebar({
   chatbotName: initialChatbotName,
-  chatbotType: initialChatbotType,
   isSubscribed: initialIsSubscribed,
   isOpen,
   onToggle,
@@ -129,13 +115,7 @@ export default function WebSidebar({
   const [tokenBalance, setTokenBalance] = useState<number>(0);
   const [pricingClose, setPricingClose] = useState(false);
 
-  // Determine selected chatbot based on URL path
-  const selectedChatbot = useMemo(() => {
-    if (pathname.includes("/web/chatbot-lead-generation"))
-      return "chatbot-lead-generation";
-    if (pathname.includes("/web/chatbot-education")) return "chatbot-education";
-    return initialChatbotType || "chatbot-lead-generation";
-  }, [pathname, initialChatbotType]);
+  const selectedChatbot = "chatbot-lead-generation";
 
   // Fetch subscription and token status
   const fetchStatus = useCallback(async () => {
@@ -387,11 +367,7 @@ export default function WebSidebar({
                 <p className={styles.selectorName}>
                   {currentChatbot.displayName}
                 </p>
-                <p className={styles.selectorType}>
-                  {selectedChatbot === "chatbot-education"
-                    ? "MCQ Bot"
-                    : "AI Chatbot"}
-                </p>
+                <p className={styles.selectorType}>AI Chatbot</p>
               </div>
             </div>
             <span className={styles.planBadge(isSubscribed)}>
@@ -437,9 +413,7 @@ export default function WebSidebar({
                         isDark ? "text-white/40" : "text-gray-400"
                       }`}
                     >
-                      {bot.id === "chatbot-education"
-                        ? "MCQ Education"
-                        : "AI Assistant"}
+                      AI Assistant
                     </p>
                   </div>
                   {bot.isNew && <Badge className={styles.newBadge}>NEW</Badge>}
@@ -717,9 +691,7 @@ export default function WebSidebar({
                 </Button>
               </div>
               <p className={styles.upgradeFeature + " mb-3"}>
-                {selectedChatbot === "chatbot-education"
-                  ? "MCQ Bot subscription is not active."
-                  : "Lead Bot subscription is not active."}
+                Lead Bot subscription is not active.
               </p>
               <ul className="space-y-2 mb-4">
                 {[

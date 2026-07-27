@@ -114,7 +114,6 @@ const PRICING: Record<string, { monthly: number; yearly: number }> = {
   "chatbot-customer-support": { monthly: 999, yearly: 10788 },
   "chatbot-e-commerce": { monthly: 999, yearly: 10788 },
   "chatbot-lead-generation": { monthly: 999, yearly: 10788 },
-  "chatbot-education": { monthly: 999, yearly: 10788 },
   "Insta-Automation-Pro": { monthly: 499, yearly: 4788 },
   "Insta-Automation-Starter": { monthly: 499, yearly: 4788 },
   "Insta-Automation-Grow": { monthly: 499, yearly: 4788 },
@@ -132,7 +131,6 @@ function getPlanIcon(chatbotType: string): JSX.Element {
     "chatbot-customer-support": <MessageCircle className="h-4 w-4" />,
     "chatbot-e-commerce": <ShoppingCart className="h-4 w-4" />,
     "chatbot-lead-generation": <Target className="h-4 w-4" />,
-    "chatbot-education": <BookOpen className="h-4 w-4" />,
   };
   return map[chatbotType] ?? <Globe className="h-4 w-4" />;
 }

@@ -248,20 +248,6 @@ export const productDetails: Record<
         "Automate interactions and nurture leads effectively to grow your business.",
     },
   },
-  "chatbot-education": {
-    productId: "chatbot-education", // Product ID
-    name: "Education Chatbot",
-    video: "https://www.youtube.com/embed/SjDrVDlNqvI?si=y5_lkErLtfXJNh2l",
-    icon: "/icons/education.png",
-    available: true,
-
-    description: {
-      bgcolor: "bg-yellow-500",
-      heading: "Enhance learning experiences with AI tutors.",
-      subheading:
-        "Provide instant answers, resources, and support for students and educators.",
-    },
-  },
 };
 export type PricingPlan = {
   id: string;
@@ -377,38 +363,6 @@ export const productSubscriptionDetails: Record<
       { label: "Automated Responses", isIncluded: true },
       { label: "CRM Integration", isIncluded: true },
       { label: "User Data Collection", isIncluded: true },
-    ],
-  },
-
-  "chatbot-education": {
-    productId: "chatbot-education",
-    name: "MCQ Educational Chatbot",
-    video: "/assets/congratulation.webm",
-    icon: "GraduationCapIcon",
-    mprice: 999,
-    yprice: 10788,
-    original: 11988,
-    credits: 750,
-    tier: "Enterprise",
-    description: {
-      bgcolor: "bg-yellow-800",
-      heading: "Enhance learning experiences with AI tutors.",
-      subheading:
-        "Provide instant answers, resources, and support for students and educators.",
-    },
-    inclusions: [
-      { label: "24/7 Availability", isIncluded: true },
-      { label: "Live Chat Interface", isIncluded: true },
-      { label: "Multi-language support", isIncluded: true },
-      { label: "Dashboard Availability", isIncluded: true },
-      { label: "Lead qualification", isIncluded: false },
-      { label: "Email Notifications", isIncluded: false },
-      { label: "Advanced Analytics", isIncluded: false },
-      { label: "Priority support", isIncluded: true },
-      { label: "Automated Responses", isIncluded: true },
-      { label: "CRM Integration", isIncluded: false },
-      { label: "Personalized learning", isIncluded: true },
-      { label: "Interactive quizzes", isIncluded: true },
     ],
   },
 };

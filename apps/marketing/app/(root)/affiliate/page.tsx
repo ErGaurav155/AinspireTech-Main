@@ -127,7 +127,7 @@ const howItWorks = [
 const products = [
   {
     name: "Web Chatbots",
-    types: ["Lead Generation", "Education"],
+    types: ["Lead Generation"],
     monthlyPrice: "$10",
     commission: "25% for 10 months",
     gradient: "from-blue-400 to-cyan-500",

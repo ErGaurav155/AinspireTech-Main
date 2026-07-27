@@ -106,7 +106,6 @@ const PRICING: Record<string, { monthly: number; yearly: number }> = {
   "chatbot-customer-support": { monthly: 999, yearly: 10788 },
   "chatbot-e-commerce": { monthly: 999, yearly: 10788 },
   "chatbot-lead-generation": { monthly: 999, yearly: 10788 },
-  "chatbot-education": { monthly: 999, yearly: 10788 },
   "Insta-Automation-Pro": { monthly: 499, yearly: 4788 },
   "Insta-Automation-Starter": { monthly: 499, yearly: 4788 },
   "Insta-Automation-Grow": { monthly: 499, yearly: 4788 },
@@ -118,7 +117,6 @@ const getPlanDisplayName = (chatbotType: string): string => {
     "chatbot-customer-support": "Customer Support",
     "chatbot-e-commerce": "E-Commerce",
     "chatbot-lead-generation": "Lead Generation",
-    "chatbot-education": "Education",
     "Insta-Automation-Pro": "Instagram Pro",
     "Insta-Automation-Starter": "Instagram Starter",
     "Insta-Automation-Grow": "Instagram Grow",
@@ -133,7 +131,6 @@ const getPlanIcon = (type: string, chatbotType: string) => {
     "chatbot-customer-support": <Users className="h-4 w-4" />,
     "chatbot-e-commerce": <CreditCard className="h-4 w-4" />,
     "chatbot-lead-generation": <Zap className="h-4 w-4" />,
-    "chatbot-education": <Calendar className="h-4 w-4" />,
   };
   return icons[chatbotType] || <Globe className="h-4 w-4" />;
 };

@@ -17,7 +17,7 @@ export default async function LeadBotEmbedPage({ params }: Props) {
   const userId = decodeURIComponent(resolved.userId || "");
   const chatbotType = decodeURIComponent(resolved.chatbotType || "");
 
-  if (!userId || !chatbotType) {
+  if (!userId || chatbotType !== "chatbot-lead-generation") {
     return (
       <div
         style={{

@@ -34,6 +34,14 @@ export const getEmbedConfigByTypeController = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await connectToDatabase();
 
     const chatbot = await WebChatbot.findOne(
@@ -58,7 +66,7 @@ export const getEmbedConfigByTypeController = async (
     const settings = (chatbot as any).settings || {};
     const hasActiveSubscription = await WebSubscription.exists({
       clerkId: userId,
-      chatbotType: chatbotType as "chatbot-lead-generation" | "chatbot-education",
+      chatbotType,
       status: "active",
       expiresAt: { $gt: new Date() },
     });

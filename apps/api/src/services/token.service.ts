@@ -48,6 +48,10 @@ export async function initializeSubscriptionTokens(
   userId: string,
   chatbotId: string,
 ) {
+  if (chatbotId !== "chatbot-lead-generation") {
+    throw new Error("Unsupported chatbot type");
+  }
+
   await connectToDatabase();
 
   const tokenBalance = await getUserTokenBalance(userId);
@@ -185,6 +189,10 @@ export async function usedTokens(
   chatbotId?: string,
   totalCost: number = 0,
 ) {
+  if (chatbotId !== "chatbot-lead-generation") {
+    throw new Error("Unsupported chatbot type");
+  }
+
   await connectToDatabase();
 
   const tokenBalance = await getUserTokenBalance(userId);
@@ -198,6 +206,7 @@ export async function usedTokens(
   if (availableTokens < tokens) {
     const activeSubscriptions = await WebSubscription.countDocuments({
       clerkId: userId,
+      chatbotType: "chatbot-lead-generation",
       status: "active",
     });
 
@@ -221,6 +230,7 @@ export async function usedTokens(
 
   const activeSubscriptions = await WebSubscription.countDocuments({
     clerkId: userId,
+    chatbotType: "chatbot-lead-generation",
     status: "active",
   });
 
@@ -289,6 +299,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
+          chatbotId: "chatbot-lead-generation",
           createdAt: { $gte: startDate },
         },
       },
@@ -308,6 +319,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
+          chatbotId: "chatbot-lead-generation",
           createdAt: { $gte: startDate },
         },
       },
@@ -328,6 +340,7 @@ export async function getTokenUsageStats(
       {
         $match: {
           userId,
+          chatbotId: "chatbot-lead-generation",
           createdAt: { $gte: startDate },
         },
       },
@@ -347,6 +360,7 @@ export async function getTokenUsageStats(
   // Get subscription info
   const subscriptions = await WebSubscription.find({
     clerkId: userId,
+    chatbotType: "chatbot-lead-generation",
     status: "active",
   }).select("chatbotType chatbotName");
 
@@ -429,6 +443,7 @@ export async function resetSubscriptionTokens(userId: string) {
   // Get active subscriptions
   const subscriptions = await WebSubscription.find({
     clerkId: userId,
+    chatbotType: "chatbot-lead-generation",
     status: "active",
   }).select("chatbotType");
 
@@ -481,6 +496,7 @@ export async function checkLowTokenAlert(userId: string) {
   // Get active subscriptions
   const subscriptions = await WebSubscription.find({
     clerkId: userId,
+    chatbotType: "chatbot-lead-generation",
     status: "active",
   }).select("chatbotType");
 
@@ -506,6 +522,7 @@ export async function getTokenBalanceSummary(userId: string) {
   // Get active subscriptions
   const subscriptions = await WebSubscription.find({
     clerkId: userId,
+    chatbotType: "chatbot-lead-generation",
     status: "active",
   }).select("chatbotType chatbotName");
 

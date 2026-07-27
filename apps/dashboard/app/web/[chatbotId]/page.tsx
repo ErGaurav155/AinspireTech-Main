@@ -1,7 +1,7 @@
 // apps/dashboard/app/web/[chatbotId]/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
@@ -19,9 +19,6 @@ import {
   User,
   RefreshCw,
   Zap,
-  GraduationCap,
-  BookOpen,
-  Brain,
   Sparkles,
   Bot,
   Trash2,
@@ -54,13 +51,6 @@ interface LeadStats {
   trends: Array<{ date: string; leads: number }>;
 }
 
-interface EducationStats {
-  totalStudents: number;
-  completedQuizzes: number;
-  averageScore: number;
-  totalQuestions: number;
-}
-
 interface ChatbotInfo {
   id: string;
   name: string;
@@ -78,7 +68,7 @@ interface ChatbotInfo {
   createdAt?: string;
 }
 
-type StatsType = LeadStats | EducationStats | null;
+type StatsType = LeadStats | null;
 
 interface TokenBalanceInfo {
   freeTokensRemaining?: number;
@@ -167,82 +157,36 @@ export default function DynamicOverviewPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [period, setPeriod] = useState<string>("7d");
 
-  // Determine chatbot type from ID
-  const { isLeadGeneration, isEducation, chatbotType, displayInfo } =
-    useMemo(() => {
-      const isLead =
-        chatbotId === "chatbot-lead-generation" || chatbotId?.includes("lead");
-      const isEdu =
-        chatbotId === "chatbot-education" || chatbotId?.includes("education");
-      const type = isLead
-        ? "chatbot-lead-generation"
-        : isEdu
-          ? "chatbot-education"
-          : null;
-
-      let info = null;
-      if (isLead) {
-        info = {
-          name: "Lead Generation",
-          icon: Target,
-          gradient: "from-purple-500 to-pink-500",
-          iconBg: "bg-purple-100",
-          iconColor: "text-purple-600",
-          primaryColor: "purple",
-          stats: [
-            { key: "totalLeads", label: "Total Leads", icon: Users },
-            {
-              key: "qualifiedLeads",
-              label: "Qualified Leads",
-              icon: CheckCircle,
-            },
-            {
-              key: "conversionRate",
-              label: "Conversion Rate",
-              icon: TrendingUp,
-              suffix: "%",
-            },
-            {
-              key: "averageResponseTime",
-              label: "Avg Response Time",
-              icon: Clock,
-              suffix: "s",
-            },
-          ],
-        };
-      } else if (isEdu) {
-        info = {
-          name: "Education Chatbot",
-          icon: GraduationCap,
-          gradient: "from-green-500 to-emerald-500",
-          iconBg: "bg-green-100",
-          iconColor: "text-green-600",
-          primaryColor: "green",
-          stats: [
-            { key: "totalStudents", label: "Total Students", icon: Users },
-            {
-              key: "completedQuizzes",
-              label: "Completed Quizzes",
-              icon: CheckCircle,
-            },
-            {
-              key: "averageScore",
-              label: "Average Score",
-              icon: Brain,
-              suffix: "%",
-            },
-            { key: "totalQuestions", label: "Total Questions", icon: BookOpen },
-          ],
-        };
-      }
-
-      return {
-        isLeadGeneration: isLead,
-        isEducation: isEdu,
-        chatbotType: type,
-        displayInfo: info,
-      };
-    }, [chatbotId]);
+  const isLeadGeneration = chatbotId === "chatbot-lead-generation";
+  const chatbotType = isLeadGeneration ? "chatbot-lead-generation" : null;
+  const displayInfo = {
+    name: "Lead Generation",
+    icon: Target,
+    gradient: "from-purple-500 to-pink-500",
+    iconBg: "bg-purple-100",
+    iconColor: "text-purple-600",
+    primaryColor: "purple",
+    stats: [
+      { key: "totalLeads", label: "Total Leads", icon: Users },
+      {
+        key: "qualifiedLeads",
+        label: "Qualified Leads",
+        icon: CheckCircle,
+      },
+      {
+        key: "conversionRate",
+        label: "Conversion Rate",
+        icon: TrendingUp,
+        suffix: "%",
+      },
+      {
+        key: "averageResponseTime",
+        label: "Avg Response Time",
+        icon: Clock,
+        suffix: "s",
+      },
+    ],
+  };
 
   // Cleanup on unmount
   useEffect(() => {
@@ -351,13 +295,6 @@ export default function DynamicOverviewPage() {
           .slice(0, 5); // Only show 5 most recent
 
         setRecentLeads(leads);
-      } else if (isEducation) {
-        setStats({
-          totalStudents: overview.totalStudents || 0,
-          completedQuizzes: overview.completedQuizzes || 0,
-          averageScore: overview.averageScore || 0,
-          totalQuestions: overview.totalQuestions || 0,
-        });
       }
     } catch (error: any) {
       if (error.name === "AbortError" || error.code === "ERR_CANCELED") return;
@@ -373,17 +310,13 @@ export default function DynamicOverviewPage() {
     isLoaded,
     apiRequest,
     isLeadGeneration,
-    isEducation,
     period,
   ]);
 
   // Initial load
   useEffect(() => {
     if (!chatbotType || !isLoaded || !userId) return;
-    if (
-      chatbotId !== "chatbot-lead-generation" &&
-      chatbotId !== "chatbot-education"
-    ) {
+    if (chatbotId !== "chatbot-lead-generation") {
       router.push("/web");
       return;
     }
@@ -487,9 +420,8 @@ export default function DynamicOverviewPage() {
           <p
             className={`text-sm ${styles.text.secondary} max-w-md mx-auto mb-8`}
           >
-            {isLeadGeneration
-              ? "Create a lead generation chatbot to capture and qualify leads automatically."
-              : "Create an education chatbot to engage students with interactive MCQ quizzes."}
+            Create a lead generation chatbot to capture and qualify leads
+            automatically.
           </p>
           <Link
             href={`/web/${chatbotId}/create`}
@@ -503,18 +435,15 @@ export default function DynamicOverviewPage() {
     );
   }
 
-  if (
-    chatbotId !== "chatbot-lead-generation" &&
-    chatbotId !== "chatbot-education"
-  ) {
+  if (chatbotId !== "chatbot-lead-generation") {
     return null;
   }
 
-  const botTypeLabel = isLeadGeneration ? "lead" : "mcq";
+  const botTypeLabel = "lead";
   const primaryColor = displayInfo.primaryColor;
   const pc =
     chatbot?.settings?.primaryColor ||
-    (isLeadGeneration ? "#8b5cf6" : "#10b981");
+    "#8b5cf6";
   const landingUrl =
     userId && chatbot?.isBuilt
       ? `${CDN_URL}/${botTypeLabel}/${userId}/${chatbotType}`
@@ -523,9 +452,7 @@ export default function DynamicOverviewPage() {
   const quickLinks = [
     {
       label: "Conversations",
-      desc: isLeadGeneration
-        ? "View leads and bookings"
-        : "View student responses",
+      desc: "View leads and bookings",
       href: `/web/${chatbotType}/conversations`,
       icon: <MessageCircle className="h-5 w-5" />,
       color: pc,
@@ -537,17 +464,13 @@ export default function DynamicOverviewPage() {
       icon: <MessageSquare className="h-5 w-5" />,
       color: "#1a56db",
     },
-    ...(isLeadGeneration
-      ? [
-          {
-            label: "Appointments",
-            desc: "Booking form questions",
-            href: `/web/${chatbotType}/appointments`,
-            icon: <Calendar className="h-5 w-5" />,
-            color: "#f59e0b",
-          },
-        ]
-      : []),
+    {
+      label: "Appointments",
+      desc: "Booking form questions",
+      href: `/web/${chatbotType}/appointments`,
+      icon: <Calendar className="h-5 w-5" />,
+      color: "#f59e0b",
+    },
     {
       label: "Integration",
       desc: "Embed code & landing URL",
@@ -588,11 +511,7 @@ export default function DynamicOverviewPage() {
           <div className="relative flex items-start justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-white/25 flex items-center justify-center border border-white/30">
-                {isLeadGeneration ? (
-                  <Bot className="h-7 w-7 text-white" />
-                ) : (
-                  <GraduationCap className="h-7 w-7 text-white" />
-                )}
+                <Bot className="h-7 w-7 text-white" />
               </div>
               <div>
                 <h1 className="text-white font-bold text-xl leading-tight">
@@ -1045,16 +964,13 @@ export default function DynamicOverviewPage() {
               <h3
                 className={`text-lg font-semibold ${isDark ? `text-${primaryColor}-400` : `text-${primaryColor}-800`} mb-2`}
               >
-                {isLeadGeneration
-                  ? "Pro Tip: Qualify Leads Faster"
-                  : "Pro Tip: Engage Students Better"}
+                Pro Tip: Qualify Leads Faster
               </h3>
               <p
                 className={`text-sm ${isDark ? `text-${primaryColor}-400/80` : `text-${primaryColor}-700`}`}
               >
-                {isLeadGeneration
-                  ? "Use custom questions to qualify leads automatically. Add specific fields to capture exactly what you need."
-                  : "Add more questions with varying difficulty levels to keep students engaged. Track performance by category."}
+                Use custom questions to qualify leads automatically. Add
+                specific fields to capture exactly what you need.
               </p>
               <Link
                 href={`/web/${chatbotType}/faq`}
@@ -1064,7 +980,7 @@ export default function DynamicOverviewPage() {
                     : `bg-${primaryColor}-500 hover:bg-${primaryColor}-600 text-white`
                 }`}
               >
-                {isLeadGeneration ? "Manage FAQ" : "Manage Questions"}
+                Manage FAQ
               </Link>
             </div>
           </div>

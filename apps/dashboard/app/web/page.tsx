@@ -1,14 +1,13 @@
 // apps/dashboard/app/web/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
 import {
   Bot,
   Target,
   MessageCircle,
-  GraduationCap,
   Sparkles,
   ChevronRight,
   Plus,
@@ -141,7 +140,9 @@ export default function WebDashboardPage() {
 
       if (chatbotsData?.chatbots?.length) {
         const builtChatbots = await Promise.all(
-          chatbotsData.chatbots.map(async (bot: any) => {
+          chatbotsData.chatbots
+            .filter((bot: any) => bot.type === "chatbot-lead-generation")
+            .map(async (bot: any) => {
           // Fetch conversations for each chatbot to get accurate stats
           let conversations = [];
           let totalConvCount = 0;
@@ -205,7 +206,6 @@ export default function WebDashboardPage() {
       // Add placeholders for not built chatbots
       const requiredTypes = [
         { type: "chatbot-lead-generation", name: "Lead Generation" },
-        { type: "chatbot-education", name: "Education (MCQ)" },
       ];
 
       requiredTypes.forEach(({ type, name }) => {
@@ -277,8 +277,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return Target;
-      case "chatbot-education":
-        return GraduationCap;
       default:
         return Bot;
     }
@@ -288,8 +286,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return "from-purple-500 to-pink-500";
-      case "chatbot-education":
-        return "from-green-500 to-emerald-500";
       default:
         return "from-gray-500 to-gray-600";
     }
@@ -299,8 +295,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return "Lead Generation";
-      case "chatbot-education":
-        return "Education (MCQ)";
       default:
         return "Chatbot";
     }
@@ -310,8 +304,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return "Capture and qualify leads automatically with AI-powered conversations";
-      case "chatbot-education":
-        return "Create interactive MCQ quizzes and track student progress";
       default:
         return "AI-powered chatbot for your business";
     }
@@ -321,8 +313,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return "/web/chatbot-lead-generation";
-      case "chatbot-education":
-        return "/web/chatbot-education";
       default:
         return "/web";
     }
@@ -332,8 +322,6 @@ export default function WebDashboardPage() {
     switch (type) {
       case "chatbot-lead-generation":
         return "/web/chatbot-lead-generation/create";
-      case "chatbot-education":
-        return "/web/chatbot-education/create";
       default:
         return "/web";
     }
@@ -429,9 +417,8 @@ export default function WebDashboardPage() {
             <p
               className={`${styles.text.secondary} text-sm max-w-2xl mt-3 mb-6 leading-relaxed`}
             >
-              Build intelligent chatbots for lead generation and education.
-              Automate conversations, capture leads, and engage with your
-              audience 24/7.
+              Build an intelligent chatbot for lead generation. Automate
+              conversations, capture leads, and engage with your audience 24/7.
             </p>
 
             {/* Token Balance Bar */}

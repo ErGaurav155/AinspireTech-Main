@@ -6,12 +6,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
-  LayoutDashboard,
   MessageSquare,
   Coins,
   Share2,
   Target,
-  GraduationCap,
   ChevronRight,
   Zap,
   MessageCircle,
@@ -32,16 +30,6 @@ const CHATBOT_ITEMS = [
     description: "AI Assistant",
     isNew: false,
     type: "lead",
-  },
-  {
-    id: "chatbot-education",
-    label: "Education",
-    href: "/web/chatbot-education",
-    icon: GraduationCap,
-    color: "#22c55e",
-    description: "MCQ Education",
-    isNew: true,
-    type: "education",
   },
 ] as const;
 
@@ -105,21 +93,6 @@ const LEAD_NAV_ITEMS = [
   },
 ] as const;
 
-const EDUCATION_NAV_ITEMS = [
-  {
-    label: "Home",
-    getHref: (chatbotHref: string) => `${chatbotHref}`,
-    icon: LayoutDashboard,
-    isNew: false,
-  },
-  {
-    label: "Chats",
-    getHref: (chatbotHref: string) => `${chatbotHref}/conversations`,
-    icon: MessageSquare,
-    isNew: false,
-  },
-] as const;
-
 export default function WebBottomNavbar() {
   const pathname = usePathname();
   const { isDark } = useThemeStyles();
@@ -135,16 +108,8 @@ export default function WebBottomNavbar() {
 
   const navItems = useMemo(() => {
     if (!isOnChatbotPage) return [];
-
-    if (activeChatbot.type === "lead") {
-      return [...LEAD_NAV_ITEMS, ...BASE_NAV_ITEMS];
-    }
-
-    return [
-      ...EDUCATION_NAV_ITEMS,
-      ...BASE_NAV_ITEMS.filter((item) => item.label !== "Analytics"),
-    ];
-  }, [activeChatbot.type, isOnChatbotPage]);
+    return [...LEAD_NAV_ITEMS, ...BASE_NAV_ITEMS];
+  }, [isOnChatbotPage]);
 
   const isActive = useCallback((href: string) => pathname === href, [pathname]);
 

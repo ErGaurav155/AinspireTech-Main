@@ -172,7 +172,10 @@ async function handleReferralCancellation(
     let isWeb = false;
 
     if (!subscription) {
-      subscription = await WebSubscription.findOne({ subscriptionId });
+      subscription = await WebSubscription.findOne({
+        subscriptionId,
+        chatbotType: "chatbot-lead-generation",
+      });
       isWeb = true;
     }
 
@@ -240,7 +243,10 @@ async function handleSubscriptionEnded(subscriptionId: string) {
   } else {
     // If not found, try WebSubscription
     updatedSub = await WebSubscription.findOneAndUpdate(
-      { subscriptionId },
+      {
+        subscriptionId,
+        chatbotType: "chatbot-lead-generation",
+      },
       {
         $set: {
           status: "cancelled",

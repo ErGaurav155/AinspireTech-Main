@@ -27,6 +27,14 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
       });
     }
 
+    if (agentId !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await connectToDatabase();
 
     // Generate AI response
@@ -71,6 +79,7 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
             let conversation = await WebChatConversation.findOne({
               clerkId: userId,
               sessionId,
+              chatbotType: "chatbot-lead-generation",
             });
 
             if (conversation) {

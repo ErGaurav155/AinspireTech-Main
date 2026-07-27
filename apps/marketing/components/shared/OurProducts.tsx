@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import FeaImg1 from "@/public/assets/img/headingimg.png";
 import FeaImg3 from "@/public/assets/img/featureImg1.png";
 import FeaImg4 from "@/public/assets/img/featureImg4.png";
-import FeaBot1 from "@/public/assets/Feature/FeatChatbot1.png";
 import FeaBot2 from "@/public/assets/Feature/FeatChatbot2.png";
 import FeaBot3 from "@/public/assets/Feature/FeatChatbot3.png";
 import InstaFea5 from "@/public/assets/Feature/InstaFeature5.png";
@@ -17,7 +16,6 @@ import {
   MessageCircle,
   Instagram,
   Users,
-  BookOpen,
   Video,
   Zap,
   Phone,
@@ -91,18 +89,6 @@ export function AIVoiceAgentShowcase() {
       ],
       image: FeaBot2,
       color: "from-violet-500 to-purple-500",
-    },
-    education: {
-      title: "AI Education Agent",
-      description: "Automate education learning process",
-      icon: <BookOpen className="h-5 w-5" />,
-      features: [
-        "Learn what you want",
-        "Clarify your doubts",
-        "Solve MCQ tests instantly",
-      ],
-      image: FeaBot1,
-      color: "from-emerald-500 to-green-500",
     },
   };
 

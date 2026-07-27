@@ -20,6 +20,14 @@ export const getConversationsByTypeController = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const limit = parseInt(req.query.limit as string) || 20;
     const offset = parseInt(req.query.offset as string) || 0;
 
@@ -36,20 +44,13 @@ export const getConversationsByTypeController = async (
       .limit(limit)
       .lean();
 
-    // Filter for appointment conversations if lead generation
-    let appointmentConversations: any[] = [];
-    let regularChatConversations = chatConversations;
-
-    if (chatbotType === "chatbot-lead-generation") {
-      appointmentConversations = chatConversations.filter(
-        (c: any) => c.hasAppointment || (c.formData && c.formData.length > 0),
-      );
-      // Exclude appointment conversations from regular chat list
-      regularChatConversations = chatConversations.filter(
-        (c: any) =>
-          !(c.hasAppointment || (c.formData && c.formData.length > 0)),
-      );
-    }
+    const appointmentConversations = chatConversations.filter(
+      (c: any) => c.hasAppointment || (c.formData && c.formData.length > 0),
+    );
+    const regularChatConversations = chatConversations.filter(
+      (c: any) =>
+        !(c.hasAppointment || (c.formData && c.formData.length > 0)),
+    );
 
     // Combine and format conversations
     const conversations = [

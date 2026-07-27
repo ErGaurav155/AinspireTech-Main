@@ -32,6 +32,14 @@ export const handleChatConversationRequest = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await connectToDatabase();
 
     // Get user
@@ -55,6 +63,7 @@ export const handleChatConversationRequest = async (
       {
         clerkId: userId,
         sessionId,
+        chatbotType: "chatbot-lead-generation",
       },
       {
         $set: {
@@ -112,6 +121,14 @@ export const getChatConversationsRequest = async (
       return res.status(400).json({
         success: false,
         error: "Missing required fields",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
         timestamp: new Date().toISOString(),
       });
     }

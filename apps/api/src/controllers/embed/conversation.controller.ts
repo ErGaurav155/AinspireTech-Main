@@ -33,6 +33,14 @@ export const handleConversationRequest = async (
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await connectToDatabase();
 
     // Get user
@@ -68,6 +76,7 @@ export const handleConversationRequest = async (
       {
         clerkId: userId,
         sessionId: resolvedSessionId,
+        chatbotType: "chatbot-lead-generation",
       },
       {
         $set: {
@@ -94,22 +103,19 @@ export const handleConversationRequest = async (
       },
     );
 
-    // Send notifications for lead generation chatbot
-    if (chatbotType === "chatbot-lead-generation") {
-      try {
-        await sendAppointmentNotifications({
-          userId,
-          source: "web",
-          sourceRef: String(result._id),
-          appointment: formDataToAppointmentAlert(formData || []),
-          ownerEmail: user.email,
-          ownerWhatsAppNumber: chatbot.phone,
-          dashboardPath: `/web/${chatbotType}/conversations`,
-        });
-      } catch (notificationError) {
-        console.error("Notification error:", notificationError);
-        // Continue even if notifications fail
-      }
+    try {
+      await sendAppointmentNotifications({
+        userId,
+        source: "web",
+        sourceRef: String(result._id),
+        appointment: formDataToAppointmentAlert(formData || []),
+        ownerEmail: user.email,
+        ownerWhatsAppNumber: chatbot.phone,
+        dashboardPath: `/web/${chatbotType}/conversations`,
+      });
+    } catch (notificationError) {
+      console.error("Notification error:", notificationError);
+      // Continue even if notifications fail
     }
 
     return res.status(200).json({

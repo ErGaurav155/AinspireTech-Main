@@ -15,6 +15,14 @@ export const handleFaqRequest = async (req: Request, res: Response) => {
       });
     }
 
+    if (chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Unsupported chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     await connectToDatabase();
 
     // Find FAQ for the user and chatbot type

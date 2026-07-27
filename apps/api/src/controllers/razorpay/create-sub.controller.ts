@@ -21,7 +21,6 @@ const MONTHLY_FIRST_CYCLE_OFFER_IDS = {
   },
   web: {
     "chatbot-lead-generation": "offer_T4CNQG5KW1UXQt",
-    "chatbot-education": "offer_Swg8earHCXfe9f",
   },
   call: {
     "call-business": "offer_T4EV5fWjFIkwkS",
@@ -370,6 +369,23 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active content creation subscription before choosing another one.",
           data: { activeContentCreationSubscription },
+          timestamp: new Date().toISOString(),
+        });
+      }
+    } else if (subscriptionType === "web") {
+      const { userId } = getAuth(req);
+      if (userId && userId !== buyerId) {
+        return res.status(403).json({
+          success: false,
+          error: "Web subscription buyer does not match authenticated user",
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      if (productId !== "chatbot-lead-generation") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid website chatbot plan",
           timestamp: new Date().toISOString(),
         });
       }

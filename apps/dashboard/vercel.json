@@ -8,15 +8,6 @@
           "value": "frame-ancestors *;"
         }
       ]
-    },
-    {
-      "source": "/mcqchatbotembed.js",
-      "headers": [
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors *;"
-        }
-      ]
     }
   ],
   "buildCommand": "cd ../.. && npx turbo run build --filter=dashboard",

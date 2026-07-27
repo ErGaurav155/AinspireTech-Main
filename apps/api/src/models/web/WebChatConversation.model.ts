@@ -20,7 +20,7 @@ export interface IFormField {
 }
 
 export interface IChatConversation extends Document {
-  chatbotType: string;
+  chatbotType: "chatbot-lead-generation";
   clerkId: string;
   sessionId: string; // Unique identifier for the chat session
   visitorId?: string; // For anonymous users
@@ -101,6 +101,7 @@ const ChatConversationSchema = new Schema<IChatConversation>(
     chatbotType: {
       type: String,
       required: true,
+      enum: ["chatbot-lead-generation"],
     },
     clerkId: {
       type: String,

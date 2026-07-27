@@ -115,7 +115,6 @@ function generateMockDailyData() {
 function generateMockChatbotData() {
   return [
     { _id: "Lead Generation", totalTokens: 12450, count: 45, totalCost: 0 },
-    { _id: "Education (MCQ)", totalTokens: 8320, count: 32, totalCost: 0 },
   ];
 }
 
@@ -954,7 +953,6 @@ export default function TokenDashboard() {
 function formatChatbotName(chatbotId: string): string {
   const nameMap: Record<string, string> = {
     "chatbot-lead-generation": "Lead Generation",
-    "chatbot-education": "Education (MCQ)",
     unknown: "Unknown",
   };
   return nameMap[chatbotId] || chatbotId;

@@ -9,7 +9,11 @@ export const getAllChatbotsController = async (req: Request, res: Response) => {
     await connectToDatabase();
 
     // Fetch all chatbots sorted by creation date (newest first)
-    const chatbots = await WebChatbot.find({}).sort({ createdAt: -1 }).lean();
+    const chatbots = await WebChatbot.find({
+      type: "chatbot-lead-generation",
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.status(200).json({
       success: true,

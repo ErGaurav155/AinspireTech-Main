@@ -159,6 +159,14 @@ export const sendWhatsAppInfoController = async (
       });
     }
 
+    if (chatbotType && chatbotType !== "chatbot-lead-generation") {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid chatbot type",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Validate Twilio configuration
     if (
       !process.env.TWILIO_ACCOUNT_SID ||
@@ -193,7 +201,7 @@ export const sendWhatsAppInfoController = async (
 
       const chatbot = await WebChatbot.findOne({
         clerkId: userId,
-        type: chatbotType,
+        type: "chatbot-lead-generation",
       }).exec();
 
       if (!chatbot) {

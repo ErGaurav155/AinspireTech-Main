@@ -24,7 +24,10 @@ export const getConversationsController = async (
     await connectToDatabase();
 
     // Build query
-    const query: any = { clerkId: userId };
+    const query: any = {
+      clerkId: userId,
+      chatbotType: "chatbot-lead-generation",
+    };
     if (chatbotId) {
       query.chatbotId = chatbotId;
     }

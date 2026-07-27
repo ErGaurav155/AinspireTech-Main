@@ -34,7 +34,10 @@ export const processCommissionsController = async (
         // Verify that the subscription is still active
         let subscriptionActive = false;
         if (referral.subscriptionModel === "WebSubscription") {
-          const sub = await WebSubscription.findById(referral.subscriptionId);
+          const sub = await WebSubscription.findOne({
+            _id: referral.subscriptionId,
+            chatbotType: "chatbot-lead-generation",
+          });
           if (sub && sub.status === "active") subscriptionActive = true;
         } else if (referral.subscriptionModel === "InstaSubscription") {
           const sub = await InstaSubscription.findById(referral.subscriptionId);

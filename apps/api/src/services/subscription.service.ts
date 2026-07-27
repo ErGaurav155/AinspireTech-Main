@@ -134,6 +134,7 @@ export const getSubscriptionById = async (
     } else {
       subscription = await WebSubscription.findOne({
         subscriptionId,
+        chatbotType: "chatbot-lead-generation",
         status: "active",
       });
     }

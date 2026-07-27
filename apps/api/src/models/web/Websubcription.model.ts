@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ISubscription extends Document {
   clerkId: string;
-  chatbotType: "chatbot-lead-generation" | "chatbot-education";
+  chatbotType: "chatbot-lead-generation";
   subscriptionId: string;
   chatbotName: string;
   chatbotMessage: string;
@@ -32,7 +32,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
     chatbotType: {
       type: String,
       required: true,
-      enum: ["chatbot-lead-generation", "chatbot-education"],
+      enum: ["chatbot-lead-generation"],
     },
     subscriptionId: {
       type: String,

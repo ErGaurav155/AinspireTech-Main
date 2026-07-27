@@ -24,8 +24,6 @@ import {
   Target,
   Mail,
   Shield,
-  BookOpen,
-  HelpCircle,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -51,8 +49,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: true,
     userData: true,
-    personalizedLearning: true,
-    interactiveQuizzes: true,
   },
   {
     name: "ProProfs Chat",
@@ -73,8 +69,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: false,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "HubSpot",
@@ -95,8 +89,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: true,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Kommunicate",
@@ -117,8 +109,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: false,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Tidio",
@@ -139,8 +129,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: false,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Intercom",
@@ -161,8 +149,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: true,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Freshchat",
@@ -183,8 +169,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: false,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Chatfuel",
@@ -205,30 +189,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: false,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
-  },
-  {
-    name: "Botsify",
-    bestFor: "Multilingual Support for Educational Use Cases",
-    pricing: "Starts at $49/month",
-    rating: 4.3,
-    category: "education",
-    highlight: false,
-    availability: true,
-    liveChat: true,
-    multiLanguage: true,
-    dashboard: true,
-    automatedResponses: true,
-    crmIntegration: false,
-    analytics: false,
-    workflows: false,
-    leadQualification: false,
-    emailNotifications: true,
-    prioritySupport: false,
-    userData: true,
-    personalizedLearning: true,
-    interactiveQuizzes: true,
   },
   {
     name: "Zendesk",
@@ -249,8 +209,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: true,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
   {
     name: "Ada",
@@ -271,8 +229,6 @@ const comparisonData = [
     emailNotifications: true,
     prioritySupport: true,
     userData: true,
-    personalizedLearning: false,
-    interactiveQuizzes: false,
   },
 ];
 
@@ -348,18 +304,6 @@ const features = [
     label: "User Data Collection",
     icon: Users,
     description: "User data gathering",
-  },
-  {
-    key: "personalizedLearning",
-    label: "Personalized Learning",
-    icon: BookOpen,
-    description: "Adaptive learning paths",
-  },
-  {
-    key: "interactiveQuizzes",
-    label: "Interactive Quizzes",
-    icon: HelpCircle,
-    description: "Interactive assessment tools",
   },
 ];
 

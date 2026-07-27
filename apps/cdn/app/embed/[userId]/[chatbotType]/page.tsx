@@ -39,13 +39,27 @@ export default async function LegacyEmbedPage({ params }: Props) {
     );
   }
 
-  // Redirect to appropriate embed route
-  const isEducationBot =
-    chatbotType.includes("education") || chatbotType.includes("mcq");
-
-  if (isEducationBot) {
-    redirect(`/mcq/embed/${userId}/${chatbotType}`);
-  } else {
-    redirect(`/lead/embed/${userId}/${chatbotType}`);
+  if (chatbotType !== "chatbot-lead-generation") {
+    return (
+      <div
+        style={{
+          position: "fixed",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "#fff",
+          fontSize: 13,
+          color: "#6b7280",
+          textAlign: "center",
+          padding: 20,
+          borderRadius: 16,
+        }}
+      >
+        Invalid widget configuration.
+      </div>
+    );
   }
+
+  redirect(`/lead/embed/${userId}/${chatbotType}`);
 }

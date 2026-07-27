@@ -12,7 +12,6 @@ import {
   Globe,
   ExternalLink,
   Bot,
-  GraduationCap,
   AlertCircle,
   Loader2,
   MonitorSmartphone,
@@ -22,7 +21,7 @@ import { useApi } from "@/lib/useApi";
 import { getChatbots } from "@/lib/services/web-actions.api";
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 
-type ChatbotTypeId = "chatbot-lead-generation" | "chatbot-education";
+type ChatbotTypeId = "chatbot-lead-generation";
 
 const CDN_URL =
   process.env.NEXT_PUBLIC_CDN_URL || "https://cdn.rocketreplai.com";
@@ -35,11 +34,6 @@ const TYPE_CONFIG: Record<
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
     buildPath: "/web/chatbot-lead-generation/create",
-  },
-  "chatbot-education": {
-    label: "Education (MCQ)",
-    gradient: "from-green-500 to-emerald-500",
-    buildPath: "/web/chatbot-education/create",
   },
 };
 
@@ -131,13 +125,10 @@ export default function IntegrationPage() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const isValid = ["chatbot-lead-generation", "chatbot-education"].includes(
-    rawId,
-  );
+  const isValid = rawId === "chatbot-lead-generation";
   const chatbotType = isValid ? (rawId as ChatbotTypeId) : null;
   const cfg = chatbotType ? TYPE_CONFIG[chatbotType] : null;
-  const isLead = chatbotType === "chatbot-lead-generation";
-  const scriptName = isLead ? "website-bot.js" : "mcq-bot.js";
+  const scriptName = "website-bot.js";
 
   const [pageStatus, setPageStatus] = useState<
     "checking" | "not-built" | "ready"
@@ -178,9 +169,8 @@ export default function IntegrationPage() {
 >${userId},${chatbotType}</script>`
     : "";
 
-  // ✅ FIXED: Added "/lead" for lead bots
   const landingPageUrl = userId
-    ? `${CDN_URL}${isLead ? "/lead" : "/mcq"}/${userId}/${chatbotType}`
+    ? `${CDN_URL}/lead/${userId}/${chatbotType}`
     : "";
 
   const wordPressCode = userId
@@ -232,11 +222,7 @@ export default function Layout({ children }) {
           <div
             className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${cfg.gradient} flex items-center justify-center mb-6`}
           >
-            {isLead ? (
-              <Bot className="h-10 w-10 text-white" />
-            ) : (
-              <GraduationCap className="h-10 w-10 text-white" />
-            )}
+            <Bot className="h-10 w-10 text-white" />
           </div>
           <h2 className={`text-2xl font-bold ${styles.text.primary} mb-3`}>
             Build your chatbot first
@@ -291,7 +277,7 @@ export default function Layout({ children }) {
             </div>
             <div>
               <h2 className={`text-base font-semibold ${styles.text.primary}`}>
-                {isLead ? "Website Chatbot" : "Website Education Bot"}
+                Website Chatbot
               </h2>
               <p className={`text-xs ${styles.text.secondary} mt-0.5`}>
                 Paste before{" "}
@@ -318,9 +304,8 @@ export default function Layout({ children }) {
           >
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
             <span>
-              {isLead
-                ? "A floating chat button will appear in the bottom-right corner of your website."
-                : "A floating education widget will appear in the bottom-right corner with chat, quiz, and FAQ tabs."}
+              A floating chat button will appear in the bottom-right corner of
+              your website.
             </span>
           </div>
         </div>
@@ -406,9 +391,8 @@ export default function Layout({ children }) {
           >
             <AlertCircle className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />
             <span>
-              {isLead
-                ? "Visitors will see a full-page chat experience with AI chat, FAQ, and appointment booking — no embed script needed."
-                : "Visitors will see a full-page education experience with AI doubt solving, quizzes, and FAQs — no embed script needed."}
+              Visitors will see a full-page chat experience with AI chat, FAQ,
+              and appointment booking — no embed script needed.
             </span>
           </div>
         </div>
@@ -493,21 +477,11 @@ export default function Layout({ children }) {
           <ul className="space-y-2">
             {[
               "The script loads a lightweight iframe from cdn.rocketreplai.com",
-              isLead
-                ? "Visitors see a floating chat button in the bottom-right corner"
-                : "Visitors see a floating education widget in the bottom-right corner",
-              isLead
-                ? "3 tabs: Chat (AI Q&A with memory), Knowledge Base (FAQ), Book Appointment"
-                : "3 tabs: Chat (doubt solving), Quiz (interactive MCQ generation), FAQs",
-              isLead
-                ? "The bot remembers the full conversation for natural multi-turn replies"
-                : "Students can ask doubts naturally and switch into practice mode instantly",
-              isLead
-                ? "Appointment bookings are saved to your Conversations dashboard"
-                : "Generated quizzes stay interactive inside the widget with instant scoring",
-              isLead
-                ? "You receive an email notification for each new appointment"
-                : "FAQs are searchable so learners can quickly revise common questions",
+              "Visitors see a floating chat button in the bottom-right corner",
+              "3 tabs: Chat (AI Q&A with memory), Knowledge Base (FAQ), Book Appointment",
+              "The bot remembers the full conversation for natural multi-turn replies",
+              "Appointment bookings are saved to your Conversations dashboard",
+              "You receive an email notification for each new appointment",
               "Tokens are deducted per AI response — check your balance in Tokens",
             ].map((item, i) => (
               <li
@@ -525,60 +499,32 @@ export default function Layout({ children }) {
 
         {/* Quick links */}
         <div className="grid grid-cols-2 gap-3">
-          {(isLead
-            ? [
-                {
-                  label: "Manage FAQ",
-                  href: `/web/${chatbotType}/faq`,
-                  icon: "📚",
-                  desc: "Add knowledge base articles",
-                },
-                {
-                  label: "Appointment Questions",
-                  href: `/web/${chatbotType}/appointments`,
-                  icon: "📅",
-                  desc: "Customise booking form fields",
-                },
-                {
-                  label: "Conversations",
-                  href: `/web/${chatbotType}/conversations`,
-                  icon: "💬",
-                  desc: "View leads & bookings",
-                },
-                {
-                  label: "Settings",
-                  href: `/web/${chatbotType}/settings`,
-                  icon: "⚙️",
-                  desc: "Colours, welcome message",
-                },
-              ]
-            : [
-                {
-                  label: "Manage FAQ",
-                  href: `/web/${chatbotType}/faq`,
-                  icon: "📚",
-                  desc: "Add revision FAQs",
-                },
-                {
-                  label: "Conversations",
-                  href: `/web/${chatbotType}/conversations`,
-                  icon: "💬",
-                  desc: "Review student chats",
-                },
-                {
-                  label: "Settings",
-                  href: `/web/${chatbotType}/settings`,
-                  icon: "⚙️",
-                  desc: "Colours, welcome message",
-                },
-                {
-                  label: "Overview",
-                  href: `/web/${chatbotType}`,
-                  icon: "📈",
-                  desc: "See education bot stats",
-                },
-              ]
-          ).map((link) => (
+          {[
+            {
+              label: "Manage FAQ",
+              href: `/web/${chatbotType}/faq`,
+              icon: "📚",
+              desc: "Add knowledge base articles",
+            },
+            {
+              label: "Appointment Questions",
+              href: `/web/${chatbotType}/appointments`,
+              icon: "📅",
+              desc: "Customise booking form fields",
+            },
+            {
+              label: "Conversations",
+              href: `/web/${chatbotType}/conversations`,
+              icon: "💬",
+              desc: "View leads & bookings",
+            },
+            {
+              label: "Settings",
+              href: `/web/${chatbotType}/settings`,
+              icon: "⚙️",
+              desc: "Colours, welcome message",
+            },
+          ].map((link) => (
             <Link
               key={link.href}
               href={link.href}

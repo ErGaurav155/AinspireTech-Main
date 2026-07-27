@@ -96,6 +96,13 @@ const activateVerifiedSubscription = async ({
     throw new Error("Unable to determine subscription product");
   }
 
+  if (
+    currentSubscriptionKind === "web" &&
+    targetChatbotType !== "chatbot-lead-generation"
+  ) {
+    throw new Error("Unsupported website chatbot product");
+  }
+
   if (currentSubscriptionKind === "package") {
     const packageId = productId || notes.packageId || notes.productId;
     if (!packageId) {
@@ -287,17 +294,15 @@ const activateVerifiedSubscription = async ({
     );
   } else {
     await WebSubscription.findOneAndUpdate(
-      { subscriptionId: subscription_id },
+      {
+        subscriptionId: subscription_id,
+        chatbotType: "chatbot-lead-generation",
+      },
       {
         $set: {
           clerkId: userId,
           chatbotType: targetChatbotType,
-          chatbotName:
-            targetChatbotType === "chatbot-lead-generation"
-              ? "Lead Generation"
-              : targetChatbotType === "chatbot-education"
-                ? "Education (MCQ)"
-                : targetChatbotType,
+          chatbotName: "Lead Generation",
           subscriptionId: subscription_id,
           plan: productId || targetChatbotType,
           billingCycle: resolvedBillingCycle,
@@ -357,6 +362,7 @@ const cancelPreviousSubscriptionAfterPayment = async ({
           : await WebSubscription.findOne({
               subscriptionId: previousSubscriptionId,
               clerkId,
+              chatbotType: "chatbot-lead-generation",
               status: "active",
             });
 
@@ -410,7 +416,11 @@ const cancelPreviousSubscriptionAfterPayment = async ({
     await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
   } else {
     await WebSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
+      {
+        subscriptionId: previousSubscriptionId,
+        clerkId,
+        chatbotType: "chatbot-lead-generation",
+      },
       cancellationUpdate,
     );
   }
