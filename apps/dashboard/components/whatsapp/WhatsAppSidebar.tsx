@@ -31,18 +31,39 @@ import {
 } from "@/lib/call-access";
 
 const NAV_ITEMS = [
-  { label: "Overview", href: "/whatsapp", icon: LayoutDashboard },
-  { label: "Automations", href: "/whatsapp/automations", icon: Workflow },
+  { label: "Overview", href: "/whatsapp", icon: LayoutDashboard, isNew: false },
+  {
+    label: "Automations",
+    href: "/whatsapp/automations",
+    icon: Workflow,
+    isNew: false,
+  },
   {
     label: "Appointments",
     href: "/whatsapp/appointments",
     icon: CalendarCheck,
+    isNew: false,
   },
-  { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp },
-  { label: "Business Info", href: "/whatsapp/business-info", icon: FileText },
-  { label: "Settings", href: "/whatsapp/settings", icon: Settings },
-  { label: "Pricing", href: "/whatsapp/pricing", icon: CreditCard },
-  { label: "Packages", href: "/packages", icon: PackageCheck },
+  { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp, isNew: false },
+  {
+    label: "Business Info",
+    href: "/whatsapp/business-info",
+    icon: FileText,
+    isNew: false,
+  },
+  {
+    label: "Settings",
+    href: "/whatsapp/settings",
+    icon: Settings,
+    isNew: false,
+  },
+  {
+    label: "Pricing",
+    href: "/whatsapp/pricing",
+    icon: CreditCard,
+    isNew: false,
+  },
+  { label: "Packages", href: "/packages", icon: PackageCheck, isNew: true },
   { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
 ] as const;
 
@@ -115,6 +136,9 @@ export default function WhatsAppSidebar({
               ? "text-white/60 hover:bg-white/[0.06] hover:text-white/75"
               : "text-gray-500 hover:bg-white hover:text-gray-800"
         }`,
+      newBadge: isDark
+        ? "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
+        : "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full",
     }),
     [isDark],
   );
@@ -209,10 +233,15 @@ export default function WhatsAppSidebar({
                     <div className="flex items-center gap-3">
                       <Icon className={styles.navIcon(active)} />
                       <span className="text-sm font-medium">{item.label}</span>
+                    </div>{" "}
+                    <div className="flex items-center gap-2">
+                      {item?.isNew && (
+                        <Badge className={styles.newBadge}>NEW</Badge>
+                      )}
+                      {active && (
+                        <div className="w-1 h-6 rounded-full bg-emerald-500" />
+                      )}
                     </div>
-                    {active && (
-                      <div className="w-1 h-6 rounded-full bg-emerald-500" />
-                    )}
                   </Link>
                 </div>
               );
