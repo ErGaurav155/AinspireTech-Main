@@ -261,7 +261,8 @@ export default function WhatsAppAutomationDashboard({
                   await updateWhatsAppWorkspace(apiRequest, payload);
                   toast({
                     title: "Automations saved",
-                    description: "Customer menus and booking logic were updated.",
+                    description:
+                      "Customer menus and booking logic were updated.",
                   });
                   await loadDashboard();
                 }}
@@ -329,7 +330,8 @@ export default function WhatsAppAutomationDashboard({
         )}
         <p className={`mt-8 text-xs ${styles.text.muted}`}>
           WhatsApp automation supports guided booking, AI business replies,
-          service pricing, FAQs, owner handoff, follow-ups, and appointment alerts.
+          service pricing, FAQs, owner handoff, follow-ups, and appointment
+          alerts.
         </p>
       </div>
     </div>
@@ -555,7 +557,9 @@ function Overview({
       </div>
 
       <div className="grid gap-6 xl:grid-cols-2">
-        <section className={`rounded-2xl border ${cardClass} p-5`}>
+        <section
+          className={`rounded-2xl border ${cardClass} p-5  w-full overflow-hidden`}
+        >
           <SectionTitle
             icon={FileText}
             title="Business Info Replies"
@@ -570,7 +574,7 @@ function Overview({
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
               Current source
             </p>
-            <p className="mt-2 text-sm font-semibold overflow-hidden">
+            <p className="mt-2 text-sm font-semibold w-full overflow-hidden">
               {data.businessInfo?.knowledgeBaseUrl ||
                 data.businessInfo?.fileName ||
                 data.businessInfo?.websiteUrl ||

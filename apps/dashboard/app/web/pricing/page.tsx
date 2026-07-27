@@ -35,10 +35,7 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { productSubscriptionDetails } from "@rocketreplai/shared";
-import {
-  getChatbots,
-  getSubscriptions,
-} from "@/lib/services/web-actions.api";
+import { getChatbots, getSubscriptions } from "@/lib/services/web-actions.api";
 import { useApi } from "@/lib/useApi";
 import { Checkout } from "@/components/web/Checkout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
@@ -115,8 +112,9 @@ const PricingContent = () => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
-  const [confirmingPaymentProductId, setConfirmingPaymentProductId] =
-    useState<string | null>(null);
+  const [confirmingPaymentProductId, setConfirmingPaymentProductId] = useState<
+    string | null
+  >(null);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
@@ -542,90 +540,6 @@ const PricingContent = () => {
                 })}
               </nav>
             </div>
-            {/* Free Tier Card - Outside tabs but after Tabs */}
-            <div className="mt-8">
-              <div className={`${styles.card} p-6 max-w-5xl mx-auto`}>
-                <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div
-                        className={`w-10 h-10 rounded-xl ${styles.icon.green} flex items-center justify-center`}
-                      >
-                        <Sparkles
-                          className={`h-5 w-5 ${isDark ? "text-green-400" : "text-green-600"}`}
-                        />
-                      </div>
-                      <h3
-                        className={`text-2xl font-bold ${styles.text.primary}`}
-                      >
-                        Free Tier
-                      </h3>
-                    </div>
-                    <p className={`${styles.text.secondary} mb-4`}>
-                      Get started with 10,000 free tokens monthly
-                    </p>
-                    <ul className="space-y-2">
-                      <li className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <Check
-                            className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
-                          />
-                        </div>
-                        <span className={styles.text.secondary}>
-                          10,000 free tokens monthly
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <Check
-                            className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
-                          />
-                        </div>
-                        <span className={styles.text.secondary}>
-                          Access to all chatbots
-                        </span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
-                          <Check
-                            className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
-                          />
-                        </div>
-                        <span className={styles.text.secondary}>
-                          Basic support
-                        </span>
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="text-center md:text-right">
-                    <div
-                      className={`text-4xl font-bold ${styles.statusText} mb-2`}
-                    >
-                      10,000
-                    </div>
-                    <div className={`text-sm ${styles.text.muted} mb-4`}>
-                      Free Tokens/Month
-                    </div>
-                    <SignedOut>
-                      <Button
-                        onClick={() => router.push("/sign-up")}
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl px-8"
-                      >
-                        Get Started Free
-                      </Button>
-                    </SignedOut>
-                    <SignedIn>
-                      <Button
-                        disabled
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl px-8 opacity-50 cursor-not-allowed"
-                      >
-                        Current Plan
-                      </Button>
-                    </SignedIn>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {/* Chatbot Plans Tab Content */}
             <TabsContent value="chatbot" className="mt-8">
@@ -659,6 +573,90 @@ const PricingContent = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                {/* Free Tier Card - Outside tabs but after Tabs */}
+                <div className="mt-8">
+                  <div className={`${styles.card} p-6 max-w-5xl mx-auto`}>
+                    <div className="flex flex-col items-center justify-between gap-6">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div
+                            className={`w-10 h-10 rounded-xl ${styles.icon.green} flex items-center justify-center`}
+                          >
+                            <Sparkles
+                              className={`h-5 w-5 ${isDark ? "text-green-400" : "text-green-600"}`}
+                            />
+                          </div>
+                          <h3
+                            className={`text-2xl font-bold ${styles.text.primary}`}
+                          >
+                            Free Tier
+                          </h3>
+                        </div>
+                        <p className={`${styles.text.secondary} mb-4`}>
+                          Get started with 10,000 free tokens monthly
+                        </p>
+                        <ul className="space-y-2">
+                          <li className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                              <Check
+                                className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
+                              />
+                            </div>
+                            <span className={styles.text.secondary}>
+                              10,000 free tokens monthly
+                            </span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                              <Check
+                                className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
+                              />
+                            </div>
+                            <span className={styles.text.secondary}>
+                              Access to all chatbots
+                            </span>
+                          </li>
+                          <li className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-green-500/20 flex items-center justify-center">
+                              <Check
+                                className={`h-3 w-3 ${isDark ? "text-green-400" : "text-green-600"}`}
+                              />
+                            </div>
+                            <span className={styles.text.secondary}>
+                              Basic support
+                            </span>
+                          </li>
+                        </ul>
+                      </div>
+                      <div className="text-center md:text-right">
+                        <div
+                          className={`text-4xl font-bold ${styles.statusText} mb-2`}
+                        >
+                          10,000
+                        </div>
+                        <div className={`text-sm ${styles.text.muted} mb-4`}>
+                          Free Tokens/Month
+                        </div>
+                        <SignedOut>
+                          <Button
+                            onClick={() => router.push("/sign-up")}
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl px-8"
+                          >
+                            Get Started Free
+                          </Button>
+                        </SignedOut>
+                        <SignedIn>
+                          <Button
+                            disabled
+                            className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl px-8 opacity-50 cursor-not-allowed"
+                          >
+                            Current Plan
+                          </Button>
+                        </SignedIn>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 {products.map((product) => {
                   const Icon = iconMapping[product.icon] || Bot;
                   const { displayPrice, originalPrice, isYearly } =

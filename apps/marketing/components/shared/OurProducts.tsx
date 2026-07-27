@@ -215,18 +215,6 @@ export function AIVoiceAgentShowcase() {
       ],
       color: "from-teal-500 to-cyan-500",
     },
-    broadcasts: {
-      title: "Broadcasts and Templates",
-      description: "Reach opted-in customers with compliant campaigns",
-      icon: <Zap className="h-5 w-5" />,
-      features: [
-        "Template-based campaigns",
-        "Audience segments",
-        "Delivery and read analytics",
-        "Opt-out friendly messaging",
-      ],
-      color: "from-green-500 to-emerald-500",
-    },
   };
 
   const toggleWebDropdown = (key: string) => {
@@ -555,7 +543,7 @@ export function AIVoiceAgentShowcase() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="grid grid-cols-1 md:grid-cols-3 gap-6"
+                className="grid grid-cols-1 md:grid-cols-2 gap-6"
               >
                 {Object.entries(whatsappAutomationTypes).map(
                   ([key, automation]) => (

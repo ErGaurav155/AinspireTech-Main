@@ -66,7 +66,7 @@ const ADDON_SERVICES: Service[] = [
     id: "wa",
     icon: "💬",
     name: "WhatsApp Automation",
-    note: "Auto-reply, sequences, broadcasts, and lead follow-up.",
+    note: "Customer support replies, FAQs, handoff, and appointment booking.",
     mrp: 3000,
     price: 1500,
     group: "addon",

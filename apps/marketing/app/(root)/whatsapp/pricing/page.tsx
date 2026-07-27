@@ -5,13 +5,13 @@ import { Button } from "@rocketreplai/ui";
 const plan = {
   name: "WhatsApp Automation",
   price: "INR 1,999",
-  limit: "10k business-initiated messages",
+  limit: "10k automated customer messages",
   features: [
     "1 connected WhatsApp number",
     "1 team inbox",
     "3 AI agents",
-    "Templates and broadcast tracker",
-    "Contacts, appointment booking, and basic analytics",
+    "Customer support inbox and human handoff",
+    "Contacts, FAQs, appointment booking, and basic analytics",
   ],
 };
 
@@ -37,7 +37,7 @@ export default function WhatsAppPricingPage() {
           <p className="mt-4 text-sm leading-6 text-slate-600 dark:text-white/60">
             Get the core WhatsApp automation stack for INR 1,999/month. Meta
             WhatsApp Business Platform pass-through message charges are billed
-            separately based on country and template category.
+            separately based on country and message type.
           </p>
         </div>
 
@@ -97,7 +97,7 @@ export default function WhatsAppPricingPage() {
               ))}
             </div>
             <p className="mt-5 text-sm leading-6 text-slate-600 dark:text-white/60">
-              Need higher message volume later? Keep the same platform plan and
+              Need higher support volume later? Keep the same platform plan and
               pass through Meta message charges separately.
             </p>
           </div>

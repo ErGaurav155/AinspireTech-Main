@@ -232,8 +232,6 @@ export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
     appointmentFlow: _appointmentFlow,
     greetingTemplate: _greetingTemplate,
     agents: _agents,
-    templates: _templates,
-    campaigns: _campaigns,
     ...workspaceData
   } = data as any;
   return {
@@ -511,10 +509,8 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         "Hi, thanks for messaging Ainspiretech. Please choose an option or share what you need help with.",
     },
     agents: [],
-    templates: [],
     contacts: [],
     conversations: [],
-    campaigns: [],
     appointments: [],
   });
 

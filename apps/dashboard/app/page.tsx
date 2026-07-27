@@ -265,16 +265,16 @@ function ChooseProductContent() {
               </h2>
 
               <p className={`${styles.text.secondary} mb-6`}>
-                Build WhatsApp Business agents for lead qualification, shared
-                inbox, broadcasts, templates, and compliant customer journeys.
+                Build WhatsApp Business agents for customer support, shared
+                inbox handoff, FAQs, and appointment booking.
               </p>
 
               <div className="space-y-3 mb-8">
                 {[
-                  { icon: MessageCircle, text: "AI sales and support agents" },
-                  { icon: Target, text: "Segments and opt-in controls" },
-                  { icon: TrendingUp, text: "Broadcast analytics" },
-                  { icon: Sparkles, text: "Template approval workspace" },
+                  { icon: MessageCircle, text: "AI customer support replies" },
+                  { icon: Target, text: "Appointment request capture" },
+                  { icon: TrendingUp, text: "Conversation and service insights" },
+                  { icon: Sparkles, text: "Business FAQs and information" },
                   { icon: Zap, text: "Meta setup checklist" },
                 ].map((feature, index) => {
                   const Icon = feature.icon;

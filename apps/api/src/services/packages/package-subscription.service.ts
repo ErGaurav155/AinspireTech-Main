@@ -97,7 +97,7 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
     features: [
       "Everything in Starter Automation",
       "WhatsApp automation",
-      "Team inbox and campaign workflow",
+      "Customer support and appointment workflow",
       "Website creation guidance",
       "Content creation support",
     ],

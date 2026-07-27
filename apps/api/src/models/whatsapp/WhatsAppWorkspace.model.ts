@@ -1,11 +1,6 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 export type WhatsAppPlanId = "free" | "launch" | "package";
-export type WhatsAppTemplateCategory =
-  | "marketing"
-  | "utility"
-  | "authentication";
-
 export interface IWhatsAppWorkspace extends Document {
   clerkId: string;
   isConfigured: boolean;
@@ -236,17 +231,6 @@ export interface IWhatsAppWorkspace extends Document {
     createdAt: Date;
     updatedAt: Date;
   }>;
-  templates: Array<{
-    name: string;
-    language: string;
-    category: WhatsAppTemplateCategory;
-    status: "draft" | "pending" | "approved" | "rejected";
-    body: string;
-    example: string;
-    metaTemplateId?: string;
-    createdAt: Date;
-    updatedAt: Date;
-  }>;
   contacts: Array<{
     waId: string;
     name: string;
@@ -301,19 +285,6 @@ export interface IWhatsAppWorkspace extends Document {
       completed: boolean;
       suppressedByAppointment?: boolean;
     };
-    createdAt: Date;
-    updatedAt: Date;
-  }>;
-  campaigns: Array<{
-    name: string;
-    templateName: string;
-    segment: string;
-    status: "draft" | "scheduled" | "running" | "paused" | "completed";
-    scheduledAt?: Date;
-    recipients: number;
-    delivered: number;
-    read: number;
-    replies: number;
     createdAt: Date;
     updatedAt: Date;
   }>;
@@ -751,27 +722,6 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
         updatedAt: { type: Date, default: Date.now },
       },
     ],
-    templates: [
-      {
-        name: String,
-        language: { type: String, default: "en" },
-        category: {
-          type: String,
-          enum: ["marketing", "utility", "authentication"],
-          default: "utility",
-        },
-        status: {
-          type: String,
-          enum: ["draft", "pending", "approved", "rejected"],
-          default: "draft",
-        },
-        body: String,
-        example: String,
-        metaTemplateId: String,
-        createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now },
-      },
-    ],
     contacts: [
       {
         waId: { type: String, index: true },
@@ -871,25 +821,6 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
           completed: { type: Boolean, default: false },
           suppressedByAppointment: { type: Boolean, default: false },
         },
-        createdAt: { type: Date, default: Date.now },
-        updatedAt: { type: Date, default: Date.now },
-      },
-    ],
-    campaigns: [
-      {
-        name: String,
-        templateName: String,
-        segment: String,
-        status: {
-          type: String,
-          enum: ["draft", "scheduled", "running", "paused", "completed"],
-          default: "draft",
-        },
-        scheduledAt: Date,
-        recipients: { type: Number, default: 0 },
-        delivered: { type: Number, default: 0 },
-        read: { type: Number, default: 0 },
-        replies: { type: Number, default: 0 },
         createdAt: { type: Date, default: Date.now },
         updatedAt: { type: Date, default: Date.now },
       },

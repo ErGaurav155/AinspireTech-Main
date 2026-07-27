@@ -11,9 +11,7 @@ import {
   FileText,
   Headphones,
   MessageCircle,
-  Megaphone,
   Plug,
-  Send,
   ShieldCheck,
   Users,
   Workflow,
@@ -24,9 +22,9 @@ const dashboardUrl = "https://app.rocketreplai.com/whatsapp";
 
 const features = [
   {
-    title: "AI sales and support agents",
+    title: "AI customer support agents",
     description:
-      "Qualify leads, answer FAQs, collect details, and hand off to your team when the conversation needs a human.",
+      "Answer FAQs, share business information, collect customer details, and hand off to your team when the conversation needs a human.",
     icon: Bot,
   },
   {
@@ -36,10 +34,10 @@ const features = [
     icon: MessageCircle,
   },
   {
-    title: "Template and broadcast operations",
+    title: "Guided appointment booking",
     description:
-      "Manage marketing, utility, and authentication templates with compliant campaigns and consent-aware segments.",
-    icon: Send,
+      "Collect the requested service, preferred date or time, contact details, and urgency before your team confirms the appointment.",
+    icon: CalendarCheck,
   },
   {
     title: "Meta setup workspace",
@@ -48,33 +46,33 @@ const features = [
     icon: Plug,
   },
   {
-    title: "Contacts and segments",
+    title: "Customer context",
     description:
-      "Organize leads, customers, opted-out contacts, intent score, lifecycle stage, tags, and last message activity.",
+      "Keep customer details, conversation history, support status, tags, and recent message activity together.",
     icon: Users,
   },
   {
-    title: "Analytics and guardrails",
+    title: "Service analytics and guardrails",
     description:
-      "Monitor delivery, read rate, opt-ins, handoffs, plan limits, and production compliance checks.",
+      "Monitor delivery, read rate, appointment requests, human handoffs, plan limits, and production compliance checks.",
     icon: BarChart3,
   },
 ];
 
 const steps = [
   "Add your Meta Business Manager, WABA, phone number ID, token, and app secret",
-  "Create AI agents for sales, support, retention, or custom workflows",
-  "Sync templates and build consent-aware segments",
+  "Configure your support replies, services, and appointment questions",
+  "Add business information and FAQs for accurate customer answers",
   "Receive WhatsApp webhooks, save contacts, and manage conversations",
 ];
 
 const useCases = [
-  "Lead qualification from ads",
-  "Abandoned cart recovery",
+  "Customer FAQ support",
+  "Appointment requests",
   "Appointment reminders",
   "Order and payment updates",
   "Support triage",
-  "Reactivation campaigns",
+  "Human agent handoff",
 ];
 
 const comparisonRows = [
@@ -91,10 +89,10 @@ const comparisonRows = [
     generic: "Often needs a separate booking tool",
   },
   {
-    feature: "Broadcasts",
-    whatsapp: "Template-aware campaigns with segments and status tracking",
-    manual: "Hard to track consent and delivery",
-    generic: "Lower conversation context",
+    feature: "Customer support",
+    whatsapp: "Answers business FAQs and routes complex requests to a person",
+    manual: "Customers wait for staff availability",
+    generic: "Often lacks conversation history",
   },
   {
     feature: "Team handoff",
@@ -117,14 +115,14 @@ const workflows = [
     ],
   },
   {
-    title: "Sales qualification engine",
+    title: "Customer enquiry assistant",
     description:
-      "New WhatsApp leads from ads get instant answers, product guidance, budget checks, and human handoff when purchase intent is high.",
-    icon: Megaphone,
+      "Customers get instant answers about services, pricing, availability, and business hours, with a smooth handoff when they need your team.",
+    icon: MessageCircle,
     items: [
-      "Qualify ad leads",
-      "Share offer details",
-      "Push hot leads to team",
+      "Answer service questions",
+      "Capture contact details",
+      "Hand off to your team",
     ],
   },
   {
@@ -148,13 +146,13 @@ const faqs = [
       "It captures booking intent, customer details, service type, preferred date or time, and urgency. Your team can then confirm from the dashboard or connect a calendar workflow later.",
   },
   {
-    question: "Can I send marketing broadcasts?",
+    question: "What conversations can the AI handle?",
     answer:
-      "Yes, using approved WhatsApp templates and consent-aware segments. The dashboard separates templates, contacts, broadcasts, inbox, and analytics so campaigns stay operationally clear.",
+      "It handles inbound support questions, business information, appointment requests, customer detail collection, and human handoff when a request needs your team.",
   },
 ];
 
-export default function WhatsAppMarketingPage() {
+export default function WhatsAppAutomationPage() {
   return (
     <main className="min-h-screen text-slate-950 dark:bg-transparent dark:text-white">
       <section className="relative overflow-hidden px-4 py-20 md:px-8">
@@ -170,12 +168,12 @@ export default function WhatsAppMarketingPage() {
               WhatsApp Business Automation
             </div>
             <h1 className="max-w-4xl text-4xl font-black tracking-tight md:text-6xl">
-              Turn WhatsApp into your always-on sales and support team.
+              Turn WhatsApp into your always-on support and appointment team.
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 md:text-lg dark:text-white/65">
               RocketReplai helps businesses launch WhatsApp Cloud API agents,
-              shared inbox operations, templates, broadcasts, contacts,
-              segmentation, and Meta setup from one production dashboard.
+              shared inbox support, guided appointment booking, business
+              information replies, contacts, and Meta setup from one dashboard.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Button
@@ -219,8 +217,8 @@ export default function WhatsAppMarketingPage() {
                 {[
                   ["Open chats", "248"],
                   ["AI resolved", "71%"],
-                  ["Read rate", "83%"],
-                  ["Hot leads", "1,482"],
+                  ["Appointments", "34"],
+                  ["Handoffs", "12"],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-2xl bg-white/35 p-4">
                     <p className="text-xs font-bold uppercase opacity-65">
@@ -242,12 +240,12 @@ export default function WhatsAppMarketingPage() {
               What you get
             </p>
             <h2 className="mt-3 text-3xl font-black">
-              One workspace for WhatsApp growth
+              One workspace for WhatsApp customer service
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-white/60">
-              Manage automation, inbox work, contacts, broadcasts, and Meta
-              setup without switching between spreadsheets, phones, and
-              disconnected tools.
+              Manage support automation, appointment requests, inbox work,
+              contacts, and Meta setup without switching between spreadsheets,
+              phones, and disconnected tools.
             </p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -410,9 +408,9 @@ export default function WhatsAppMarketingPage() {
                   Launch with compliance controls
                 </h2>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-white/60">
-                  Respect opt-ins, separate Meta template categories, monitor
-                  message status, and hand conversations to humans when the AI
-                  should not continue.
+                  Monitor message status, use approved operational
+                  notifications for bookings, and hand conversations to humans
+                  when the AI should not continue.
                 </p>
               </div>
               <Button

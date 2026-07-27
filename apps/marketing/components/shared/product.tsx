@@ -40,7 +40,7 @@ const products = [
     href: "/whatsapp",
     icon: MessageCircle,
     title: "WhatsApp Automation",
-    description: "Automate replies, lead capture, broadcasts, and appointments.",
+    description: "Automate support replies, FAQs, handoff, and appointments.",
     price: "from ₹1,999/mo",
     tag: "Best for clinics & teams",
   },
