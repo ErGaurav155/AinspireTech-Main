@@ -21,14 +21,63 @@ import {
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
+type ReferralDashboardType = "insta" | "web" | "whatsapp" | "call";
+
 interface PayoutPageProps {
-  dashboardType: "insta" | "web";
+  dashboardType: ReferralDashboardType;
 }
 
 // Payment method icons
 const UPIIcon = () => <span className="text-2xl">⚡</span>;
 const PayPalIcon = () => <span className="text-2xl">🅿️</span>;
 const BankIcon = () => <span className="text-2xl">🏦</span>;
+
+const payoutConfigs = {
+  insta: {
+    gradient: "from-pink-500 to-rose-500",
+    backRoute: "/insta/refer",
+    iconKey: "pink",
+    selectedDark: "border-pink-500 bg-pink-500/10",
+    selectedLight: "border-pink-500 bg-pink-50",
+    radioBorder: "border-pink-500",
+    radioDotDark: "bg-pink-400",
+    radioDotLight: "bg-pink-500",
+    rangeAccent: "accent-pink-500",
+  },
+  web: {
+    gradient: "from-purple-500 to-pink-500",
+    backRoute: "/web/refer",
+    iconKey: "purple",
+    selectedDark: "border-purple-500 bg-purple-500/10",
+    selectedLight: "border-purple-500 bg-purple-50",
+    radioBorder: "border-purple-500",
+    radioDotDark: "bg-purple-400",
+    radioDotLight: "bg-purple-500",
+    rangeAccent: "accent-purple-500",
+  },
+  whatsapp: {
+    gradient: "from-emerald-500 to-teal-500",
+    backRoute: "/whatsapp/refer",
+    iconKey: "green",
+    selectedDark: "border-emerald-500 bg-emerald-500/10",
+    selectedLight: "border-emerald-500 bg-emerald-50",
+    radioBorder: "border-emerald-500",
+    radioDotDark: "bg-emerald-400",
+    radioDotLight: "bg-emerald-500",
+    rangeAccent: "accent-emerald-500",
+  },
+  call: {
+    gradient: "from-cyan-500 to-emerald-500",
+    backRoute: "/call/refer",
+    iconKey: "blue",
+    selectedDark: "border-cyan-500 bg-cyan-500/10",
+    selectedLight: "border-cyan-500 bg-cyan-50",
+    radioBorder: "border-cyan-500",
+    radioDotDark: "bg-cyan-400",
+    radioDotLight: "bg-cyan-500",
+    rangeAccent: "accent-cyan-500",
+  },
+} as const;
 
 export default function PayoutPage({ dashboardType }: PayoutPageProps) {
   const router = useRouter();
@@ -59,12 +108,17 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
     upiId: "",
   });
 
-  const primaryColor = dashboardType === "insta" ? "pink" : "purple";
-  const gradient =
-    dashboardType === "insta"
-      ? "from-pink-500 to-rose-500"
-      : "from-purple-500 to-pink-500";
-  const backRoute = dashboardType === "insta" ? "/insta/refer" : "/web/refer";
+  const {
+    gradient,
+    backRoute,
+    iconKey,
+    selectedDark,
+    selectedLight,
+    radioBorder,
+    radioDotDark,
+    radioDotLight,
+    rangeAccent,
+  } = payoutConfigs[dashboardType];
 
   useEffect(() => {
     if (!userId || !isLoaded) return;
@@ -269,7 +323,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
   }
 
   const iconBgClass =
-    styles.icon[primaryColor as keyof typeof styles.icon] || styles.icon.purple;
+    styles.icon[iconKey as keyof typeof styles.icon] || styles.icon.purple;
 
   return (
     <div className={styles.page}>
@@ -316,8 +370,8 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                 paymentMethod === "upi"
                   ? isDark
-                    ? `border-${primaryColor}-500 bg-${primaryColor}-500/10`
-                    : `border-${primaryColor}-500 bg-${primaryColor}-50`
+                    ? selectedDark
+                    : selectedLight
                   : isDark
                     ? "border-white/[0.08] hover:border-purple-500/50 bg-white/[0.02]"
                     : "border-gray-200 hover:border-gray-300 bg-white"
@@ -326,9 +380,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               <div
                 className={`flex items-center justify-center w-5 h-5 rounded-full border-2 ${
                   paymentMethod === "upi"
-                    ? isDark
-                      ? `border-${primaryColor}-500`
-                      : `border-${primaryColor}-500`
+                    ? radioBorder
                     : isDark
                       ? "border-white/30"
                       : "border-gray-300"
@@ -337,9 +389,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
                 {paymentMethod === "upi" && (
                   <div
                     className={`w-3 h-3 rounded-full ${
-                      isDark
-                        ? `bg-${primaryColor}-400`
-                        : `bg-${primaryColor}-500`
+                      isDark ? radioDotDark : radioDotLight
                     }`}
                   />
                 )}
@@ -355,8 +405,8 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                 paymentMethod === "paypal"
                   ? isDark
-                    ? `border-${primaryColor}-500 bg-${primaryColor}-500/10`
-                    : `border-${primaryColor}-500 bg-${primaryColor}-50`
+                    ? selectedDark
+                    : selectedLight
                   : isDark
                     ? "border-white/[0.08] hover:border-purple-500/50 bg-white/[0.02]"
                     : "border-gray-200 hover:border-gray-300 bg-white"
@@ -365,9 +415,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               <div
                 className={`flex items-center justify-center w-5 h-5 rounded-full border-2 ${
                   paymentMethod === "paypal"
-                    ? isDark
-                      ? `border-${primaryColor}-500`
-                      : `border-${primaryColor}-500`
+                    ? radioBorder
                     : isDark
                       ? "border-white/30"
                       : "border-gray-300"
@@ -376,9 +424,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
                 {paymentMethod === "paypal" && (
                   <div
                     className={`w-3 h-3 rounded-full ${
-                      isDark
-                        ? `bg-${primaryColor}-400`
-                        : `bg-${primaryColor}-500`
+                      isDark ? radioDotDark : radioDotLight
                     }`}
                   />
                 )}
@@ -396,8 +442,8 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               className={`flex items-center gap-3 p-4 rounded-xl border-2 transition-all ${
                 paymentMethod === "bank"
                   ? isDark
-                    ? `border-${primaryColor}-500 bg-${primaryColor}-500/10`
-                    : `border-${primaryColor}-500 bg-${primaryColor}-50`
+                    ? selectedDark
+                    : selectedLight
                   : isDark
                     ? "border-white/[0.08] hover:border-purple-500/50 bg-white/[0.02]"
                     : "border-gray-200 hover:border-gray-300 bg-white"
@@ -406,9 +452,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               <div
                 className={`flex items-center justify-center w-5 h-5 rounded-full border-2 ${
                   paymentMethod === "bank"
-                    ? isDark
-                      ? `border-${primaryColor}-500`
-                      : `border-${primaryColor}-500`
+                    ? radioBorder
                     : isDark
                       ? "border-white/30"
                       : "border-gray-300"
@@ -417,9 +461,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
                 {paymentMethod === "bank" && (
                   <div
                     className={`w-3 h-3 rounded-full ${
-                      isDark
-                        ? `bg-${primaryColor}-400`
-                        : `bg-${primaryColor}-500`
+                      isDark ? radioDotDark : radioDotLight
                     }`}
                   />
                 )}
@@ -644,7 +686,7 @@ export default function PayoutPage({ dashboardType }: PayoutPageProps) {
               onChange={(e) => setPayoutAmount(parseFloat(e.target.value))}
               className={`w-full h-2 rounded-lg appearance-none cursor-pointer ${
                 isDark ? "bg-white/10" : "bg-gray-200"
-              } accent-${primaryColor}-500`}
+              } ${rangeAccent}`}
               disabled={availableBalance === 0}
             />
 

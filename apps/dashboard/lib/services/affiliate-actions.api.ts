@@ -43,9 +43,17 @@ export interface AffiliateReferralRecord {
         lastName?: string;
         name?: string;
       };
-  productType: "web-chatbot" | "insta-automation" | "call-assistant";
+  productType:
+    | "web-chatbot"
+    | "insta-automation"
+    | "call-assistant"
+    | "whatsapp-automation";
   subscriptionId: string;
-  subscriptionModel: "WebSubscription" | "InstaSubscription";
+  subscriptionModel:
+    | "WebSubscription"
+    | "InstaSubscription"
+    | "CallSubscription"
+    | "WhatsAppWorkspace";
   subscriptionType: "monthly" | "yearly";
   chatbotType?: string;
   instaPlan?: string;
@@ -95,6 +103,7 @@ export interface AffiliateDashboardStats {
   webChatbotReferrals: number;
   instaReferrals: number;
   callReferrals?: number;
+  whatsappReferrals?: number;
 }
 
 export interface AffiliateDashboardData {

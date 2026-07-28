@@ -18,6 +18,7 @@ import {
   MessageCircle,
   PackageCheck,
   Phone,
+  Share2,
   Sparkles,
   Settings,
   X,
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { label: "AI Flows", href: "/call/flows", icon: GitBranch },
   { label: "Pricing", href: "/call/pricing", icon: Sparkles },
   { label: "Packages", href: "/packages", icon: PackageCheck },
+  { label: "Refer & Earn", href: "/call/refer", icon: Share2 },
   { label: "Billing", href: "/call/billing", icon: CreditCard },
   { label: "Settings", href: "/call/settings", icon: Settings },
 ] as const;

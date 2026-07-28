@@ -16,6 +16,8 @@ import {
   ArrowRight,
   Instagram,
   Globe,
+  MessageCircle,
+  Phone,
 } from "lucide-react";
 
 import {
@@ -31,8 +33,10 @@ import {
   toast,
   useThemeStyles,
 } from "@rocketreplai/ui";
+type ReferralDashboardType = "insta" | "web" | "whatsapp" | "call";
+
 interface ReferEarnPageProps {
-  dashboardType: "insta" | "web";
+  dashboardType: ReferralDashboardType;
 }
 
 // Illustration component
@@ -72,6 +76,49 @@ const ReferralIllustration = ({ isDark }: { isDark: boolean }) => (
   </div>
 );
 
+const dashboardConfigs = {
+  insta: {
+    gradient: "from-pink-500 to-rose-500",
+    Icon: Instagram,
+    label: "Instagram Automation",
+    payoutRoute: "/insta/refer/payouts",
+    iconKey: "pink",
+    inputFocus: "focus:ring-pink-500",
+    darkAccent: "text-pink-400",
+    lightAccent: "text-pink-500",
+  },
+  web: {
+    gradient: "from-purple-500 to-pink-500",
+    Icon: Globe,
+    label: "Website Lead Chatbot",
+    payoutRoute: "/web/refer/payouts",
+    iconKey: "purple",
+    inputFocus: "focus:ring-purple-500",
+    darkAccent: "text-purple-400",
+    lightAccent: "text-purple-500",
+  },
+  whatsapp: {
+    gradient: "from-emerald-500 to-teal-500",
+    Icon: MessageCircle,
+    label: "WhatsApp Automation",
+    payoutRoute: "/whatsapp/refer/payouts",
+    iconKey: "green",
+    inputFocus: "focus:ring-emerald-500",
+    darkAccent: "text-emerald-400",
+    lightAccent: "text-emerald-600",
+  },
+  call: {
+    gradient: "from-cyan-500 to-emerald-500",
+    Icon: Phone,
+    label: "AI Call Assistant",
+    payoutRoute: "/call/refer/payouts",
+    iconKey: "blue",
+    inputFocus: "focus:ring-cyan-500",
+    darkAccent: "text-cyan-400",
+    lightAccent: "text-cyan-600",
+  },
+} as const;
+
 export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
@@ -84,14 +131,17 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
   const [copied, setCopied] = useState(false);
   const [emailInput, setEmailInput] = useState("");
 
-  const primaryColor = dashboardType === "insta" ? "pink" : "purple";
-  const gradient =
-    dashboardType === "insta"
-      ? "from-pink-500 to-rose-500"
-      : "from-purple-500 to-pink-500";
-  const Icon = dashboardType === "insta" ? Instagram : Globe;
-  const payoutRoute =
-    dashboardType === "insta" ? "/insta/refer/payouts" : "/web/refer/payouts";
+  const config = dashboardConfigs[dashboardType];
+  const {
+    gradient,
+    Icon,
+    label,
+    payoutRoute,
+    iconKey,
+    inputFocus,
+    darkAccent,
+    lightAccent,
+  } = config;
 
   useEffect(() => {
     if (!userId || !isLoaded) return;
@@ -205,12 +255,16 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
         ? referral.referredUserId.slice(0, 8)
         : "User");
 
-    const subtitle = [
+    const productLabel =
       referral.productType === "web-chatbot"
-        ? referral.chatbotType || "Web chatbot"
-        : referral.instaPlan || "Instagram automation",
-      referral.subscriptionType,
-    ].join(" • ");
+        ? referral.chatbotType || "Website lead chatbot"
+        : referral.productType === "insta-automation"
+          ? referral.instaPlan || "Instagram automation"
+          : referral.productType === "call-assistant"
+            ? referral.chatbotType || "AI call assistant"
+            : referral.chatbotType || "WhatsApp automation";
+
+    const subtitle = [productLabel, referral.subscriptionType].join(" • ");
 
     return {
       initial: name.charAt(0).toUpperCase() || "U",
@@ -254,19 +308,11 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               <div className="flex items-center gap-2">
                 <Icon
                   className={`h-5 w-5 ${
-                    dashboardType === "insta"
-                      ? isDark
-                        ? "text-pink-400"
-                        : "text-pink-500"
-                      : isDark
-                        ? "text-purple-400"
-                        : "text-purple-500"
+                    isDark ? darkAccent : lightAccent
                   }`}
                 />
                 <span className={`text-sm ${styles.text.muted}`}>
-                  {dashboardType === "insta"
-                    ? "Instagram Automation"
-                    : "Web Chatbots"}
+                  {label}
                 </span>
               </div>
             </div>
@@ -324,7 +370,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
               value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
               placeholder="friend@email.com"
-              className={`flex-1 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 focus:ring-${primaryColor}-500 focus:border-transparent ${styles.input}`}
+              className={`flex-1 px-4 py-3 rounded-xl focus:outline-none focus:ring-2 ${inputFocus} focus:border-transparent ${styles.input}`}
             />
             <Button
               onClick={handleInvite}
@@ -463,13 +509,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
           <button
             onClick={() => router.push(payoutRoute)}
             className={`inline-flex items-center gap-2 ${
-              dashboardType === "insta"
-                ? isDark
-                  ? "text-pink-400"
-                  : "text-pink-500"
-                : isDark
-                  ? "text-purple-400"
-                  : "text-purple-500"
+              isDark ? darkAccent : lightAccent
             } hover:opacity-80 font-medium transition-colors`}
           >
             Go to payout
@@ -571,7 +611,7 @@ export default function ReferEarnPage({ dashboardType }: ReferEarnPageProps) {
                 .map((referral: AffiliateReferralRecord) => {
                   const display = getReferralDisplay(referral);
                   const iconBgClass =
-                    styles.icon[primaryColor as keyof typeof styles.icon] ||
+                    styles.icon[iconKey as keyof typeof styles.icon] ||
                     styles.icon.purple;
                   return (
                     <div

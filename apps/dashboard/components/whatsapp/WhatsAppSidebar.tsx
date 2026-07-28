@@ -64,7 +64,12 @@ const NAV_ITEMS = [
     isNew: false,
   },
   { label: "Packages", href: "/packages", icon: PackageCheck, isNew: true },
-  { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
+  {
+    label: "Refer & Earn",
+    href: "/whatsapp/refer",
+    icon: Share2,
+    isNew: true,
+  },
 ] as const;
 
 interface WhatsAppSidebarProps {

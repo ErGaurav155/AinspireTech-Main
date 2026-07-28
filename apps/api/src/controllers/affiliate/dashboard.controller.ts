@@ -149,6 +149,9 @@ export const getAffiliateDashboardController = async (
       callReferrals: referrals.filter(
         (r) => r.productType === "call-assistant",
       ).length,
+      whatsappReferrals: referrals.filter(
+        (r) => r.productType === "whatsapp-automation",
+      ).length,
     };
 
     return res.status(200).json({
