@@ -1,66 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useCallback } from "react";
 import Link from "next/link";
 import Logo from "@/public/assets/img/logo.png";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { motion, AnimatePresence } from "framer-motion";
+import { Shield, LogOut, X } from "lucide-react";
 import {
-  LayoutDashboard,
-  CalendarDays,
-  Activity,
-  Settings,
-  Instagram,
-  Globe,
-  Shield,
-  LogOut,
-  CreditCard,
-  X,
-  CurrencyIcon,
-} from "lucide-react";
-import { useApi } from "@/lib/useApi";
-import { verifyOwner } from "@/lib/services/admin-actions.api";
+  ADMIN_NAV_COLOR_CLASSES,
+  ADMIN_NAV_ITEMS,
+  isAdminNavItemActive,
+} from "@/lib/admin-nav";
 import { AvatarCircle, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import Image from "next/image";
-const NAV_ITEMS = [
-  { label: "Home", href: "/admin", icon: LayoutDashboard, color: "blue" },
-  {
-    label: "Subscriptions",
-    href: "/admin/subscriptions",
-    icon: CreditCard,
-    color: "green",
-  },
-  {
-    label: "Appointments",
-    href: "/admin/appointments",
-    icon: CalendarDays,
-    color: "purple",
-  },
-  {
-    label: "Rate Limits",
-    href: "/admin/rate-limits",
-    icon: Activity,
-    color: "red",
-  },
-  {
-    label: "Payouts",
-    href: "/admin/payouts",
-    icon: CurrencyIcon,
-    color: "yellow",
-  },
-  {
-    label: "Instagram Users",
-    href: "/admin/insta",
-    icon: Instagram,
-    color: "pink",
-  },
-  { label: "Web Users", href: "/admin/web", icon: Globe, color: "cyan" },
-] as const;
-
-const BOTTOM_NAV_ITEMS = [
-  { label: "Settings", href: "/admin/settings", icon: Settings, color: "gray" },
-] as const;
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -70,38 +23,13 @@ interface AdminSidebarProps {
 export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { userId, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { user } = useUser();
-  const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
 
-  const [isOwner, setIsOwner] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkOwner = async () => {
-      if (!userId) return;
-      try {
-        const result = await verifyOwner(apiRequest);
-        setIsOwner(result.isOwner);
-      } catch {
-        setIsOwner(false);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    checkOwner();
-  }, [userId, apiRequest]);
-
-  useEffect(() => {
-    if (!isLoading && !isOwner && userId) {
-      router.push("/");
-    }
-  }, [isLoading, isOwner, userId, router]);
-
   const isActive = useCallback(
-    (href: string) =>
-      href === "/admin" ? pathname === "/admin" : pathname.startsWith(href),
+    (href: (typeof ADMIN_NAV_ITEMS)[number]["href"]) =>
+      isAdminNavItemActive(pathname, href),
     [pathname],
   );
 
@@ -109,39 +37,6 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
     await signOut();
     router.push("/");
   }, [signOut, router]);
-
-  const getColorClasses = useCallback(
-    (color: string, active: boolean) => {
-      const base = active
-        ? isDark
-          ? `bg-${color}-500/20 border border-${color}-500/30`
-          : `bg-${color}-100`
-        : isDark
-          ? "bg-white/[0.03] border border-white/[0.06]"
-          : "bg-gray-50";
-
-      const text = active
-        ? isDark
-          ? `text-${color}-400`
-          : `text-${color}-600`
-        : styles.text.secondary;
-
-      const hover = active
-        ? isDark
-          ? `bg-${color}-500/10`
-          : `bg-${color}-50`
-        : isDark
-          ? "hover:bg-white/[0.03]"
-          : "hover:bg-gray-50";
-
-      const dot = active ? `bg-${color}-500` : "";
-
-      return { base, text, hover, dot };
-    },
-    [isDark, styles.text.secondary],
-  );
-
-  if (!isOwner) return null;
 
   return (
     <>
@@ -216,13 +111,29 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                 </div>
 
                 <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto mt-2">
-                  {[...NAV_ITEMS, ...BOTTOM_NAV_ITEMS].map((item) => {
+                  {ADMIN_NAV_ITEMS.map((item) => {
                     const active = isActive(item.href);
                     const Icon = item.icon;
-                    const { base, text, hover, dot } = getColorClasses(
-                      item.color,
-                      active,
-                    );
+                    const colorClasses = ADMIN_NAV_COLOR_CLASSES[item.color];
+                    const iconClasses = active
+                      ? isDark
+                        ? colorClasses.icon.dark
+                        : colorClasses.icon.light
+                      : isDark
+                        ? "bg-white/[0.03] border border-white/[0.06]"
+                        : "bg-gray-50 border border-gray-100";
+                    const textClasses = active
+                      ? isDark
+                        ? colorClasses.text.dark
+                        : colorClasses.text.light
+                      : styles.text.secondary;
+                    const rowClasses = active
+                      ? isDark
+                        ? colorClasses.surface.dark
+                        : colorClasses.surface.light
+                      : isDark
+                        ? "hover:bg-white/[0.03]"
+                        : "hover:bg-gray-50";
 
                     return (
                       <Link
@@ -231,7 +142,7 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
                         onClick={() => {
                           if (window.innerWidth < 768) onToggle();
                         }}
-                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group relative overflow-hidden ${hover}`}
+                        className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group relative overflow-hidden ${rowClasses}`}
                       >
                         {active && (
                           <motion.span
@@ -247,18 +158,20 @@ export default function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
 
                         <div className="flex items-center gap-3 relative z-10">
                           <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center ${base}`}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconClasses}`}
                           >
-                            <Icon className={`h-4 w-4 ${text}`} />
+                            <Icon className={`h-4 w-4 ${textClasses}`} />
                           </div>
-                          <span className={`text-sm font-medium ${text}`}>
+                          <span
+                            className={`text-sm font-medium ${textClasses}`}
+                          >
                             {item.label}
                           </span>
                         </div>
 
                         {active && (
                           <div
-                            className={`w-1 h-6 rounded-full relative z-10 ${dot}`}
+                            className={`w-1 h-6 rounded-full relative z-10 ${colorClasses.dot}`}
                           />
                         )}
                       </Link>

@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   Card,
   CardContent,
@@ -201,9 +200,6 @@ export default function AdminRateLimitsPage() {
     return new Date(dateString).toLocaleString();
   };
 
-  const isUserOwner = isAdminOwnerEmail(
-    user?.primaryEmailAddress?.emailAddress,
-  );
   const TAB_CONFIG: Record<
     ActiveTab,
     { label: string; icon: React.ElementType }
@@ -254,7 +250,7 @@ export default function AdminRateLimitsPage() {
     );
   }
 
-  if (!isUserOwner && isOwner === false) {
+  if (isOwner === false) {
     return (
       <GateScreen
         icon={<AlertTriangle className="h-8 w-8 text-red-400" />}

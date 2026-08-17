@@ -18,6 +18,14 @@ export const getUsersController = async (req: Request, res: Response) => {
       clerkId: user.clerkId,
       firstName: user.firstName,
       lastName: user.lastName,
+      username: user.username,
+      photo: user.photo,
+      totalReplies: user.totalReplies,
+      replyLimit: user.replyLimit,
+      accountLimit: user.accountLimit,
+      hasUsedReferral: user.hasUsedReferral,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
     }));
 
     return res.status(200).json({

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useAuth, useUser } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import { Check, Phone, Sparkles } from "lucide-react";
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
@@ -9,7 +8,7 @@ import { useApi } from "@/lib/useApi";
 import { createCallAssistant } from "@/lib/services/call-actions.api";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 const DEFAULT_PROMPT =
@@ -36,15 +35,10 @@ export default function CreateCallAssistantGate({
 }: {
   onCreated: () => void;
 }) {
-  const { userId } = useAuth();
-  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const [saving, setSaving] = useState(false);
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
   const [form, setForm] = useState({
     ownerName: "Gaurav",
     businessName: "CatchCustomerCall",

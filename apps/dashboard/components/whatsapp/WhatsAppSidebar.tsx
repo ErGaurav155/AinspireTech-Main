@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useAuth, useUser } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Bot,
@@ -27,7 +26,7 @@ import {
 import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 const NAV_ITEMS = [
@@ -82,14 +81,9 @@ export default function WhatsAppSidebar({
   onToggle,
 }: WhatsAppSidebarProps) {
   const pathname = usePathname();
-  const { userId } = useAuth();
-  const { user } = useUser();
   const { isDark } = useThemeStyles();
   const [isProductOpen, setIsProductOpen] = useState(false);
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
 
   const styles = useMemo(
     () => ({

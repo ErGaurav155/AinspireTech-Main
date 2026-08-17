@@ -12,6 +12,8 @@ MONGODB_URL=
 #CLERK
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 CLERK_SECRET_KEY=
+# Clerk user ID(s) allowed to access the owner admin console
+OWNERID=user_your_clerk_owner_id
 WEBHOOK_SECRET=
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up

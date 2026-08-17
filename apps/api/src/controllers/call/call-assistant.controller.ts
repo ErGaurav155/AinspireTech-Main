@@ -410,9 +410,10 @@ const isCallAssistantPublicEnabled = () =>
 
 const isCallAssistantAdminUser = (clerkId?: string | null) => {
   if (!clerkId) return false;
-  const adminIds = splitEnvList(
-    process.env.CALL_ASSISTANT_ADMIN_CLERK_IDS || process.env.OWNERID || "",
-  );
+  const adminIds = [
+    ...splitEnvList(process.env.OWNERID),
+    ...splitEnvList(process.env.CALL_ASSISTANT_ADMIN_CLERK_IDS),
+  ];
   return adminIds.includes(clerkId);
 };
 

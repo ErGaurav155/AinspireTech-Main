@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { SignedIn, SignedOut, useAuth, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut, useAuth } from "@clerk/nextjs";
 import { motion } from "framer-motion";
 import {
   BadgeCheck,
@@ -27,7 +27,7 @@ import { CallCheckout } from "@/components/call/CallCheckout";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 const CALL_PLANS = [
@@ -91,15 +91,11 @@ const fadeUp = {
 
 export default function CallPricingPage() {
   const { userId, isLoaded } = useAuth();
-  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
 
   const fetchSubscriptions = useCallback(async () => {
     if (!isLoaded || !userId) {

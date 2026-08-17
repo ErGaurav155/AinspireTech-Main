@@ -22,7 +22,7 @@ export interface ICallAssistantWorkspace extends Document {
   };
   subscription: {
     plan: CallPlanId;
-    status: "trial" | "active" | "past_due" | "cancelled";
+    status: "trial" | "active" | "paused" | "past_due" | "cancelled";
     billingCycle: "monthly" | "yearly";
     minutesLimit: number;
     minutesUsed: number;
@@ -145,7 +145,7 @@ const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
     },
     subscription: {
       plan: { type: String, enum: ["free", "business", "starter", "growth", "enterprise"], default: "free" },
-      status: { type: String, enum: ["trial", "active", "past_due", "cancelled"], default: "trial" },
+      status: { type: String, enum: ["trial", "active", "paused", "past_due", "cancelled"], default: "trial" },
       billingCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
       minutesLimit: { type: Number, default: 10 },
       minutesUsed: { type: Number, default: 0 },

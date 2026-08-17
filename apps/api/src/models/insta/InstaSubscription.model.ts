@@ -6,7 +6,7 @@ export interface ISubscription extends Document {
   subscriptionId: string;
   plan: string;
   billingCycle: "monthly" | "yearly";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   createdAt: Date;
   expiresAt: Date;
   cancelledAt?: Date;
@@ -43,7 +43,7 @@ const SubscriptionSchema = new mongoose.Schema(
     status: {
       type: String,
       required: true,
-      enum: ["active", "expired", "cancelled"],
+      enum: ["active", "paused", "expired", "cancelled"],
       default: "active",
     },
     expiresAt: {

@@ -16,9 +16,9 @@ const montserrat = Montserrat({
 });
 
 export const metadata: Metadata = {
-  title: "RocketReplai",
-  description: "AI-Agent, Web-Dev and Chatbot Agency",
-  keywords: ["ai", "ai chatbot", "instagram automation"],
+  title: "RocketReplai Admin",
+  description: "Owner operations console for the RocketReplai platform",
+  robots: { index: false, follow: false },
 };
 
 export default async function RootLayout({

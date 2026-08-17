@@ -17,7 +17,7 @@ export interface IPackageSubscription extends Document {
   billingCycle: "monthly";
   amountInr: number;
   includedServices: DashboardPackageServiceKey[];
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   razorpayPaymentId?: string;
   offerId?: string;
   expiresAt: Date;
@@ -51,7 +51,7 @@ const PackageSubscriptionSchema = new Schema<IPackageSubscription>(
     },
     status: {
       type: String,
-      enum: ["active", "cancelled", "expired"],
+      enum: ["active", "paused", "cancelled", "expired"],
       default: "active",
       index: true,
     },

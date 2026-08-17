@@ -5,93 +5,15 @@ import { usePathname } from "next/navigation";
 import { useCallback, useState, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
-import {
-  LayoutDashboard,
-  CreditCard,
-  CalendarDays,
-  Activity,
-  Settings,
-  Instagram,
-  Globe,
-  Shield,
-  ChevronRight,
-  CurrencyIcon,
-} from "lucide-react";
+import { Shield, ChevronRight } from "lucide-react";
 import { Badge, useThemeStyles } from "@rocketreplai/ui";
-// Admin menu sections
-const ADMIN_SECTIONS = [
-  {
-    id: "home",
-    label: "Home",
-    href: "/admin",
-    icon: LayoutDashboard,
-    color: "#3b82f6",
-    description: "Overview",
-  },
-  {
-    id: "subscriptions",
-    label: "Subscriptions",
-    href: "/admin/subscriptions",
-    icon: CreditCard,
-    color: "#22c55e",
-    description: "Manage plans",
-  },
-  {
-    id: "appointments",
-    label: "Appointments",
-    href: "/admin/appointments",
-    icon: CalendarDays,
-    color: "#a855f7",
-    description: "Bookings",
-  },
-  {
-    id: "rate-limits",
-    label: "Rate Limits",
-    href: "/admin/rate-limits",
-    icon: Activity,
-    color: "#f59e0b",
-    description: "API limits",
-  },
-  {
-    id: "payouts",
-    label: "Payouts",
-    href: "/admin/payouts",
-    icon: CurrencyIcon,
-    color: "#eadf1f",
-    description: "Payouts and earnings",
-  },
-  {
-    id: "instagram",
-    label: "Instagram",
-    href: "/admin/insta",
-    icon: Instagram,
-    color: "#ec4899",
-    description: "Insta users",
-  },
-  {
-    id: "web",
-    label: "Web Users",
-    href: "/admin/web",
-    icon: Globe,
-    color: "#3b82f6",
-    description: "Web users",
-  },
-  {
-    id: "settings",
-    label: "Settings",
-    href: "/admin/settings",
-    icon: Settings,
-    color: "#6b7280",
-    description: "Preferences",
-  },
-] as const;
-
-const BOTTOM_NAV_ITEMS = [
-  { label: "Home", href: "/admin", icon: LayoutDashboard },
-  { label: "Subs", href: "/admin/subscriptions", icon: CreditCard },
-  { label: "Insta", href: "/admin/insta", icon: Instagram },
-  { label: "Web", href: "/admin/web", icon: Globe },
-] as const;
+import {
+  ADMIN_MOBILE_PRIMARY_ITEMS,
+  ADMIN_NAV_COLOR_CLASSES,
+  ADMIN_NAV_ITEMS,
+  getActiveAdminNavItem,
+  isAdminNavItemActive,
+} from "@/lib/admin-nav";
 
 export default function AdminBottomNavbar() {
   const pathname = usePathname();
@@ -100,17 +22,18 @@ export default function AdminBottomNavbar() {
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const activeSection = useMemo(
-    () =>
-      ADMIN_SECTIONS.find((s) => pathname.startsWith(s.href)) ??
-      ADMIN_SECTIONS[0],
+    () => getActiveAdminNavItem(pathname),
     [pathname],
   );
 
   const isActive = useCallback(
-    (href: string) =>
-      pathname === href || (href !== "/admin" && pathname.startsWith(href)),
+    (href: (typeof ADMIN_NAV_ITEMS)[number]["href"]) =>
+      isAdminNavItemActive(pathname, href),
     [pathname],
   );
+
+  const ActiveSectionIcon = activeSection.icon;
+  const activeColorClasses = ADMIN_NAV_COLOR_CLASSES[activeSection.color];
 
   return (
     <>
@@ -139,30 +62,32 @@ export default function AdminBottomNavbar() {
                   </div>
 
                   <div className="max-h-[60vh] overflow-y-auto">
-                    {ADMIN_SECTIONS.map((section) => {
+                    {ADMIN_NAV_ITEMS.map((section) => {
                       const Icon = section.icon;
                       const active = isActive(section.href);
+                      const colorClasses =
+                        ADMIN_NAV_COLOR_CLASSES[section.color];
 
                       return (
                         <DropdownMenu.Item asChild key={section.id}>
                           <Link
                             href={section.href}
+                            onClick={() => setMenuOpen(false)}
                             className={`flex items-center gap-3 px-4 py-3.5 transition-colors border-b ${styles.divider} ${styles.rowHover}`}
                           >
                             <div
-                              className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
-                              style={{
-                                background: isDark
-                                  ? `${section.color}20`
-                                  : `${section.color}10`,
-                                border: `1px solid ${section.color}${
-                                  isDark ? "30" : "20"
-                                }`,
-                              }}
+                              className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 ${
+                                isDark
+                                  ? colorClasses.icon.dark
+                                  : colorClasses.icon.light
+                              }`}
                             >
                               <Icon
-                                className="h-4 w-4"
-                                style={{ color: section.color }}
+                                className={`h-4 w-4 ${
+                                  isDark
+                                    ? colorClasses.text.dark
+                                    : colorClasses.text.light
+                                }`}
                               />
                             </div>
 
@@ -183,9 +108,7 @@ export default function AdminBottomNavbar() {
 
                             {active && (
                               <div
-                                className={`w-2 h-2 rounded-full ${
-                                  isDark ? "bg-blue-400" : "bg-cyan-500"
-                                }`}
+                                className={`w-2 h-2 rounded-full ${colorClasses.dot}`}
                               />
                             )}
                           </Link>
@@ -220,9 +143,10 @@ export default function AdminBottomNavbar() {
           }`}
         >
           <div className="flex items-center justify-around h-16 px-2">
-            {BOTTOM_NAV_ITEMS.map((item) => {
+            {ADMIN_MOBILE_PRIMARY_ITEMS.map((item) => {
               const active = isActive(item.href);
               const Icon = item.icon;
+              const colorClasses = ADMIN_NAV_COLOR_CLASSES[item.color];
 
               return (
                 <Link
@@ -249,8 +173,8 @@ export default function AdminBottomNavbar() {
                       className={`h-5 w-5 transition-colors duration-150 ${
                         active
                           ? isDark
-                            ? "text-blue-400"
-                            : "text-cyan-600"
+                            ? colorClasses.text.dark
+                            : colorClasses.text.light
                           : isDark
                             ? "text-white/60"
                             : "text-gray-500"
@@ -262,14 +186,14 @@ export default function AdminBottomNavbar() {
                     className={`relative text-[10px] font-semibold transition-colors duration-150 ${
                       active
                         ? isDark
-                          ? "text-blue-400"
-                          : "text-cyan-600"
+                          ? colorClasses.text.dark
+                          : colorClasses.text.light
                         : isDark
                           ? "text-white/60"
                           : "text-gray-500"
                     }`}
                   >
-                    {item.label}
+                    {item.mobileLabel}
                   </span>
                 </Link>
               );
@@ -290,12 +214,9 @@ export default function AdminBottomNavbar() {
 
                 <span className="relative">
                   <span
-                    className="flex h-6 w-6 items-center justify-center rounded-full shadow-sm"
-                    style={{
-                      background: `linear-gradient(135deg, ${activeSection.color}80, ${activeSection.color})`,
-                    }}
+                    className={`flex h-6 w-6 items-center justify-center rounded-full shadow-sm ${activeColorClasses.gradient}`}
                   >
-                    <activeSection.icon className="h-3.5 w-3.5 text-white" />
+                    <ActiveSectionIcon className="h-3.5 w-3.5 text-white" />
                   </span>
 
                   <span

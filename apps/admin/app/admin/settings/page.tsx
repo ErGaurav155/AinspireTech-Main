@@ -1,429 +1,295 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useUser, useClerk } from "@clerk/nextjs";
+import { useTheme } from "next-themes";
 import {
-  Settings,
-  Shield,
-  Bell,
-  Mail,
-  Lock,
-  AlertTriangle,
-  CheckCircle,
-  Moon,
-  Sun,
   Activity,
   ArrowUpRight,
-  X,
+  Bot,
+  CheckCircle2,
+  Database,
+  ExternalLink,
+  EyeOff,
+  KeyRound,
+  LogOut,
+  Moon,
+  ServerCog,
+  Settings,
+  ShieldCheck,
+  Sun,
+  Users,
 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { useApi } from "@/lib/useApi";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
-import {
-  Button,
-  GateScreen,
-  Orbs,
-  Spinner,
-  Switch,
-  toast,
-  useThemeStyles,
-} from "@rocketreplai/ui";
+import { Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
+
+const MODULES = [
+  {
+    label: "Customer access",
+    description: "Limits, products and entitlements",
+    href: "/admin/customers",
+    icon: Users,
+  },
+  {
+    label: "Billing registry",
+    description: "Subscriptions across all products",
+    href: "/admin/subscriptions",
+    icon: Database,
+  },
+  {
+    label: "Rate limits",
+    description: "Usage windows and queue pressure",
+    href: "/admin/rate-limits",
+    icon: Activity,
+  },
+  {
+    label: "Product operations",
+    description: "Web, social, messaging and voice",
+    href: "/admin",
+    icon: Bot,
+  },
+] as const;
+
 export default function AdminSettingsPage() {
-  const { user, isLoaded } = useUser();
-  const router = useRouter();
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const { apiRequest } = useApi();
+  const { user } = useUser();
+  const { signOut } = useClerk();
+  const { setTheme, resolvedTheme } = useTheme();
   const { styles, isDark } = useThemeStyles();
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isOwner, setIsOwner] = useState(false);
-  const [showEmailNotifications, setShowEmailNotifications] = useState(true);
-  const [showPushNotifications, setShowPushNotifications] = useState(true);
-  const [autoRefresh, setAutoRefresh] = useState(true);
-  const [showSensitiveData, setShowSensitiveData] = useState(false);
-  const [maintenanceMode, setMaintenanceMode] = useState(false);
-
-  // Check owner
-  useEffect(() => {
-    const checkOwner = async () => {
-      if (!user) return;
-
-      try {
-        const ownerVerification = await verifyOwner(apiRequest);
-        setIsOwner(ownerVerification.isOwner);
-
-        if (!ownerVerification.isOwner) {
-          setError("ACCESS_DENIED");
-        }
-      } catch (err) {
-        console.error("Error verifying owner:", err);
-        setError("Failed to verify access");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (isLoaded && user) {
-      checkOwner();
-    }
-  }, [isLoaded, user, apiRequest]);
-
-  const handleSaveSettings = async () => {
-    setSaving(true);
-
-    // Simulate API call
-    setTimeout(() => {
-      toast({
-        title: "Settings Saved",
-        description: "Your admin settings have been updated.",
-        duration: 3000,
-      });
-      setSaving(false);
-    }, 1000);
-  };
-
-  const handleToggleTheme = () => {
-    setTheme(isDark ? "light" : "dark");
-  };
-
-  // Check access
-  const isUserOwner = isAdminOwnerEmail(
-    user?.primaryEmailAddress?.emailAddress,
-  );
-
-  if (!isLoaded || loading) {
-    return <Spinner label="Loading settings…" />;
-  }
-
-  if (!user) {
-    return (
-      <GateScreen
-        icon={<Lock className="h-8 w-8 text-cyan-400" />}
-        title="Authentication Required"
-        body="Please sign in to access admin settings."
-      >
-        <Link
-          href="/sign-in"
-          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
-        >
-          Sign In <ArrowUpRight size={14} />
-        </Link>
-      </GateScreen>
-    );
-  }
-
-  if (!isUserOwner && isOwner === false) {
-    return (
-      <GateScreen
-        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
-        title="Access Denied"
-        body="You are not authorized to view settings."
-        subText={`Logged in as: ${user.primaryEmailAddress?.emailAddress}`}
-      >
-        <Link
-          href="/"
-          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
-        >
-          Return to Home <ArrowUpRight size={14} />
-        </Link>
-      </GateScreen>
-    );
-  }
-
-  if (error) {
-    return (
-      <GateScreen
-        icon={<AlertTriangle className="h-8 w-8 text-red-400" />}
-        title="Access Error"
-        body={error}
-      >
-        <Link
-          href="/admin"
-          className={`inline-flex items-center gap-2 px-6 py-2.5 text-sm font-medium transition-all ${styles.pill}`}
-        >
-          Back to Dashboard <ArrowUpRight size={14} />
-        </Link>
-      </GateScreen>
-    );
-  }
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "Not configured";
+  const ownerEmail = user?.primaryEmailAddress?.emailAddress || "Owner account";
 
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}
       <div className={styles.container}>
-        {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              className={`w-12 h-12 rounded-xl flex items-center justify-center bg-gray-100 dark:bg-gray-500/20 border dark:border-gray-500/30`}
-            >
-              <Settings className="h-6 w-6 text-gray-600 dark:text-gray-400" />
-            </div>
-            <div>
-              <h1
-                className={`text-lg md:text-xl font-bold ${styles.text.primary}`}
-              >
-                Admin Settings
-              </h1>
-              <p className={`text-xs ${styles.text.secondary}`}>
-                Configure your admin dashboard preferences
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={handleSaveSettings}
-            disabled={saving}
-            className={`${styles.pill} flex items-center gap-2 px-4 py-2 text-sm`}
+        <div>
+          <div
+            className={`mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs ${styles.badge.gray}`}
           >
-            <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save Changes"}
-          </Button>
+            <Settings className="h-3.5 w-3.5" />
+            Console settings
+          </div>
+          <h1 className={`text-2xl font-bold md:text-3xl ${styles.text.primary}`}>
+            Settings & access
+          </h1>
+          <p className={`mt-2 max-w-2xl text-sm ${styles.text.secondary}`}>
+            Configure the admin experience and review the security boundary for
+            this owner-only console.
+          </p>
         </div>
 
-        {/* Settings Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Appearance */}
-          <div className={`rounded-2xl p-6 ${styles.card}`}>
-            <h3
-              className={`text-sm font-semibold mb-4 flex items-center gap-2 ${styles.text.primary}`}
-            >
-              {isDark ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Sun className="h-4 w-4" />
-              )}
-              Appearance
-            </h3>
-
-            <div className="space-y-4 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Dark Mode
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Toggle between light and dark theme
-                  </p>
-                </div>
-                <Switch
-                  checked={isDark}
-                  onCheckedChange={handleToggleTheme}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Notifications */}
-          <div className={`rounded-2xl p-6 ${styles.card}`}>
-            <h3
-              className={`text-sm font-semibold mb-4 flex items-center gap-2 ${styles.text.primary}`}
-            >
-              <Bell className="h-4 w-4" />
-              Notifications
-            </h3>
-
-            <div className="space-y-4 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Email Notifications
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Receive email alerts for important events
-                  </p>
-                </div>
-                <Switch
-                  checked={showEmailNotifications}
-                  onCheckedChange={setShowEmailNotifications}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Push Notifications
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Browser notifications for real-time updates
-                  </p>
-                </div>
-                <Switch
-                  checked={showPushNotifications}
-                  onCheckedChange={setShowPushNotifications}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Dashboard Preferences */}
-          <div className={`rounded-2xl p-6 ${styles.card}`}>
-            <h3
-              className={`text-sm font-semibold mb-4 flex items-center gap-2 ${styles.text.primary}`}
-            >
-              <Activity className="h-4 w-4" />
-              Dashboard Preferences
-            </h3>
-
-            <div className="space-y-4 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Auto-refresh Data
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Automatically refresh dashboard every 30s
-                  </p>
-                </div>
-                <Switch
-                  checked={autoRefresh}
-                  onCheckedChange={setAutoRefresh}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Show Sensitive Data
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Display subscription IDs and tokens
-                  </p>
-                </div>
-                <Switch
-                  checked={showSensitiveData}
-                  onCheckedChange={setShowSensitiveData}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Security */}
-          <div className={`rounded-2xl p-6 ${styles.card}`}>
-            <h3
-              className={`text-sm font-semibold mb-4 flex items-center gap-2 ${styles.text.primary}`}
-            >
-              <Shield className="h-4 w-4" />
-              Security
-            </h3>
-
-            <div className="space-y-4 relative z-10">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className={`text-sm font-medium ${styles.text.primary}`}>
-                    Maintenance Mode
-                  </p>
-                  <p className={`text-xs ${styles.text.muted}`}>
-                    Disable public access to the platform
-                  </p>
-                </div>
-                <Switch
-                  checked={maintenanceMode}
-                  onCheckedChange={setMaintenanceMode}
-                  className={
-                    isDark
-                      ? "bg-white/[0.06] data-[state=checked]:bg-cyan-500"
-                      : "bg-gray-200 data-[state=checked]:bg-cyan-500"
-                  }
-                />
-              </div>
-
+        <div className="grid gap-6 lg:grid-cols-2">
+          <section className={`rounded-2xl p-5 md:p-6 ${styles.card}`}>
+            <div className="relative z-10 flex items-start gap-3">
               <div
-                className={`p-3 rounded-lg ${isDark ? "bg-yellow-500/10 border border-yellow-500/20" : "bg-yellow-50 border border-yellow-200"}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon.purple}`}
               >
-                <p
-                  className={`text-xs ${isDark ? "text-yellow-400" : "text-yellow-700"}`}
-                >
-                  <AlertTriangle className="h-3 w-3 inline mr-1" />
-                  Maintenance mode will make the site inaccessible to users.
+                {isDark ? (
+                  <Moon className="h-5 w-5 text-violet-500" />
+                ) : (
+                  <Sun className="h-5 w-5 text-amber-500" />
+                )}
+              </div>
+              <div>
+                <h2 className={`text-sm font-semibold ${styles.text.primary}`}>
+                  Appearance
+                </h2>
+                <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                  Theme changes apply immediately across the admin console.
                 </p>
               </div>
             </div>
-          </div>
+
+            <div className="relative z-10 mt-6 grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setTheme("dark")}
+                className={`rounded-2xl border p-4 text-left transition-all ${
+                  resolvedTheme === "dark"
+                    ? "border-violet-500 bg-violet-500/10"
+                    : styles.innerCard
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <Moon className="h-5 w-5 text-violet-500" />
+                  {resolvedTheme === "dark" && (
+                    <CheckCircle2 className="h-4 w-4 text-violet-500" />
+                  )}
+                </div>
+                <p className={`mt-4 text-sm font-semibold ${styles.text.primary}`}>
+                  Dark
+                </p>
+                <p className={`mt-1 text-[11px] ${styles.text.muted}`}>
+                  Focused low-light workspace
+                </p>
+              </button>
+              <button
+                onClick={() => setTheme("light")}
+                className={`rounded-2xl border p-4 text-left transition-all ${
+                  resolvedTheme === "light"
+                    ? "border-amber-500 bg-amber-500/10"
+                    : styles.innerCard
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <Sun className="h-5 w-5 text-amber-500" />
+                  {resolvedTheme === "light" && (
+                    <CheckCircle2 className="h-4 w-4 text-amber-500" />
+                  )}
+                </div>
+                <p className={`mt-4 text-sm font-semibold ${styles.text.primary}`}>
+                  Light
+                </p>
+                <p className={`mt-1 text-[11px] ${styles.text.muted}`}>
+                  High-contrast daytime view
+                </p>
+              </button>
+            </div>
+          </section>
+
+          <section className={`rounded-2xl p-5 md:p-6 ${styles.card}`}>
+            <div className="relative z-10 flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon.green}`}
+              >
+                <ShieldCheck className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <h2 className={`text-sm font-semibold ${styles.text.primary}`}>
+                  Owner session
+                </h2>
+                <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                  Access is verified by the API before admin pages render.
+                </p>
+              </div>
+            </div>
+
+            <div className={`relative z-10 mt-6 rounded-2xl p-4 ${styles.innerCard}`}>
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 text-sm font-bold text-white">
+                  {(user?.firstName?.[0] || ownerEmail[0] || "A").toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className={`truncate text-sm font-semibold ${styles.text.primary}`}>
+                    {user?.fullName || "RocketReplai Owner"}
+                  </p>
+                  <p className={`mt-0.5 truncate text-xs ${styles.text.muted}`}>
+                    {ownerEmail}
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold ${styles.badge.green}`}
+                >
+                  Verified
+                </span>
+              </div>
+            </div>
+
+            <div className="relative z-10 mt-4 flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className={`flex-1 gap-2 ${styles.pill}`}
+                onClick={() => void signOut({ redirectUrl: "/sign-in" })}
+              >
+                <LogOut className="h-4 w-4" />
+                Sign out
+              </Button>
+              <Button asChild variant="outline" className={`flex-1 gap-2 ${styles.pill}`}>
+                <Link href="/admin">
+                  <ExternalLink className="h-4 w-4" />
+                  Command center
+                </Link>
+              </Button>
+            </div>
+          </section>
         </div>
 
-        {/* Owner Info */}
-        <div
-          className={`rounded-2xl p-6 ${isDark ? "bg-gradient-to-r from-cyan-500/10 to-blue-500/10 border border-cyan-500/20" : "bg-gradient-to-r from-cyan-50 to-blue-50 border border-cyan-200"}`}
-        >
-          <div className="flex flex-col items-start gap-4 relative z-10">
-            <div className="flex items-center gap-3">
+        <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+          <section className={`rounded-2xl p-5 md:p-6 ${styles.card}`}>
+            <div className="relative z-10 flex items-start gap-3">
               <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center ${isDark ? "bg-cyan-500/20 border border-cyan-500/30" : "bg-cyan-100"}`}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${styles.icon.blue}`}
               >
-                <Shield className="h-6 w-6 text-cyan-600 dark:text-cyan-400" />
+                <ServerCog className="h-5 w-5 text-blue-500" />
               </div>
-              <h3
-                className={`text-lg font-semibold ${isDark ? "text-cyan-400" : "text-cyan-800"}`}
-              >
-                Owner Access
-              </h3>
+              <div>
+                <h2 className={`text-sm font-semibold ${styles.text.primary}`}>
+                  Console environment
+                </h2>
+                <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                  Runtime endpoints and current protection model.
+                </p>
+              </div>
             </div>
-            <div className="flex-1">
-              <p
-                className={`text-sm ${isDark ? "text-cyan-400/80" : "text-cyan-800/80"} mb-3`}
-              >
-                You are logged in as the owner. These settings only affect your
-                admin view.
+
+            <div className="relative z-10 mt-5 space-y-2">
+              {[
+                ["Admin authorization", "Clerk session + API owner guard", KeyRound],
+                ["API endpoint", apiUrl, ServerCog],
+                ["Sensitive credentials", "Excluded from admin API projections", EyeOff],
+                ["Mutation history", "Reasoned overrides are audit logged", Database],
+              ].map(([label, value, Icon]) => {
+                const ItemIcon = Icon as typeof KeyRound;
+                return (
+                  <div
+                    key={String(label)}
+                    className={`flex items-center gap-3 rounded-xl p-3 ${styles.innerCard}`}
+                  >
+                    <ItemIcon className={`h-4 w-4 shrink-0 ${styles.text.muted}`} />
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-[10px] uppercase tracking-wide ${styles.text.muted}`}>
+                        {String(label)}
+                      </p>
+                      <p className={`mt-1 truncate text-xs font-medium ${styles.text.primary}`}>
+                        {String(value)}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
+          <section className={`rounded-2xl p-5 md:p-6 ${styles.card}`}>
+            <div className="relative z-10">
+              <h2 className={`text-sm font-semibold ${styles.text.primary}`}>
+                Management modules
+              </h2>
+              <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                Jump directly to a common owner workflow.
               </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    isDark
-                      ? "bg-cyan-500/10 border border-cyan-500/20 text-cyan-400"
-                      : "bg-cyan-100 text-cyan-600 border-cyan-200"
-                  }`}
-                >
-                  <Mail className="h-3 w-3" />
-                  {user.primaryEmailAddress?.emailAddress}
-                </span>
-                <span
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium ${
-                    isDark
-                      ? "bg-green-500/10 border border-green-500/20 text-green-400"
-                      : "bg-green-100 text-green-600 border-green-200"
-                  }`}
-                >
-                  <CheckCircle className="h-3 w-3" />
-                  Verified Owner
-                </span>
-              </div>
             </div>
-          </div>
+            <div className="relative z-10 mt-4 space-y-2">
+              {MODULES.map((module) => {
+                const Icon = module.icon;
+                return (
+                  <Link
+                    key={module.href + module.label}
+                    href={module.href}
+                    className={`group flex items-center gap-3 rounded-xl p-3 transition-colors ${styles.innerCard} ${styles.rowHover}`}
+                  >
+                    <div
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${styles.icon.blue}`}
+                    >
+                      <Icon className="h-4 w-4 text-blue-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={`text-xs font-semibold ${styles.text.primary}`}>
+                        {module.label}
+                      </p>
+                      <p className={`mt-0.5 truncate text-[10px] ${styles.text.muted}`}>
+                        {module.description}
+                      </p>
+                    </div>
+                    <ArrowUpRight
+                      className={`h-4 w-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 ${styles.text.muted}`}
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
         </div>
       </div>
     </div>
   );
 }
-
-// Re-add Save import since we used it above
-import { Save } from "lucide-react";
-import { verifyOwner } from "@/lib/services/admin-actions.api";

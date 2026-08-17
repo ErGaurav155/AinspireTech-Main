@@ -44,7 +44,17 @@ export const useApi = () => {
           }
 
           const errorText = await response.text();
-          throw new Error(errorText || "API request failed");
+          let message = errorText;
+          try {
+            const parsed = JSON.parse(errorText) as {
+              error?: string;
+              message?: string;
+            };
+            message = parsed.error || parsed.message || errorText;
+          } catch {
+            // Keep a plain-text API error as-is.
+          }
+          throw new Error(message || `API request failed (${response.status})`);
         }
 
         const result: ApiResponse<T> = await response.json();

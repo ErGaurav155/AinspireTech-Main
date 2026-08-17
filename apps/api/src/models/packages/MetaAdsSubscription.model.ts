@@ -13,7 +13,7 @@ export interface IMetaAdsSubscription extends Document {
   subscriptionId: string;
   monthlyBudgetInr: number;
   billingCycle: "monthly";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   razorpayPaymentId?: string;
   expiresAt: Date;
   cancelledAt?: Date;
@@ -40,7 +40,7 @@ const MetaAdsSubscriptionSchema = new Schema<IMetaAdsSubscription>(
     billingCycle: { type: String, enum: ["monthly"], default: "monthly" },
     status: {
       type: String,
-      enum: ["active", "cancelled", "expired"],
+      enum: ["active", "paused", "cancelled", "expired"],
       default: "active",
       index: true,
     },

@@ -17,6 +17,15 @@ import {
   approvePayoutController,
   listPayoutsController,
 } from "@/controllers/admin/approve-payout.controller";
+import {
+  getAdminCustomersController,
+  getAdminOverviewController,
+  getAdminSubscriptionsController,
+  getAdminWorkspacesController,
+  updateAdminCustomerLimitsController,
+  updateAdminSubscriptionController,
+  updateAdminWorkspaceController,
+} from "@/controllers/admin/platform.controller";
 
 const router = Router();
 
@@ -28,6 +37,13 @@ router.get("/verify-owner", verifyOwnerController);
 router.use(requireOwner);
 
 // Admin routes
+router.get("/overview", getAdminOverviewController);
+router.get("/customers", getAdminCustomersController);
+router.patch("/customers/:clerkId/limits", updateAdminCustomerLimitsController);
+router.get("/subscriptions", getAdminSubscriptionsController);
+router.patch("/subscriptions/:product/:id", updateAdminSubscriptionController);
+router.get("/workspaces/:product", getAdminWorkspacesController);
+router.patch("/workspaces/:product/:id", updateAdminWorkspaceController);
 router.get("/insta-subscriptions", getInstaSubscriptionsController);
 // GET /api/admin/appointments - Get all appointments (admin only)
 router.get("/appointments", getAllAppointmentsController);

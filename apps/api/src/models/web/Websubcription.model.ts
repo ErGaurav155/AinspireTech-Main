@@ -8,7 +8,7 @@ export interface ISubscription extends Document {
   chatbotMessage: string;
   plan: string;
   billingCycle: "monthly" | "yearly";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   createdAt: Date;
   expiresAt: Date;
   cancelledAt?: Date;
@@ -53,7 +53,7 @@ const SubscriptionSchema = new Schema<ISubscription>(
     status: {
       type: String,
       required: true,
-      enum: ["active", "cancelled", "expired"],
+      enum: ["active", "paused", "cancelled", "expired"],
       default: "active",
     },
     expiresAt: {

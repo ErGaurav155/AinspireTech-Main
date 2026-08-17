@@ -45,7 +45,7 @@ export interface IWhatsAppWorkspace extends Document {
   };
   subscription: {
     plan: WhatsAppPlanId;
-    status: "trial" | "active" | "past_due" | "cancelled";
+    status: "trial" | "active" | "paused" | "past_due" | "cancelled";
     billingCycle: "monthly" | "yearly";
     messageLimit: number;
     messagesUsed: number;
@@ -386,7 +386,7 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       plan: { type: String, enum: ["free", "launch", "package"], default: "free" },
       status: {
         type: String,
-        enum: ["trial", "active", "past_due", "cancelled"],
+        enum: ["trial", "active", "paused", "past_due", "cancelled"],
         default: "trial",
       },
       billingCycle: {

@@ -6,7 +6,7 @@ export interface ICallSubscription extends Document {
   subscriptionId: string;
   plan: string;
   billingCycle: "monthly" | "yearly";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   minutesLimit: number;
   numberLimit: number;
   concurrentCallLimit: number;
@@ -35,7 +35,7 @@ const CallSubscriptionSchema = new Schema<ICallSubscription>(
     },
     status: {
       type: String,
-      enum: ["active", "cancelled", "expired"],
+      enum: ["active", "paused", "cancelled", "expired"],
       default: "active",
     },
     minutesLimit: { type: Number, default: 1000 },

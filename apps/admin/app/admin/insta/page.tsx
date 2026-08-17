@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getInstaAccounts,
   getUsers,
@@ -262,11 +261,6 @@ export default function AdminInstagramPage() {
     };
   }, [filteredAccounts]);
 
-  // Check access
-  const isUserOwner = isAdminOwnerEmail(
-    user?.primaryEmailAddress?.emailAddress,
-  );
-
   // Guard screens
   if (!isLoaded) {
     return <Spinner label="Loading..." />;
@@ -289,7 +283,7 @@ export default function AdminInstagramPage() {
     );
   }
 
-  if (!isUserOwner && isOwner === false) {
+  if (isOwner === false) {
     return (
       <GateScreen
         icon={<AlertTriangle className="h-8 w-8 text-red-400" />}

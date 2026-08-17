@@ -42,7 +42,7 @@ import {
 } from "@/lib/services/subscription-actions.api";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
@@ -201,10 +201,7 @@ export function DashboardPackagesPage() {
   const activeSeparateServices = status?.activeSeparateServices || [];
   const hasSeparateServiceSubscriptions = activeSeparateServices.length > 0;
   const isChecking = Boolean(checkingPackageId);
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
 
   const loadRazorpayScript = useCallback((): Promise<void> => {
     if (typeof window === "undefined") {

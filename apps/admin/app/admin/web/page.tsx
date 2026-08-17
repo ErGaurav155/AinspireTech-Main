@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useApi } from "@/lib/useApi";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getAllChatbots,
   getWebSubscriptions,
@@ -312,10 +311,6 @@ export default function AdminWebPage() {
     };
   }, [filteredUsers]);
 
-  const isUserOwner = isAdminOwnerEmail(
-    user?.primaryEmailAddress?.emailAddress,
-  );
-
   if (!isLoaded) {
     return (
       <div className={styles.page}>
@@ -346,7 +341,7 @@ export default function AdminWebPage() {
     );
   }
 
-  if (!isUserOwner && isOwner === false) {
+  if (isOwner === false) {
     return (
       <GateScreen
         icon={<AlertTriangle className="h-8 w-8 text-red-400" />}

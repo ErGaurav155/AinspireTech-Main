@@ -9,7 +9,7 @@ export interface IContentCreationSubscription extends Document {
   subscriptionId: string;
   amountInr: number;
   billingCycle: "monthly";
-  status: "active" | "cancelled" | "expired";
+  status: "active" | "paused" | "cancelled" | "expired";
   razorpayPaymentId?: string;
   offerId?: string;
   expiresAt: Date;
@@ -33,7 +33,7 @@ const ContentCreationSubscriptionSchema =
       billingCycle: { type: String, enum: ["monthly"], default: "monthly" },
       status: {
         type: String,
-        enum: ["active", "cancelled", "expired"],
+        enum: ["active", "paused", "cancelled", "expired"],
         default: "active",
         index: true,
       },

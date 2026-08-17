@@ -1,13 +1,12 @@
 "use client";
 
-import { useUser } from "@clerk/nextjs";
 import { Bell, Shield, ChevronLeft, ChevronRight } from "lucide-react";
 import {
   BreadcrumbsDefault,
   ThemeToggle,
   useThemeStyles,
 } from "@rocketreplai/ui";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
+import Link from "next/link";
 interface AdminNavbarProps {
   onSidebarToggle?: () => void;
   isSidebarOpen?: boolean;
@@ -17,10 +16,7 @@ export function AdminNavbar({
   onSidebarToggle,
   isSidebarOpen,
 }: AdminNavbarProps) {
-  const { user } = useUser();
   const { styles, isDark } = useThemeStyles();
-
-  const isOwner = isAdminOwnerEmail(user?.primaryEmailAddress?.emailAddress);
 
   return (
     <>
@@ -57,23 +53,22 @@ export function AdminNavbar({
           </div>
 
           <div className="flex items-center space-x-3 ml-auto">
-            {isOwner && (
-              <div
-                className={`hidden md:flex items-center px-3 py-1.5 rounded-full ${styles.badge.blue}`}
-              >
-                <Shield className="h-3.5 w-3.5 mr-1.5" />
-                <span className="text-xs font-medium">Owner Access</span>
-              </div>
-            )}
+            <div
+              className={`hidden md:flex items-center px-3 py-1.5 rounded-full ${styles.badge.blue}`}
+            >
+              <Shield className="h-3.5 w-3.5 mr-1.5" />
+              <span className="text-xs font-medium">Owner Access</span>
+            </div>
 
-            <button
+            <Link
+              href="/admin#attention"
+              aria-label="Open attention queue"
               className={`relative p-2 rounded-lg transition-all ${styles.pill}`}
             >
               <Bell
                 className={`h-4 w-4 ${isDark ? "text-white/60" : "text-gray-500"}`}
               />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
-            </button>
+            </Link>
 
             {/* <div className={styles.pill}> */}
             <ThemeToggle />

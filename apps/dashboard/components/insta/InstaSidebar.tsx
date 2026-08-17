@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 import {
   Home,
@@ -37,7 +37,7 @@ import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -84,13 +84,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { userId } = useAuth();
-  const { user } = useUser();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
 
   // ✅ All account data comes from context — no local fetch needed
   const {

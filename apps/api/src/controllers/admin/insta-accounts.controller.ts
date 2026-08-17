@@ -12,6 +12,7 @@ export const getInstaAccountsController = async (
 
     // Get all Instagram accounts sorted by creation date (newest first)
     const accounts = await InstagramAccount.find({})
+      .select("-accessToken -refreshToken")
       .sort({ createdAt: -1 })
       .lean();
 

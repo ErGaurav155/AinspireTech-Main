@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useAuth, useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import Logo from "@/public/assets/img/logo.png";
 
 import {
@@ -41,7 +41,7 @@ import {
 } from "@/lib/services/web-actions.api";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
-  isCallAssistantAdmin,
+  useCallAssistantAdmin,
 } from "@/lib/call-access";
 
 // Chatbot items
@@ -98,13 +98,9 @@ export default function WebSidebar({
   const pathname = usePathname();
   const router = useRouter();
   const { userId } = useAuth();
-  const { user } = useUser();
   const { apiRequest } = useApi();
   const { isDark } = useThemeStyles();
-  const isCallAdmin = isCallAssistantAdmin({
-    userId,
-    email: user?.primaryEmailAddress?.emailAddress,
-  });
+  const isCallAdmin = useCallAssistantAdmin();
 
   const [isLoading, setIsLoading] = useState(true);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);

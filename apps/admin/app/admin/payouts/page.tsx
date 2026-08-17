@@ -20,7 +20,6 @@ import {
   XCircle,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
-import { isAdminOwnerEmail } from "@/lib/admin-owner";
 import {
   getPayouts,
   updatePayoutStatus,
@@ -232,10 +231,6 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const isUserOwner = isAdminOwnerEmail(
-    user?.primaryEmailAddress?.emailAddress,
-  );
-
   if (!isLoaded) return <Spinner label="Loading..." />;
 
   if (!user) {
@@ -255,7 +250,7 @@ export default function AdminPayoutsPage() {
     );
   }
 
-  if (!isUserOwner && isOwner === false) {
+  if (isOwner === false) {
     return (
       <GateScreen
         icon={<AlertTriangle className="h-8 w-8 text-red-400" />}

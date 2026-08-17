@@ -1,6 +1,6 @@
 import { getAuth } from "@clerk/express";
 import { Request, Response, NextFunction } from "express";
-import { createClerkClient } from "@clerk/backend";
+import { isAdminOwnerId } from "@/utils/admin-owner";
 
 // Middleware to require owner access
 export const requireOwner = async (
@@ -9,28 +9,20 @@ export const requireOwner = async (
   next: NextFunction,
 ) => {
   try {
-    const clerkClient = createClerkClient({
-      secretKey: process.env.CLERK_SECRET_KEY!,
-    });
     const auth = getAuth(req);
 
     // Check if userId matches
     if (!auth || !auth.userId) {
-      return res.status(400).json({
-        success: true,
-        data: { isOwner: false },
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
         timestamp: new Date().toISOString(),
       });
     }
-    const user = await clerkClient.users.getUser(auth.userId);
-
-    const email = user.emailAddresses.find(
-      (e) => e.id === user.primaryEmailAddressId,
-    )?.emailAddress;
-    if (email !== "gauravgkhaire155@gmail.com") {
-      return res.status(200).json({
-        success: true,
-        data: { isOwner: false },
+    if (!isAdminOwnerId(auth.userId)) {
+      return res.status(403).json({
+        success: false,
+        error: "Owner access required",
         timestamp: new Date().toISOString(),
       });
     }
