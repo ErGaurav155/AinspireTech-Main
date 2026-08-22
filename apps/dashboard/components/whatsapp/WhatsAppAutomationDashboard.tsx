@@ -10,6 +10,7 @@ import {
   Check,
   CreditCard,
   FileText,
+  Loader2,
   MessageCircle,
   Plug,
   Settings,
@@ -1498,10 +1499,10 @@ function BusinessInfo({
           setIsSaving(true);
           setSaveStatus(
             form.websiteUrl
-              ? "Scraping website and uploading knowledge to Cloudinary. This can take 1-2 minutes. Please do not close this page."
+              ? "Scraping website and storing knowledge (1-2 min). Keep this tab open."
               : form.fileText
-                ? "Uploading file knowledge to Cloudinary. Please do not close this page."
-                : "Saving business information.",
+                ? "Uploading business file. Keep this tab open."
+                : "Saving business information. Keep this tab open.",
           );
           try {
             await onSave(form);
@@ -1574,12 +1575,13 @@ function BusinessInfo({
           )}
         </div>
         {isSaving && (
-          <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-4 max-h-max">
-            <Spinner
-              label={saveStatus || "Processing business information..."}
+          <div className="mx-auto flex w-fit max-w-full flex-col items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2">
+            <Loader2
+              aria-hidden="true"
+              className="h-4 w-4 animate-spin text-amber-500"
             />
-            <p className="mt-3 text-sm font-semibold text-amber-500">
-              Keep this tab open while we scrape and store the knowledge base.
+            <p className="text-center text-xs font-medium text-amber-600 dark:text-amber-400">
+              {saveStatus || "Processing business information..."}
             </p>
           </div>
         )}
