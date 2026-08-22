@@ -8,13 +8,11 @@ import {
   Building2,
   CalendarCheck,
   Check,
-  CheckCircle2,
   CreditCard,
   FileText,
   MessageCircle,
   Plug,
   Settings,
-  ShieldCheck,
 } from "lucide-react";
 import {
   Badge,
@@ -312,7 +310,6 @@ export default function WhatsAppAutomationDashboard({
             {view === "settings" && (
               <SettingsView
                 cardClass={cardClass}
-                softCardClass={softCardClass}
                 workspace={mergedData.workspace}
                 onConnected={loadDashboard}
                 onSave={async (payload) => {
@@ -1508,6 +1505,12 @@ function BusinessInfo({
           );
           try {
             await onSave(form);
+            const setupSource = new URLSearchParams(
+              window.location.search,
+            ).get("setup");
+            if (setupSource === "whatsapp") {
+              window.location.assign("/whatsapp/settings");
+            }
           } finally {
             setIsSaving(false);
             setSaveStatus("");
@@ -1522,8 +1525,11 @@ function BusinessInfo({
           }
         />
         <label className="grid gap-1.5">
-          <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+          <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
             Business information
+            <Badge className="bg-gray-100 text-[10px] font-semibold normal-case text-gray-500 dark:bg-white/[0.06] dark:text-white/50">
+              Optional
+            </Badge>
           </span>
           <textarea
             value={form.summary}
@@ -1540,8 +1546,11 @@ function BusinessInfo({
         </label>
         <div className={`rounded-xl border ${softCardClass} p-4`}>
           <label className="grid gap-2">
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
+            <span className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
               Upload business info file, max 10 MB
+              <Badge className="bg-gray-100 text-[10px] font-semibold normal-case text-gray-500 dark:bg-white/[0.06] dark:text-white/50">
+                Optional
+              </Badge>
             </span>
             <input
               type="file"
@@ -2036,13 +2045,11 @@ function WhatsAppCheckoutButton({
 
 function SettingsView({
   cardClass,
-  softCardClass,
   workspace,
   onConnected,
   onSave,
 }: {
   cardClass: string;
-  softCardClass: string;
   workspace: any;
   onConnected: () => Promise<void>;
   onSave: (payload: Record<string, any>) => Promise<void>;
@@ -2053,12 +2060,6 @@ function SettingsView({
   const [form, setForm] = useState({
     organizationName: workspace?.organization?.name || "",
     industry: workspace?.organization?.industry || "Professional Services",
-    website: workspace?.organization?.website || "",
-    phoneSource: workspace?.onboarding?.phoneSource || "official_number",
-    requestedPhoneNumber:
-      workspace?.onboarding?.requestedPhoneNumber ||
-      workspace?.meta?.displayPhoneNumber ||
-      "",
     businessDisplayName:
       workspace?.onboarding?.businessDisplayName ||
       workspace?.organization?.name ||
@@ -2087,17 +2088,19 @@ function SettingsView({
     workspace?.isConfigured ||
     (workspace?.meta?.wabaId && workspace?.meta?.phoneNumberId),
   );
+  const hasBusinessInfo = Boolean(
+    workspace?.businessInfo?.websiteUrl?.trim() ||
+      workspace?.businessInfo?.summary?.trim() ||
+      workspace?.businessInfo?.fileName?.trim() ||
+      workspace?.businessInfo?.knowledgeBaseUrl?.trim() ||
+      workspace?.businessInfo?.websiteKnowledgeUrl?.trim() ||
+      workspace?.businessInfo?.fileKnowledgeUrl?.trim(),
+  );
 
   useEffect(() => {
     setForm({
       organizationName: workspace?.organization?.name || "",
       industry: workspace?.organization?.industry || "Professional Services",
-      website: workspace?.organization?.website || "",
-      phoneSource: workspace?.onboarding?.phoneSource || "official_number",
-      requestedPhoneNumber:
-        workspace?.onboarding?.requestedPhoneNumber ||
-        workspace?.meta?.displayPhoneNumber ||
-        "",
       businessDisplayName:
         workspace?.onboarding?.businessDisplayName ||
         workspace?.organization?.name ||
@@ -2263,10 +2266,11 @@ function SettingsView({
             organizationName: form.organizationName,
             businessDisplayName:
               form.businessDisplayName || form.organizationName,
-            businessWebsite: form.website,
+            businessWebsite:
+              workspace?.businessInfo?.websiteUrl ||
+              workspace?.organization?.website ||
+              "",
             businessCategory: form.businessCategory || form.industry,
-            phoneSource: form.phoneSource,
-            requestedPhoneNumber: form.requestedPhoneNumber,
             notificationSettings: {
               email: form.alertEmail,
               whatsappNumber: form.alertWhatsAppNumber,
@@ -2390,12 +2394,6 @@ function SettingsView({
       typeof window.crypto?.randomUUID === "function"
         ? window.crypto.randomUUID()
         : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    const phoneDigits = form.requestedPhoneNumber.replace(/\D/g, "");
-    const phoneWithoutCountry =
-      phoneDigits.startsWith("91") && phoneDigits.length > 10
-        ? phoneDigits.slice(2)
-        : phoneDigits;
-
     url.searchParams.set("client_id", facebookConfig.appId);
     url.searchParams.set("app_id", facebookConfig.appId);
     url.searchParams.set("config_id", facebookConfig.embeddedSignupConfigId);
@@ -2424,10 +2422,10 @@ function SettingsView({
           business: {
             name: form.organizationName || form.businessDisplayName,
             email: user?.primaryEmailAddress?.emailAddress || "",
-            phone: phoneWithoutCountry
-              ? { code: 91, number: phoneWithoutCountry }
-              : undefined,
-            website: form.website || undefined,
+            website:
+              workspace?.businessInfo?.websiteUrl ||
+              workspace?.organization?.website ||
+              undefined,
           },
           phone: {
             category: resolveMetaBusinessCategory(form.businessCategory),
@@ -2441,7 +2439,7 @@ function SettingsView({
     );
 
     return url.toString();
-  }, [facebookConfig, form, user?.primaryEmailAddress?.emailAddress]);
+  }, [facebookConfig, form, user?.primaryEmailAddress?.emailAddress, workspace]);
 
   const getCurrentWhatsAppRedirectUri = () =>
     typeof window === "undefined"
@@ -2456,6 +2454,16 @@ function SettingsView({
           "Delete the existing WhatsApp account data before connecting a different WhatsApp account.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (!hasBusinessInfo) {
+      toast({
+        title: "Add business information first",
+        description:
+          "Save a website, business description, or business file before connecting WhatsApp.",
+      });
+      window.location.assign("/whatsapp/business-info?setup=whatsapp");
       return;
     }
 
@@ -2530,49 +2538,6 @@ function SettingsView({
     }
   };
 
-  const setup = [
-    [
-      "Facebook Business",
-      workspace?.onboarding?.facebookUserId ? "Connected" : "Not connected",
-      workspace?.onboarding?.facebookName || "Login through Business Connect",
-    ],
-    [
-      "Business ID",
-      workspace?.onboarding?.businessId || workspace?.meta?.businessManagerId
-        ? "Captured"
-        : "Pending",
-      workspace?.onboarding?.businessId ||
-        workspace?.meta?.businessManagerId ||
-        embeddedSignupData.businessId ||
-        "Provided by Embedded Signup",
-    ],
-    [
-      "WABA ID",
-      workspace?.meta?.wabaId ? "Captured" : "Pending",
-      workspace?.meta?.wabaId ||
-        embeddedSignupData.wabaId ||
-        "Provided by Meta",
-    ],
-    [
-      "Phone Number ID",
-      workspace?.meta?.phoneNumberId ? "Captured" : "Pending",
-      workspace?.meta?.phoneNumberId ||
-        embeddedSignupData.phoneNumberId ||
-        "Provided by Meta",
-    ],
-    [
-      "Display Number",
-      workspace?.meta?.displayPhoneNumber ? "Ready" : "Pending",
-      workspace?.meta?.displayPhoneNumber ||
-        form.requestedPhoneNumber ||
-        "Business WhatsApp number",
-    ],
-    [
-      "Webhook",
-      facebookConfig?.webhookCallbackUrl ? "Configured URL" : "Pending env",
-      facebookConfig?.webhookCallbackUrl || "Set PUBLIC_API_URL on API server",
-    ],
-  ];
   const hasWhatsAppAccountData = Boolean(
     workspace?.isConfigured ||
     workspace?.onboarding?.facebookUserId ||
@@ -2586,17 +2551,11 @@ function SettingsView({
   const businessProfileFields: Array<[string, string]> = [
     ["organizationName", "Business name"],
     ["businessDisplayName", "WhatsApp display name"],
-    ...(!isWhatsAppConnected
-      ? ([["requestedPhoneNumber", "Official WhatsApp number"]] as Array<
-          [string, string]
-        >)
-      : []),
-    ["website", "Official website URL"],
   ];
 
   return (
     <>
-      <div className="grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+      <div className="grid gap-6">
         <section
           className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
         >
@@ -2611,7 +2570,6 @@ function SettingsView({
                   organization: {
                     name: form.organizationName,
                     industry: form.businessCategory || form.industry,
-                    website: form.website,
                   },
                   notificationSettings: {
                     email: form.alertEmail,
@@ -2672,7 +2630,37 @@ function SettingsView({
                 ))}
               </select>
             </label>
-            <div className={`rounded-xl border ${softCardClass} p-4`}>
+            <div className="mt-2 flex flex-col gap-3 border-y border-gray-200 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08]">
+              <div className="flex min-w-0 items-start gap-3">
+                <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />
+                <div className="min-w-0">
+                  <p className="font-bold">Business information</p>
+                  <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-white/50">
+                    {hasBusinessInfo
+                      ? "Saved and ready for customer replies."
+                      : "Add a website, business description, or file before connecting WhatsApp."}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-3">
+                <Badge
+                  className={
+                    hasBusinessInfo
+                      ? "bg-emerald-500/15 text-emerald-500"
+                      : "bg-amber-500/15 text-amber-500"
+                  }
+                >
+                  {hasBusinessInfo ? "Ready" : "Required"}
+                </Badge>
+                <Link
+                  href="/whatsapp/business-info"
+                  className="text-sm font-bold text-emerald-500 hover:text-emerald-600"
+                >
+                  {hasBusinessInfo ? "Update" : "Add info"}
+                </Link>
+              </div>
+            </div>
+            <div className="pt-2">
               <div className="flex items-start gap-3">
                 <MessageCircle className="mt-1 h-5 w-5 flex-shrink-0 text-emerald-400" />
                 <div>
@@ -2774,75 +2762,11 @@ function SettingsView({
               )}
             </div>
           </form>
-          <div className="mt-5 grid gap-3">
-            {setup.map(([label, status, note]) => (
-              <div
-                key={label}
-                className={`rounded-xl border ${softCardClass} p-4`}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-bold">{label}</h3>
-                    <p className="mt-1 break-all text-sm text-gray-500 dark:text-white/50">
-                      {note}
-                    </p>
-                  </div>
-                  <Badge
-                    className={
-                      [
-                        "Connected",
-                        "Captured",
-                        "Ready",
-                        "Configured URL",
-                      ].includes(status)
-                        ? "bg-emerald-500/15 text-emerald-400"
-                        : "bg-amber-500/15 text-amber-300"
-                    }
-                  >
-                    {status}
-                  </Badge>
-                </div>
-              </div>
-            ))}
-          </div>
         </section>
 
-        <section
-          className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}
-        >
-          <SectionTitle icon={ShieldCheck} title="Production Guardrails" />
-          <div className="mt-5 space-y-4">
-            {[
-              [
-                "Booking consent",
-                "Customers request appointments by messaging or choosing the booking option.",
-              ],
-              [
-                "Customer-service window",
-                "Interactive menus and AI replies are sent inside Meta's customer-service window.",
-              ],
-              [
-                "Owner alerts",
-                "New appointment details are sent to configured email and WhatsApp alert numbers.",
-              ],
-              [
-                "Rate monitoring",
-                "Dashboard tracks message usage against the current plan limit.",
-              ],
-            ].map(([title, desc]) => (
-              <div key={title} className="flex gap-3">
-                <CheckCircle2 className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-400" />
-                <div>
-                  <p className="font-bold">{title}</p>
-                  <p className="mt-1 text-sm leading-6 text-gray-500 dark:text-white/50">
-                    {desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-          {hasWhatsAppAccountData && (
-            <div className="mt-6 rounded-xl border border-red-500/25 bg-red-500/10 p-4">
+        {hasWhatsAppAccountData && (
+          <section className="min-w-0 rounded-2xl border border-red-500/25 bg-red-500/[0.04] p-4 sm:p-5">
+            <div className="max-w-3xl">
               <h3 className="font-black text-red-500">
                 Delete WhatsApp Account Data
               </h3>
@@ -2860,8 +2784,8 @@ function SettingsView({
                 {isDeleting ? "Deleting..." : "Delete WhatsApp Data"}
               </Button>
             </div>
-          )}
-        </section>
+          </section>
+        )}
       </div>
       <ConfirmDialog
         open={isDeleteDialogOpen}
