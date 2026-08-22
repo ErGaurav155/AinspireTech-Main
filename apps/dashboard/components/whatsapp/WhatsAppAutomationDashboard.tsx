@@ -2470,12 +2470,6 @@ function SettingsView({
 
     try {
       setIsConnecting(true);
-      const directSignupUrl = buildDirectEmbeddedSignupUrl();
-      if (directSignupUrl) {
-        window.location.assign(directSignupUrl);
-        return;
-      }
-
       if (facebookConfig?.metaHostedSignupUrl) {
         const hostedUrl = new URL(facebookConfig.metaHostedSignupUrl);
         hostedUrl.searchParams.set(
@@ -2484,6 +2478,12 @@ function SettingsView({
         );
         const hostedSignupUrl = hostedUrl.toString();
         window.location.assign(hostedSignupUrl);
+        return;
+      }
+
+      const directSignupUrl = buildDirectEmbeddedSignupUrl();
+      if (directSignupUrl) {
+        window.location.assign(directSignupUrl);
         return;
       }
 

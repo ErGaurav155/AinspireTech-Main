@@ -77,7 +77,7 @@ const metaAppSecret =
 const metaGraphApiVersion =
   process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
 const embeddedSignupConfigId =
-  process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1621203692298909";
+  process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1030939112923553";
 const whatsappOAuthRedirectUri =
   process.env.WHATSAPP_OAUTH_REDIRECT_URI ||
   "https://app.rocketreplai.com/whatsapp/settings";

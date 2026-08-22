@@ -207,16 +207,16 @@ const getWhatsAppAccessTokenCandidates = (
   const systemUserToken = process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim();
   const workspaceToken = workspace.meta?.accessToken?.trim();
 
-  if (systemUserToken) {
-    candidates.push({
-      accessToken: systemUserToken,
-      source: "system_user_env",
-    });
-  }
-  if (workspaceToken && workspaceToken !== systemUserToken) {
+  if (workspaceToken) {
     candidates.push({
       accessToken: workspaceToken,
       source: "workspace_token",
+    });
+  }
+  if (systemUserToken && systemUserToken !== workspaceToken) {
+    candidates.push({
+      accessToken: systemUserToken,
+      source: "system_user_env",
     });
   }
 
@@ -625,7 +625,7 @@ const whatsappGraphMessagesRequest = async ({
     const hasFallback = index < tokenCandidates.length - 1;
     if (!hasFallback || !isRetryableWhatsAppTokenError(result)) break;
 
-    console.warn("[whatsapp:send] Token rejected; trying workspace fallback", {
+    console.warn("[whatsapp:send] Token rejected; trying fallback token", {
       workspaceId: String(workspace._id),
       phoneNumberId: workspace.meta.phoneNumberId,
       tokenSource: candidate.source,
