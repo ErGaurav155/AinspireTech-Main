@@ -33,6 +33,30 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 Replace the placeholder values with your actual respective account credentials. You can obtain these credentials by signing up on the [Clerk](https://clerk.com/), [MongoDB](https://www.mongodb.com/), [Cloudinary](https://cloudinary.com/) and [Stripe](https://stripe.com)
 
+## AI provider failover
+
+Add these server-only values to `apps/api/.env.local` for local development and
+to the API service variables in production:
+
+```env
+# Primary text AI provider
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-chat
+
+# Backup text AI provider (also used for voice when no dedicated key is set)
+OPENAI_API_KEY=
+OPENAI_FALLBACK_MODEL=gpt-3.5-turbo
+
+# Optional: how long to wait and how many SDK retries to allow per provider
+AI_PROVIDER_TIMEOUT_MS=30000
+AI_PROVIDER_MAX_RETRIES=0
+```
+
+Text responses use DeepSeek first. If DeepSeek is unavailable, returns an API
+error, times out, or returns an unusable empty response, the API automatically
+retries the same request with OpenAI. Keep both keys server-side; never expose
+them through a `NEXT_PUBLIC_` variable.
+
 ```bash
 npm run dev
 ```

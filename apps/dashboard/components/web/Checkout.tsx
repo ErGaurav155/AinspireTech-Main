@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useApi } from "@/lib/useApi";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -58,8 +58,11 @@ const websiteFormSchema = z.object({
   chatbotName: z.string().min(1, "Chatbot name is required"),
   websiteUrl: z
     .string()
-    .min(1, "Website URL is required")
-    .url("Please enter a valid URL"),
+    .trim()
+    .refine(
+      (value) => !value || /^https?:\/\/[^\s]+$/i.test(value),
+      "Please enter a valid URL",
+    ),
 });
 
 type WebsiteFormData = z.infer<typeof websiteFormSchema>;
@@ -111,6 +114,7 @@ export const Checkout = ({
   const [scrapingComplete, setScrapingComplete] = useState(false);
   const [chatbotCreationComplete, setChatbotCreationComplete] = useState(false);
   const [createdChatbotId, setCreatedChatbotId] = useState<string | null>(null);
+  const [hasSharedKnowledge, setHasSharedKnowledge] = useState(false);
   const { apiRequest } = useApi();
 
   const chatbotNameRef = useRef<string>("");
@@ -128,6 +132,13 @@ export const Checkout = ({
     resolver: zodResolver(websiteFormSchema),
     defaultValues: { websiteUrl: "", chatbotName: "" },
   });
+
+  useEffect(() => {
+    if (!userId) return;
+    apiRequest<{ hasKnowledge: boolean }>("/user/business-knowledge")
+      .then((data) => setHasSharedKnowledge(Boolean(data.hasKnowledge)))
+      .catch(() => setHasSharedKnowledge(false));
+  }, [apiRequest, userId]);
 
   const getButtonGradient = () => {
     switch (productId) {
@@ -472,6 +483,12 @@ export const Checkout = ({
   };
 
   const handleWebsiteFormSubmit = async (data: WebsiteFormData) => {
+    if (!data.websiteUrl && !hasSharedKnowledge) {
+      showErrorToast(
+        "Add a website URL, or save shared business information first.",
+      );
+      return;
+    }
     chatbotNameRef.current = data.chatbotName;
     websiteUrlRef.current = data.websiteUrl || "";
 
@@ -523,8 +540,18 @@ export const Checkout = ({
           "Chatbot created. Starting website scraping now. This might take 1-2 minutes, please do not close this window.",
         );
 
-        if (data.websiteUrl) {
-          await processScraping(data.websiteUrl, chatbot.id);
+        if (data.websiteUrl && !hasSharedKnowledge) {
+          setScrapingStatus(
+            "Scraping and optimizing shared business knowledge. This may take 1-2 minutes.",
+          );
+          const knowledgeBody = new FormData();
+          knowledgeBody.set("websiteUrl", data.websiteUrl);
+          knowledgeBody.set("businessInfo", "");
+          await apiRequest("/user/business-knowledge", {
+            method: "PUT",
+            body: knowledgeBody,
+          });
+          setHasSharedKnowledge(true);
         }
 
         setScrapingComplete(true);
@@ -810,7 +837,7 @@ export const Checkout = ({
                   <label
                     className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
                   >
-                    Website URL
+                    Website URL {hasSharedKnowledge ? "(optional)" : ""}
                   </label>
                   <input
                     {...registerWebsite("websiteUrl")}
@@ -832,8 +859,9 @@ export const Checkout = ({
                     className={`${isDark ? "text-pink-400" : "text-pink-600"} text-sm flex items-center`}
                   >
                     <Bot className="h-4 w-4 mr-2" />
-                    Website scraping may take 1-2 minutes. Please do not close
-                    this window after you submit.
+                    {hasSharedKnowledge
+                      ? "Your existing shared business knowledge will be used when no new website is entered."
+                      : "Website scraping may take 1-2 minutes. Please do not close this window after you submit."}
                   </p>
                 </div>
               </div>

@@ -909,6 +909,22 @@ export function WhatsAppAutomationsPanel({
           </div>
         </section>
       )}
+      <section
+        className={`flex flex-col gap-3 rounded-xl border ${cardClass} p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5`}
+      >
+        <p className="text-sm text-gray-500 dark:text-white/55">
+          Save all menu, appointment, service, schedule, and follow-up changes.
+        </p>
+        <Button
+          type="button"
+          disabled={isSaving}
+          onClick={save}
+          className="w-full gap-2 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 sm:w-auto"
+        >
+          <Save className="h-4 w-4" />
+          {isSaving ? "Saving..." : "Save Automations"}
+        </Button>
+      </section>
     </div>
   );
 }

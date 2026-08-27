@@ -4,7 +4,12 @@ import InstagramAccount from "@/models/insta/InstagramAccount.model";
 import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
 import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
+import InstagramAiConversation from "@/models/insta/AiConversation.model";
+import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
 import { sendInstagramDM } from "@/services/meta-api/meta-api.service";
+import { generateGptResponse } from "@/services/ai.service";
+import { getActivePackageSubscription } from "@/services/packages/package-subscription.service";
 import {
   getDMFlowQuestions,
   sendFinalLinkDM,
@@ -23,6 +28,132 @@ import {
 } from "@/services/appointment-notification.service";
 
 const MAX_INSTAGRAM_QUICK_REPLIES = 13;
+
+export async function sendInstagramAiKnowledgeReply(
+  accountId: string,
+  clerkId: string,
+  senderId: string,
+  messageText: string,
+): Promise<{ success: boolean; message: string; processed: boolean }> {
+  try {
+    await connectToDatabase();
+    const account = await InstagramAccount.findOne({ instagramId: accountId });
+    if (!account || !account.isActive || !account.autoDMEnabled || !senderId) {
+      return {
+        success: false,
+        message: "Account not active or DM disabled",
+        processed: false,
+      };
+    }
+
+    const now = new Date();
+    const [subscription, packageSubscription, knowledge, conversation] =
+      await Promise.all([
+        InstaSubscription.findOne({
+          clerkId,
+          status: "active",
+          expiresAt: { $gt: now },
+        }).lean(),
+        getActivePackageSubscription(clerkId),
+        SharedBusinessKnowledge.findOne({ clerkId })
+          .select("knowledgeBaseUrl")
+          .lean(),
+        InstagramAiConversation.findOne({
+          clerkId,
+          accountId,
+          participantId: senderId,
+        }).lean(),
+      ]);
+    const packageIncludesInstagram = Boolean(
+      packageSubscription?.includedServices?.includes("insta"),
+    );
+    if (!subscription && !packageIncludesInstagram) {
+      return {
+        success: false,
+        message: "Instagram AI replies require an active Pro plan",
+        processed: false,
+      };
+    }
+    if (!knowledge?.knowledgeBaseUrl) {
+      return {
+        success: false,
+        message: "No shared business knowledge configured",
+        processed: false,
+      };
+    }
+    if (!(await canSendInstaDM(clerkId, account))) {
+      await stopInstaAutomationForDMLimit(account);
+      return { success: false, message: dmLimitMessage(), processed: false };
+    }
+
+    const result = await generateGptResponse({
+      userInput: messageText,
+      userfileName: knowledge.knowledgeBaseUrl,
+      conversationHistory: (conversation?.messages || [])
+        .slice(-10)
+        .map((message) => ({
+          role: message.role,
+          content: message.content,
+        })),
+      clerkId,
+    });
+    const reply = result.response.trim().slice(0, 1000);
+    if (!reply) {
+      return { success: false, message: "AI returned no reply", processed: false };
+    }
+
+    const sent = await sendInstagramDM(
+      account.instagramId,
+      account.accessToken,
+      senderId,
+      { text: reply },
+      false,
+      clerkId,
+      false,
+    );
+    if (!sent) {
+      return { success: false, message: "Failed to send AI reply", processed: false };
+    }
+
+    await recordInstaDMSent(account);
+    await InstagramAiConversation.findOneAndUpdate(
+      { clerkId, accountId, participantId: senderId },
+      {
+        $push: {
+          messages: {
+            $each: [
+              { role: "user", content: messageText.slice(0, 3500), createdAt: now },
+              { role: "assistant", content: reply, createdAt: new Date() },
+            ],
+            $slice: -20,
+          },
+        },
+        $set: {
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    );
+    console.info("[instagram:ai] Knowledge reply sent", {
+      accountId,
+      clerkId,
+      inputCharacters: messageText.length,
+      replyCharacters: reply.length,
+    });
+    return { success: true, message: "AI reply sent", processed: true };
+  } catch (error) {
+    console.error("[instagram:ai] Knowledge reply failed", {
+      accountId,
+      clerkId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : "AI reply failed",
+      processed: false,
+    };
+  }
+}
 
 /**
  * Handle incoming text message for email, phone, or custom form responses.

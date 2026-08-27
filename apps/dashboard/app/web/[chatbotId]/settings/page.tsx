@@ -38,6 +38,7 @@ import {
 } from "@/lib/services/web-actions.api";
 import { Button, Orbs, Switch, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 
 type ChatbotTypeId = "chatbot-lead-generation";
 
@@ -304,7 +305,6 @@ export default function ChatbotSettingsPage() {
     try {
       await updateWebChatbot(apiRequest, chatbotType, {
         name: settings.name.trim(),
-        websiteUrl: settings.websiteUrl,
         phone: settings.whatsappNumber,
         settings: {
           welcomeMessage: settings.welcomeMessage.trim(),
@@ -608,7 +608,7 @@ export default function ChatbotSettingsPage() {
                 </div>
                 {isLead && (
                   <>
-                    <div>
+                    <div className="hidden">
                       <label
                         className={`block text-xs font-medium mb-1.5 ${styles.text.secondary}`}
                       >
@@ -673,7 +673,7 @@ export default function ChatbotSettingsPage() {
                     </div>
 
                     {/* File Upload Section */}
-                    <div className="pt-2 border-t border-gray-200 dark:border-white/[0.08]">
+                    <div className="hidden pt-2 border-t border-gray-200 dark:border-white/[0.08]">
                       <label
                         className={`block text-xs font-medium mb-1.5 ${styles.text.secondary}`}
                       >
@@ -765,6 +765,26 @@ export default function ChatbotSettingsPage() {
                 )}
               </div>
             </div>
+
+            {isLead && (
+              <SharedBusinessKnowledgeForm
+                onSaved={(knowledge) => {
+                  setSettings((current) => ({
+                    ...current,
+                    websiteUrl: knowledge.websiteUrl,
+                  }));
+                  setChatbot((current: any) =>
+                    current
+                      ? {
+                          ...current,
+                          websiteUrl: knowledge.websiteUrl,
+                          isScrapped: knowledge.hasKnowledge,
+                        }
+                      : current,
+                  );
+                }}
+              />
+            )}
 
             {/* Welcome message */}
             <div className={`${styles.card} p-5 rounded-2xl`}>
@@ -925,7 +945,7 @@ export default function ChatbotSettingsPage() {
             </div>
 
             {/* Knowledge Base Status */}
-            {isLead && (
+            {false && isLead && (
               <div className={`${styles.card} p-4 rounded-2xl`}>
                 <h3
                   className={`text-sm font-semibold ${styles.text.primary} mb-3`}

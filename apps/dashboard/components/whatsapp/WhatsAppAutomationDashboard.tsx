@@ -38,6 +38,7 @@ import {
 } from "@/lib/services/subscription-actions.api";
 import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 import {
   WhatsAppAppointmentsPanel,
   WhatsAppAutomationsPanel,
@@ -129,26 +130,6 @@ const plans = [
       "Owner alerts by email and WhatsApp",
     ],
   },
-];
-
-const businessCategories = [
-  "Automotive",
-  "Beauty, Spa and Salon",
-  "Clothing and Apparel",
-  "Education",
-  "Entertainment",
-  "Event Planning and Service",
-  "Finance and Banking",
-  "Food and Grocery",
-  "Hotel and Lodging",
-  "Medical and Health",
-  "Non-profit",
-  "Professional Services",
-  "Public Service",
-  "Shopping and Retail",
-  "Travel and Transportation",
-  "Restaurant",
-  "Others",
 ];
 
 export default function WhatsAppAutomationDashboard({
@@ -458,7 +439,7 @@ function Overview({
           ? "Ready"
           : "Missing",
       change: data.businessInfo?.knowledgeBaseUrl
-        ? "Cloudinary saved"
+        ? "Knowledge ready"
         : data.businessInfo?.websiteUrl
           ? "Website saved"
           : "Add info",
@@ -570,13 +551,12 @@ function Overview({
           </p>
           <div className={`mt-4 rounded-xl border ${softCardClass} p-4`}>
             <p className="text-xs font-bold uppercase tracking-widest text-gray-400">
-              Current source
+              Knowledge status
             </p>
-            <p className="mt-2 text-sm font-semibold w-full overflow-hidden">
-              {data.businessInfo?.knowledgeBaseUrl ||
-                data.businessInfo?.fileName ||
-                data.businessInfo?.websiteUrl ||
-                "No business info saved yet"}
+            <p className="mt-2 text-sm font-semibold">
+              {data.businessInfo?.knowledgeBaseUrl || data.businessInfo?.summary
+                ? "Business knowledge is ready for WhatsApp replies"
+                : "No business info saved yet"}
             </p>
           </div>
         </section>
@@ -1445,154 +1425,24 @@ function Appointments({
 
 function BusinessInfo({
   cardClass,
-  softCardClass,
-  data,
-  onSave,
 }: {
   cardClass: string;
   softCardClass: string;
   data: WhatsAppDashboardData;
   onSave: (businessInfo: Record<string, any>) => Promise<void>;
 }) {
-  const info = data.businessInfo || {};
-  const [form, setForm] = useState({
-    websiteUrl: info.websiteUrl || data.workspace?.organization?.website || "",
-    summary: info.summary || "",
-    fileName: info.fileName || "",
-    fileType: info.fileType || "",
-    fileSize: Number(info.fileSize || 0),
-    fileText: info.fileText || "",
-  });
-  const [isSaving, setIsSaving] = useState(false);
-  const [fileError, setFileError] = useState("");
-  const [saveStatus, setSaveStatus] = useState("");
-
-  const handleFile = async (file?: File) => {
-    setFileError("");
-    if (!file) return;
-    if (file.size > 10 * 1024 * 1024) {
-      setFileError("File must be 10 MB or smaller.");
-      return;
-    }
-    const text = await file.text();
-    setForm((current) => ({
-      ...current,
-      fileName: file.name,
-      fileType: file.type || "text/plain",
-      fileSize: file.size,
-      fileText: text,
-    }));
-  };
-
   return (
-    <section className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
-      <SectionTitle icon={FileText} title="Business Info Replies" />
-      <p className="mt-3 text-sm leading-6 text-gray-500 dark:text-white/55">
-        Save the business facts WhatsApp should use for customer questions. The
-        website scrape and file knowledge are uploaded to Cloudinary, and only
-        the Cloudinary link plus metadata are stored in the dashboard database.
-      </p>
-      <form
-        className="mt-5 grid gap-4"
-        onSubmit={async (event) => {
-          event.preventDefault();
-          setIsSaving(true);
-          setSaveStatus(
-            form.websiteUrl
-              ? "Scraping website and storing knowledge (1-2 min). Keep this tab open."
-              : form.fileText
-                ? "Uploading business file. Keep this tab open."
-                : "Saving business information. Keep this tab open.",
-          );
-          try {
-            await onSave(form);
-            const setupSource = new URLSearchParams(
-              window.location.search,
-            ).get("setup");
-            if (setupSource === "whatsapp") {
-              window.location.assign("/whatsapp/settings");
-            }
-          } finally {
-            setIsSaving(false);
-            setSaveStatus("");
-          }
-        }}
-      >
-        <TextInput
-          label="Website link"
-          value={form.websiteUrl}
-          onChange={(value) =>
-            setForm((current) => ({ ...current, websiteUrl: value }))
-          }
-        />
-        <label className="grid gap-1.5">
-          <span className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
-            Business information
-            <Badge className="bg-gray-100 text-[10px] font-semibold normal-case text-gray-500 dark:bg-white/[0.06] dark:text-white/50">
-              Optional
-            </Badge>
-          </span>
-          <textarea
-            value={form.summary}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                summary: event.target.value,
-              }))
-            }
-            rows={8}
-            placeholder="Services, pricing, address, opening hours, FAQs, policies, and anything customers commonly ask."
-            className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
-          />
-        </label>
-        <div className={`rounded-xl border ${softCardClass} p-4`}>
-          <label className="grid gap-2">
-            <span className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
-              Upload business info file, max 10 MB
-              <Badge className="bg-gray-100 text-[10px] font-semibold normal-case text-gray-500 dark:bg-white/[0.06] dark:text-white/50">
-                Optional
-              </Badge>
-            </span>
-            <input
-              type="file"
-              accept=".txt,.md,.csv,.json,.html,.log"
-              onChange={(event) => void handleFile(event.target.files?.[0])}
-              className="text-sm w-full"
-            />
-          </label>
-          {fileError && (
-            <p className="mt-2 text-sm text-red-400">{fileError}</p>
-          )}
-          {form.fileName && (
-            <p className="mt-2 text-sm text-gray-500 dark:text-white/55">
-              Loaded {form.fileName} ({Math.ceil(form.fileSize / 1024)} KB)
-            </p>
-          )}
-          {info.knowledgeBaseUrl && (
-            <p className="mt-2 break-all text-xs text-emerald-500">
-              Cloudinary knowledge: {info.knowledgeBaseUrl}
-            </p>
-          )}
-        </div>
-        {isSaving && (
-          <div className="mx-auto flex w-fit max-w-full flex-col items-center gap-1.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2">
-            <Loader2
-              aria-hidden="true"
-              className="h-4 w-4 animate-spin text-amber-500"
-            />
-            <p className="text-center text-xs font-medium text-amber-600 dark:text-amber-400">
-              {saveStatus || "Processing business information..."}
-            </p>
-          </div>
-        )}
-        <Button
-          disabled={isSaving}
-          className="rounded-xl bg-emerald-500 text-white hover:bg-emerald-600"
-        >
-          {isSaving ? "Processing..." : "Save Business Info"}
-        </Button>
-      </form>
-    </section>
+    <SharedBusinessKnowledgeForm
+      className={cardClass}
+      onSaved={() => {
+        const setupSource = new URLSearchParams(window.location.search).get(
+          "setup",
+        );
+        if (setupSource === "whatsapp") {
+          window.location.assign("/whatsapp/settings");
+        }
+      }}
+    />
   );
 }
 
@@ -2061,15 +1911,6 @@ function SettingsView({
   const defaultAlertEmail = user?.primaryEmailAddress?.emailAddress || "";
   const [form, setForm] = useState({
     organizationName: workspace?.organization?.name || "",
-    industry: workspace?.organization?.industry || "Professional Services",
-    businessDisplayName:
-      workspace?.onboarding?.businessDisplayName ||
-      workspace?.organization?.name ||
-      "",
-    businessCategory:
-      workspace?.onboarding?.businessCategory ||
-      workspace?.organization?.industry ||
-      "Professional Services",
     alertEmail: workspace?.notificationSettings?.email || defaultAlertEmail,
     alertWhatsAppNumber: workspace?.notificationSettings?.whatsappNumber || "",
     emailAlertsEnabled: workspace?.notificationSettings?.emailEnabled !== false,
@@ -2102,15 +1943,6 @@ function SettingsView({
   useEffect(() => {
     setForm({
       organizationName: workspace?.organization?.name || "",
-      industry: workspace?.organization?.industry || "Professional Services",
-      businessDisplayName:
-        workspace?.onboarding?.businessDisplayName ||
-        workspace?.organization?.name ||
-        "",
-      businessCategory:
-        workspace?.onboarding?.businessCategory ||
-        workspace?.organization?.industry ||
-        "Professional Services",
       alertEmail: workspace?.notificationSettings?.email || defaultAlertEmail,
       alertWhatsAppNumber:
         workspace?.notificationSettings?.whatsappNumber || "",
@@ -2266,13 +2098,10 @@ function SettingsView({
               params.get("display_phone_number") ||
               embeddedSignupData.displayPhoneNumber,
             organizationName: form.organizationName,
-            businessDisplayName:
-              form.businessDisplayName || form.organizationName,
             businessWebsite:
               workspace?.businessInfo?.websiteUrl ||
               workspace?.organization?.website ||
               "",
-            businessCategory: form.businessCategory || form.industry,
             notificationSettings: {
               email: form.alertEmail,
               whatsappNumber: form.alertWhatsAppNumber,
@@ -2355,31 +2184,6 @@ function SettingsView({
     void completeHostedSignup();
   }, [apiRequest, embeddedSignupData, form, onConnected]);
 
-  const resolveMetaBusinessCategory = (category: string) => {
-    const normalized = category.toLowerCase();
-    if (normalized.includes("automotive")) return "AUTO";
-    if (normalized.includes("beauty")) return "BEAUTY";
-    if (normalized.includes("clothing")) return "APPAREL";
-    if (normalized.includes("education")) return "EDU";
-    if (normalized.includes("entertainment")) return "ENTERTAIN";
-    if (normalized.includes("event")) return "EVENT_PLAN";
-    if (normalized.includes("finance")) return "FINANCE";
-    if (normalized.includes("food") || normalized.includes("grocery")) {
-      return "GROCERY";
-    }
-    if (normalized.includes("hotel")) return "HOTEL";
-    if (normalized.includes("medical") || normalized.includes("health")) {
-      return "MEDICAL_HEALTH";
-    }
-    if (normalized.includes("restaurant")) return "RESTAURANT";
-    if (normalized.includes("shopping") || normalized.includes("retail")) {
-      return "SHOPPING";
-    }
-    if (normalized.includes("travel")) return "TRAVEL";
-    if (normalized.includes("non-profit")) return "NONPROFIT";
-    return "PROF_SERVICES";
-  };
-
   const buildDirectEmbeddedSignupUrl = useCallback(() => {
     if (
       typeof window === "undefined" ||
@@ -2422,16 +2226,12 @@ function SettingsView({
       JSON.stringify({
         setup: {
           business: {
-            name: form.organizationName || form.businessDisplayName,
+            name: form.organizationName,
             email: user?.primaryEmailAddress?.emailAddress || "",
             website:
               workspace?.businessInfo?.websiteUrl ||
               workspace?.organization?.website ||
               undefined,
-          },
-          phone: {
-            category: resolveMetaBusinessCategory(form.businessCategory),
-            displayName: form.businessDisplayName || form.organizationName,
           },
         },
         version: "v4",
@@ -2552,7 +2352,6 @@ function SettingsView({
   );
   const businessProfileFields: Array<[string, string]> = [
     ["organizationName", "Business name"],
-    ["businessDisplayName", "WhatsApp display name"],
   ];
 
   return (
@@ -2571,7 +2370,6 @@ function SettingsView({
                 await onSave({
                   organization: {
                     name: form.organizationName,
-                    industry: form.businessCategory || form.industry,
                   },
                   notificationSettings: {
                     email: form.alertEmail,
@@ -2610,28 +2408,6 @@ function SettingsView({
                 />
               </label>
             ))}
-            <label className="grid gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-widest text-gray-400">
-                Business category
-              </span>
-              <select
-                value={form.businessCategory}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    businessCategory: event.target.value,
-                    industry: event.target.value,
-                  }))
-                }
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-400 dark:border-white/[0.08] dark:bg-white/[0.04] dark:text-white"
-              >
-                {businessCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </label>
             <div className="mt-2 flex flex-col gap-3 border-y border-gray-200 py-4 sm:flex-row sm:items-center sm:justify-between dark:border-white/[0.08]">
               <div className="flex min-w-0 items-start gap-3">
                 <FileText className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-500" />

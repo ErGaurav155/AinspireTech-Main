@@ -18,7 +18,7 @@ import {
 } from "@/services/appointment-notification.service";
 import { uploadTextToCloudinary } from "@/services/transaction.service";
 import { scrapeWebsitePagesForKnowledge } from "@/controllers/web/scrape/scrap-anu.controller";
-import { formatScrapedData } from "@/controllers/web/scrape/process-data.controller";
+import { compactWhatsAppBusinessKnowledge } from "@/services/ai.service";
 
 const authUserId = (req: Request) => getAuth(req).userId;
 
@@ -179,18 +179,77 @@ const downloadTextFromUrl = async (url: string, timeoutMs = 10000) => {
   }
 };
 
+const normalizeKnowledgeText = (value: unknown, maxCharacters: number) => {
+  const cleaned = String(value || "")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
+    .replace(/<img\b[^>]*>/gi, " ")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
+    .replace(/data:image\/[^;]+;base64,[a-z0-9+/=]+/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/https?:\/\/\S+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?\S*)?/gi, " ")
+    .replace(/\r/g, "\n")
+    .replace(/[\t ]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  const seen = new Set<string>();
+  const uniqueSegments = cleaned
+    .split(/\n+|(?<=[.!?])\s+(?=[A-Z0-9])/)
+    .map((segment) => segment.replace(/\s+/g, " ").trim())
+    .filter((segment) => {
+      if (segment.length < 2) return false;
+      const key = segment.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
+  return uniqueSegments.join("\n").slice(0, maxCharacters).trim();
+};
+
+const extractExistingKnowledgeText = (raw: string) => {
+  try {
+    const data = JSON.parse(raw);
+    const pages = Array.isArray(data?.website?.pages)
+      ? data.website.pages
+          .map((page: any) => `${page?.url || ""}\n${page?.content || page?.fullText || ""}`)
+          .join("\n")
+      : Array.isArray(data?.pages)
+        ? data.pages
+            .map((page: any) => `${page?.url || ""}\n${page?.content || page?.fullText || ""}`)
+            .join("\n")
+        : "";
+    return [
+      data?.businessName ? `Business name: ${data.businessName}` : "",
+      data?.websiteUrl ? `Website: ${data.websiteUrl}` : "",
+      data?.summary || "",
+      pages,
+      data?.file?.content || "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  } catch {
+    return raw;
+  }
+};
+
 const readExistingWhatsAppKnowledge = async (knowledgeBaseUrl?: string) => {
-  if (!knowledgeBaseUrl) return {};
+  if (!knowledgeBaseUrl) return "";
   try {
     const text = await downloadTextFromUrl(knowledgeBaseUrl, 7000);
-    return JSON.parse(text);
+    return normalizeKnowledgeText(extractExistingKnowledgeText(text), 8000);
   } catch (error) {
     console.warn("[whatsapp:business-info] Could not read existing knowledge", {
       error: error instanceof Error ? error.message : String(error),
     });
-    return {};
+    return "";
   }
 };
+
+const locallyMergeWhatsAppKnowledge = (sections: string[]) =>
+  normalizeKnowledgeText(sections.filter(Boolean).join("\n\n"), 10000);
 
 const uploadWhatsAppKnowledge = async ({
   workspace,
@@ -221,75 +280,72 @@ const uploadWhatsAppKnowledge = async ({
   const existingKnowledge = await readExistingWhatsAppKnowledge(
     existingInfo.knowledgeBaseUrl,
   );
+  const websiteChanged =
+    businessInfo.websiteUrl !== undefined &&
+    websiteUrl !== cleanString(existingInfo.websiteUrl);
   const shouldScrapeWebsite =
     Boolean(websiteUrl) &&
-    (websiteUrl !== cleanString(existingInfo.websiteUrl) ||
-      !existingKnowledge?.website?.pages?.length);
-  let websiteKnowledge = existingKnowledge?.website || null;
-  let websiteKnowledgeUrl = cleanString(existingInfo.websiteKnowledgeUrl);
+    (websiteChanged || !existingKnowledge);
+  let websiteKnowledge = "";
   if (shouldScrapeWebsite) {
     try {
       const scrapeResult = await scrapeWebsitePagesForKnowledge(websiteUrl);
-      const formattedWebsiteData = formatScrapedData(scrapeResult.scrapedPages);
-      const websiteFileName = `whatsapp_${workspace.clerkId}_${scrapeResult.fileName}`;
-      websiteKnowledgeUrl = await uploadTextToCloudinary(
-        formattedWebsiteData,
-        websiteFileName,
+      websiteKnowledge = normalizeKnowledgeText(
+        scrapeResult.scrapedPages
+          .map(
+            (page: any) =>
+              `Page: ${cleanString(page?.url)}\n${cleanString(
+                page?.fullText || page?.content,
+              )}`,
+          )
+          .join("\n\n"),
+        16000,
       );
-      websiteKnowledge = JSON.parse(formattedWebsiteData);
     } catch (error) {
-      console.warn("[whatsapp:business-info] Shared website scrape failed", {
-        websiteUrl,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      websiteKnowledge = {
-        generatedAt: new Date().toISOString(),
-        pageCount: 0,
-        pages: [],
-        error: error instanceof Error ? error.message : String(error),
-      };
+      throw new Error(
+        `Could not scrape the website: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
     }
   }
 
-  let fileKnowledge = existingKnowledge?.file || null;
-  let fileKnowledgeUrl = cleanString(existingInfo.fileKnowledgeUrl);
-  if (fileText) {
-    fileKnowledge = {
-      type: "file_upload",
-      name: fileName || "business-info.txt",
-      contentType: fileType || "text/plain",
-      size: fileSize,
-      content: fileText,
-      uploadedAt: new Date().toISOString(),
-    };
-    const fileKnowledgePayload = {
-      generatedAt: new Date().toISOString(),
-      file: fileKnowledge,
-    };
-    fileKnowledgeUrl = await uploadTextToCloudinary(
-      JSON.stringify(fileKnowledgePayload, null, 2),
-      `whatsapp_${workspace.clerkId}_file_${Date.now()}_${safeCloudinaryFileName(
-        fileName || "business_info",
-      )}`,
+  const ownerInformation = normalizeKnowledgeText(summary, 6000);
+  const uploadedFileKnowledge = normalizeKnowledgeText(fileText, 10000);
+  const businessName = workspace.organization?.name || "My Business";
+  const fallbackKnowledge = locallyMergeWhatsAppKnowledge([
+    `Business name: ${businessName}`,
+    websiteUrl ? `Website: ${websiteUrl}` : "",
+    existingKnowledge,
+    websiteKnowledge,
+    ownerInformation,
+    uploadedFileKnowledge,
+  ]);
+  let knowledge = fallbackKnowledge;
+  try {
+    knowledge = await compactWhatsAppBusinessKnowledge({
+      businessName,
+      websiteUrl,
+      existingKnowledge,
+      websiteKnowledge,
+      ownerInformation,
+      uploadedFileName: fileName,
+      uploadedFileKnowledge,
+      websiteChanged,
+      uploadedFileChanged: Boolean(fileText),
+    });
+  } catch (error) {
+    console.warn(
+      "[whatsapp:business-info] AI compaction failed; using local compaction",
+      { error: error instanceof Error ? error.message : String(error) },
     );
   }
 
-  const knowledge = {
-    type: "whatsapp_business_info",
-    generatedAt: new Date().toISOString(),
-    businessName: workspace.organization?.name || "My Business",
-    websiteUrl,
-    summary: summary.slice(0, 12000),
-    websiteKnowledgeUrl,
-    fileKnowledgeUrl,
-    website: websiteKnowledge,
-    file: fileKnowledge,
-  };
   const knowledgeFileName = `whatsapp_${workspace.clerkId}_${Date.now()}_${safeCloudinaryFileName(
     websiteUrl || fileName || "business_info",
   )}`;
   const knowledgeBaseUrl = await uploadTextToCloudinary(
-    JSON.stringify(knowledge, null, 2),
+    knowledge,
     knowledgeFileName,
   );
 
@@ -300,8 +356,8 @@ const uploadWhatsAppKnowledge = async ({
     fileType,
     fileSize,
     fileText: "",
-    websiteKnowledgeUrl,
-    fileKnowledgeUrl,
+    websiteKnowledgeUrl: "",
+    fileKnowledgeUrl: "",
     knowledgeBaseUrl,
     knowledgeBaseFileName: knowledgeFileName,
     knowledgeUpdatedAt: new Date(),

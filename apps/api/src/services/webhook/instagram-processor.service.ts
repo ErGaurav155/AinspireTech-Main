@@ -7,6 +7,7 @@ import { handlePostbackAutomation } from "@/services/automation/dm-processor.ser
 import { recordCall } from "@/services/rate-limit.service";
 import {
   handleIncomingDM,
+  sendInstagramAiKnowledgeReply,
   sendDMStarterQuickReplies,
 } from "@/services/automation/message-processor.service";
 
@@ -374,6 +375,15 @@ async function processMessagingWebhook(
           !result.processed &&
           result.message === "No matching template"
         ) {
+          const aiResult = await sendInstagramAiKnowledgeReply(
+            accountId,
+            account.userId,
+            senderId,
+            messageText,
+          );
+          if (aiResult.processed) {
+            return { processed: true, queued: false };
+          }
           const quickReplyResult = await sendDMStarterQuickReplies(
             accountId,
             account.userId,
@@ -481,6 +491,15 @@ async function processDirectMessageWebhook(
         !result.processed &&
         result.message === "No matching template"
       ) {
+        const aiResult = await sendInstagramAiKnowledgeReply(
+          accountId,
+          account.userId,
+          senderId,
+          messageText,
+        );
+        if (aiResult.processed) {
+          return { processed: true, queued: false };
+        }
         const quickReplyResult = await sendDMStarterQuickReplies(
           accountId,
           account.userId,

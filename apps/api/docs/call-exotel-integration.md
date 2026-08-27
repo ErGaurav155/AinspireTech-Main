@@ -21,7 +21,7 @@ EXOTEL_VOICEBOT_SECRET=
 OPENAI_API_KEY=
 OPENAI_REALTIME_MODEL=gpt-realtime
 OPENAI_REALTIME_VOICE=marin
-OPENAI_REALTIME_TRANSCRIPTION_MODEL=gpt-4o-mini-transcribe
+OPENAI_REALTIME_TRANSCRIPTION_MODEL=gpt-3.5-turbo
 CALL_VOICEBOT_SILENCE_TIMEOUT_SEC=20
 CALL_VOICEBOT_MAX_DURATION_SEC=300
 CALL_VOICEBOT_SPEECH_RMS_THRESHOLD=450
@@ -76,8 +76,10 @@ For production, use a WSS URL like:
 wss://api.yourdomain.com/api/call/voicebot-stream?secret=YOUR_SECRET&sample-rate=24000
 ```
 
-`OPENAI_API_KEY` is required for live AI conversation. The voice bridge uses the
-OpenAI Realtime API, streams Exotel audio to the model, streams the model's PCM
+`OPENAI_API_KEY` is the backup provider for DeepSeek-backed text responses. It
+also powers live AI conversation when `OPENAI_REALTIME_API_KEY` is not set; the
+voice bridge accepts either key. It uses the OpenAI Realtime API, streams Exotel
+audio to the model, streams the model's PCM
 audio back to Exotel, saves the call transcript/summary, and sends the owner
 email/WhatsApp alert through the existing appointment notification sender.
 
@@ -101,20 +103,20 @@ The defaults enforce:
 wss://api.yourdomain.com/api/call/voicebot-stream?secret=YOUR_SECRET&sample-rate=24000
 ```
 
-5. Enable recording in the Voicebot applet if your Exotel account supports it.
-   Exotel can make the recording URL available to the next Passthru applet.
-6. Add a Passthru/status callback after the Voicebot applet pointing to:
+Enable recording in the Voicebot applet if your Exotel account supports it.
+Exotel can make the recording URL available to the next Passthru applet.
+Add a Passthru/status callback after the Voicebot applet pointing to:
 
 ```txt
 POST or GET /api/call/webhooks/exotel
 ```
 
-7. Configure the customer's business phone to forward busy/no-answer/unreachable
-   calls to the assigned Exotel number shown in the dashboard.
-8. For SMS alerts, configure `EXOTEL_SMS_SENDER` and DLT template values.
-9. If Exotel sends a recording URL as `RecordingUrl`, `RecordingURL`,
-   `Recording`, `CallRecordings`, or `recording_url`, it is saved on the call row
-   and shown as an audio player in the owner dashboard.
+Configure the customer's business phone to forward busy/no-answer/unreachable
+calls to the assigned Exotel number shown in the dashboard.
+For SMS alerts, configure `EXOTEL_SMS_SENDER` and DLT template values.
+If Exotel sends a recording URL as `RecordingUrl`, `RecordingURL`,
+`Recording`, `CallRecordings`, or `recording_url`, it is saved on the call row
+and shown as an audio player in the owner dashboard.
 
 ## Implemented endpoints
 

@@ -26,6 +26,7 @@ import {
 } from "@/lib/services/insta-actions.api";
 import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -787,6 +788,23 @@ export default function SettingsPage() {
               />
             ))}
           </div>
+        </div>
+
+        <div>
+          <div className={pageStyles.settingsHeader}>
+            <div>
+              <h2
+                className={`md:text-lg font-semibold ${styles.text.primary}`}
+              >
+                Instagram AI Reply Knowledge
+              </h2>
+              <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                Pro AI replies use this only when no keyword automation or
+                active quick-reply form handles the customer message.
+              </p>
+            </div>
+          </div>
+          <SharedBusinessKnowledgeForm />
         </div>
 
         {account && (

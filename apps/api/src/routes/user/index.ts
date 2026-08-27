@@ -9,6 +9,12 @@ import {
   checkAndPrepareScrapeController,
 } from "@/controllers/user/user-actions.controller";
 import { requireAuth } from "@clerk/express";
+import {
+  deleteSharedBusinessKnowledgeController,
+  getSharedBusinessKnowledgeController,
+  updateSharedBusinessKnowledgeController,
+  uploadSharedBusinessKnowledgeMiddleware,
+} from "@/controllers/user/shared-business-knowledge.controller";
 
 const router = Router();
 
@@ -16,6 +22,14 @@ const router = Router();
 router.post("/create", createUserController);
 
 router.use(requireAuth());
+
+router.get("/business-knowledge", getSharedBusinessKnowledgeController);
+router.put(
+  "/business-knowledge",
+  uploadSharedBusinessKnowledgeMiddleware,
+  updateSharedBusinessKnowledgeController,
+);
+router.delete("/business-knowledge", deleteSharedBusinessKnowledgeController);
 
 // GET /api/user/:userId - Get user by ID
 router.get("/:userId", getUserByIdController);

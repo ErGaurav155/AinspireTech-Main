@@ -63,6 +63,12 @@ export async function uploadToCloudinary(
 /**
  * Delete a resource from Cloudinary by its public ID.
  */
-export async function deleteFromCloudinary(publicId: string): Promise<void> {
-  await cloudinary.uploader.destroy(publicId);
+export async function deleteFromCloudinary(
+  publicId: string,
+  resourceType: "image" | "video" | "raw" = "image",
+): Promise<void> {
+  await cloudinary.uploader.destroy(publicId, {
+    resource_type: resourceType,
+    invalidate: true,
+  });
 }

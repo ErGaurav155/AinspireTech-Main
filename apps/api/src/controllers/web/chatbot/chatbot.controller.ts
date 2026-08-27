@@ -3,6 +3,7 @@ import { Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
+import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
 import { getAuth } from "@clerk/express";
 import webFaq from "@/models/web/webFaq.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
@@ -204,15 +205,25 @@ export const createChatbotController = async (req: Request, res: Response) => {
       });
     }
 
-    if (!websiteUrl?.trim()) {
+    await connectToDatabase();
+    const sharedKnowledge = await SharedBusinessKnowledge.findOne({
+      clerkId: userId,
+    })
+      .select("websiteUrl knowledgeBaseUrl")
+      .lean();
+    const resolvedWebsiteUrl =
+      websiteUrl?.trim() || sharedKnowledge?.websiteUrl || "";
+
+    if (!resolvedWebsiteUrl && !sharedKnowledge?.knowledgeBaseUrl) {
       return res.status(400).json({
         success: false,
-        error: "websiteUrl is required for lead generation chatbot",
+        error:
+          "Add a website URL or shared business information before creating the chatbot.",
         timestamp: new Date().toISOString(),
       });
     }
     try {
-      new URL(websiteUrl.trim());
+      if (resolvedWebsiteUrl) new URL(resolvedWebsiteUrl);
     } catch {
       return res.status(400).json({
         success: false,
@@ -220,8 +231,6 @@ export const createChatbotController = async (req: Request, res: Response) => {
         timestamp: new Date().toISOString(),
       });
     }
-
-    await connectToDatabase();
 
     const existingChatbot = await WebChatbot.findOne({ clerkId: userId, type });
     if (existingChatbot) {
@@ -242,10 +251,10 @@ export const createChatbotController = async (req: Request, res: Response) => {
       clerkId: userId,
       name: name.trim(),
       type,
-      websiteUrl: websiteUrl.trim(),
+      websiteUrl: resolvedWebsiteUrl,
       embedCode,
-      isScrapped: false,
-      scrappedFile: null,
+      isScrapped: Boolean(sharedKnowledge?.knowledgeBaseUrl),
+      scrappedFile: sharedKnowledge?.knowledgeBaseUrl || null,
       settings: {
         welcomeMessage: defaults.welcomeMessage,
         primaryColor: defaults.primaryColor,

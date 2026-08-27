@@ -12,10 +12,16 @@ const sanitizeCloudinaryPublicId = (value: string) => {
   return cleaned || `scraped_data_${Date.now()}`;
 };
 
-export const uploadTextToCloudinary = async (
+export interface CloudinaryTextAsset {
+  secureUrl: string;
+  publicId: string;
+  resourceType: "image" | "raw";
+}
+
+export const uploadTextAssetToCloudinary = async (
   text: string,
   fileName: string,
-): Promise<string> => {
+): Promise<CloudinaryTextAsset> => {
   try {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 
@@ -51,7 +57,11 @@ export const uploadTextToCloudinary = async (
     }
 
     const result = (await response.json()) as any;
-    return result.secure_url;
+    return {
+      secureUrl: result.secure_url,
+      publicId: result.public_id,
+      resourceType: result.resource_type === "raw" ? "raw" : "image",
+    };
   } catch (error) {
     console.error("Cloudinary upload error:", error);
     throw new Error(
@@ -61,3 +71,9 @@ export const uploadTextToCloudinary = async (
     );
   }
 };
+
+export const uploadTextToCloudinary = async (
+  text: string,
+  fileName: string,
+): Promise<string> =>
+  (await uploadTextAssetToCloudinary(text, fileName)).secureUrl;

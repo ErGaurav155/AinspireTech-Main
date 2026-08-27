@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
+import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
 import WhatsAppWorkspace, {
   IWhatsAppWorkspace,
   WhatsAppPlanId,
@@ -316,6 +317,31 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         knowledgeBaseFileName: "",
       } as any;
     }
+    if (!workspace.businessInfo?.knowledgeBaseUrl) {
+      const sharedKnowledge = await SharedBusinessKnowledge.findOne({ clerkId })
+        .select(
+          "websiteUrl businessInfo fileName fileType fileSize knowledgeBaseUrl knowledgeBaseFileName knowledgeUpdatedAt",
+        )
+        .lean();
+      if (sharedKnowledge?.knowledgeBaseUrl) {
+        workspace.organization.website = sharedKnowledge.websiteUrl || "";
+        workspace.businessInfo = {
+          ...workspace.businessInfo,
+          websiteUrl: sharedKnowledge.websiteUrl || "",
+          summary: sharedKnowledge.businessInfo || "",
+          fileName: sharedKnowledge.fileName || "",
+          fileType: sharedKnowledge.fileType || "",
+          fileSize: Number(sharedKnowledge.fileSize || 0),
+          fileText: "",
+          websiteKnowledgeUrl: "",
+          fileKnowledgeUrl: "",
+          knowledgeBaseUrl: sharedKnowledge.knowledgeBaseUrl,
+          knowledgeBaseFileName: sharedKnowledge.knowledgeBaseFileName || "",
+          knowledgeUpdatedAt: sharedKnowledge.knowledgeUpdatedAt,
+        } as any;
+        await workspace.save();
+      }
+    }
     if (!workspace.automationConfig) {
       workspace.automationConfig = createDefaultAutomationConfig() as any;
     }
@@ -371,6 +397,11 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     return workspace;
   }
 
+  const sharedKnowledge = await SharedBusinessKnowledge.findOne({ clerkId })
+    .select(
+      "websiteUrl businessInfo fileName fileType fileSize knowledgeBaseUrl knowledgeBaseFileName knowledgeUpdatedAt",
+    )
+    .lean();
   workspace = await WhatsAppWorkspace.create({
     clerkId,
     isConfigured: false,
@@ -381,7 +412,7 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     organization: {
       name: "My Business",
       industry: "Services",
-      website: "",
+      website: sharedKnowledge?.websiteUrl || "",
       timeZone: "Asia/Kolkata",
     },
     meta: {
@@ -488,16 +519,17 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       whatsappEnabled: true,
     },
     businessInfo: {
-      websiteUrl: "",
-      summary: "",
-      fileName: "",
-      fileType: "",
-      fileSize: 0,
+      websiteUrl: sharedKnowledge?.websiteUrl || "",
+      summary: sharedKnowledge?.businessInfo || "",
+      fileName: sharedKnowledge?.fileName || "",
+      fileType: sharedKnowledge?.fileType || "",
+      fileSize: Number(sharedKnowledge?.fileSize || 0),
       fileText: "",
       websiteKnowledgeUrl: "",
       fileKnowledgeUrl: "",
-      knowledgeBaseUrl: "",
-      knowledgeBaseFileName: "",
+      knowledgeBaseUrl: sharedKnowledge?.knowledgeBaseUrl || "",
+      knowledgeBaseFileName: sharedKnowledge?.knowledgeBaseFileName || "",
+      knowledgeUpdatedAt: sharedKnowledge?.knowledgeUpdatedAt,
     },
     greetingTemplate: {
       name: "rocket_whatsapp_greeting",
@@ -904,11 +936,18 @@ const formatBusinessKnowledge = (rawKnowledge: string) => {
 
 async function buildBusinessKnowledgeContext(workspace: IWhatsAppWorkspace) {
   const businessInfo = workspace.businessInfo;
+  const sharedKnowledge = await SharedBusinessKnowledge.findOne({
+    clerkId: workspace.clerkId,
+  })
+    .select("knowledgeBaseUrl websiteUrl businessInfo")
+    .lean();
   const cloudinaryKnowledge = await downloadBusinessKnowledge(
-    businessInfo?.knowledgeBaseUrl ||
+    sharedKnowledge?.knowledgeBaseUrl ||
+      businessInfo?.knowledgeBaseUrl ||
       businessInfo?.websiteKnowledgeUrl ||
       businessInfo?.fileKnowledgeUrl,
   );
+  const hasCanonicalKnowledge = Boolean(cloudinaryKnowledge.trim());
   return [
     `Business name: ${workspace.organization?.name || "Business"}`,
     workspace.organization?.industry
@@ -943,10 +982,14 @@ async function buildBusinessKnowledgeContext(workspace: IWhatsAppWorkspace) {
     workspace.notificationSettings?.whatsappNumber
       ? `Owner contact number: ${workspace.notificationSettings.whatsappNumber}`
       : "",
-    businessInfo?.summary,
+    hasCanonicalKnowledge
+      ? ""
+      : sharedKnowledge?.businessInfo || businessInfo?.summary,
     formatBusinessKnowledge(cloudinaryKnowledge),
-    businessInfo?.fileText,
-    businessInfo?.websiteUrl ? `Website: ${businessInfo.websiteUrl}` : "",
+    hasCanonicalKnowledge ? "" : businessInfo?.fileText,
+    sharedKnowledge?.websiteUrl || businessInfo?.websiteUrl
+      ? `Website: ${sharedKnowledge?.websiteUrl || businessInfo?.websiteUrl}`
+      : "",
   ]
     .filter(Boolean)
     .join("\n")
@@ -1029,7 +1072,6 @@ const generateWorkspaceAiDecision = async ({
     console.info("[whatsapp:ai] Generating response", {
       workspaceId: String(workspace._id),
       firstMessage,
-      input: body.slice(0, 500),
       inputCharacters: body.length,
       historyMessages: conversationHistory.length,
       knowledgeCharacters: knowledge.length,
@@ -1039,6 +1081,7 @@ const generateWorkspaceAiDecision = async ({
         workspace.businessInfo?.fileKnowledgeUrl,
       ),
       deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+      openAiFallbackConfigured: Boolean(process.env.OPENAI_API_KEY),
     });
     const decision = await generateWhatsAppAiResponse({
       userInput: body,
@@ -1052,13 +1095,13 @@ const generateWorkspaceAiDecision = async ({
       intent: decision.intent,
       sentiment: decision.sentiment,
       replyCharacters: decision.reply.length,
-      reply: decision.reply,
     });
     return decision;
   } catch (error) {
     console.error("[whatsapp:ai] Response generation failed", {
       workspaceId: String(workspace._id),
       deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
+      openAiFallbackConfigured: Boolean(process.env.OPENAI_API_KEY),
       knowledgeCharacters: knowledge.length,
       error: error instanceof Error ? error.message : String(error),
     });
