@@ -60,7 +60,7 @@ const TYPE_CONFIG: Record<
     label: "Lead Generation",
     gradient: "from-purple-500 to-pink-500",
     defaultColor: "#8B5CF6",
-    buildPath: "/web/chatbot-lead-generation/build",
+    buildPath: "/web/chatbot-lead-generation/create",
   },
 };
 

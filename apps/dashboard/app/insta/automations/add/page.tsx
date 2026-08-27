@@ -45,9 +45,10 @@ const automationTypes = [
     id: "dms",
     icon: MessageSquare,
     title: "Respond to all DMs",
-    description: "Auto-respond to every incoming DM.",
+    description:
+      "Choose keyword-triggered flows or AI replies for messages that do not match a trigger.",
     comingSoon: false,
-    href: "/insta/automations/add/dms",
+    href: "/insta/automations/add/dm-options",
     gradient: "from-pink-500 to-rose-500",
   },
   {
