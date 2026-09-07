@@ -196,36 +196,31 @@ export const maskSecret = (value?: string) => {
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
 };
 
-type WhatsAppAccessTokenCandidate = {
+type WhatsAppAccessToken = {
   accessToken: string;
   source: "system_user_env" | "workspace_token";
 };
 
-const getWhatsAppAccessTokenCandidates = (
+const getWhatsAppAccessToken = (
   workspace: IWhatsAppWorkspace,
-): WhatsAppAccessTokenCandidate[] => {
-  const candidates: WhatsAppAccessTokenCandidate[] = [];
+): WhatsAppAccessToken | null => {
   const systemUserToken = process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim();
   const workspaceToken = workspace.meta?.accessToken?.trim();
 
-  if (workspaceToken) {
-    candidates.push({
-      accessToken: workspaceToken,
-      source: "workspace_token",
-    });
-  }
-  if (systemUserToken && systemUserToken !== workspaceToken) {
-    candidates.push({
+  if (systemUserToken) {
+    return {
       accessToken: systemUserToken,
       source: "system_user_env",
-    });
+    };
   }
 
-  return candidates;
+  return workspaceToken
+    ? { accessToken: workspaceToken, source: "workspace_token" }
+    : null;
 };
 
 const getWhatsAppSendTokenSource = (workspace: IWhatsAppWorkspace) =>
-  getWhatsAppAccessTokenCandidates(workspace)[0]?.source || "missing";
+  getWhatsAppAccessToken(workspace)?.source || "missing";
 
 export const sanitizeWorkspace = (workspace: IWhatsAppWorkspace) => {
   const data = workspace.toObject ? workspace.toObject() : workspace;
@@ -596,11 +591,6 @@ const buildWhatsAppSendError = (result: any, fallback: string) => {
     .join(" | ");
 };
 
-const isRetryableWhatsAppTokenError = (result: any) => {
-  const code = Number(result?.error?.code);
-  return code === 190 || code === 200;
-};
-
 const whatsappGraphMessagesRequest = async ({
   workspace,
   payload,
@@ -614,60 +604,31 @@ const whatsappGraphMessagesRequest = async ({
     throw new Error("WhatsApp phone number ID is not configured");
   }
 
-  const tokenCandidates = getWhatsAppAccessTokenCandidates(workspace);
-  if (!tokenCandidates.length) {
+  const token = getWhatsAppAccessToken(workspace);
+  if (!token) {
     throw new Error("WhatsApp access token is not configured");
   }
 
   const version =
     workspace.meta.graphApiVersion || defaultWhatsAppGraphApiVersion;
-  let lastResult: any;
-  let lastSource = tokenCandidates[0].source;
-
-  for (let index = 0; index < tokenCandidates.length; index += 1) {
-    const candidate = tokenCandidates[index];
-    lastSource = candidate.source;
-    const response = await fetch(
-      `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${candidate.accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+  const response = await fetch(
+    `https://graph.facebook.com/${version}/${workspace.meta.phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token.accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
-    const result = await response.json();
-    if (response.ok) {
-      if (index > 0) {
-        console.warn(
-          "[whatsapp:send] Primary token rejected; fallback succeeded",
-          {
-            workspaceId: String(workspace._id),
-            phoneNumberId: workspace.meta.phoneNumberId,
-            tokenSource: candidate.source,
-          },
-        );
-      }
-      return result;
-    }
-
-    lastResult = result;
-    const hasFallback = index < tokenCandidates.length - 1;
-    if (!hasFallback || !isRetryableWhatsAppTokenError(result)) break;
-
-    console.warn("[whatsapp:send] Token rejected; trying fallback token", {
-      workspaceId: String(workspace._id),
-      phoneNumberId: workspace.meta.phoneNumberId,
-      tokenSource: candidate.source,
-      code: result?.error?.code,
-      subcode: result?.error?.error_subcode,
-    });
+      body: JSON.stringify(payload),
+    },
+  );
+  const result = await response.json();
+  if (response.ok) {
+    return result;
   }
 
   throw new Error(
-    `${buildWhatsAppSendError(lastResult, fallbackError)} | token_source=${lastSource}`,
+    `${buildWhatsAppSendError(result, fallbackError)} | token_source=${token.source}`,
   );
 };
 
