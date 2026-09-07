@@ -13,7 +13,7 @@ import {
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useApi } from "@/lib/useApi";
 
-interface SharedKnowledgeData {
+export interface SharedKnowledgeData {
   websiteUrl: string;
   businessInfo: string;
   fileName: string;
@@ -44,9 +44,13 @@ const getErrorMessage = (error: unknown) => {
 
 export default function SharedBusinessKnowledgeForm({
   className = "",
+  embedded = false,
+  onLoaded,
   onSaved,
 }: {
   className?: string;
+  embedded?: boolean;
+  onLoaded?: (data: SharedKnowledgeData) => void;
   onSaved?: (data: SharedKnowledgeData) => void;
 }) {
   const { apiRequest } = useApi();
@@ -77,7 +81,10 @@ export default function SharedBusinessKnowledgeForm({
     let active = true;
     apiRequest<SharedKnowledgeData>("/user/business-knowledge")
       .then((data) => {
-        if (active) applyData(data);
+        if (active) {
+          applyData(data);
+          onLoaded?.({ ...emptyKnowledge, ...data });
+        }
       })
       .catch((loadError) => {
         if (active) setError(getErrorMessage(loadError));
@@ -88,7 +95,7 @@ export default function SharedBusinessKnowledgeForm({
     return () => {
       active = false;
     };
-    // applyData intentionally reads only stable state setters.
+    // Load once for this mounted editor. Save callbacks handle later changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiRequest]);
 
@@ -154,7 +161,11 @@ export default function SharedBusinessKnowledgeForm({
   if (isLoading) {
     return (
       <section
-        className={`flex min-h-48 items-center justify-center rounded-xl border border-gray-200 bg-white dark:border-white/[0.08] dark:bg-white/[0.03] ${className}`}
+        className={`flex min-h-48 items-center justify-center ${
+          embedded
+            ? ""
+            : "rounded-xl border border-gray-200 bg-white dark:border-white/[0.08] dark:bg-white/[0.03]"
+        } ${className}`}
       >
         <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
         <span className="ml-2 text-sm text-gray-500 dark:text-white/55">
@@ -173,7 +184,11 @@ export default function SharedBusinessKnowledgeForm({
 
   return (
     <section
-      className={`min-w-0 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.03] sm:p-5 ${className}`}
+      className={`min-w-0 ${
+        embedded
+          ? ""
+          : "rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/[0.08] dark:bg-white/[0.03] sm:p-5"
+      } ${className}`}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>

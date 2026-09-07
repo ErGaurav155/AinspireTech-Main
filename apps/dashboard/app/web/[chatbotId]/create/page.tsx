@@ -6,7 +6,6 @@ import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import {
   Bot,
-  Globe,
   Sparkles,
   Loader2,
   X,
@@ -18,16 +17,17 @@ import {
 import { useApi } from "@/lib/useApi";
 import {
   createWebChatbot,
-  scrapeWebsite,
-  processScrapedData,
   getChatbots,
   deleteChatbot,
 } from "@/lib/services/web-actions.api";
 import { Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import SharedBusinessKnowledgeForm, {
+  type SharedKnowledgeData,
+} from "@/components/shared/SharedBusinessKnowledgeForm";
 
 type ChatbotTypeId = "chatbot-lead-generation";
-type BuildStep = "details" | "scraping" | "creating";
+type BuildStep = "details" | "creating";
 
 interface ExistingChatbot {
   id: string;
@@ -51,7 +51,7 @@ const CONFIG: Record<
 > = {
   "chatbot-lead-generation": {
     label: "Lead Generation Chatbot",
-    desc: "Train your chatbot with your website content to capture qualified leads",
+    desc: "Use your shared business knowledge to capture qualified leads",
     gradient: "from-purple-500 to-pink-500",
     buttonText: "Build Chatbot",
     overviewPath: "/web/chatbot-lead-generation",
@@ -77,7 +77,7 @@ export default function BuildChatbotPage() {
     useState<ExistingChatbot | null>(null);
   const [step, setStep] = useState<BuildStep>("details");
   const [chatbotName, setChatbotName] = useState("");
-  const [websiteUrl, setWebsiteUrl] = useState("");
+  const [knowledge, setKnowledge] = useState<SharedKnowledgeData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -114,26 +114,17 @@ export default function BuildChatbotPage() {
     check();
   }, [userId, chatbotType, apiRequest]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     if (!chatbotType || isLoading) return;
 
     if (!chatbotName.trim()) {
       setError("Please enter a chatbot name");
       return;
     }
-    if (!websiteUrl.trim()) {
-      setError("Please enter a website URL");
-      return;
-    }
-    if (!/^https?:\/\//i.test(websiteUrl.trim())) {
-      setError("URL must start with http:// or https://");
-      return;
-    }
-    try {
-      new URL(websiteUrl.trim());
-    } catch {
-      setError("Invalid URL format");
+    if (!knowledge?.hasKnowledge) {
+      setError(
+        "Save a website, business information, or a business file before building the chatbot.",
+      );
       return;
     }
 
@@ -145,30 +136,9 @@ export default function BuildChatbotPage() {
       const chatbotData = await createWebChatbot(apiRequest, {
         name: chatbotName.trim(),
         type: chatbotType,
-        websiteUrl: websiteUrl.trim(),
+        websiteUrl: knowledge.websiteUrl || undefined,
       });
-      const newId = chatbotData.chatbot?.id;
-
-      if (newId) {
-        setStep("scraping");
-        const scrapeResult = await scrapeWebsite(
-          apiRequest,
-          websiteUrl.trim(),
-          newId,
-        );
-        if (!scrapeResult.alreadyScrapped) {
-          if (scrapeResult.success) {
-            const processResult = await processScrapedData(apiRequest, {
-              ...scrapeResult.data,
-              chatbotId: newId,
-            });
-            if (!processResult.success)
-              throw new Error("Data processing failed");
-          } else {
-            throw new Error("Scraping failed");
-          }
-        }
-      }
+      if (!chatbotData.chatbot?.id) throw new Error("Chatbot creation failed");
 
       toast({
         title: "Chatbot created!",
@@ -388,7 +358,7 @@ export default function BuildChatbotPage() {
           </div>
 
           {step === "details" ? (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="space-y-6">
               <div>
                 <label
                   className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
@@ -405,37 +375,12 @@ export default function BuildChatbotPage() {
                 />
               </div>
 
-              <div>
-                <label
-                  className={`block text-sm font-medium ${styles.text.secondary} mb-2`}
-                >
-                  Website URL
-                </label>
-                <div
-                  className={`flex items-center gap-2 px-4 py-3 ${
-                    isDark
-                      ? "bg-white/[0.05] border border-white/[0.09]"
-                      : "bg-white border border-gray-200"
-                  } rounded-xl focus-within:ring-2 focus-within:ring-purple-500/50`}
-                >
-                  <Globe
-                    className={`h-5 w-5 flex-shrink-0 ${
-                      isDark ? "text-white/40" : "text-gray-400"
-                    }`}
-                  />
-                  <input
-                    type="url"
-                    value={websiteUrl}
-                    onChange={(e) => setWebsiteUrl(e.target.value)}
-                    placeholder="https://yourwebsite.com"
-                    className={`flex-1 text-sm ${
-                      isDark
-                        ? "text-white placeholder-white/25 bg-transparent"
-                        : "text-gray-700 placeholder-gray-400 bg-transparent"
-                    } focus:outline-none`}
-                    required
-                  />
-                </div>
+              <div className="border-t border-gray-200 pt-5 dark:border-white/[0.08]">
+                <SharedBusinessKnowledgeForm
+                  embedded
+                  onLoaded={setKnowledge}
+                  onSaved={setKnowledge}
+                />
               </div>
 
               {error && (
@@ -489,7 +434,7 @@ export default function BuildChatbotPage() {
                         }`}
                       >
                         <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
-                        We will scrape your website to train the chatbot
+                        Website, text, and file knowledge train the same chatbot
                       </li>
                       <li
                         className={`text-xs flex items-center gap-2 ${
@@ -497,7 +442,7 @@ export default function BuildChatbotPage() {
                         }`}
                       >
                         <span className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0" />
-                        This may take 1–2 minutes
+                        Saved knowledge is also used by Instagram and WhatsApp
                       </li>
                       <li
                         className={`text-xs flex items-center gap-2 ${
@@ -521,7 +466,8 @@ export default function BuildChatbotPage() {
               </div>
 
               <button
-                type="submit"
+                type="button"
+                onClick={() => void handleSubmit()}
                 disabled={isLoading}
                 className={`w-full py-3 bg-gradient-to-r ${cfg.gradient} text-white font-medium rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -534,7 +480,7 @@ export default function BuildChatbotPage() {
                   cfg.buttonText
                 )}
               </button>
-            </form>
+            </div>
           ) : (
             <div className="text-center py-8">
               <Loader2
@@ -545,12 +491,10 @@ export default function BuildChatbotPage() {
               <h3
                 className={`text-lg font-semibold ${styles.text.primary} mb-2`}
               >
-                {step === "scraping" ? "Scraping Website…" : "Creating Chatbot…"}
+                Creating Chatbot…
               </h3>
               <p className={`text-sm ${styles.text.secondary} mb-6`}>
-                {step === "scraping"
-                  ? "Please wait while we analyse your website. This may take 1–2 minutes."
-                  : "Setting up your chatbot with the scraped data."}
+                Setting up your chatbot with the shared business knowledge.
               </p>
               <div
                 className={`flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}
