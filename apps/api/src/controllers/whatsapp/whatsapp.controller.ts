@@ -1348,16 +1348,6 @@ export const connectWhatsAppFacebookController = async (
       });
     }
 
-    try {
-      await verifySenderAccess(phoneNumberId, accessToken);
-    } catch (error) {
-      return res.status(403).json({
-        success: false,
-        error: `The Embedded Signup credential cannot access the selected WhatsApp sender: ${error instanceof Error ? error.message : String(error)}`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const conflictingWorkspace = await WhatsAppWorkspace.findOne({
       clerkId: { $ne: userId },
       "meta.phoneNumberId": phoneNumberId,
@@ -1369,34 +1359,6 @@ export const connectWhatsAppFacebookController = async (
         success: false,
         error:
           "This WhatsApp phone number is already connected to another RocketReplai workspace. Delete that connection before using the number here.",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    let providerCredential: Awaited<
-      ReturnType<typeof assignProviderSystemUserToWaba>
-    >;
-    try {
-      providerCredential = await assignProviderSystemUserToWaba({
-        wabaId,
-        phoneNumberId,
-      });
-    } catch (error) {
-      return res.status(502).json({
-        success: false,
-        error: `WhatsApp was selected, but RocketReplai could not assign its System User to the WABA: ${error instanceof Error ? error.message : String(error)}`,
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const subscription = await subscribeAppToWaba(
-      wabaId,
-      providerCredential.accessToken,
-    );
-    if (!subscription.subscribed) {
-      return res.status(502).json({
-        success: false,
-        error: `Meta login succeeded, but webhook subscription failed: ${subscription.error}. Approve whatsapp_business_management and reconnect the account.`,
         timestamp: new Date().toISOString(),
       });
     }
@@ -1418,6 +1380,109 @@ export const connectWhatsAppFacebookController = async (
         "",
       timeZone: workspace.organization?.timeZone || "Asia/Kolkata",
     };
+
+    workspace.onboarding = {
+      ...workspace.onboarding,
+      status: "facebook_connected",
+      mode: "embedded_signup",
+      facebookUserId: facebookProfile?.id || facebookUserId,
+      facebookName: facebookProfile?.name || "",
+      businessId,
+      phoneSource:
+        setup?.phoneSource === "meta_free_number"
+          ? "meta_free_number"
+          : "official_number",
+      requestedPhoneNumber,
+      businessDisplayName:
+        cleanString(setup?.businessDisplayName) || workspace.organization.name,
+      businessWebsite:
+        cleanString(setup?.businessWebsite) || workspace.organization.website,
+      businessCategory:
+        cleanString(setup?.businessCategory) || workspace.organization.industry,
+      lastError: "",
+    } as any;
+
+    workspace.meta = {
+      ...workspace.meta,
+      businessManagerId: businessId || "",
+      wabaId,
+      phoneNumberId,
+      displayPhoneNumber: displayPhoneNumber || requestedPhoneNumber || "",
+      appId: metaAppId,
+      graphApiVersion: metaGraphApiVersion,
+      accessToken: "",
+      credentialSource: "provider_system_user",
+      accessTokenStatus: "unknown",
+      accessTokenType: "",
+      accessTokenScopes: [],
+      qualityRating: (resolvedConnection.qualityRating as any) || "unknown",
+      status: "needs_setup",
+    } as any;
+    workspace.isConfigured = false;
+    await workspace.save();
+
+    console.info("[whatsapp:connect] Workspace connection attempt saved", {
+      workspaceId: String(workspace._id),
+      businessId: workspace.meta.businessManagerId || null,
+      wabaId: workspace.meta.wabaId,
+      phoneNumberId: workspace.meta.phoneNumberId,
+    });
+
+    let providerCredential: Awaited<
+      ReturnType<typeof assignProviderSystemUserToWaba>
+    >;
+    try {
+      providerCredential = await assignProviderSystemUserToWaba({
+        wabaId,
+        phoneNumberId,
+      });
+    } catch (error) {
+      workspace.onboarding = {
+        ...workspace.onboarding,
+        status: "error",
+        lastError: `System User assignment failed: ${error instanceof Error ? error.message : String(error)}`,
+      } as any;
+      workspace.meta = {
+        ...workspace.meta,
+        status: "error",
+        accessTokenStatus: "invalid",
+      } as any;
+      workspace.isConfigured = false;
+      await workspace.save();
+      return res.status(502).json({
+        success: false,
+        error: `WhatsApp was selected, but RocketReplai could not assign its System User to the WABA: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const subscription = await subscribeAppToWaba(
+      wabaId,
+      providerCredential.accessToken,
+    );
+    if (!subscription.subscribed) {
+      workspace.onboarding = {
+        ...workspace.onboarding,
+        status: "error",
+        lastError: `Webhook subscription failed: ${subscription.error}`,
+      } as any;
+      workspace.meta = {
+        ...workspace.meta,
+        status: "error",
+        accessTokenStatus: "valid",
+        accessTokenType:
+          cleanString(providerCredential.debugData?.data?.type) ||
+          "SYSTEM_USER",
+        accessTokenScopes: providerCredential.grantedScopes,
+      } as any;
+      workspace.isConfigured = false;
+      await workspace.save();
+      return res.status(502).json({
+        success: false,
+        error: `Meta login succeeded, but webhook subscription failed: ${subscription.error}. Approve whatsapp_business_management and reconnect the account.`,
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     if (setup?.notificationSettings) {
       const currentSettings = workspace.notificationSettings || {};
@@ -1443,37 +1508,13 @@ export const connectWhatsAppFacebookController = async (
 
     workspace.onboarding = {
       ...workspace.onboarding,
-      status: connected ? "connected" : "facebook_connected",
-      mode: "embedded_signup",
-      facebookUserId: facebookProfile?.id || facebookUserId,
-      facebookName: facebookProfile?.name || "",
-      businessId,
-      phoneSource:
-        setup?.phoneSource === "meta_free_number"
-          ? "meta_free_number"
-          : "official_number",
-      requestedPhoneNumber,
-      businessDisplayName:
-        cleanString(setup?.businessDisplayName) || workspace.organization.name,
-      businessWebsite:
-        cleanString(setup?.businessWebsite) || workspace.organization.website,
-      businessCategory:
-        cleanString(setup?.businessCategory) || workspace.organization.industry,
+      status: "connected",
       lastError: "",
-      connectedAt: connected ? new Date() : workspace.onboarding?.connectedAt,
+      connectedAt: new Date(),
     } as any;
 
     workspace.meta = {
       ...workspace.meta,
-      businessManagerId: businessId || "",
-      wabaId,
-      phoneNumberId,
-      displayPhoneNumber:
-        displayPhoneNumber || requestedPhoneNumber || "",
-      appId: metaAppId,
-      graphApiVersion: metaGraphApiVersion,
-      accessToken: "",
-      credentialSource: "provider_system_user",
       providerSystemUserId: providerCredential.systemUserId,
       providerSystemUserAssignedAt: new Date(),
       accessTokenStatus: "valid",
