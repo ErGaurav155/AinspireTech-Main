@@ -3,7 +3,6 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 export interface ISharedBusinessKnowledge extends Document {
   clerkId: string;
   websiteUrl: string;
-  businessInfo: string;
   fileName: string;
   fileType: string;
   fileSize: number;
@@ -20,8 +19,7 @@ const SharedBusinessKnowledgeSchema =
   new Schema<ISharedBusinessKnowledge>(
     {
       clerkId: { type: String, required: true, unique: true, index: true },
-      websiteUrl: { type: String, default: "", trim: true },
-      businessInfo: { type: String, default: "", maxlength: 12000 },
+      websiteUrl: { type: String, default: "", trim: true, maxlength: 2048 },
       fileName: { type: String, default: "", maxlength: 240 },
       fileType: { type: String, default: "", maxlength: 120 },
       fileSize: { type: Number, default: 0, min: 0 },

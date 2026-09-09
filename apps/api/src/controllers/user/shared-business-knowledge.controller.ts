@@ -74,7 +74,7 @@ export const getSharedBusinessKnowledgeController = async (
     const knowledge = await getSharedBusinessKnowledge(userId);
     return res.status(200).json({
       success: true,
-      data: toPublicSharedKnowledge(knowledge),
+      data: await toPublicSharedKnowledge(knowledge),
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -111,7 +111,7 @@ export const updateSharedBusinessKnowledgeController = async (
     });
     return res.status(200).json({
       success: true,
-      data: toPublicSharedKnowledge(knowledge),
+      data: await toPublicSharedKnowledge(knowledge),
       message: knowledge
         ? "Business knowledge updated for WhatsApp, web, and Instagram."
         : "Business knowledge cleared.",
@@ -140,7 +140,7 @@ export const deleteSharedBusinessKnowledgeController = async (
     await deleteSharedBusinessKnowledge(userId);
     return res.status(200).json({
       success: true,
-      data: toPublicSharedKnowledge(null),
+      data: await toPublicSharedKnowledge(null),
       message: "All shared business knowledge was deleted.",
       timestamp: new Date().toISOString(),
     });

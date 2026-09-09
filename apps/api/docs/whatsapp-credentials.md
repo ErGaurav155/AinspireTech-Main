@@ -45,3 +45,27 @@ Normal automation sends happen in direct response to an inbound customer
 message. Scheduled follow-ups stop at 23 hours after the customer's last
 message so they do not cross the 24-hour customer-service window. Outside that
 window, only an appropriately approved template may be sent.
+
+## Shared business knowledge
+
+Business knowledge is owned by `SharedBusinessKnowledge`, keyed by Clerk user
+ID. It is not stored in `WhatsAppWorkspace`.
+
+When the owner saves a website, typed business information, or a supported
+plain-text file, the API:
+
+1. Discovers and scrapes up to 10 same-domain pages through link level 3 when
+   the website has enough accessible pages.
+2. Cleans and AI-normalizes each changed source independently.
+3. Merges every available normalized source and removes semantic duplicates.
+4. Uploads one compact plain-text artifact to Cloudinary.
+5. Stores only short source metadata and the Cloudinary asset reference in
+   `SharedBusinessKnowledge`; long business text is never stored in MongoDB.
+
+WhatsApp, Instagram AI DMs, and the website chatbot load that same artifact for
+customer replies. The plain-text Cloudinary artifact includes the compact
+runtime knowledge and an internal normalized-source archive, so replacing or
+deleting one source does not destroy the other sources. Every compaction request
+reserves prompt space and limits supplied source text so its estimated input
+stays below 5,000 tokens. Existing `WhatsAppWorkspace.businessInfo` and legacy
+long shared-model fields are removed automatically when knowledge is loaded.

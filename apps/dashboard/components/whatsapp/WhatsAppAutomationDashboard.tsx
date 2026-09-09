@@ -90,7 +90,15 @@ type WhatsAppDashboardData = {
   appointmentConfig: any;
   automationConfig: any;
   faqs: any[];
-  businessInfo: any;
+  businessInfo: {
+    websiteUrl: string;
+    businessInfo: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    hasKnowledge: boolean;
+    knowledgeUpdatedAt?: string | null;
+  };
   appointmentFlow?: any;
   greetingTemplate?: any;
 };
@@ -171,7 +179,14 @@ export default function WhatsAppAutomationDashboard({
       automationConfig:
         data.automationConfig || data.workspace?.automationConfig || {},
       faqs: data.faqs || data.workspace?.faqs || [],
-      businessInfo: data.businessInfo || data.workspace?.businessInfo || {},
+      businessInfo: data.businessInfo || {
+        websiteUrl: "",
+        businessInfo: "",
+        fileName: "",
+        fileType: "",
+        fileSize: 0,
+        hasKnowledge: false,
+      },
     };
   }, [data]);
 
@@ -266,17 +281,6 @@ export default function WhatsAppAutomationDashboard({
             {view === "business-info" && (
               <BusinessInfo
                 cardClass={cardClass}
-                softCardClass={softCardClass}
-                data={mergedData}
-                onSave={async (businessInfo) => {
-                  await updateWhatsAppWorkspace(apiRequest, { businessInfo });
-                  toast({
-                    title: "Business info saved",
-                    description:
-                      "WhatsApp replies will use the saved business details.",
-                  });
-                  await loadDashboard();
-                }}
               />
             )}
             {view === "pricing" && (
@@ -293,6 +297,7 @@ export default function WhatsAppAutomationDashboard({
               <SettingsView
                 cardClass={cardClass}
                 workspace={mergedData.workspace}
+                businessInfo={mergedData.businessInfo}
                 onConnected={loadDashboard}
                 onSave={async (payload) => {
                   await updateWhatsAppWorkspace(apiRequest, payload);
@@ -435,10 +440,8 @@ function Overview({
     {
       label: "Business info",
       value:
-        data.businessInfo?.knowledgeBaseUrl || data.businessInfo?.summary
-          ? "Ready"
-          : "Missing",
-      change: data.businessInfo?.knowledgeBaseUrl
+        data.businessInfo?.hasKnowledge ? "Ready" : "Missing",
+      change: data.businessInfo?.hasKnowledge
         ? "Knowledge ready"
         : data.businessInfo?.websiteUrl
           ? "Website saved"
@@ -554,7 +557,7 @@ function Overview({
               Knowledge status
             </p>
             <p className="mt-2 text-sm font-semibold">
-              {data.businessInfo?.knowledgeBaseUrl || data.businessInfo?.summary
+              {data.businessInfo?.hasKnowledge
                 ? "Business knowledge is ready for WhatsApp replies"
                 : "No business info saved yet"}
             </p>
@@ -1427,9 +1430,6 @@ function BusinessInfo({
   cardClass,
 }: {
   cardClass: string;
-  softCardClass: string;
-  data: WhatsAppDashboardData;
-  onSave: (businessInfo: Record<string, any>) => Promise<void>;
 }) {
   return (
     <SharedBusinessKnowledgeForm
@@ -1898,11 +1898,13 @@ function WhatsAppCheckoutButton({
 function SettingsView({
   cardClass,
   workspace,
+  businessInfo,
   onConnected,
   onSave,
 }: {
   cardClass: string;
   workspace: any;
+  businessInfo: WhatsAppDashboardData["businessInfo"];
   onConnected: () => Promise<void>;
   onSave: (payload: Record<string, any>) => Promise<void>;
 }) {
@@ -1932,12 +1934,10 @@ function SettingsView({
       workspace?.meta?.status === "connected",
   );
   const hasBusinessInfo = Boolean(
-    workspace?.businessInfo?.websiteUrl?.trim() ||
-      workspace?.businessInfo?.summary?.trim() ||
-      workspace?.businessInfo?.fileName?.trim() ||
-      workspace?.businessInfo?.knowledgeBaseUrl?.trim() ||
-      workspace?.businessInfo?.websiteKnowledgeUrl?.trim() ||
-      workspace?.businessInfo?.fileKnowledgeUrl?.trim(),
+    businessInfo?.hasKnowledge ||
+      businessInfo?.websiteUrl?.trim() ||
+      businessInfo?.businessInfo?.trim() ||
+      businessInfo?.fileName?.trim(),
   );
 
   useEffect(() => {
@@ -2099,7 +2099,7 @@ function SettingsView({
               embeddedSignupData.displayPhoneNumber,
             organizationName: form.organizationName,
             businessWebsite:
-              workspace?.businessInfo?.websiteUrl ||
+              businessInfo?.websiteUrl ||
               workspace?.organization?.website ||
               "",
             notificationSettings: {
@@ -2182,7 +2182,14 @@ function SettingsView({
     };
 
     void completeHostedSignup();
-  }, [apiRequest, embeddedSignupData, form, onConnected]);
+  }, [
+    apiRequest,
+    businessInfo?.websiteUrl,
+    embeddedSignupData,
+    form,
+    onConnected,
+    workspace?.organization?.website,
+  ]);
 
   const buildDirectEmbeddedSignupUrl = useCallback(() => {
     if (
@@ -2229,7 +2236,7 @@ function SettingsView({
             name: form.organizationName,
             email: user?.primaryEmailAddress?.emailAddress || "",
             website:
-              workspace?.businessInfo?.websiteUrl ||
+              businessInfo?.websiteUrl ||
               workspace?.organization?.website ||
               undefined,
           },
@@ -2241,7 +2248,13 @@ function SettingsView({
     );
 
     return url.toString();
-  }, [facebookConfig, form, user?.primaryEmailAddress?.emailAddress, workspace]);
+  }, [
+    businessInfo?.websiteUrl,
+    facebookConfig,
+    form,
+    user?.primaryEmailAddress?.emailAddress,
+    workspace?.organization?.website,
+  ]);
 
   const getCurrentWhatsAppRedirectUri = () =>
     typeof window === "undefined"

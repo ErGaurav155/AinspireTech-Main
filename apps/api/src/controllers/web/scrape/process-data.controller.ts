@@ -1,7 +1,10 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
-import { uploadTextToCloudinary } from "@/services/transaction.service";
+import {
+  toPublicSharedKnowledge,
+  updateSharedBusinessKnowledge,
+} from "@/services/shared-business-knowledge.service";
 
 interface ScrapedPage {
   url: string;
@@ -96,34 +99,24 @@ export const processScrapedDataController = async (
       });
     }
 
-    const formattedData = formatScrapedData(scrapedPages);
-
-    // Upload to Cloudinary
-    const cloudinaryUrl = await uploadTextToCloudinary(formattedData, fileName);
-
-    // Update chatbot with scraped data
-    await WebChatbot.updateOne(
-      {
-        _id: chatbotId,
-        clerkId: userId,
-        type: "chatbot-lead-generation",
-      },
-      {
-        $set: {
-          scrappedFile: cloudinaryUrl,
-          isScrapped: true,
-          updatedAt: new Date(),
-        },
-      },
-    );
+    const websiteUrl =
+      typeof scrapedPages?.[0]?.url === "string"
+        ? scrapedPages[0].url
+        : chatbot.websiteUrl;
+    const knowledge = await updateSharedBusinessKnowledge(userId, {
+      websiteUrl,
+      websitePages: scrapedPages,
+    });
 
     return res.status(200).json({
       success: true,
       data: {
         success: true,
         domain,
-        cloudinaryLink: cloudinaryUrl,
-        message: "Data processed and chatbot updated successfully",
+        cloudinaryLink: knowledge?.knowledgeBaseUrl || "",
+        knowledge: await toPublicSharedKnowledge(knowledge),
+        message:
+          "Data processed into shared business knowledge for web, Instagram, and WhatsApp.",
       },
       timestamp: new Date().toISOString(),
     });

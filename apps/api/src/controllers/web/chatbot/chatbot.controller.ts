@@ -8,8 +8,11 @@ import { getAuth } from "@clerk/express";
 import webFaq from "@/models/web/webFaq.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
 import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
-import { uploadTextToCloudinary } from "@/services/transaction.service";
-import puppeteer from "puppeteer";
+import {
+  getSharedBusinessKnowledge,
+  toPublicSharedKnowledge,
+  updateSharedBusinessKnowledge,
+} from "@/services/shared-business-knowledge.service";
 import multer from "multer";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -74,17 +77,23 @@ export const uploadKnowledgeMiddleware = multer({
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       "text/plain",
-      "application/pdf",
       "text/markdown",
       "application/json",
       "text/csv",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/html",
+      "application/xml",
+      "text/xml",
+      "application/x-yaml",
+      "text/yaml",
     ];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error("Invalid file type. Allowed: .txt, .pdf, .md, .json, .csv"));
+      cb(
+        new Error(
+          "Use a plain-text file: TXT, MD, CSV, JSON, HTML, LOG, XML, YAML, or YML.",
+        ),
+      );
     }
   },
 }).single("file");
@@ -103,75 +112,15 @@ const buildEmbedCode = (userId: string, type: ChatbotTypeId): string => {
 >${userId},${type}</script>`;
 };
 
-// Helper: Scrape single page
-async function scrapeSinglePage(url: string): Promise<any> {
-  let browser = null;
-  try {
-    browser = await puppeteer.launch({
-      headless: true,
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--no-zygote",
-        "--single-process",
-      ],
-    });
-
-    const page = await browser.newPage();
-    await page.setUserAgent(
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/91.0.4472.124 Safari/537.36",
-    );
-    await page.goto(url, { waitUntil: "load", timeout: 30000 });
-
-    const scrapedData = await page.evaluate(() => {
-      const getDescription = (): string => {
-        const el =
-          document.querySelector('meta[name="description"]') ||
-          document.querySelector('meta[property="og:description"]') ||
-          document.querySelector('meta[name="twitter:description"]');
-        return el ? (el.getAttribute("content") ?? "") : "";
-      };
-
-      const getHeadings = (tag: string): string[] => {
-        return Array.from(document.querySelectorAll(tag))
-          .map((el) => (el.textContent ?? "").trim())
-          .filter((text) => text.length > 0);
-      };
-
-      const getContent = (): string => {
-        const el =
-          document.querySelector("main") ||
-          document.querySelector("article") ||
-          document.querySelector(".content") ||
-          document.querySelector("#content") ||
-          document.querySelector('[role="main"]') ||
-          document.body;
-        if (!el) return "";
-        let text = (el.textContent || "").replace(/\s+/g, " ").trim();
-        return text.length > 800 ? text.substring(0, 800) + "..." : text;
-      };
-
-      return {
-        url: window.location.href,
-        title: document.title ?? "",
-        description: getDescription(),
-        headings: {
-          h1: getHeadings("h1"),
-          h2: getHeadings("h2"),
-          h3: getHeadings("h3"),
-        },
-        content: getContent(),
-      };
-    });
-
-    await page.close();
-    return scrapedData;
-  } finally {
-    if (browser) await browser.close();
-  }
-}
+const findOwnedLeadChatbot = async (userId: string, chatbotId: string) => {
+  const lookup: any[] = [{ type: chatbotId }];
+  if (ObjectId.isValid(chatbotId)) lookup.push({ _id: chatbotId });
+  return WebChatbot.findOne({
+    clerkId: userId,
+    type: "chatbot-lead-generation",
+    $or: lookup,
+  });
+};
 
 // ─── POST /api/web/chatbot/create ─────────────────────────────────────────────
 
@@ -606,11 +555,7 @@ export const updateWebsiteKnowledgeController = async (
 
     await connectToDatabase();
 
-    const chatbot = await WebChatbot.findOne({
-      _id: chatbotId,
-      clerkId: userId,
-      type: "chatbot-lead-generation",
-    });
+    const chatbot = await findOwnedLeadChatbot(userId, chatbotId);
 
     if (!chatbot) {
       return res.status(404).json({
@@ -620,79 +565,19 @@ export const updateWebsiteKnowledgeController = async (
       });
     }
 
-    // Check if URL is the same and already scraped
-    const isSameUrl = chatbot.websiteUrl === url;
-    const isAlreadyScraped = chatbot.isScrapped && chatbot.scrappedFile;
-
-    if (isSameUrl && isAlreadyScraped) {
-      return res.status(200).json({
-        success: true,
-        data: {
-          alreadyScrapped: true,
-          message:
-            "Website already scraped with current URL. No changes needed.",
-          cloudinaryUrl: chatbot.scrappedFile,
-        },
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    // Update the website URL first
-    await WebChatbot.updateOne(
-      {
-        _id: chatbotId,
-        clerkId: userId,
-        type: "chatbot-lead-generation",
-      },
-      {
-        $set: {
-          websiteUrl: url,
-          updatedAt: new Date(),
-        },
-      },
-    );
-
-    // Scrape the website
-    const scrapedData = await scrapeSinglePage(url);
-
-    // Format data for storage
-    const formattedData = {
-      [url]: `Title: ${scrapedData.title}. Description: ${scrapedData.description}. Content: ${scrapedData.content.substring(0, 500)}`,
-    };
-
-    // Upload to Cloudinary
-    const fileName = `${chatbotId}_${Date.now()}_knowledge`;
-    const cloudinaryUrl = await uploadTextToCloudinary(
-      JSON.stringify(formattedData, null, 2),
-      fileName,
-    );
-
-    // Update chatbot with scraped data
-    await WebChatbot.updateOne(
-      {
-        _id: chatbotId,
-        clerkId: userId,
-        type: "chatbot-lead-generation",
-      },
-      {
-        $set: {
-          scrappedFile: cloudinaryUrl,
-          isScrapped: true,
-          updatedAt: new Date(),
-        },
-      },
-    );
+    const knowledge = await updateSharedBusinessKnowledge(userId, {
+      websiteUrl: url,
+    });
+    const publicKnowledge = await toPublicSharedKnowledge(knowledge);
 
     return res.status(200).json({
       success: true,
       data: {
         alreadyScrapped: false,
-        message: "Website scraped and knowledge base updated successfully",
-        cloudinaryUrl,
-        scrapedData: {
-          title: scrapedData.title,
-          description: scrapedData.description,
-        },
+        message:
+          "Shared business knowledge updated for web, Instagram, and WhatsApp.",
+        cloudinaryUrl: knowledge?.knowledgeBaseUrl || "",
+        knowledge: publicKnowledge,
       },
       timestamp: new Date().toISOString(),
     });
@@ -743,11 +628,7 @@ export const uploadKnowledgeFileController = async (
 
     await connectToDatabase();
 
-    const chatbot = await WebChatbot.findOne({
-      _id: chatbotId,
-      clerkId: userId,
-      type: "chatbot-lead-generation",
-    });
+    const chatbot = await findOwnedLeadChatbot(userId, chatbotId);
 
     if (!chatbot) {
       return res.status(404).json({
@@ -757,58 +638,21 @@ export const uploadKnowledgeFileController = async (
       });
     }
 
-    // Read file content
     const fileContent = req.file.buffer.toString("utf-8");
-    const fileName = `${chatbotId}_file_${Date.now()}_${req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-
-    // Get existing knowledge base if any
-    let existingData: any = {};
-    if (chatbot.scrappedFile) {
-      try {
-        const response = await fetch(chatbot.scrappedFile);
-        const text = await response.text();
-        existingData = JSON.parse(text);
-      } catch (error) {
-        console.error("Failed to fetch existing data:", error);
-      }
-    }
-
-    // Add new file data
-    existingData[fileName] = {
-      type: "file_upload",
-      name: req.file.originalname,
-      contentType: req.file.mimetype,
-      content: fileContent.substring(0, 3000),
-      uploadedAt: new Date().toISOString(),
-    };
-
-    // Upload merged data to Cloudinary
-    const mergedCloudinaryUrl = await uploadTextToCloudinary(
-      JSON.stringify(existingData, null, 2),
-      `${chatbotId}_knowledge_base`,
-    );
-
-    // Update chatbot
-    await WebChatbot.updateOne(
-      {
-        _id: chatbotId,
-        clerkId: userId,
-        type: "chatbot-lead-generation",
-      },
-      {
-        $set: {
-          scrappedFile: mergedCloudinaryUrl,
-          isScrapped: true,
-          updatedAt: new Date(),
-        },
-      },
-    );
+    const knowledge = await updateSharedBusinessKnowledge(userId, {
+      fileName: req.file.originalname,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+      fileText: fileContent,
+    });
 
     return res.status(200).json({
       success: true,
       data: {
-        message: "File uploaded and knowledge base updated",
+        message:
+          "File knowledge merged into shared business knowledge for all products.",
         fileName: req.file.originalname,
+        knowledge: await toPublicSharedKnowledge(knowledge),
       },
       timestamp: new Date().toISOString(),
     });
@@ -843,11 +687,7 @@ export const getKnowledgeStatusController = async (
 
     await connectToDatabase();
 
-    const chatbot = await WebChatbot.findOne({
-      _id: chatbotId,
-      clerkId: userId,
-      type: "chatbot-lead-generation",
-    });
+    const chatbot = await findOwnedLeadChatbot(userId, chatbotId);
 
     if (!chatbot) {
       return res.status(404).json({
@@ -856,14 +696,15 @@ export const getKnowledgeStatusController = async (
         timestamp: new Date().toISOString(),
       });
     }
+    const knowledge = await getSharedBusinessKnowledge(userId);
 
     return res.status(200).json({
       success: true,
       data: {
-        isScrapped: chatbot.isScrapped,
-        hasKnowledgeBase: !!chatbot.scrappedFile,
-        websiteUrl: chatbot.websiteUrl,
-        lastUpdated: chatbot.updatedAt,
+        isScrapped: Boolean(knowledge?.knowledgeBaseUrl),
+        hasKnowledgeBase: Boolean(knowledge?.knowledgeBaseUrl),
+        websiteUrl: knowledge?.websiteUrl || chatbot.websiteUrl,
+        lastUpdated: knowledge?.knowledgeUpdatedAt || chatbot.updatedAt,
       },
       timestamp: new Date().toISOString(),
     });

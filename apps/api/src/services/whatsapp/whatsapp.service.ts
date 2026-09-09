@@ -15,6 +15,7 @@ import {
   generateWhatsAppAiResponse,
   WhatsAppAiDecision,
 } from "@/services/ai.service";
+import { getRuntimeSharedKnowledge } from "@/services/shared-business-knowledge-format";
 
 const defaultAppointmentChatQuestions = [
   {
@@ -319,45 +320,6 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
         whatsappEnabled: true,
       } as any;
     }
-    if (!workspace.businessInfo) {
-      workspace.businessInfo = {
-        websiteUrl: workspace.organization?.website || "",
-        summary: "",
-        fileName: "",
-        fileType: "",
-        fileSize: 0,
-        fileText: "",
-        websiteKnowledgeUrl: "",
-        fileKnowledgeUrl: "",
-        knowledgeBaseUrl: "",
-        knowledgeBaseFileName: "",
-      } as any;
-    }
-    if (!workspace.businessInfo?.knowledgeBaseUrl) {
-      const sharedKnowledge = await SharedBusinessKnowledge.findOne({ clerkId })
-        .select(
-          "websiteUrl businessInfo fileName fileType fileSize knowledgeBaseUrl knowledgeBaseFileName knowledgeUpdatedAt",
-        )
-        .lean();
-      if (sharedKnowledge?.knowledgeBaseUrl) {
-        workspace.organization.website = sharedKnowledge.websiteUrl || "";
-        workspace.businessInfo = {
-          ...workspace.businessInfo,
-          websiteUrl: sharedKnowledge.websiteUrl || "",
-          summary: sharedKnowledge.businessInfo || "",
-          fileName: sharedKnowledge.fileName || "",
-          fileType: sharedKnowledge.fileType || "",
-          fileSize: Number(sharedKnowledge.fileSize || 0),
-          fileText: "",
-          websiteKnowledgeUrl: "",
-          fileKnowledgeUrl: "",
-          knowledgeBaseUrl: sharedKnowledge.knowledgeBaseUrl,
-          knowledgeBaseFileName: sharedKnowledge.knowledgeBaseFileName || "",
-          knowledgeUpdatedAt: sharedKnowledge.knowledgeUpdatedAt,
-        } as any;
-        await workspace.save();
-      }
-    }
     if (!workspace.automationConfig) {
       workspace.automationConfig = createDefaultAutomationConfig() as any;
     }
@@ -413,11 +375,6 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     return workspace;
   }
 
-  const sharedKnowledge = await SharedBusinessKnowledge.findOne({ clerkId })
-    .select(
-      "websiteUrl businessInfo fileName fileType fileSize knowledgeBaseUrl knowledgeBaseFileName knowledgeUpdatedAt",
-    )
-    .lean();
   workspace = await WhatsAppWorkspace.create({
     clerkId,
     isConfigured: false,
@@ -428,7 +385,7 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     organization: {
       name: "My Business",
       industry: "Services",
-      website: sharedKnowledge?.websiteUrl || "",
+      website: "",
       timeZone: "Asia/Kolkata",
     },
     meta: {
@@ -533,19 +490,6 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       whatsappNumber: "",
       emailEnabled: true,
       whatsappEnabled: true,
-    },
-    businessInfo: {
-      websiteUrl: sharedKnowledge?.websiteUrl || "",
-      summary: sharedKnowledge?.businessInfo || "",
-      fileName: sharedKnowledge?.fileName || "",
-      fileType: sharedKnowledge?.fileType || "",
-      fileSize: Number(sharedKnowledge?.fileSize || 0),
-      fileText: "",
-      websiteKnowledgeUrl: "",
-      fileKnowledgeUrl: "",
-      knowledgeBaseUrl: sharedKnowledge?.knowledgeBaseUrl || "",
-      knowledgeBaseFileName: sharedKnowledge?.knowledgeBaseFileName || "",
-      knowledgeUpdatedAt: sharedKnowledge?.knowledgeUpdatedAt,
     },
     greetingTemplate: {
       name: "rocket_whatsapp_greeting",
@@ -896,8 +840,9 @@ const downloadBusinessKnowledge = async (url?: string) => {
 
 const formatBusinessKnowledge = (rawKnowledge: string) => {
   if (!rawKnowledge) return "";
+  const runtimeKnowledge = getRuntimeSharedKnowledge(rawKnowledge);
   try {
-    const data = JSON.parse(rawKnowledge);
+    const data = JSON.parse(runtimeKnowledge);
     const websitePages = Array.isArray(data.website?.pages)
       ? data.website.pages
       : Array.isArray(data.pages)
@@ -926,25 +871,21 @@ const formatBusinessKnowledge = (rawKnowledge: string) => {
     ].filter(Boolean);
     return parts.join("\n").slice(0, 10000);
   } catch {
-    return rawKnowledge.slice(0, 10000);
+    return runtimeKnowledge.slice(0, 10000);
   }
 };
 
 async function buildBusinessKnowledgeContext(workspace: IWhatsAppWorkspace) {
-  const businessInfo = workspace.businessInfo;
   const sharedKnowledge = await SharedBusinessKnowledge.findOne({
     clerkId: workspace.clerkId,
   })
     .select("knowledgeBaseUrl websiteUrl businessInfo")
     .lean();
   const cloudinaryKnowledge = await downloadBusinessKnowledge(
-    sharedKnowledge?.knowledgeBaseUrl ||
-      businessInfo?.knowledgeBaseUrl ||
-      businessInfo?.websiteKnowledgeUrl ||
-      businessInfo?.fileKnowledgeUrl,
+    sharedKnowledge?.knowledgeBaseUrl,
   );
   const hasCanonicalKnowledge = Boolean(cloudinaryKnowledge.trim());
-  return [
+  const context = [
     `Business name: ${workspace.organization?.name || "Business"}`,
     workspace.organization?.industry
       ? `Industry: ${workspace.organization.industry}`
@@ -978,18 +919,19 @@ async function buildBusinessKnowledgeContext(workspace: IWhatsAppWorkspace) {
     workspace.notificationSettings?.whatsappNumber
       ? `Owner contact number: ${workspace.notificationSettings.whatsappNumber}`
       : "",
-    hasCanonicalKnowledge
-      ? ""
-      : sharedKnowledge?.businessInfo || businessInfo?.summary,
     formatBusinessKnowledge(cloudinaryKnowledge),
-    hasCanonicalKnowledge ? "" : businessInfo?.fileText,
-    sharedKnowledge?.websiteUrl || businessInfo?.websiteUrl
-      ? `Website: ${sharedKnowledge?.websiteUrl || businessInfo?.websiteUrl}`
+    sharedKnowledge?.websiteUrl
+      ? `Website: ${sharedKnowledge.websiteUrl}`
       : "",
   ]
     .filter(Boolean)
     .join("\n")
     .slice(0, 12000);
+
+  return {
+    context,
+    hasKnowledgeUrl: Boolean(sharedKnowledge?.knowledgeBaseUrl),
+  };
 }
 
 const isStaleAutomationHistory = (message: any) => {
@@ -1022,7 +964,6 @@ const buildKnowledgeFallbackReply = (
   knowledge: string,
 ) => {
   const businessName = workspace.organization?.name || "the business";
-  const summary = String(workspace.businessInfo?.summary || "").trim();
   const knowledgeExcerpt = knowledge.trim().slice(0, 1800);
   const services = (workspace.appointmentConfig?.services || [])
     .filter((service) => service.isActive)
@@ -1033,16 +974,10 @@ const buildKnowledgeFallbackReply = (
         : service.name;
     })
     .filter(Boolean);
-  const website = String(
-    workspace.businessInfo?.websiteUrl || workspace.organization?.website || "",
-  ).trim();
-
   return [
-    summary ||
-      knowledgeExcerpt ||
+    knowledgeExcerpt ||
       `${businessName}'s business information is temporarily unavailable.`,
     services.length ? `Available services: ${services.join(", ")}.` : "",
-    website ? `More information: ${website}` : "",
   ]
     .filter(Boolean)
     .join("\n\n")
@@ -1063,7 +998,8 @@ const generateWorkspaceAiDecision = async ({
   const businessName = workspace.organization?.name || "our business";
   let knowledge = "";
   try {
-    knowledge = await buildBusinessKnowledgeContext(workspace);
+    const knowledgeResult = await buildBusinessKnowledgeContext(workspace);
+    knowledge = knowledgeResult.context;
     const conversationHistory = toAiConversationHistory(conversation);
     console.info("[whatsapp:ai] Generating response", {
       workspaceId: String(workspace._id),
@@ -1071,11 +1007,7 @@ const generateWorkspaceAiDecision = async ({
       inputCharacters: body.length,
       historyMessages: conversationHistory.length,
       knowledgeCharacters: knowledge.length,
-      hasKnowledgeUrl: Boolean(
-        workspace.businessInfo?.knowledgeBaseUrl ||
-        workspace.businessInfo?.websiteKnowledgeUrl ||
-        workspace.businessInfo?.fileKnowledgeUrl,
-      ),
+      hasKnowledgeUrl: knowledgeResult.hasKnowledgeUrl,
       deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
       openAiFallbackConfigured: Boolean(process.env.OPENAI_API_KEY),
     });

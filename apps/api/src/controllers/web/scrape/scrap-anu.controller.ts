@@ -170,7 +170,7 @@ class WebScraper {
       const getContent = () => {
         const bodyRoot = getCleanBodyRoot();
         const blocks = collectTextBlocks(bodyRoot);
-        return trimText(blocks.join("\\n\\n"), isHomePage() ? 2000 : 1000);
+        return trimText(blocks.join("\\n\\n"), isHomePage() ? 20000 : 12000);
       };
 
       return {
@@ -380,7 +380,7 @@ class WebScraper {
           discovered.add(normalized);
         }
 
-        if (discovered.size >= this.maxPages * 2) {
+        if (discovered.size >= this.maxPages) {
           break;
         }
       }
@@ -601,7 +601,8 @@ class WebScraper {
         (r): r is PromiseFulfilledResult<ScrapedPage> =>
           r.status === "fulfilled" && r.value !== null,
       )
-      .map((r) => r.value);
+      .map((r) => r.value)
+      .slice(0, this.maxPages);
 
     return this.scrapedPages;
   }

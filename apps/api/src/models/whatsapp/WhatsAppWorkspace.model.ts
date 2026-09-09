@@ -199,20 +199,6 @@ export interface IWhatsAppWorkspace extends Document {
     emailEnabled: boolean;
     whatsappEnabled: boolean;
   };
-  businessInfo: {
-    websiteUrl: string;
-    summary: string;
-    fileName?: string;
-    fileType?: string;
-    fileSize?: number;
-    fileText?: string;
-    websiteKnowledgeUrl?: string;
-    fileKnowledgeUrl?: string;
-    knowledgeBaseUrl?: string;
-    knowledgeBaseFileName?: string;
-    knowledgeUpdatedAt?: Date;
-    updatedAt?: Date;
-  };
   greetingTemplate: {
     name: string;
     language: string;
@@ -679,20 +665,6 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       whatsappNumber: { type: String, default: "" },
       emailEnabled: { type: Boolean, default: true },
       whatsappEnabled: { type: Boolean, default: true },
-    },
-    businessInfo: {
-      websiteUrl: { type: String, default: "" },
-      summary: { type: String, default: "" },
-      fileName: String,
-      fileType: String,
-      fileSize: { type: Number, default: 0 },
-      fileText: { type: String, default: "" },
-      websiteKnowledgeUrl: { type: String, default: "" },
-      fileKnowledgeUrl: { type: String, default: "" },
-      knowledgeBaseUrl: { type: String, default: "" },
-      knowledgeBaseFileName: { type: String, default: "" },
-      knowledgeUpdatedAt: Date,
-      updatedAt: Date,
     },
     greetingTemplate: {
       name: { type: String, default: "rocket_whatsapp_greeting" },

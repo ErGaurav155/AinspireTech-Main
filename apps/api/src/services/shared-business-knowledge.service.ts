@@ -6,18 +6,33 @@ import SharedBusinessKnowledge, {
 import User from "@/models/user.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
-import { compactSharedBusinessKnowledge } from "@/services/ai.service";
+import {
+  compactSharedBusinessKnowledge,
+  normalizeSharedBusinessKnowledgeSource,
+} from "@/services/ai.service";
 import { deleteFromCloudinary } from "@/services/cloudinary.service";
+import {
+  createSharedKnowledgeArtifact,
+  getSharedKnowledgeSourceArchive,
+} from "@/services/shared-business-knowledge-format";
 import { uploadTextAssetToCloudinary } from "@/services/transaction.service";
 
 const WEBSITE_HEADING = "=== WEBSITE KNOWLEDGE ===";
 const OWNER_HEADING = "=== OWNER INFORMATION ===";
 const FILE_HEADING = "=== UPLOADED FILE KNOWLEDGE ===";
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_AI_INPUT_TOKENS = 5000;
+const RESERVED_AI_PROMPT_TOKENS = 1000;
+const CONSERVATIVE_CHARACTERS_PER_TOKEN = 3;
+const MAX_AI_SOURCE_INPUT_CHARACTERS =
+  (MAX_AI_INPUT_TOKENS - RESERVED_AI_PROMPT_TOKENS) *
+  CONSERVATIVE_CHARACTERS_PER_TOKEN;
+const MAX_AI_MERGE_INPUT_CHARACTERS = MAX_AI_SOURCE_INPUT_CHARACTERS;
 
 export interface SharedKnowledgeUpdate {
   websiteUrl?: string;
   businessInfo?: string;
+  websitePages?: Array<{ url?: string; content?: string; fullText?: string }>;
   fileName?: string;
   fileType?: string;
   fileSize?: number;
@@ -46,6 +61,7 @@ const normalizeKnowledgeText = (value: unknown, maxCharacters: number) => {
     .replace(/data:image\/[^;]+;base64,[a-z0-9+/=]+/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/https?:\/\/\S+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?\S*)?/gi, " ")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, " ")
     .replace(/\r/g, "\n")
     .replace(/[\t ]+/g, " ")
     .replace(/\n{3,}/g, "\n\n")
@@ -65,6 +81,85 @@ const normalizeKnowledgeText = (value: unknown, maxCharacters: number) => {
     .join("\n")
     .slice(0, maxCharacters)
     .trim();
+};
+
+const normalizeSourceKnowledge = async ({
+  clerkId,
+  businessName,
+  sourceType,
+  sourceName,
+  content,
+  maxCharacters,
+}: {
+  clerkId: string;
+  businessName: string;
+  sourceType: "website" | "owner" | "file";
+  sourceName: string;
+  content: string;
+  maxCharacters: number;
+}) => {
+  const inputLimit = Math.min(maxCharacters, MAX_AI_SOURCE_INPUT_CHARACTERS);
+  const localFallback = normalizeKnowledgeText(content, inputLimit);
+  if (!localFallback) return "";
+
+  try {
+    const normalized = await normalizeSharedBusinessKnowledgeSource({
+      businessName,
+      sourceType,
+      sourceName,
+      content: localFallback,
+      maxCharacters,
+    });
+    return normalizeKnowledgeText(normalized, maxCharacters) || localFallback;
+  } catch (error) {
+    console.warn("[shared-knowledge] AI source normalization failed", {
+      clerkId,
+      sourceType,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return localFallback;
+  }
+};
+
+const buildWebsiteSourceText = (pages: any[]) => {
+  const validPages = pages.filter(
+    (page) => cleanString(page?.fullText || page?.content),
+  );
+  if (validPages.length === 0) return "";
+
+  const perPageCharacters = Math.max(
+    500,
+    Math.floor(MAX_AI_SOURCE_INPUT_CHARACTERS / validPages.length) - 160,
+  );
+  return validPages
+    .map((page) => {
+      const url = cleanString(page?.url);
+      const content = cleanString(page?.fullText || page?.content).slice(
+        0,
+        perPageCharacters,
+      );
+      return `Page: ${url}\n${content}`;
+    })
+    .join("\n\n")
+    .slice(0, MAX_AI_SOURCE_INPUT_CHARACTERS);
+};
+
+const fitSourcesIntoMergeBudget = ({
+  website,
+  owner,
+  file,
+}: Omit<KnowledgeSections, "hasMarkers">) => {
+  const sources = [website, owner, file];
+  const nonEmptyCount = Math.max(1, sources.filter(Boolean).length);
+  const perSourceLimit = Math.floor(
+    MAX_AI_MERGE_INPUT_CHARACTERS / nonEmptyCount,
+  );
+  return {
+    website: website.slice(0, perSourceLimit),
+    owner: owner.slice(0, perSourceLimit),
+    file: file.slice(0, perSourceLimit),
+    hasMarkers: true,
+  } satisfies KnowledgeSections;
 };
 
 const parseKnowledgeSections = (raw: string): KnowledgeSections => {
@@ -140,15 +235,16 @@ const getCurrentSections = async (
 
   try {
     const raw = await downloadKnowledge(knowledge.knowledgeBaseUrl);
-    const parsed = parseKnowledgeSections(raw);
+    const sourceArchive = getSharedKnowledgeSourceArchive(raw);
+    const parsed = parseKnowledgeSections(sourceArchive);
     if (parsed.hasMarkers) return parsed;
 
     // Migrate a legacy single artifact into the source most likely to own it.
-    if (knowledge.fileName) return { ...parsed, file: raw };
+    if (knowledge.fileName) return { ...parsed, file: sourceArchive };
     if (knowledge.websiteUrl) {
-      return { ...parsed, website: raw, file: "" };
+      return { ...parsed, website: sourceArchive, file: "" };
     }
-    return { ...parsed, owner: raw, file: "" };
+    return { ...parsed, owner: sourceArchive, file: "" };
   } catch (error) {
     console.warn("[shared-knowledge] Could not load existing artifact", {
       clerkId: knowledge.clerkId,
@@ -215,26 +311,14 @@ const deleteKnowledgeArtifact = async (
   }
 };
 
-const syncLegacyKnowledgeReferences = async ({
+const syncKnowledgeConsumers = async ({
   clerkId,
   websiteUrl,
-  businessInfo,
-  fileName,
-  fileType,
-  fileSize,
   knowledgeBaseUrl,
-  knowledgeBaseFileName,
-  knowledgeUpdatedAt,
 }: {
   clerkId: string;
   websiteUrl: string;
-  businessInfo: string;
-  fileName: string;
-  fileType: string;
-  fileSize: number;
   knowledgeBaseUrl: string;
-  knowledgeBaseFileName: string;
-  knowledgeUpdatedAt?: Date;
 }) => {
   const ready = Boolean(knowledgeBaseUrl);
   await Promise.all([
@@ -248,48 +332,61 @@ const syncLegacyKnowledgeReferences = async ({
         },
       },
     ),
-    WhatsAppWorkspace.updateOne(
+    // Remove the pre-shared-model copy. WhatsApp reads the canonical shared
+    // document directly and must not own a second knowledge artifact.
+    WhatsAppWorkspace.collection.updateOne(
       { clerkId },
-      {
-        $set: {
-          "organization.website": websiteUrl,
-          "businessInfo.websiteUrl": websiteUrl,
-          "businessInfo.summary": businessInfo,
-          "businessInfo.fileName": fileName,
-          "businessInfo.fileType": fileType,
-          "businessInfo.fileSize": fileSize,
-          "businessInfo.fileText": "",
-          "businessInfo.websiteKnowledgeUrl": "",
-          "businessInfo.fileKnowledgeUrl": "",
-          "businessInfo.knowledgeBaseUrl": knowledgeBaseUrl,
-          "businessInfo.knowledgeBaseFileName": knowledgeBaseFileName,
-          "businessInfo.knowledgeUpdatedAt": knowledgeUpdatedAt,
-          "businessInfo.updatedAt": new Date(),
-        },
-      },
+      { $unset: { businessInfo: "" } } as any,
     ),
   ]);
 };
 
-export const toPublicSharedKnowledge = (
+export const toPublicSharedKnowledge = async (
   knowledge: ISharedBusinessKnowledge | null,
-) => ({
-  websiteUrl: knowledge?.websiteUrl || "",
-  businessInfo: knowledge?.businessInfo || "",
-  fileName: knowledge?.fileName || "",
-  fileType: knowledge?.fileType || "",
-  fileSize: Number(knowledge?.fileSize || 0),
-  hasKnowledge: Boolean(knowledge?.knowledgeBaseUrl),
-  knowledgeUpdatedAt: knowledge?.knowledgeUpdatedAt || null,
-});
+) => {
+  const sections = await getCurrentSections(knowledge);
+  return {
+    websiteUrl: knowledge?.websiteUrl || "",
+    businessInfo: sections.owner || "",
+    fileName: knowledge?.fileName || "",
+    fileType: knowledge?.fileType || "",
+    fileSize: Number(knowledge?.fileSize || 0),
+    hasKnowledge: Boolean(knowledge?.knowledgeBaseUrl),
+    knowledgeUpdatedAt: knowledge?.knowledgeUpdatedAt || null,
+  };
+};
 
-export async function getSharedBusinessKnowledge(clerkId: string) {
+export async function getSharedBusinessKnowledge(
+  clerkId: string,
+): Promise<ISharedBusinessKnowledge | null> {
   await connectToDatabase();
   let knowledge = await SharedBusinessKnowledge.findOne({ clerkId });
-  if (knowledge) return knowledge;
+  if (knowledge) {
+    await Promise.all([
+      SharedBusinessKnowledge.collection.updateOne(
+        { clerkId },
+        {
+          $unset: {
+            businessInfo: "",
+            websiteKnowledge: "",
+            ownerKnowledge: "",
+            fileKnowledge: "",
+          },
+        } as any,
+      ),
+      WhatsAppWorkspace.collection.updateOne(
+        { clerkId },
+        { $unset: { businessInfo: "" } } as any,
+      ),
+    ]);
+    return knowledge;
+  }
 
   const [workspace, webChatbot] = await Promise.all([
-    WhatsAppWorkspace.findOne({ clerkId }).lean(),
+    WhatsAppWorkspace.collection.findOne(
+      { clerkId },
+      { projection: { businessInfo: 1 } },
+    ),
     WebChatbot.findOne({ clerkId }).lean(),
   ]);
   const whatsappInfo = (workspace as any)?.businessInfo || {};
@@ -299,10 +396,14 @@ export async function getSharedBusinessKnowledge(clerkId: string) {
   const websiteUrl =
     cleanString(whatsappInfo.websiteUrl) ||
     cleanString((webChatbot as any)?.websiteUrl);
-  const businessInfo = cleanString(whatsappInfo.summary);
+  const legacyBusinessInfo = cleanString(whatsappInfo.summary);
   const fileName = cleanString(whatsappInfo.fileName);
 
-  if (!knowledgeBaseUrl && !websiteUrl && !businessInfo && !fileName) {
+  if (!knowledgeBaseUrl && !websiteUrl && !legacyBusinessInfo && !fileName) {
+    await WhatsAppWorkspace.collection.updateOne(
+      { clerkId },
+      { $unset: { businessInfo: "" } } as any,
+    );
     return null;
   }
 
@@ -310,7 +411,6 @@ export async function getSharedBusinessKnowledge(clerkId: string) {
     knowledge = await SharedBusinessKnowledge.create({
       clerkId,
       websiteUrl,
-      businessInfo,
       fileName,
       fileType: cleanString(whatsappInfo.fileType),
       fileSize: Number(whatsappInfo.fileSize || 0),
@@ -322,26 +422,37 @@ export async function getSharedBusinessKnowledge(clerkId: string) {
     if (error?.code !== 11000) throw error;
     knowledge = await SharedBusinessKnowledge.findOne({ clerkId });
   }
+  if (!knowledgeBaseUrl && knowledge && (websiteUrl || legacyBusinessInfo)) {
+    return updateSharedBusinessKnowledge(clerkId, {
+      websiteUrl,
+      businessInfo: legacyBusinessInfo,
+    });
+  }
+  await WhatsAppWorkspace.collection.updateOne(
+    { clerkId },
+    { $unset: { businessInfo: "" } } as any,
+  );
   return knowledge;
 }
 
 export async function updateSharedBusinessKnowledge(
   clerkId: string,
   update: SharedKnowledgeUpdate,
-) {
+): Promise<ISharedBusinessKnowledge | null> {
   await connectToDatabase();
-  const current = await getSharedBusinessKnowledge(clerkId);
+  const current: ISharedBusinessKnowledge | null =
+    await getSharedBusinessKnowledge(clerkId);
   const sections = await getCurrentSections(current);
   const websiteProvided = update.websiteUrl !== undefined;
   const ownerProvided = update.businessInfo !== undefined;
   const nextWebsiteUrl = update.removeWebsite
     ? ""
     : websiteProvided
-      ? cleanString(update.websiteUrl)
+      ? cleanString(update.websiteUrl).slice(0, 2048)
       : current?.websiteUrl || "";
   const nextBusinessInfo = ownerProvided
     ? cleanString(update.businessInfo).slice(0, 12000)
-    : current?.businessInfo || "";
+    : sections.owner;
   const fileText = cleanString(update.fileText);
   const nextFileName = update.removeFile
     ? ""
@@ -370,34 +481,87 @@ export async function updateSharedBusinessKnowledge(
   }
 
   const websiteChanged = nextWebsiteUrl !== (current?.websiteUrl || "");
-  let websiteKnowledge = update.removeWebsite ? "" : sections.website;
-  if (
-    nextWebsiteUrl &&
-    (websiteChanged ||
-      !sections.hasMarkers ||
-      !normalizeKnowledgeText(websiteKnowledge, 20))
-  ) {
-    const scrapeResult = await scrapeWebsitePagesForKnowledge(nextWebsiteUrl);
-    websiteKnowledge = normalizeKnowledgeText(
-      scrapeResult.scrapedPages
-        .map(
-          (page: any) =>
-            `Page: ${cleanString(page?.url)}\n${cleanString(
-              page?.fullText || page?.content,
-            )}`,
-        )
-        .join("\n\n"),
-      14000,
-    );
-  }
-  if (!nextWebsiteUrl) websiteKnowledge = "";
+  const ownerChanged = nextBusinessInfo !== sections.owner;
+  const fileChanged = Boolean(fileText) || Boolean(update.removeFile);
+  const sourceChanged =
+    websiteChanged || ownerChanged || fileChanged || !current?.knowledgeBaseUrl;
 
-  const ownerKnowledge = normalizeKnowledgeText(nextBusinessInfo, 6000);
-  const uploadedFileKnowledge = update.removeFile
-    ? ""
-    : fileText
-      ? normalizeKnowledgeText(fileText, 9000)
-      : sections.file;
+  if (!sourceChanged && current) {
+    return current;
+  }
+
+  const businessName = await getBusinessName(clerkId);
+  const resolveWebsiteKnowledge = async () => {
+    if (!nextWebsiteUrl || update.removeWebsite) return "";
+    if (
+      !websiteChanged &&
+      !update.websitePages?.length &&
+      sections.hasMarkers &&
+      normalizeKnowledgeText(sections.website, 20)
+    ) {
+      return sections.website;
+    }
+
+    const scrapedPages = update.websitePages?.length
+      ? update.websitePages.slice(0, 10)
+      : (await scrapeWebsitePagesForKnowledge(nextWebsiteUrl)).scrapedPages;
+    console.info("[shared-knowledge] Website scraped", {
+      clerkId,
+      websiteUrl: nextWebsiteUrl,
+      successfulPages: scrapedPages.length,
+      crawlDepth: 3,
+      maxPages: 10,
+      reusedProvidedPages: Boolean(update.websitePages?.length),
+    });
+    const scrapedWebsiteText = buildWebsiteSourceText(
+      scrapedPages,
+    );
+    return normalizeSourceKnowledge({
+      clerkId,
+      businessName,
+      sourceType: "website",
+      sourceName: nextWebsiteUrl,
+      content: scrapedWebsiteText,
+      maxCharacters: 14000,
+    });
+  };
+
+  const [websiteKnowledge, ownerKnowledge, uploadedFileKnowledge] =
+    await Promise.all([
+      resolveWebsiteKnowledge(),
+      ownerChanged
+        ? normalizeSourceKnowledge({
+            clerkId,
+            businessName,
+            sourceType: "owner",
+            sourceName: "Owner-provided business information",
+            content: nextBusinessInfo,
+            maxCharacters: 6000,
+          })
+        : Promise.resolve(sections.owner),
+      update.removeFile
+        ? Promise.resolve("")
+        : fileText
+          ? normalizeSourceKnowledge({
+              clerkId,
+              businessName,
+              sourceType: "file",
+              sourceName: nextFileName,
+              content: fileText,
+              maxCharacters: 9000,
+            })
+          : Promise.resolve(sections.file),
+    ]);
+  console.info("[shared-knowledge] Sources normalized", {
+    clerkId,
+    websiteChanged,
+    ownerChanged,
+    fileChanged,
+    websiteCharacters: websiteKnowledge.length,
+    ownerCharacters: ownerKnowledge.length,
+    fileCharacters: uploadedFileKnowledge.length,
+    maxAiInputTokens: MAX_AI_INPUT_TOKENS,
+  });
   const hasAnyKnowledge = Boolean(
     nextWebsiteUrl || ownerKnowledge || uploadedFileKnowledge,
   );
@@ -405,20 +569,14 @@ export async function updateSharedBusinessKnowledge(
   if (!hasAnyKnowledge) {
     await deleteKnowledgeArtifact(current);
     await SharedBusinessKnowledge.deleteOne({ clerkId });
-    await syncLegacyKnowledgeReferences({
+    await syncKnowledgeConsumers({
       clerkId,
       websiteUrl: "",
-      businessInfo: "",
-      fileName: "",
-      fileType: "",
-      fileSize: 0,
       knowledgeBaseUrl: "",
-      knowledgeBaseFileName: "",
     });
     return null;
   }
 
-  const businessName = await getBusinessName(clerkId);
   const localSections = dedupeSectionsLocally({
     website: [nextWebsiteUrl ? `Website: ${nextWebsiteUrl}` : "", websiteKnowledge]
       .filter(Boolean)
@@ -428,15 +586,16 @@ export async function updateSharedBusinessKnowledge(
       .join("\n"),
     file: uploadedFileKnowledge,
   });
-  let compacted = serializeKnowledgeSections(localSections);
+  const mergeInput = fitSourcesIntoMergeBudget(localSections);
+  let compacted = serializeKnowledgeSections(mergeInput);
   try {
     const aiCompacted = await compactSharedBusinessKnowledge({
       businessName,
       websiteUrl: nextWebsiteUrl,
-      websiteKnowledge: localSections.website,
-      ownerInformation: localSections.owner,
+      websiteKnowledge: mergeInput.website,
+      ownerInformation: mergeInput.owner,
       uploadedFileName: nextFileName,
-      uploadedFileKnowledge: localSections.file,
+      uploadedFileKnowledge: mergeInput.file,
     });
     if (parseKnowledgeSections(aiCompacted).hasMarkers) {
       compacted = aiCompacted;
@@ -456,17 +615,34 @@ export async function updateSharedBusinessKnowledge(
   const knowledgeBaseFileName = `shared_${clerkId}_${Date.now()}_${safeFileName(
     nextWebsiteUrl || nextFileName || "business_info",
   )}`;
+  const artifactText = createSharedKnowledgeArtifact({
+    runtimeKnowledge: compacted,
+    sourceArchive: serializeKnowledgeSections({
+      website: websiteKnowledge,
+      owner: ownerKnowledge,
+      file: uploadedFileKnowledge,
+      hasMarkers: true,
+    }),
+  });
   const asset = await uploadTextAssetToCloudinary(
-    compacted,
+    artifactText,
     knowledgeBaseFileName,
   );
+  console.info("[shared-knowledge] Merged artifact uploaded", {
+    clerkId,
+    mergedCharacters: compacted.length,
+    artifactCharacters: artifactText.length,
+    sourceCount: [websiteKnowledge, ownerKnowledge, uploadedFileKnowledge].filter(
+      Boolean,
+    ).length,
+    resourceType: asset.resourceType,
+  });
   const now = new Date();
   const saved = await SharedBusinessKnowledge.findOneAndUpdate(
     { clerkId },
     {
       $set: {
         websiteUrl: nextWebsiteUrl,
-        businessInfo: nextBusinessInfo,
         fileName: nextFileName,
         fileType: nextFileType,
         fileSize: nextFileSize,
@@ -480,16 +656,10 @@ export async function updateSharedBusinessKnowledge(
     { new: true, upsert: true, setDefaultsOnInsert: true },
   );
 
-  await syncLegacyKnowledgeReferences({
+  await syncKnowledgeConsumers({
     clerkId,
     websiteUrl: nextWebsiteUrl,
-    businessInfo: nextBusinessInfo,
-    fileName: nextFileName,
-    fileType: nextFileType,
-    fileSize: nextFileSize,
     knowledgeBaseUrl: asset.secureUrl,
-    knowledgeBaseFileName,
-    knowledgeUpdatedAt: now,
   });
   if (current?.knowledgeBaseUrl !== asset.secureUrl) {
     await deleteKnowledgeArtifact(current);
@@ -502,14 +672,9 @@ export async function deleteSharedBusinessKnowledge(clerkId: string) {
   const current = await SharedBusinessKnowledge.findOne({ clerkId });
   await deleteKnowledgeArtifact(current);
   await SharedBusinessKnowledge.deleteOne({ clerkId });
-  await syncLegacyKnowledgeReferences({
+  await syncKnowledgeConsumers({
     clerkId,
     websiteUrl: "",
-    businessInfo: "",
-    fileName: "",
-    fileType: "",
-    fileSize: 0,
     knowledgeBaseUrl: "",
-    knowledgeBaseFileName: "",
   });
 }

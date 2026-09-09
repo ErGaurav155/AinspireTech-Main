@@ -16,9 +16,11 @@ import {
   objectToAppointmentAlert,
   sendAppointmentNotifications,
 } from "@/services/appointment-notification.service";
-import { uploadTextToCloudinary } from "@/services/transaction.service";
-import { scrapeWebsitePagesForKnowledge } from "@/controllers/web/scrape/scrap-anu.controller";
-import { compactWhatsAppBusinessKnowledge } from "@/services/ai.service";
+import {
+  getSharedBusinessKnowledge,
+  toPublicSharedKnowledge,
+  updateSharedBusinessKnowledge,
+} from "@/services/shared-business-knowledge.service";
 
 const authUserId = (req: Request) => getAuth(req).userId;
 
@@ -162,214 +164,6 @@ const clockTimeToMinutes = (value: string) => {
 
 const clampNumber = (value: unknown, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, Number(value) || minimum));
-
-const safeCloudinaryFileName = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/^https?:\/\//, "")
-    .replace(/[^a-z0-9._-]/g, "_")
-    .replace(/_+/g, "_")
-    .slice(0, 120);
-
-const downloadTextFromUrl = async (url: string, timeoutMs = 10000) => {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-    return await response.text();
-  } finally {
-    clearTimeout(timeout);
-  }
-};
-
-const normalizeKnowledgeText = (value: unknown, maxCharacters: number) => {
-  const cleaned = String(value || "")
-    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
-    .replace(/<svg\b[^>]*>[\s\S]*?<\/svg>/gi, " ")
-    .replace(/<img\b[^>]*>/gi, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/data:image\/[^;]+;base64,[a-z0-9+/=]+/gi, " ")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/https?:\/\/\S+\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?\S*)?/gi, " ")
-    .replace(/\r/g, "\n")
-    .replace(/[\t ]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  const seen = new Set<string>();
-  const uniqueSegments = cleaned
-    .split(/\n+|(?<=[.!?])\s+(?=[A-Z0-9])/)
-    .map((segment) => segment.replace(/\s+/g, " ").trim())
-    .filter((segment) => {
-      if (segment.length < 2) return false;
-      const key = segment.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-
-  return uniqueSegments.join("\n").slice(0, maxCharacters).trim();
-};
-
-const extractExistingKnowledgeText = (raw: string) => {
-  try {
-    const data = JSON.parse(raw);
-    const pages = Array.isArray(data?.website?.pages)
-      ? data.website.pages
-          .map((page: any) => `${page?.url || ""}\n${page?.content || page?.fullText || ""}`)
-          .join("\n")
-      : Array.isArray(data?.pages)
-        ? data.pages
-            .map((page: any) => `${page?.url || ""}\n${page?.content || page?.fullText || ""}`)
-            .join("\n")
-        : "";
-    return [
-      data?.businessName ? `Business name: ${data.businessName}` : "",
-      data?.websiteUrl ? `Website: ${data.websiteUrl}` : "",
-      data?.summary || "",
-      pages,
-      data?.file?.content || "",
-    ]
-      .filter(Boolean)
-      .join("\n");
-  } catch {
-    return raw;
-  }
-};
-
-const readExistingWhatsAppKnowledge = async (knowledgeBaseUrl?: string) => {
-  if (!knowledgeBaseUrl) return "";
-  try {
-    const text = await downloadTextFromUrl(knowledgeBaseUrl, 7000);
-    return normalizeKnowledgeText(extractExistingKnowledgeText(text), 8000);
-  } catch (error) {
-    console.warn("[whatsapp:business-info] Could not read existing knowledge", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return "";
-  }
-};
-
-const locallyMergeWhatsAppKnowledge = (sections: string[]) =>
-  normalizeKnowledgeText(sections.filter(Boolean).join("\n\n"), 10000);
-
-const uploadWhatsAppKnowledge = async ({
-  workspace,
-  businessInfo,
-}: {
-  workspace: any;
-  businessInfo: Record<string, any>;
-}) => {
-  const existingInfo = workspace.businessInfo || {};
-  const websiteUrl =
-    businessInfo.websiteUrl !== undefined
-      ? cleanString(businessInfo.websiteUrl)
-      : cleanString(existingInfo.websiteUrl);
-  const summary =
-    businessInfo.summary !== undefined
-      ? cleanString(businessInfo.summary)
-      : cleanString(existingInfo.summary);
-  const fileText = cleanString(businessInfo.fileText);
-  const fileName =
-    businessInfo.fileName !== undefined
-      ? cleanString(businessInfo.fileName)
-      : cleanString(existingInfo.fileName);
-  const fileType =
-    businessInfo.fileType !== undefined
-      ? cleanString(businessInfo.fileType)
-      : cleanString(existingInfo.fileType);
-  const fileSize = Number(businessInfo.fileSize || existingInfo.fileSize || 0);
-  const existingKnowledge = await readExistingWhatsAppKnowledge(
-    existingInfo.knowledgeBaseUrl,
-  );
-  const websiteChanged =
-    businessInfo.websiteUrl !== undefined &&
-    websiteUrl !== cleanString(existingInfo.websiteUrl);
-  const shouldScrapeWebsite =
-    Boolean(websiteUrl) &&
-    (websiteChanged || !existingKnowledge);
-  let websiteKnowledge = "";
-  if (shouldScrapeWebsite) {
-    try {
-      const scrapeResult = await scrapeWebsitePagesForKnowledge(websiteUrl);
-      websiteKnowledge = normalizeKnowledgeText(
-        scrapeResult.scrapedPages
-          .map(
-            (page: any) =>
-              `Page: ${cleanString(page?.url)}\n${cleanString(
-                page?.fullText || page?.content,
-              )}`,
-          )
-          .join("\n\n"),
-        16000,
-      );
-    } catch (error) {
-      throw new Error(
-        `Could not scrape the website: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-  }
-
-  const ownerInformation = normalizeKnowledgeText(summary, 6000);
-  const uploadedFileKnowledge = normalizeKnowledgeText(fileText, 10000);
-  const businessName = workspace.organization?.name || "My Business";
-  const fallbackKnowledge = locallyMergeWhatsAppKnowledge([
-    `Business name: ${businessName}`,
-    websiteUrl ? `Website: ${websiteUrl}` : "",
-    existingKnowledge,
-    websiteKnowledge,
-    ownerInformation,
-    uploadedFileKnowledge,
-  ]);
-  let knowledge = fallbackKnowledge;
-  try {
-    knowledge = await compactWhatsAppBusinessKnowledge({
-      businessName,
-      websiteUrl,
-      existingKnowledge,
-      websiteKnowledge,
-      ownerInformation,
-      uploadedFileName: fileName,
-      uploadedFileKnowledge,
-      websiteChanged,
-      uploadedFileChanged: Boolean(fileText),
-    });
-  } catch (error) {
-    console.warn(
-      "[whatsapp:business-info] AI compaction failed; using local compaction",
-      { error: error instanceof Error ? error.message : String(error) },
-    );
-  }
-
-  const knowledgeFileName = `whatsapp_${workspace.clerkId}_${Date.now()}_${safeCloudinaryFileName(
-    websiteUrl || fileName || "business_info",
-  )}`;
-  const knowledgeBaseUrl = await uploadTextToCloudinary(
-    knowledge,
-    knowledgeFileName,
-  );
-
-  return {
-    websiteUrl,
-    summary: summary.slice(0, 12000),
-    fileName,
-    fileType,
-    fileSize,
-    fileText: "",
-    websiteKnowledgeUrl: "",
-    fileKnowledgeUrl: "",
-    knowledgeBaseUrl,
-    knowledgeBaseFileName: knowledgeFileName,
-    knowledgeUpdatedAt: new Date(),
-    updatedAt: new Date(),
-  };
-};
 
 const graphFetch = async (path: string, accessToken: string) => {
   const url = new URL(`https://graph.facebook.com/${metaGraphApiVersion}${path}`);
@@ -1744,6 +1538,7 @@ export const getWhatsAppDashboardController = async (
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
     workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
     await workspace.save();
+    const sharedKnowledge = await getSharedBusinessKnowledge(userId);
 
     const conversations = workspace.conversations || [];
     const outboundMessages = conversations.flatMap((conversation) =>
@@ -1799,7 +1594,7 @@ export const getWhatsAppDashboardController = async (
       appointmentConfig: workspace.appointmentConfig,
       automationConfig: workspace.automationConfig,
       faqs: workspace.faqs || [],
-      businessInfo: workspace.businessInfo,
+      businessInfo: await toPublicSharedKnowledge(sharedKnowledge),
     });
   } catch (error: any) {
     console.error("WhatsApp dashboard error:", error);
@@ -2243,34 +2038,29 @@ export const updateWhatsAppWorkspaceController = async (
           timestamp: new Date().toISOString(),
         });
       }
-      const hasKnowledgeInput = Boolean(
-        cleanString(businessInfo.websiteUrl) ||
-          cleanString(businessInfo.summary) ||
-          cleanString(businessInfo.fileText) ||
-          workspace.businessInfo?.knowledgeBaseUrl,
-      );
-      workspace.businessInfo = hasKnowledgeInput
-        ? ({
-            ...workspace.businessInfo,
-            ...(await uploadWhatsAppKnowledge({ workspace, businessInfo })),
-          } as any)
-        : ({
-            ...workspace.businessInfo,
-            websiteUrl: "",
-            summary: "",
-            fileName: "",
-            fileType: "",
-            fileSize: 0,
-            fileText: "",
-            websiteKnowledgeUrl: "",
-            fileKnowledgeUrl: "",
-            knowledgeBaseUrl: "",
-            knowledgeBaseFileName: "",
-            updatedAt: new Date(),
-          } as any);
-      if (businessInfo.websiteUrl !== undefined) {
-        workspace.organization.website = cleanString(businessInfo.websiteUrl);
-      }
+      // Backward-compatible bridge for older dashboard clients. The shared
+      // model owns the data; nothing is written back to WhatsAppWorkspace.
+      await updateSharedBusinessKnowledge(userId, {
+        websiteUrl:
+          businessInfo.websiteUrl !== undefined
+            ? cleanString(businessInfo.websiteUrl)
+            : undefined,
+        businessInfo:
+          businessInfo.summary !== undefined
+            ? cleanString(businessInfo.summary)
+            : businessInfo.businessInfo !== undefined
+              ? cleanString(businessInfo.businessInfo)
+              : undefined,
+        fileName: cleanString(businessInfo.fileName) || undefined,
+        fileType: cleanString(businessInfo.fileType) || undefined,
+        fileSize,
+        fileText:
+          businessInfo.fileText !== undefined
+            ? cleanString(businessInfo.fileText)
+            : undefined,
+        removeWebsite: businessInfo.removeWebsite === true,
+        removeFile: businessInfo.removeFile === true,
+      });
     }
 
     if (greetingTemplate) {
