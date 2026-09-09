@@ -191,6 +191,8 @@ const sendProviderWhatsAppTemplate = async ({
   appointment: Required<AppointmentAlert>;
   dashboardUrl: string;
 }) => {
+  // Owner alerts intentionally use RocketReplai's sender and template, never a
+  // client's Embedded Signup credential or WABA template.
   const phoneNumberId = getAppointmentAlertPhoneNumberId();
   const accessToken =
     process.env.APPOINTMENT_ALERT_WHATSAPP_ACCESS_TOKEN ||

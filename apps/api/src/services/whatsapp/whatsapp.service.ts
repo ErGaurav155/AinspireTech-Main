@@ -198,25 +198,46 @@ export const maskSecret = (value?: string) => {
 
 type WhatsAppAccessToken = {
   accessToken: string;
-  source: "system_user_env" | "workspace_token";
+  source: "provider_system_user_env" | "legacy_workspace_token";
 };
 
 const getWhatsAppAccessToken = (
   workspace: IWhatsAppWorkspace,
 ): WhatsAppAccessToken | null => {
-  const systemUserToken = process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim();
+  const credentialSource = workspace.meta?.credentialSource;
+  const providerSystemUserToken =
+    process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim();
   const workspaceToken = workspace.meta?.accessToken?.trim();
+  const tokenStatus = workspace.meta?.accessTokenStatus || "unknown";
+  const expiresAt = workspace.meta?.accessTokenExpiresAt
+    ? new Date(workspace.meta.accessTokenExpiresAt).getTime()
+    : 0;
+  const dataAccessExpiresAt = workspace.meta?.accessTokenDataAccessExpiresAt
+    ? new Date(workspace.meta.accessTokenDataAccessExpiresAt).getTime()
+    : 0;
 
-  if (systemUserToken) {
-    return {
-      accessToken: systemUserToken,
-      source: "system_user_env",
-    };
+  const accessToken =
+    credentialSource === "provider_system_user"
+      ? providerSystemUserToken
+      : workspaceToken;
+
+  if (
+    !accessToken ||
+    tokenStatus === "invalid" ||
+    tokenStatus === "expired" ||
+    (expiresAt > 0 && expiresAt <= Date.now()) ||
+    (dataAccessExpiresAt > 0 && dataAccessExpiresAt <= Date.now())
+  ) {
+    return null;
   }
 
-  return workspaceToken
-    ? { accessToken: workspaceToken, source: "workspace_token" }
-    : null;
+  return {
+    accessToken,
+    source:
+      credentialSource === "provider_system_user"
+        ? "provider_system_user_env"
+        : "legacy_workspace_token",
+  };
 };
 
 const getWhatsAppSendTokenSource = (workspace: IWhatsAppWorkspace) =>
@@ -545,10 +566,22 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
 }
 
 export function resolveWorkspaceConfigured(workspace: IWhatsAppWorkspace) {
+  const expiresAt = workspace.meta?.accessTokenExpiresAt
+    ? new Date(workspace.meta.accessTokenExpiresAt).getTime()
+    : 0;
+  const dataAccessExpiresAt = workspace.meta?.accessTokenDataAccessExpiresAt
+    ? new Date(workspace.meta.accessTokenDataAccessExpiresAt).getTime()
+    : 0;
   return Boolean(
     workspace.meta?.wabaId &&
     workspace.meta?.phoneNumberId &&
-    workspace.meta?.accessToken,
+    (workspace.meta?.credentialSource === "provider_system_user"
+      ? process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim()
+      : workspace.meta?.accessToken) &&
+    workspace.meta?.accessTokenStatus !== "invalid" &&
+    workspace.meta?.accessTokenStatus !== "expired" &&
+    (!expiresAt || expiresAt > Date.now()) &&
+    (!dataAccessExpiresAt || dataAccessExpiresAt > Date.now()),
   );
 }
 
@@ -606,7 +639,9 @@ const whatsappGraphMessagesRequest = async ({
 
   const token = getWhatsAppAccessToken(workspace);
   if (!token) {
-    throw new Error("WhatsApp access token is not configured");
+    throw new Error(
+      "The connected WhatsApp credential is missing, invalid, or expired. Reconnect this business through Embedded Signup.",
+    );
   }
 
   const version =
@@ -1144,7 +1179,7 @@ const ownerContactReply = (workspace: IWhatsAppWorkspace) => {
 
 const isMetaMessagingPermissionError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
-  return /#200|code=190|Authentication Error|necessary permission|send messages on behalf/i.test(
+  return /#200|code=190|Authentication Error|necessary permission|send messages on behalf|Unsupported post request|code=100.*subcode=33|missing permissions/i.test(
     message,
   );
 };
@@ -1164,11 +1199,20 @@ const recordWhatsAppSendFailure = ({
 
   const message = error instanceof Error ? error.message : String(error);
   const authenticationFailed = /code=190|Authentication Error/i.test(message);
+  const usesProviderSystemUser =
+    workspace.meta?.credentialSource === "provider_system_user";
+  workspace.meta.accessTokenStatus = "invalid";
+  workspace.meta.status = "error";
+  workspace.isConfigured = false;
   workspace.onboarding = {
     ...workspace.onboarding,
     lastError: authenticationFailed
-      ? "Meta rejected the WhatsApp access token. Replace WHATSAPP_SYSTEM_USER_ACCESS_TOKEN or reconnect this WhatsApp Business account."
-      : "Meta blocked outbound WhatsApp replies. Reconnect this WhatsApp Business account with whatsapp_business_messaging permission.",
+      ? usesProviderSystemUser
+        ? "Meta rejected the RocketReplai System User token. Update WHATSAPP_SYSTEM_USER_ACCESS_TOKEN, then reconnect this account."
+        : "Meta rejected this business's legacy signup credential. Reconnect the WhatsApp Business account."
+      : usesProviderSystemUser
+        ? "RocketReplai's System User is not assigned to this WABA. Reconnect the account to repair access."
+        : "This legacy signup credential cannot send for the selected WABA. Reconnect the account.",
   } as any;
   console.error("[whatsapp:send:permission-blocked]", {
     context,

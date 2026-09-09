@@ -1929,7 +1929,7 @@ function SettingsView({
   const processedHostedSignupCodeRef = useRef("");
   const isWhatsAppConnected = Boolean(
     workspace?.isConfigured ||
-    (workspace?.meta?.wabaId && workspace?.meta?.phoneNumberId),
+      workspace?.meta?.status === "connected",
   );
   const hasBusinessInfo = Boolean(
     workspace?.businessInfo?.websiteUrl?.trim() ||

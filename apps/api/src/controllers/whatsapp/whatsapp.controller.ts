@@ -59,7 +59,13 @@ const getMissingWhatsAppSetupFields = (workspace: any) => {
   if (!workspace.meta?.displayPhoneNumber?.trim()) {
     missing.push("WhatsApp business number");
   }
-  if (!workspace.meta?.accessToken?.trim()) missing.push("Access token");
+  if (
+    workspace.meta?.credentialSource === "provider_system_user"
+      ? !process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim()
+      : !workspace.meta?.accessToken?.trim()
+  ) {
+    missing.push("WhatsApp send credential");
+  }
   return missing;
 };
 
@@ -1087,7 +1093,78 @@ const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
 
 const syncWorkspaceMetaConnection = async (workspace: any) => {
   const accessToken = cleanString(workspace.meta?.accessToken);
-  if (!accessToken || (workspace.meta?.wabaId && workspace.meta?.phoneNumberId)) {
+  const wabaId = cleanString(workspace.meta?.wabaId);
+  const phoneNumberId = cleanString(workspace.meta?.phoneNumberId);
+
+  if (
+    wabaId &&
+    phoneNumberId &&
+    process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN?.trim() &&
+    (workspace.meta?.credentialSource !== "provider_system_user" ||
+      workspace.meta?.accessTokenStatus !== "valid")
+  ) {
+    try {
+      const providerCredential = await assignProviderSystemUserToWaba({
+        wabaId,
+        phoneNumberId,
+      });
+      const subscription = await subscribeAppToWaba(
+        wabaId,
+        providerCredential.accessToken,
+      );
+      if (!subscription.subscribed) {
+        throw new Error(subscription.error);
+      }
+      workspace.meta = {
+        ...workspace.meta,
+        accessToken: "",
+        credentialSource: "provider_system_user",
+        providerSystemUserId: providerCredential.systemUserId,
+        providerSystemUserAssignedAt: new Date(),
+        accessTokenStatus: "valid",
+        accessTokenType:
+          cleanString(providerCredential.debugData?.data?.type) ||
+          "SYSTEM_USER",
+        accessTokenScopes: providerCredential.grantedScopes,
+        accessTokenExpiresAt: unixTimestampToDate(
+          providerCredential.debugData?.data?.expires_at,
+        ),
+        accessTokenDataAccessExpiresAt: unixTimestampToDate(
+          providerCredential.debugData?.data?.data_access_expires_at,
+        ),
+        lastVerifiedAt: new Date(),
+      };
+      workspace.onboarding = {
+        ...workspace.onboarding,
+        status: "connected",
+        lastError: "",
+      };
+      workspace.meta.status = "connected";
+      workspace.isConfigured = true;
+      console.info(
+        "[whatsapp:connect] Existing workspace migrated to provider System User",
+        {
+          workspaceId: String(workspace._id),
+          wabaId,
+          phoneNumberId,
+          providerSystemUserId: providerCredential.systemUserId,
+        },
+      );
+      return true;
+    } catch (error) {
+      console.warn(
+        "[whatsapp:connect] Existing workspace System User migration failed",
+        {
+          workspaceId: String(workspace._id),
+          wabaId,
+          phoneNumberId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      );
+    }
+  }
+
+  if (!accessToken || (wabaId && phoneNumberId)) {
     return false;
   }
 
@@ -1191,6 +1268,156 @@ const exchangeFacebookLoginCode = async (
   return data.access_token as string;
 };
 
+const requiredWhatsAppScopes = [
+  "whatsapp_business_management",
+  "whatsapp_business_messaging",
+] as const;
+
+const getTokenScopes = (debugData: any) =>
+  Array.from(
+    new Set<string>([
+      ...(Array.isArray(debugData?.data?.scopes) ? debugData.data.scopes : []),
+      ...(Array.isArray(debugData?.data?.granular_scopes)
+        ? debugData.data.granular_scopes.map((scope: any) => scope?.scope)
+        : []),
+    ].map(cleanString).filter(Boolean)),
+  );
+
+const unixTimestampToDate = (value: unknown) => {
+  const seconds = Number(value || 0);
+  return Number.isFinite(seconds) && seconds > 0
+    ? new Date(seconds * 1000)
+    : undefined;
+};
+
+const debugMetaToken = async (accessToken: string) => {
+  const debugUrl = new URL(
+    `https://graph.facebook.com/${metaGraphApiVersion}/debug_token`,
+  );
+  debugUrl.searchParams.set("input_token", accessToken);
+  debugUrl.searchParams.set("access_token", `${metaAppId}|${metaAppSecret}`);
+  const response = await fetch(debugUrl);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.data?.is_valid) {
+    throw new Error(
+      data?.error?.message || "Meta access token could not be verified",
+    );
+  }
+  if (data.data.app_id && data.data.app_id !== metaAppId) {
+    throw new Error("Meta access token belongs to a different app");
+  }
+  return data;
+};
+
+const verifyWhatsAppTokenScopes = (debugData: any, tokenLabel: string) => {
+  const grantedScopes = getTokenScopes(debugData);
+  const missingScopes = requiredWhatsAppScopes.filter(
+    (scope) => !grantedScopes.includes(scope),
+  );
+  if (missingScopes.length > 0) {
+    throw new Error(
+      `${tokenLabel} is missing ${missingScopes.join(", ")}`,
+    );
+  }
+  return grantedScopes;
+};
+
+const verifySenderAccess = async (
+  phoneNumberId: string,
+  accessToken: string,
+) => {
+  const sender = await graphFetch(
+    `/${phoneNumberId}?fields=id,display_phone_number,verified_name`,
+    accessToken,
+  );
+  if (cleanString(sender?.id) !== phoneNumberId) {
+    throw new Error("Meta returned a different sender phone number");
+  }
+};
+
+async function assignProviderSystemUserToWaba({
+  wabaId,
+  phoneNumberId,
+}: {
+  wabaId: string;
+  phoneNumberId: string;
+}) {
+  const accessToken = cleanString(
+    process.env.WHATSAPP_SYSTEM_USER_ACCESS_TOKEN,
+  );
+  if (!accessToken) {
+    throw new Error(
+      "WHATSAPP_SYSTEM_USER_ACCESS_TOKEN is not configured on the API server",
+    );
+  }
+
+  const debugData = await debugMetaToken(accessToken);
+  const grantedScopes = verifyWhatsAppTokenScopes(
+    debugData,
+    "WHATSAPP_SYSTEM_USER_ACCESS_TOKEN",
+  );
+  let systemUserId =
+    cleanString(process.env.WHATSAPP_SYSTEM_USER_ID) ||
+    cleanString(debugData?.data?.user_id);
+  if (!systemUserId) {
+    const profile = await graphFetch("/me?fields=id", accessToken);
+    systemUserId = cleanString(profile?.id);
+  }
+  if (!systemUserId) {
+    throw new Error(
+      "Could not resolve the System User ID. Add WHATSAPP_SYSTEM_USER_ID on the API server.",
+    );
+  }
+
+  try {
+    await verifySenderAccess(phoneNumberId, accessToken);
+  } catch {
+    if (!grantedScopes.includes("business_management")) {
+      throw new Error(
+        "WHATSAPP_SYSTEM_USER_ACCESS_TOKEN needs business_management so RocketReplai can assign its System User to a new client WABA",
+      );
+    }
+    const assignmentUrl = new URL(
+      `https://graph.facebook.com/${metaGraphApiVersion}/${wabaId}/assigned_users`,
+    );
+    assignmentUrl.searchParams.set("user", systemUserId);
+    assignmentUrl.searchParams.set("tasks", JSON.stringify(["MANAGE"]));
+    const assignmentResponse = await fetch(assignmentUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const assignmentData = await assignmentResponse
+      .json()
+      .catch(() => ({}));
+    if (!assignmentResponse.ok) {
+      const error = assignmentData?.error || {};
+      throw new Error(
+        [
+          error.message || "Could not assign the provider System User to WABA",
+          error.code ? `code=${error.code}` : "",
+          error.error_subcode ? `subcode=${error.error_subcode}` : "",
+        ]
+          .filter(Boolean)
+          .join(" | "),
+      );
+    }
+    await verifySenderAccess(phoneNumberId, accessToken);
+  }
+
+  console.info("[whatsapp:connect] Provider System User access verified", {
+    wabaId,
+    phoneNumberId,
+    systemUserId,
+  });
+
+  return {
+    accessToken,
+    systemUserId,
+    debugData,
+    grantedScopes,
+  };
+}
+
 export const getWhatsAppPlansController = async (_req: Request, res: Response) =>
   ok(res, { plans: whatsappPlans });
 
@@ -1239,10 +1466,11 @@ export const connectWhatsAppFacebookController = async (
       cleanString(authResponse?.redirectUri) || whatsappOAuthRedirectUri;
     const facebookUserId = cleanString(authResponse?.userID);
 
-    if (!metaAppId) {
+    if (!metaAppId || !metaAppSecret) {
       return res.status(500).json({
         success: false,
-        error: "Meta app id is not configured on the server",
+        error:
+          "WHATSAPP_META_APP_ID and WHATSAPP_META_APP_SECRET must be configured on the API server",
         timestamp: new Date().toISOString(),
       });
     }
@@ -1264,30 +1492,15 @@ export const connectWhatsAppFacebookController = async (
 
     let facebookProfile: any = null;
     let debugData: any = null;
-    if (metaAppSecret) {
-      const debugUrl = new URL(
-        `https://graph.facebook.com/${metaGraphApiVersion}/debug_token`,
-      );
-      debugUrl.searchParams.set("input_token", accessToken);
-      debugUrl.searchParams.set("access_token", `${metaAppId}|${metaAppSecret}`);
-      const debugResponse = await fetch(debugUrl);
-      debugData = await debugResponse.json();
-      if (!debugResponse.ok || !debugData?.data?.is_valid) {
-        return res.status(401).json({
-          success: false,
-          error:
-            debugData?.error?.message ||
-            "Facebook login token could not be verified",
-          timestamp: new Date().toISOString(),
-        });
-      }
-      if (debugData.data.app_id && debugData.data.app_id !== metaAppId) {
-        return res.status(401).json({
-          success: false,
-          error: "Facebook token belongs to a different Meta app",
-          timestamp: new Date().toISOString(),
-        });
-      }
+    try {
+      debugData = await debugMetaToken(accessToken);
+      verifyWhatsAppTokenScopes(debugData, "Embedded Signup token");
+    } catch (error) {
+      return res.status(401).json({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      });
     }
 
     try {
@@ -1341,6 +1554,16 @@ export const connectWhatsAppFacebookController = async (
       });
     }
 
+    try {
+      await verifySenderAccess(phoneNumberId, accessToken);
+    } catch (error) {
+      return res.status(403).json({
+        success: false,
+        error: `The Embedded Signup credential cannot access the selected WhatsApp sender: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const conflictingWorkspace = await WhatsAppWorkspace.findOne({
       clerkId: { $ne: userId },
       "meta.phoneNumberId": phoneNumberId,
@@ -1356,7 +1579,26 @@ export const connectWhatsAppFacebookController = async (
       });
     }
 
-    const subscription = await subscribeAppToWaba(wabaId, accessToken);
+    let providerCredential: Awaited<
+      ReturnType<typeof assignProviderSystemUserToWaba>
+    >;
+    try {
+      providerCredential = await assignProviderSystemUserToWaba({
+        wabaId,
+        phoneNumberId,
+      });
+    } catch (error) {
+      return res.status(502).json({
+        success: false,
+        error: `WhatsApp was selected, but RocketReplai could not assign its System User to the WABA: ${error instanceof Error ? error.message : String(error)}`,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const subscription = await subscribeAppToWaba(
+      wabaId,
+      providerCredential.accessToken,
+    );
     if (!subscription.subscribed) {
       return res.status(502).json({
         success: false,
@@ -1436,7 +1678,20 @@ export const connectWhatsAppFacebookController = async (
         displayPhoneNumber || requestedPhoneNumber || "",
       appId: metaAppId,
       graphApiVersion: metaGraphApiVersion,
-      accessToken,
+      accessToken: "",
+      credentialSource: "provider_system_user",
+      providerSystemUserId: providerCredential.systemUserId,
+      providerSystemUserAssignedAt: new Date(),
+      accessTokenStatus: "valid",
+      accessTokenType:
+        cleanString(providerCredential.debugData?.data?.type) ||
+        "SYSTEM_USER",
+      accessTokenScopes: providerCredential.grantedScopes,
+      accessTokenExpiresAt:
+        unixTimestampToDate(providerCredential.debugData?.data?.expires_at),
+      accessTokenDataAccessExpiresAt: unixTimestampToDate(
+        providerCredential.debugData?.data?.data_access_expires_at,
+      ),
       qualityRating:
         (resolvedConnection.qualityRating as any) || "unknown",
     } as any;
@@ -1452,6 +1707,11 @@ export const connectWhatsAppFacebookController = async (
       wabaId: workspace.meta.wabaId,
       phoneNumberId: workspace.meta.phoneNumberId,
       webhookSubscribed: subscription.subscribed,
+      credentialSource: workspace.meta.credentialSource,
+      providerSystemUserId: workspace.meta.providerSystemUserId,
+      tokenType: workspace.meta.accessTokenType || "unknown",
+      tokenExpiresAt: workspace.meta.accessTokenExpiresAt || null,
+      grantedScopes: workspace.meta.accessTokenScopes || [],
       isConfigured: workspace.isConfigured,
     });
 

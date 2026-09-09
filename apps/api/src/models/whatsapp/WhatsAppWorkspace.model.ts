@@ -37,6 +37,14 @@ export interface IWhatsAppWorkspace extends Document {
     appId: string;
     appSecret: string;
     accessToken: string;
+    credentialSource: "legacy_workspace" | "provider_system_user";
+    providerSystemUserId: string;
+    providerSystemUserAssignedAt?: Date;
+    accessTokenStatus: "unknown" | "valid" | "expired" | "invalid";
+    accessTokenType: string;
+    accessTokenScopes: string[];
+    accessTokenExpiresAt?: Date;
+    accessTokenDataAccessExpiresAt?: Date;
     verifyToken: string;
     graphApiVersion: string;
     qualityRating: "unknown" | "low" | "medium" | "high";
@@ -368,6 +376,22 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       appId: { type: String, default: "" },
       appSecret: { type: String, default: "" },
       accessToken: { type: String, default: "" },
+      credentialSource: {
+        type: String,
+        enum: ["legacy_workspace", "provider_system_user"],
+        default: "legacy_workspace",
+      },
+      providerSystemUserId: { type: String, default: "" },
+      providerSystemUserAssignedAt: Date,
+      accessTokenStatus: {
+        type: String,
+        enum: ["unknown", "valid", "expired", "invalid"],
+        default: "unknown",
+      },
+      accessTokenType: { type: String, default: "" },
+      accessTokenScopes: { type: [String], default: [] },
+      accessTokenExpiresAt: Date,
+      accessTokenDataAccessExpiresAt: Date,
       verifyToken: { type: String, default: "" },
       graphApiVersion: { type: String, default: "v25.0" },
       qualityRating: {
