@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
   CheckCircle2,
@@ -177,6 +177,22 @@ const normalizeAutomation = (value: any) => ({
   },
 });
 
+const getStableRowId = (prefix: string) =>
+  `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const withClientIds = (items: any[] = [], prefix: string) =>
+  items.map((item, index) => ({
+    ...item,
+    _clientId:
+      item?._clientId ||
+      item?._id ||
+      item?.id ||
+      `${prefix}_${index}_${getStableRowId("row")}`,
+  }));
+
+const stripClientIds = (items: any[] = []) =>
+  items.map(({ _clientId, ...item }) => item);
+
 const fieldClass =
   "w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-emerald-500 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-white";
 const labelClass =
@@ -197,7 +213,7 @@ export function WhatsAppAutomationsPanel({
     normalizeAutomation(automationConfig),
   );
   const [services, setServices] = useState<any[]>(
-    appointmentConfig?.services || [],
+    withClientIds(appointmentConfig?.services || [], "service"),
   );
   const [workingHours, setWorkingHours] = useState(() =>
     normalizeWorkingHours(appointmentConfig?.workingHours),
@@ -209,14 +225,29 @@ export function WhatsAppAutomationsPanel({
     notificationSettings?.whatsappNumber || "",
   );
   const [isSaving, setIsSaving] = useState(false);
+  const isDirtyRef = useRef(false);
+  const lastSyncedConfigRef = useRef("");
 
   useEffect(() => {
+    const nextConfigKey = JSON.stringify({
+      automationConfig,
+      appointmentConfig,
+      notificationSettings,
+    });
+    if (isDirtyRef.current || nextConfigKey === lastSyncedConfigRef.current) {
+      return;
+    }
+    lastSyncedConfigRef.current = nextConfigKey;
     setAutomation(normalizeAutomation(automationConfig));
-    setServices(appointmentConfig?.services || []);
+    setServices(withClientIds(appointmentConfig?.services || [], "service"));
     setWorkingHours(normalizeWorkingHours(appointmentConfig?.workingHours));
     setSlotDurationMinutes(appointmentConfig?.slotDurationMinutes || 30);
     setOwnerWhatsAppNumber(notificationSettings?.whatsappNumber || "");
   }, [automationConfig, appointmentConfig, notificationSettings]);
+
+  const markDirty = () => {
+    isDirtyRef.current = true;
+  };
 
   const save = async () => {
     setIsSaving(true);
@@ -225,7 +256,21 @@ export function WhatsAppAutomationsPanel({
         automationConfig: automation,
         appointmentConfig: {
           ...appointmentConfig,
-          services,
+          services: stripClientIds(services),
+          workingHours,
+          slotDurationMinutes,
+        },
+        notificationSettings: {
+          ...notificationSettings,
+          whatsappNumber: ownerWhatsAppNumber,
+        },
+      });
+      isDirtyRef.current = false;
+      lastSyncedConfigRef.current = JSON.stringify({
+        automationConfig: automation,
+        appointmentConfig: {
+          ...appointmentConfig,
+          services: stripClientIds(services),
           workingHours,
           slotDurationMinutes,
         },
@@ -240,6 +285,7 @@ export function WhatsAppAutomationsPanel({
   };
 
   const updateQuestion = (index: number, patch: Record<string, any>) => {
+    markDirty();
     setAutomation((current: any) => ({
       ...current,
       appointmentQuestions: current.appointmentQuestions.map(
@@ -275,12 +321,13 @@ export function WhatsAppAutomationsPanel({
               <input
                 type="checkbox"
                 checked={automation.enabled}
-                onChange={(event) =>
+                onChange={(event) => {
+                  markDirty();
                   setAutomation((current: any) => ({
                     ...current,
                     enabled: event.target.checked,
-                  }))
-                }
+                  }));
+                }}
                 className="h-4 w-4 accent-emerald-500"
               />
             </label>
@@ -325,51 +372,56 @@ export function WhatsAppAutomationsPanel({
               <TextareaField
                 label="Greeting message"
                 value={automation.greetingMessage}
-                onChange={(greetingMessage) =>
+                onChange={(greetingMessage) => {
+                  markDirty();
                   setAutomation((current: any) => ({
                     ...current,
                     greetingMessage,
-                  }))
-                }
+                  }));
+                }}
               />
               <TextareaField
                 label="Menu message"
                 value={automation.menuMessage}
-                onChange={(menuMessage) =>
+                onChange={(menuMessage) => {
+                  markDirty();
                   setAutomation((current: any) => ({
                     ...current,
                     menuMessage,
-                  }))
-                }
+                  }));
+                }}
               />
               <TextareaField
                 label="Support prompt"
                 value={automation.supportPrompt}
-                onChange={(supportPrompt) =>
+                onChange={(supportPrompt) => {
+                  markDirty();
                   setAutomation((current: any) => ({
                     ...current,
                     supportPrompt,
-                  }))
-                }
+                  }));
+                }}
               />
               <TextareaField
                 label="Owner contact message"
                 value={automation.ownerContactMessage}
-                onChange={(ownerContactMessage) =>
+                onChange={(ownerContactMessage) => {
+                  markDirty();
                   setAutomation((current: any) => ({
                     ...current,
                     ownerContactMessage,
-                  }))
-                }
+                  }));
+                }}
               />
               <label className="block space-y-2">
                 <span className={labelClass}>Owner WhatsApp number</span>
                 <input
                   type="tel"
                   value={ownerWhatsAppNumber}
-                  onChange={(event) =>
-                    setOwnerWhatsAppNumber(event.target.value)
-                  }
+                  onChange={(event) => {
+                    markDirty();
+                    setOwnerWhatsAppNumber(event.target.value);
+                  }}
                   placeholder="+919876543210"
                   className={fieldClass}
                 />
@@ -389,7 +441,8 @@ export function WhatsAppAutomationsPanel({
                     <div className="flex items-center justify-between gap-3">
                       <input
                         value={option.title}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          markDirty();
                           setAutomation((current: any) => ({
                             ...current,
                             menuOptions: current.menuOptions.map(
@@ -398,14 +451,15 @@ export function WhatsAppAutomationsPanel({
                                   ? { ...item, title: event.target.value }
                                   : item,
                             ),
-                          }))
-                        }
+                          }));
+                        }}
                         className={`${fieldClass} font-semibold`}
                       />
                       <input
                         type="checkbox"
                         checked={option.enabled}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          markDirty();
                           setAutomation((current: any) => ({
                             ...current,
                             menuOptions: current.menuOptions.map(
@@ -414,14 +468,15 @@ export function WhatsAppAutomationsPanel({
                                   ? { ...item, enabled: event.target.checked }
                                   : item,
                             ),
-                          }))
-                        }
+                          }));
+                        }}
                         className="h-4 w-4 flex-shrink-0 accent-emerald-500"
                       />
                     </div>
                     <input
                       value={option.description}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        markDirty();
                         setAutomation((current: any) => ({
                           ...current,
                           menuOptions: current.menuOptions.map(
@@ -430,8 +485,8 @@ export function WhatsAppAutomationsPanel({
                                 ? { ...item, description: event.target.value }
                                 : item,
                           ),
-                        }))
-                      }
+                        }));
+                      }}
                       className={fieldClass}
                     />
                   </div>
@@ -610,15 +665,16 @@ export function WhatsAppAutomationsPanel({
                       <input
                         type="checkbox"
                         checked={hours.isOpen}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          markDirty();
                           setWorkingHours((current) =>
                             current.map((item, itemIndex) =>
                               itemIndex === index
                                 ? { ...item, isOpen: event.target.checked }
                                 : item,
                             ),
-                          )
-                        }
+                          );
+                        }}
                         className="h-4 w-4 flex-shrink-0 accent-emerald-500"
                       />
                       <span className="truncate">{day.label}</span>
@@ -633,15 +689,16 @@ export function WhatsAppAutomationsPanel({
                         step={900}
                         disabled={!hours.isOpen}
                         value={hours.open}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          markDirty();
                           setWorkingHours((current) =>
                             current.map((item, itemIndex) =>
                               itemIndex === index
                                 ? { ...item, open: event.target.value }
                                 : item,
                             ),
-                          )
-                        }
+                          );
+                        }}
                         className={`${fieldClass} disabled:cursor-not-allowed disabled:opacity-40`}
                       />
                     </label>
@@ -652,15 +709,16 @@ export function WhatsAppAutomationsPanel({
                         step={900}
                         disabled={!hours.isOpen}
                         value={hours.close}
-                        onChange={(event) =>
+                        onChange={(event) => {
+                          markDirty();
                           setWorkingHours((current) =>
                             current.map((item, itemIndex) =>
                               itemIndex === index
                                 ? { ...item, close: event.target.value }
                                 : item,
                             ),
-                          )
-                        }
+                          );
+                        }}
                         className={`${fieldClass} disabled:cursor-not-allowed disabled:opacity-40`}
                       />
                     </label>
@@ -674,18 +732,20 @@ export function WhatsAppAutomationsPanel({
             <h2 className="font-black">Services and Pricing</h2>
             <Button
               type="button"
-              onClick={() =>
+              onClick={() => {
+                markDirty();
                 setServices((current) => [
                   ...current,
                   {
+                    _clientId: getStableRowId("service"),
                     name: "New service",
                     description: "",
                     durationMinutes: 30,
                     priceInr: 0,
                     isActive: true,
                   },
-                ])
-              }
+                ]);
+              }}
               className="gap-2 rounded-lg border border-emerald-500 bg-transparent text-emerald-500"
             >
               <Plus className="h-4 w-4" />
@@ -695,31 +755,33 @@ export function WhatsAppAutomationsPanel({
           <div className="mt-4 grid gap-3 lg:grid-cols-2">
             {services.map((service, index) => (
               <div
-                key={`${service.name}-${index}`}
+                key={service._clientId || service._id || service.id || index}
                 className={`rounded-lg border ${softCardClass} p-3 sm:p-4`}
               >
                 <div className="flex items-center justify-between gap-3">
                   <input
                     value={service.name}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      markDirty();
                       setServices((current) =>
                         current.map((item, itemIndex) =>
                           itemIndex === index
                             ? { ...item, name: event.target.value }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                     className={`${fieldClass} font-bold`}
                   />
                   <button
                     type="button"
                     title="Delete service"
-                    onClick={() =>
+                    onClick={() => {
+                      markDirty();
                       setServices((current) =>
                         current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
+                      );
+                    }}
                     className="rounded-md p-2 text-red-500 hover:bg-red-500/10"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -727,15 +789,16 @@ export function WhatsAppAutomationsPanel({
                 </div>
                 <textarea
                   value={service.description || ""}
-                  onChange={(event) =>
+                  onChange={(event) => {
+                    markDirty();
                     setServices((current) =>
                       current.map((item, itemIndex) =>
                         itemIndex === index
                           ? { ...item, description: event.target.value }
                           : item,
                       ),
-                    )
-                  }
+                    );
+                  }}
                   rows={2}
                   placeholder="Service description"
                   className={`${fieldClass} mt-3 resize-y`}
@@ -747,15 +810,16 @@ export function WhatsAppAutomationsPanel({
                       type="number"
                       min={0}
                       value={service.priceInr || 0}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        markDirty();
                         setServices((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
                               ? { ...item, priceInr: Number(event.target.value) }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                       className={fieldClass}
                     />
                   </label>
@@ -765,7 +829,8 @@ export function WhatsAppAutomationsPanel({
                       type="number"
                       min={15}
                       value={service.durationMinutes || 30}
-                      onChange={(event) =>
+                      onChange={(event) => {
+                        markDirty();
                         setServices((current) =>
                           current.map((item, itemIndex) =>
                             itemIndex === index
@@ -775,8 +840,8 @@ export function WhatsAppAutomationsPanel({
                                 }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                       className={fieldClass}
                     />
                   </label>
@@ -786,15 +851,16 @@ export function WhatsAppAutomationsPanel({
                   <input
                     type="checkbox"
                     checked={service.isActive !== false}
-                    onChange={(event) =>
+                    onChange={(event) => {
+                      markDirty();
                       setServices((current) =>
                         current.map((item, itemIndex) =>
                           itemIndex === index
                             ? { ...item, isActive: event.target.checked }
                             : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                     className="h-4 w-4 accent-emerald-500"
                   />
                 </label>
