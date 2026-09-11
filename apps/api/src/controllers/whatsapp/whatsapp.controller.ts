@@ -846,7 +846,11 @@ const resolveMetaWhatsAppConnection = async ({
   return seeded;
 };
 
-const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
+const subscribeAppToWaba = async (
+  wabaId: string,
+  accessToken: string,
+  tokenSource = "unknown",
+) => {
   if (!wabaId) {
     return {
       subscribed: false,
@@ -869,6 +873,7 @@ const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
       "Meta rejected the webhook subscription";
     console.warn("[whatsapp:connect] Could not subscribe app to WABA", {
       wabaId,
+      tokenSource,
       error,
       code: data?.error?.code,
       subcode: data?.error?.error_subcode,
@@ -881,8 +886,43 @@ const subscribeAppToWaba = async (wabaId: string, accessToken: string) => {
     };
   }
 
-  console.info("[whatsapp:connect] App subscribed to WABA", { wabaId });
+  console.info("[whatsapp:connect] App subscribed to WABA", {
+    wabaId,
+    tokenSource,
+  });
   return { subscribed: true };
+};
+
+const subscribeAppToWabaWithFallback = async ({
+  wabaId,
+  signupAccessToken,
+  providerAccessToken,
+}: {
+  wabaId: string;
+  signupAccessToken: string;
+  providerAccessToken: string;
+}) => {
+  const signupSubscription = await subscribeAppToWaba(
+    wabaId,
+    signupAccessToken,
+    "embedded_signup_token",
+  );
+  if (signupSubscription.subscribed) return signupSubscription;
+
+  const providerSubscription = await subscribeAppToWaba(
+    wabaId,
+    providerAccessToken,
+    "provider_system_user_token",
+  );
+  if (providerSubscription.subscribed) return providerSubscription;
+
+  return {
+    ...providerSubscription,
+    error: [
+      `embedded_signup_token: ${signupSubscription.error}`,
+      `provider_system_user_token: ${providerSubscription.error}`,
+    ].join(" | "),
+  };
 };
 
 const syncWorkspaceMetaConnection = async (workspace: any) => {
@@ -905,6 +945,7 @@ const syncWorkspaceMetaConnection = async (workspace: any) => {
       const subscription = await subscribeAppToWaba(
         wabaId,
         providerCredential.accessToken,
+        "provider_system_user_token",
       );
       if (!subscription.subscribed) {
         throw new Error(subscription.error);
@@ -1019,6 +1060,7 @@ const syncWorkspaceMetaConnection = async (workspace: any) => {
     const subscription = await subscribeAppToWaba(
       resolvedConnection.wabaId,
       accessToken,
+      "workspace_token",
     );
     if (!subscription.subscribed) {
       throw new Error(
@@ -1456,10 +1498,11 @@ export const connectWhatsAppFacebookController = async (
       });
     }
 
-    const subscription = await subscribeAppToWaba(
+    const subscription = await subscribeAppToWabaWithFallback({
       wabaId,
-      providerCredential.accessToken,
-    );
+      signupAccessToken: accessToken,
+      providerAccessToken: providerCredential.accessToken,
+    });
     if (!subscription.subscribed) {
       workspace.onboarding = {
         ...workspace.onboarding,
