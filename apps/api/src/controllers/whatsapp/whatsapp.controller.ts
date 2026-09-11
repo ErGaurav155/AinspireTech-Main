@@ -1511,37 +1511,60 @@ export const connectWhatsAppFacebookController = async (
 
     let providerCredential: Awaited<
       ReturnType<typeof assignProviderSystemUserToWaba>
-    >;
+    > | null = null;
+    let usingSignupTokenFallback = false;
     try {
       providerCredential = await assignProviderSystemUserToWaba({
         wabaId,
         phoneNumberId,
       });
     } catch (error) {
-      workspace.onboarding = {
-        ...workspace.onboarding,
-        status: "error",
-        lastError: `System User assignment failed: ${error instanceof Error ? error.message : String(error)}`,
-      } as any;
-      workspace.meta = {
-        ...workspace.meta,
-        status: "error",
-        accessTokenStatus: "invalid",
-      } as any;
-      workspace.isConfigured = false;
-      await workspace.save();
-      return res.status(502).json({
-        success: false,
-        error: `WhatsApp was selected, but RocketReplai could not assign its System User to the WABA: ${error instanceof Error ? error.message : String(error)}`,
-        timestamp: new Date().toISOString(),
-      });
+      const assignmentError =
+        error instanceof Error ? error.message : String(error);
+      console.warn(
+        "[whatsapp:connect] Provider System User assignment failed; using signup token fallback",
+        {
+          workspaceId: String(workspace._id),
+          wabaId,
+          phoneNumberId,
+          error: assignmentError,
+        },
+      );
+      try {
+        await verifySenderAccess(phoneNumberId, accessToken);
+        usingSignupTokenFallback = true;
+      } catch (senderError) {
+        workspace.onboarding = {
+          ...workspace.onboarding,
+          status: "error",
+          lastError: `System User assignment failed: ${assignmentError}`,
+        } as any;
+        workspace.meta = {
+          ...workspace.meta,
+          status: "error",
+          accessTokenStatus: "invalid",
+        } as any;
+        workspace.isConfigured = false;
+        await workspace.save();
+        return res.status(502).json({
+          success: false,
+          error: `WhatsApp was selected, but RocketReplai could not get a usable send credential. System User assignment failed: ${assignmentError}. Signup token sender check failed: ${senderError instanceof Error ? senderError.message : String(senderError)}`,
+          timestamp: new Date().toISOString(),
+        });
+      }
     }
 
-    const subscription = await subscribeAppToWabaWithFallback({
-      wabaId,
-      signupAccessToken: accessToken,
-      providerAccessToken: providerCredential.accessToken,
-    });
+    const subscription = providerCredential
+      ? await subscribeAppToWabaWithFallback({
+          wabaId,
+          signupAccessToken: accessToken,
+          providerAccessToken: providerCredential.accessToken,
+        })
+      : await subscribeAppToWaba(
+          wabaId,
+          accessToken,
+          "embedded_signup_token_fallback",
+        );
     if (!subscription.subscribed) {
       workspace.onboarding = {
         ...workspace.onboarding,
@@ -1551,11 +1574,14 @@ export const connectWhatsAppFacebookController = async (
       workspace.meta = {
         ...workspace.meta,
         status: "error",
-        accessTokenStatus: "valid",
-        accessTokenType:
-          cleanString(providerCredential.debugData?.data?.type) ||
-          "SYSTEM_USER",
-        accessTokenScopes: providerCredential.grantedScopes,
+        accessTokenStatus: providerCredential ? "valid" : "invalid",
+        accessTokenType: providerCredential
+          ? cleanString(providerCredential.debugData?.data?.type) ||
+            "SYSTEM_USER"
+          : cleanString(debugData?.data?.type) || "USER",
+        accessTokenScopes: providerCredential
+          ? providerCredential.grantedScopes
+          : getTokenScopes(debugData),
       } as any;
       workspace.isConfigured = false;
       await workspace.save();
@@ -1597,18 +1623,30 @@ export const connectWhatsAppFacebookController = async (
 
     workspace.meta = {
       ...workspace.meta,
-      providerSystemUserId: providerCredential.systemUserId,
-      providerSystemUserAssignedAt: new Date(),
+      accessToken: usingSignupTokenFallback ? accessToken : "",
+      credentialSource: usingSignupTokenFallback
+        ? "legacy_workspace"
+        : "provider_system_user",
+      providerSystemUserId: providerCredential?.systemUserId || "",
+      providerSystemUserAssignedAt: providerCredential ? new Date() : undefined,
       accessTokenStatus: "valid",
-      accessTokenType:
-        cleanString(providerCredential.debugData?.data?.type) ||
-        "SYSTEM_USER",
-      accessTokenScopes: providerCredential.grantedScopes,
+      accessTokenType: providerCredential
+        ? cleanString(providerCredential.debugData?.data?.type) ||
+          "SYSTEM_USER"
+        : cleanString(debugData?.data?.type) || "USER",
+      accessTokenScopes: providerCredential
+        ? providerCredential.grantedScopes
+        : getTokenScopes(debugData),
       accessTokenExpiresAt:
-        unixTimestampToDate(providerCredential.debugData?.data?.expires_at),
-      accessTokenDataAccessExpiresAt: unixTimestampToDate(
-        providerCredential.debugData?.data?.data_access_expires_at,
-      ),
+        unixTimestampToDate(
+          providerCredential?.debugData?.data?.expires_at ??
+            debugData?.data?.expires_at,
+        ),
+      accessTokenDataAccessExpiresAt:
+        unixTimestampToDate(
+          providerCredential?.debugData?.data?.data_access_expires_at ??
+            debugData?.data?.data_access_expires_at,
+        ),
       qualityRating:
         (resolvedConnection.qualityRating as any) || "unknown",
     } as any;
@@ -1626,6 +1664,7 @@ export const connectWhatsAppFacebookController = async (
       webhookSubscribed: subscription.subscribed,
       credentialSource: workspace.meta.credentialSource,
       providerSystemUserId: workspace.meta.providerSystemUserId,
+      usedSignupTokenFallback: usingSignupTokenFallback,
       tokenType: workspace.meta.accessTokenType || "unknown",
       tokenExpiresAt: workspace.meta.accessTokenExpiresAt || null,
       grantedScopes: workspace.meta.accessTokenScopes || [],
