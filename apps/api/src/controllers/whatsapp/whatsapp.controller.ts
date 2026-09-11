@@ -1171,6 +1171,42 @@ const verifySenderAccess = async (
   }
 };
 
+const assignSystemUserTasksToWaba = async ({
+  wabaId,
+  systemUserId,
+  accessToken,
+  tasks,
+}: {
+  wabaId: string;
+  systemUserId: string;
+  accessToken: string;
+  tasks: string[];
+}) => {
+  const assignmentUrl = new URL(
+    `https://graph.facebook.com/${metaGraphApiVersion}/${wabaId}/assigned_users`,
+  );
+  assignmentUrl.searchParams.set("user", systemUserId);
+  assignmentUrl.searchParams.set("tasks", JSON.stringify(tasks));
+  const assignmentResponse = await fetch(assignmentUrl, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const assignmentData = await assignmentResponse.json().catch(() => ({}));
+  if (!assignmentResponse.ok) {
+    const error = assignmentData?.error || {};
+    throw new Error(
+      [
+        error.message || "Could not assign the provider System User to WABA",
+        error.code ? `code=${error.code}` : "",
+        error.error_subcode ? `subcode=${error.error_subcode}` : "",
+        `tasks=${tasks.join(",")}`,
+      ]
+        .filter(Boolean)
+        .join(" | "),
+    );
+  }
+};
+
 async function assignProviderSystemUserToWaba({
   wabaId,
   phoneNumberId,
@@ -1205,40 +1241,43 @@ async function assignProviderSystemUserToWaba({
     );
   }
 
-  try {
-    await verifySenderAccess(phoneNumberId, accessToken);
-  } catch {
-    if (!grantedScopes.includes("business_management")) {
-      throw new Error(
-        "WHATSAPP_SYSTEM_USER_ACCESS_TOKEN needs business_management so RocketReplai can assign its System User to a new client WABA",
-      );
-    }
-    const assignmentUrl = new URL(
-      `https://graph.facebook.com/${metaGraphApiVersion}/${wabaId}/assigned_users`,
+  if (!grantedScopes.includes("business_management")) {
+    throw new Error(
+      "WHATSAPP_SYSTEM_USER_ACCESS_TOKEN needs business_management so RocketReplai can assign its System User to a new client WABA",
     );
-    assignmentUrl.searchParams.set("user", systemUserId);
-    assignmentUrl.searchParams.set("tasks", JSON.stringify(["MANAGE"]));
-    const assignmentResponse = await fetch(assignmentUrl, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${accessToken}` },
-    });
-    const assignmentData = await assignmentResponse
-      .json()
-      .catch(() => ({}));
-    if (!assignmentResponse.ok) {
-      const error = assignmentData?.error || {};
-      throw new Error(
-        [
-          error.message || "Could not assign the provider System User to WABA",
-          error.code ? `code=${error.code}` : "",
-          error.error_subcode ? `subcode=${error.error_subcode}` : "",
-        ]
-          .filter(Boolean)
-          .join(" | "),
-      );
-    }
-    await verifySenderAccess(phoneNumberId, accessToken);
   }
+
+  const assignmentAttempts = [
+    ["MANAGE", "MESSAGING"],
+    ["DEVELOP", "MESSAGING"],
+    ["MESSAGING"],
+    ["MANAGE"],
+  ];
+  const assignmentErrors: string[] = [];
+  for (const tasks of assignmentAttempts) {
+    try {
+      await assignSystemUserTasksToWaba({
+        wabaId,
+        systemUserId,
+        accessToken,
+        tasks,
+      });
+      console.info("[whatsapp:connect] Provider System User tasks assigned", {
+        wabaId,
+        phoneNumberId,
+        systemUserId,
+        tasks,
+      });
+      break;
+    } catch (error) {
+      assignmentErrors.push(error instanceof Error ? error.message : String(error));
+    }
+  }
+  if (assignmentErrors.length === assignmentAttempts.length) {
+    throw new Error(assignmentErrors.join(" || "));
+  }
+
+  await verifySenderAccess(phoneNumberId, accessToken);
 
   console.info("[whatsapp:connect] Provider System User access verified", {
     wabaId,
