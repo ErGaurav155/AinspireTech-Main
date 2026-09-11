@@ -38,10 +38,7 @@ const ok = (res: Response, data: any) =>
     timestamp: new Date().toISOString(),
   });
 
-const allowedCollections = [
-  "conversations",
-  "appointments",
-] as const;
+const allowedCollections = ["conversations", "appointments"] as const;
 
 type CollectionName = (typeof allowedCollections)[number];
 
@@ -82,10 +79,9 @@ const metaAppSecret =
   process.env.META_APP_SECRET ||
   process.env.FACEBOOK_APP_SECRET ||
   "";
-const metaGraphApiVersion =
-  process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
+const metaGraphApiVersion = process.env.WHATSAPP_GRAPH_API_VERSION || "v25.0";
 const embeddedSignupConfigId =
-  process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1030939112923553";
+  process.env.WHATSAPP_EMBEDDED_SIGNUP_CONFIG_ID || "1621203692298909";
 const whatsappOAuthRedirectUri =
   process.env.WHATSAPP_OAUTH_REDIRECT_URI ||
   "https://app.rocketreplai.com/whatsapp/settings";
@@ -114,11 +110,31 @@ const appointmentChatQuestionFields = new Set([
 
 const defaultAppointmentChatQuestions = [
   { field: "patientName", question: "What is your full name?", required: true },
-  { field: "patientPhone", question: "What phone number should we use?", required: true },
-  { field: "service", question: "Which service do you want to book?", required: true },
-  { field: "preferredDate", question: "Which date do you prefer?", required: true },
-  { field: "preferredTime", question: "Which time do you prefer?", required: true },
-  { field: "symptoms", question: "Please describe your requirement.", required: true },
+  {
+    field: "patientPhone",
+    question: "What phone number should we use?",
+    required: true,
+  },
+  {
+    field: "service",
+    question: "Which service do you want to book?",
+    required: true,
+  },
+  {
+    field: "preferredDate",
+    question: "Which date do you prefer?",
+    required: true,
+  },
+  {
+    field: "preferredTime",
+    question: "Which time do you prefer?",
+    required: true,
+  },
+  {
+    field: "symptoms",
+    question: "Please describe your requirement.",
+    required: true,
+  },
 ];
 
 const automationMenuIds = new Set([
@@ -155,8 +171,7 @@ const appointmentWeekdays = [
   "sunday",
 ] as const;
 const isClockTime = (value: unknown): value is string =>
-  typeof value === "string" &&
-  /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
+  typeof value === "string" && /^([01]\d|2[0-3]):([0-5]\d)$/.test(value);
 const clockTimeToMinutes = (value: string) => {
   const [hour, minute] = value.split(":").map(Number);
   return hour * 60 + minute;
@@ -166,7 +181,9 @@ const clampNumber = (value: unknown, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, Number(value) || minimum));
 
 const graphFetch = async (path: string, accessToken: string) => {
-  const url = new URL(`https://graph.facebook.com/${metaGraphApiVersion}${path}`);
+  const url = new URL(
+    `https://graph.facebook.com/${metaGraphApiVersion}${path}`,
+  );
   url.searchParams.set("access_token", accessToken);
   const response = await fetch(url);
   const data = await response.json();
@@ -201,23 +218,33 @@ const syncGreetingTemplateStatus = async (workspace: any) => {
     const remoteStatus = cleanString(remoteTemplate?.status).toLowerCase();
     if (["approved", "pending", "rejected"].includes(remoteStatus)) {
       template.status = remoteStatus;
-      template.metaTemplateId = cleanString(remoteTemplate?.id) || template.metaTemplateId;
+      template.metaTemplateId =
+        cleanString(remoteTemplate?.id) || template.metaTemplateId;
       template.lastError = "";
       if (remoteStatus === "approved" && !template.approvedAt) {
         template.approvedAt = new Date();
       }
     }
   } catch (error) {
-    console.warn("[whatsapp:template] Could not sync greeting template status", {
-      error: error instanceof Error ? error.message : String(error),
-    });
+    console.warn(
+      "[whatsapp:template] Could not sync greeting template status",
+      {
+        error: error instanceof Error ? error.message : String(error),
+      },
+    );
   }
 };
 
 const normalizeFlowStatus = (
   value: unknown,
   validationErrors: any[] = [],
-): "draft" | "validation_error" | "published" | "deprecated" | "blocked" | "error" => {
+):
+  | "draft"
+  | "validation_error"
+  | "published"
+  | "deprecated"
+  | "blocked"
+  | "error" => {
   if (validationErrors.length > 0) return "validation_error";
   const status = cleanString(value).toLowerCase();
   if (status === "published") return "published";
@@ -270,13 +297,19 @@ const buildAppointmentFlowJson = (workspace: any) => {
   const selectedFields = appointmentFlowFieldOrder.filter(
     (field) =>
       requiredFields.includes(field) ||
-      ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(field),
+      ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(
+        field,
+      ),
   );
   const serviceNames = (config.services || [])
-    .filter((service: any) => service?.isActive !== false && cleanString(service?.name))
+    .filter(
+      (service: any) =>
+        service?.isActive !== false && cleanString(service?.name),
+    )
     .map((service: any) => cleanString(service.name))
     .slice(0, 10);
-  if (!selectedFields.includes("patient_name")) selectedFields.unshift("patient_name");
+  if (!selectedFields.includes("patient_name"))
+    selectedFields.unshift("patient_name");
   const departmentOptions = toFlowDataSource(flow.departmentOptions, [
     "General",
     "Sales",
@@ -300,14 +333,22 @@ const buildAppointmentFlowJson = (workspace: any) => {
   const inputComponents = selectedFields
     .filter((field) => field !== "service")
     .map((field) => ({
-    type: "TextInput",
-    name: field,
-    label: flowFieldLabels[field] || appointmentFieldLabels[field] || field.replace(/_/g, " "),
-    required: ["patient_name", "symptoms", "preferred_date", "preferred_time"].includes(field)
-      ? true
-      : requiredFields.includes(field),
-    "input-type": field === "phone" ? "phone" : "text",
-  }));
+      type: "TextInput",
+      name: field,
+      label:
+        flowFieldLabels[field] ||
+        appointmentFieldLabels[field] ||
+        field.replace(/_/g, " "),
+      required: [
+        "patient_name",
+        "symptoms",
+        "preferred_date",
+        "preferred_time",
+      ].includes(field)
+        ? true
+        : requiredFields.includes(field),
+      "input-type": field === "phone" ? "phone" : "text",
+    }));
   const payload = {
     action: "book_appointment",
     workspace_id: String(workspace._id),
@@ -513,7 +554,10 @@ const syncAppointmentFlowEncryptionKey = async (workspace: any) => {
   return result;
 };
 
-const createAppointmentFlow = async (workspace: any, flowJson: Record<string, any>) => {
+const createAppointmentFlow = async (
+  workspace: any,
+  flowJson: Record<string, any>,
+) => {
   const baseName =
     cleanString(workspace.appointmentFlow?.name) ||
     `${workspace.organization?.name || "RocketReplai"} Appointment Booking`;
@@ -593,7 +637,8 @@ const uploadAppointmentFlowJson = async (
 };
 
 const syncAppointmentFlowStatus = async (workspace: any) => {
-  if (!workspace.appointmentFlow?.flowId || !workspace.meta?.accessToken) return;
+  if (!workspace.appointmentFlow?.flowId || !workspace.meta?.accessToken)
+    return;
 
   try {
     const version = workspace.meta?.graphApiVersion || metaGraphApiVersion;
@@ -624,10 +669,15 @@ const syncAppointmentFlowStatus = async (workspace: any) => {
       categories: Array.isArray(data?.categories)
         ? data.categories
         : workspace.appointmentFlow.categories || ["APPOINTMENT_BOOKING"],
-      jsonVersion: cleanString(data?.json_version) || workspace.appointmentFlow.jsonVersion,
+      jsonVersion:
+        cleanString(data?.json_version) ||
+        workspace.appointmentFlow.jsonVersion,
       validationErrors,
       lastError: validationErrors.length
-        ? validationErrors.map((item: any) => item?.message).filter(Boolean).join("; ")
+        ? validationErrors
+            .map((item: any) => item?.message)
+            .filter(Boolean)
+            .join("; ")
         : "",
       lastSyncedAt: new Date(),
       updatedAt: new Date(),
@@ -819,7 +869,10 @@ const resolveMetaWhatsAppConnection = async ({
   }
 
   try {
-    const businesses = await graphFetch("/me/businesses?fields=id,name", accessToken);
+    const businesses = await graphFetch(
+      "/me/businesses?fields=id,name",
+      accessToken,
+    );
     for (const business of businesses?.data || []) {
       const businessId = cleanString(business.id);
       if (!businessId) continue;
@@ -1084,7 +1137,9 @@ const exchangeFacebookLoginCode = async (
   redirectUri = whatsappOAuthRedirectUri,
 ) => {
   if (!metaAppSecret) {
-    throw new Error("Meta app secret is required to exchange Facebook login code");
+    throw new Error(
+      "Meta app secret is required to exchange Facebook login code",
+    );
   }
 
   const url = new URL(
@@ -1098,7 +1153,9 @@ const exchangeFacebookLoginCode = async (
   const response = await fetch(url);
   const data = await response.json();
   if (!response.ok || !data?.access_token) {
-    throw new Error(data?.error?.message || "Could not exchange Facebook login code");
+    throw new Error(
+      data?.error?.message || "Could not exchange Facebook login code",
+    );
   }
 
   return data.access_token as string;
@@ -1111,12 +1168,18 @@ const requiredWhatsAppScopes = [
 
 const getTokenScopes = (debugData: any) =>
   Array.from(
-    new Set<string>([
-      ...(Array.isArray(debugData?.data?.scopes) ? debugData.data.scopes : []),
-      ...(Array.isArray(debugData?.data?.granular_scopes)
-        ? debugData.data.granular_scopes.map((scope: any) => scope?.scope)
-        : []),
-    ].map(cleanString).filter(Boolean)),
+    new Set<string>(
+      [
+        ...(Array.isArray(debugData?.data?.scopes)
+          ? debugData.data.scopes
+          : []),
+        ...(Array.isArray(debugData?.data?.granular_scopes)
+          ? debugData.data.granular_scopes.map((scope: any) => scope?.scope)
+          : []),
+      ]
+        .map(cleanString)
+        .filter(Boolean),
+    ),
   );
 
 const unixTimestampToDate = (value: unknown) => {
@@ -1151,9 +1214,7 @@ const verifyWhatsAppTokenScopes = (debugData: any, tokenLabel: string) => {
     (scope) => !grantedScopes.includes(scope),
   );
   if (missingScopes.length > 0) {
-    throw new Error(
-      `${tokenLabel} is missing ${missingScopes.join(", ")}`,
-    );
+    throw new Error(`${tokenLabel} is missing ${missingScopes.join(", ")}`);
   }
   return grantedScopes;
 };
@@ -1270,7 +1331,9 @@ async function assignProviderSystemUserToWaba({
       });
       break;
     } catch (error) {
-      assignmentErrors.push(error instanceof Error ? error.message : String(error));
+      assignmentErrors.push(
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
   if (assignmentErrors.length === assignmentAttempts.length) {
@@ -1293,8 +1356,10 @@ async function assignProviderSystemUserToWaba({
   };
 }
 
-export const getWhatsAppPlansController = async (_req: Request, res: Response) =>
-  ok(res, { plans: whatsappPlans });
+export const getWhatsAppPlansController = async (
+  _req: Request,
+  res: Response,
+) => ok(res, { plans: whatsappPlans });
 
 export const getWhatsAppFacebookConfigController = async (
   _req: Request,
@@ -1631,28 +1696,26 @@ export const connectWhatsAppFacebookController = async (
       providerSystemUserAssignedAt: providerCredential ? new Date() : undefined,
       accessTokenStatus: "valid",
       accessTokenType: providerCredential
-        ? cleanString(providerCredential.debugData?.data?.type) ||
-          "SYSTEM_USER"
+        ? cleanString(providerCredential.debugData?.data?.type) || "SYSTEM_USER"
         : cleanString(debugData?.data?.type) || "USER",
       accessTokenScopes: providerCredential
         ? providerCredential.grantedScopes
         : getTokenScopes(debugData),
-      accessTokenExpiresAt:
-        unixTimestampToDate(
-          providerCredential?.debugData?.data?.expires_at ??
-            debugData?.data?.expires_at,
-        ),
-      accessTokenDataAccessExpiresAt:
-        unixTimestampToDate(
-          providerCredential?.debugData?.data?.data_access_expires_at ??
-            debugData?.data?.data_access_expires_at,
-        ),
-      qualityRating:
-        (resolvedConnection.qualityRating as any) || "unknown",
+      accessTokenExpiresAt: unixTimestampToDate(
+        providerCredential?.debugData?.data?.expires_at ??
+          debugData?.data?.expires_at,
+      ),
+      accessTokenDataAccessExpiresAt: unixTimestampToDate(
+        providerCredential?.debugData?.data?.data_access_expires_at ??
+          debugData?.data?.data_access_expires_at,
+      ),
+      qualityRating: (resolvedConnection.qualityRating as any) || "unknown",
     } as any;
 
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
-    workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
+    workspace.meta.status = workspace.isConfigured
+      ? "connected"
+      : "needs_setup";
     if (workspace.isConfigured) workspace.meta.lastVerifiedAt = new Date();
     await workspace.save();
 
@@ -1698,13 +1761,17 @@ export const getWhatsAppDashboardController = async (
     await syncWorkspaceMetaConnection(workspace);
     pruneExpiredWhatsAppAppointments(workspace);
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
-    workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
+    workspace.meta.status = workspace.isConfigured
+      ? "connected"
+      : "needs_setup";
     await workspace.save();
     const sharedKnowledge = await getSharedBusinessKnowledge(userId);
 
     const conversations = workspace.conversations || [];
     const outboundMessages = conversations.flatMap((conversation) =>
-      conversation.messages.filter((message) => message.direction === "outbound"),
+      conversation.messages.filter(
+        (message) => message.direction === "outbound",
+      ),
     );
     const readMessages = outboundMessages.filter(
       (message) => message.status === "read",
@@ -1718,21 +1785,27 @@ export const getWhatsAppDashboardController = async (
       overview: {
         totalContacts: workspace.contacts?.length || 0,
         optedInContacts:
-          workspace.contacts?.filter((contact) => contact.consentStatus === "opted_in")
-            .length || 0,
-        openConversations: conversations.filter((item) => item.status !== "resolved").length,
-        pendingHuman: conversations.filter((item) => item.status === "pending_human").length,
+          workspace.contacts?.filter(
+            (contact) => contact.consentStatus === "opted_in",
+          ).length || 0,
+        openConversations: conversations.filter(
+          (item) => item.status !== "resolved",
+        ).length,
+        pendingHuman: conversations.filter(
+          (item) => item.status === "pending_human",
+        ).length,
         totalAppointments: workspace.appointments?.length || 0,
         requestedAppointments:
           workspace.appointments?.filter((item) =>
             ["requested", "active"].includes(item.status),
-          )
-            .length || 0,
+          ).length || 0,
         messagesUsed: workspace.subscription.messagesUsed,
         messageLimit: workspace.subscription.messageLimit,
         deliveredRate:
           outboundMessages.length > 0
-            ? Math.round((deliveredMessages.length / outboundMessages.length) * 100)
+            ? Math.round(
+                (deliveredMessages.length / outboundMessages.length) * 100,
+              )
             : 0,
         readRate:
           outboundMessages.length > 0
@@ -1877,9 +1950,9 @@ export const updateWhatsAppWorkspaceController = async (
       if (invalidWorkingHours) {
         return res.status(400).json({
           success: false,
-          error: `Closing time must be later than opening time for ${cleanString(
-            invalidWorkingHours.day,
-          ) || "each open day"}.`,
+          error: `Closing time must be later than opening time for ${
+            cleanString(invalidWorkingHours.day) || "each open day"
+          }.`,
           timestamp: new Date().toISOString(),
         });
       }
@@ -1980,8 +2053,7 @@ export const updateWhatsAppWorkspaceController = async (
               enabled: option?.enabled !== false,
             }))
             .filter(
-              (option: any) =>
-                automationMenuIds.has(option.id) && option.title,
+              (option: any) => automationMenuIds.has(option.id) && option.title,
             )
             .slice(0, 10)
         : currentAutomation.menuOptions;
@@ -1999,10 +2071,7 @@ export const updateWhatsAppWorkspaceController = async (
               type: cleanString(question?.type) || "text",
               required: question?.required !== false,
               options: Array.isArray(question?.options)
-                ? question.options
-                    .map(cleanString)
-                    .filter(Boolean)
-                    .slice(0, 10)
+                ? question.options.map(cleanString).filter(Boolean).slice(0, 10)
                 : [],
             }))
             .filter(
@@ -2047,7 +2116,9 @@ export const updateWhatsAppWorkspaceController = async (
               ? Boolean(followUps.enabled)
               : currentFollowUps.enabled !== false,
           firstDelayMinutes: clampNumber(
-            followUps.firstDelayMinutes || currentFollowUps.firstDelayMinutes || 30,
+            followUps.firstDelayMinutes ||
+              currentFollowUps.firstDelayMinutes ||
+              30,
             5,
             1440,
           ),
@@ -2093,7 +2164,8 @@ export const updateWhatsAppWorkspaceController = async (
       const endpointUri =
         appointmentFlow.endpointUri !== undefined
           ? cleanString(appointmentFlow.endpointUri)
-          : cleanString(currentFlow.endpointUri) || defaultWhatsAppFlowEndpointUri;
+          : cleanString(currentFlow.endpointUri) ||
+            defaultWhatsAppFlowEndpointUri;
       const publicKey =
         appointmentFlow.publicKey !== undefined
           ? cleanString(appointmentFlow.publicKey)
@@ -2163,11 +2235,20 @@ export const updateWhatsAppWorkspaceController = async (
           currentFlow.successMessage ||
           "Thanks. Your appointment request has been sent. The business team will confirm availability soon.",
         departmentOptions: Array.isArray(appointmentFlow.departmentOptions)
-          ? appointmentFlow.departmentOptions.map(cleanString).filter(Boolean).slice(0, 20)
+          ? appointmentFlow.departmentOptions
+              .map(cleanString)
+              .filter(Boolean)
+              .slice(0, 20)
           : currentFlow.departmentOptions || ["General", "Sales", "Support"],
         locationOptions: Array.isArray(appointmentFlow.locationOptions)
-          ? appointmentFlow.locationOptions.map(cleanString).filter(Boolean).slice(0, 20)
-          : currentFlow.locationOptions || ["Main branch", "Online consultation"],
+          ? appointmentFlow.locationOptions
+              .map(cleanString)
+              .filter(Boolean)
+              .slice(0, 20)
+          : currentFlow.locationOptions || [
+              "Main branch",
+              "Online consultation",
+            ],
         chatQuestions: Array.isArray(appointmentFlow.chatQuestions)
           ? appointmentFlow.chatQuestions
               .map((item: any) => ({
@@ -2177,14 +2258,17 @@ export const updateWhatsAppWorkspaceController = async (
               }))
               .filter(
                 (item: any) =>
-                  appointmentChatQuestionFields.has(item.field) && item.question,
+                  appointmentChatQuestionFields.has(item.field) &&
+                  item.question,
               )
               .slice(0, 10)
           : currentFlow.chatQuestions?.length
             ? currentFlow.chatQuestions
             : defaultAppointmentChatQuestions,
         status:
-          currentFlow.status === "published" ? "draft" : currentFlow.status || "draft",
+          currentFlow.status === "published"
+            ? "draft"
+            : currentFlow.status || "draft",
         validationErrors: [],
         lastError: "",
         updatedAt: new Date(),
@@ -2247,7 +2331,10 @@ export const updateWhatsAppWorkspaceController = async (
         body: nextBody.slice(0, 1024),
         example:
           cleanString(greetingTemplate.example) ||
-          nextBody.replace(/\{\{\s*1\s*\}\}/g, workspace.organization?.name || "Ainspiretech"),
+          nextBody.replace(
+            /\{\{\s*1\s*\}\}/g,
+            workspace.organization?.name || "Ainspiretech",
+          ),
         metaTemplateId: changed ? "" : currentTemplate.metaTemplateId,
         lastError: changed ? "" : currentTemplate.lastError,
         updatedAt: new Date(),
@@ -2277,7 +2364,9 @@ export const updateWhatsAppWorkspaceController = async (
     }
 
     workspace.isConfigured = resolveWorkspaceConfigured(workspace);
-    workspace.meta.status = workspace.isConfigured ? "connected" : "needs_setup";
+    workspace.meta.status = workspace.isConfigured
+      ? "connected"
+      : "needs_setup";
     if (workspace.isConfigured) workspace.meta.lastVerifiedAt = new Date();
     await workspace.save();
 
@@ -2333,7 +2422,8 @@ export const submitWhatsAppGreetingTemplateController = async (
     if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
       return res.status(409).json({
         success: false,
-        error: "Connect WhatsApp Business before submitting a greeting template.",
+        error:
+          "Connect WhatsApp Business before submitting a greeting template.",
         timestamp: new Date().toISOString(),
       });
     }
@@ -2348,7 +2438,8 @@ export const submitWhatsAppGreetingTemplateController = async (
     const body =
       cleanString(req.body?.body || currentTemplate.body) ||
       "Hi, thanks for messaging {{1}}. Please choose an option or share what you need help with.";
-    const language = cleanString(req.body?.language || currentTemplate.language) || "en_US";
+    const language =
+      cleanString(req.body?.language || currentTemplate.language) || "en_US";
     const exampleBusinessName = workspace.organization?.name || "Ainspiretech";
     const bodyComponent: Record<string, any> = {
       type: "BODY",
@@ -2386,7 +2477,9 @@ export const submitWhatsAppGreetingTemplateController = async (
       body: body.slice(0, 1024),
       example: body.replace(/\{\{\s*1\s*\}\}/g, exampleBusinessName),
       status: response.ok ? "pending" : "draft",
-      metaTemplateId: response.ok ? cleanString(data?.id) : currentTemplate.metaTemplateId,
+      metaTemplateId: response.ok
+        ? cleanString(data?.id)
+        : currentTemplate.metaTemplateId,
       submittedAt: response.ok ? new Date() : currentTemplate.submittedAt,
       lastError: response.ok
         ? ""
@@ -2431,7 +2524,8 @@ export const syncWhatsAppAppointmentFlowController = async (
     if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
       return res.status(409).json({
         success: false,
-        error: "Connect WhatsApp Business before creating a native WhatsApp Flow.",
+        error:
+          "Connect WhatsApp Business before creating a native WhatsApp Flow.",
         timestamp: new Date().toISOString(),
       });
     }
@@ -2439,7 +2533,8 @@ export const syncWhatsAppAppointmentFlowController = async (
     workspace.appointmentFlow = {
       ...workspace.appointmentFlow,
       endpointUri:
-        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
+        workspace.appointmentFlow?.endpointUri ||
+        defaultWhatsAppFlowEndpointUri,
       publicKey:
         workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
       endpointStatus:
@@ -2515,7 +2610,8 @@ export const syncWhatsAppAppointmentFlowController = async (
       }
     } catch (saveError) {
       console.warn("Could not persist WhatsApp Flow error state", {
-        error: saveError instanceof Error ? saveError.message : String(saveError),
+        error:
+          saveError instanceof Error ? saveError.message : String(saveError),
       });
     }
     return res.status(500).json({
@@ -2539,7 +2635,8 @@ export const publishWhatsAppAppointmentFlowController = async (
     if (!workspace.meta?.wabaId || !workspace.meta?.accessToken) {
       return res.status(409).json({
         success: false,
-        error: "Connect WhatsApp Business before publishing a native WhatsApp Flow.",
+        error:
+          "Connect WhatsApp Business before publishing a native WhatsApp Flow.",
         timestamp: new Date().toISOString(),
       });
     }
@@ -2547,7 +2644,8 @@ export const publishWhatsAppAppointmentFlowController = async (
     workspace.appointmentFlow = {
       ...workspace.appointmentFlow,
       endpointUri:
-        workspace.appointmentFlow?.endpointUri || defaultWhatsAppFlowEndpointUri,
+        workspace.appointmentFlow?.endpointUri ||
+        defaultWhatsAppFlowEndpointUri,
       publicKey:
         workspace.appointmentFlow?.publicKey || defaultWhatsAppFlowPublicKey,
       endpointStatus:
@@ -2800,7 +2898,8 @@ export const sendWhatsAppTextController = async (
         createdAt: now,
         updatedAt: now,
       });
-      conversation = workspace.conversations[workspace.conversations.length - 1];
+      conversation =
+        workspace.conversations[workspace.conversations.length - 1];
     }
 
     conversation.lastMessage = body;
