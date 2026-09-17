@@ -8,7 +8,6 @@ import {
   Building2,
   CalendarCheck,
   Check,
-  CreditCard,
   FileText,
   Loader2,
   MessageCircle,
@@ -124,12 +123,12 @@ const plans = [
   {
     id: "launch",
     name: "WhatsApp Automation",
-    price: "INR 2,999",
+    price: "INR 1,999",
     period: "/month",
-    amount: 2999,
-    firstMonth: 1499,
+    amount: 1999,
+    firstMonth: 999,
     badge: "50% first month",
-    limit: "10k business-initiated messages",
+    limit: "Unlimited response messages",
     features: [
       "1 connected WhatsApp number",
       "Guided appointment booking",
@@ -428,7 +427,10 @@ function Overview({
     {
       label: "Messages used",
       value: String(data.overview.messagesUsed),
-      change: `${data.overview.messageLimit} limit`,
+      change:
+        data.workspace?.subscription?.plan === "free"
+          ? `${data.overview.messageLimit} limit`
+          : "Unlimited responses",
       icon: MessageCircle,
     },
     {
@@ -1616,16 +1618,6 @@ function Pricing({
 }) {
   return (
     <div className="space-y-6">
-      <div className={`min-w-0 rounded-2xl border ${cardClass} p-4 sm:p-5`}>
-        <SectionTitle icon={CreditCard} title="Recommended India Pricing" />
-        <p className="mt-3 max-w-4xl text-sm leading-6 text-gray-500 dark:text-white/55">
-          Plans include RocketReplai platform access. Meta WhatsApp Business
-          Platform charges should be passed through separately because Meta now
-          prices business-initiated template messages by category and country.
-          Service messages inside the customer care window are treated
-          differently from paid template sends.
-        </p>
-      </div>
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="grid gap-5 md:grid-cols-2">
           {plans.map((plan) => (
@@ -1704,7 +1696,7 @@ function Pricing({
               ["Numbers", "1"],
               ["Booking flow", "1"],
               ["Greeting template", "1"],
-              ["Messages", "10k/mo"],
+              ["Messages", "Unlimited"],
             ].map(([label, value]) => (
               <div
                 key={label}

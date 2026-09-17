@@ -32,6 +32,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@rocketreplai/ui";
+import { SocialWhatsAppPackagePromo } from "@/components/shared/SocialWhatsAppPackagePromo";
 
 // Components
 
@@ -564,6 +565,8 @@ const PricingContent = () => {
             </div>
           </TabsContent>
         </Tabs>
+
+        <SocialWhatsAppPackagePromo className="mt-12" />
 
         {renderComparisonTable()}
       </div>

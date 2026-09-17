@@ -4,7 +4,6 @@ import { cronAuth } from "@/middleware/secret-auth.middleware";
 
 import { resetWebTokensController } from "@/controllers/cron/web-token.controller";
 import { hourlyWindowResetController } from "@/controllers/cron/hourly-window-reset.controller";
-import { processCommissionsController } from "@/controllers/cron/process-commissions.controller";
 import { followupCronController } from "@/controllers/cron/followup.controller";
 import { resetInstaController } from "@/controllers/cron/insta-reset.controller";
 
@@ -27,14 +26,11 @@ router.use(cronAuth(allowedCronOrigins));
 // POST /api/cron/hourly-window-reset - Hourly window reset
 router.post("/hourly-window-reset", hourlyWindowResetController);
 
-// GET /api/cron/web-token - Monthly web token reset
+// GET /api/cron/web-token - Monthly web token and WhatsApp usage reset
 router.get("/web-token", resetWebTokensController);
 
 // GET /api/cron/insta - Monthly insta info reset
 router.get("/insta", resetInstaController);
-
-// GET /api/cron/process-commissions - Process affiliate commissions
-router.get("/process-commissions", processCommissionsController);
 
 // GET /api/cron/followup - Process followups
 router.get("/followup", followupCronController);

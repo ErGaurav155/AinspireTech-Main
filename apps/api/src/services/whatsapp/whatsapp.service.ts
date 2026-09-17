@@ -150,9 +150,9 @@ export const whatsappPlans = [
   {
     id: "launch",
     name: "WhatsApp Automation",
-    priceInr: 2999,
-    yearlyInr: 29990,
-    firstMonthInr: 1499,
+    priceInr: 1999,
+    yearlyInr: 19990,
+    firstMonthInr: 999,
     messageLimit: 10000,
     numbersLimit: 1,
     seatsLimit: 1,
@@ -398,6 +398,10 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
       billingCycle: "monthly",
       messageLimit: 10,
       messagesUsed: 0,
+      lastMessageResetAt: new Date(),
+      nextMessageResetAt: new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000,
+      ),
       numbersLimit: 1,
       seatsLimit: 1,
       agentsLimit: 1,

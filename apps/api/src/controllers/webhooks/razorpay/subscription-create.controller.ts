@@ -48,8 +48,8 @@ const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
     business: 2500,
   },
   whatsapp: {
-    "whatsapp-launch": 1499,
-    launch: 1499,
+    "whatsapp-launch": 999,
+    launch: 999,
   },
 } as const;
 

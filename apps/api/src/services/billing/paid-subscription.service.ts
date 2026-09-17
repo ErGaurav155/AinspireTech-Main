@@ -167,6 +167,9 @@ export async function activateWhatsAppPaidSubscription({
   workspace.subscription.status = "active";
   workspace.subscription.billingCycle = billingCycle;
   workspace.subscription.messageLimit = plan.messageLimit;
+  workspace.subscription.messagesUsed = 0;
+  workspace.subscription.lastMessageResetAt = new Date();
+  workspace.subscription.nextMessageResetAt = nextBillingDate;
   workspace.subscription.numbersLimit = plan.numbersLimit;
   workspace.subscription.seatsLimit = plan.seatsLimit;
   workspace.subscription.agentsLimit = plan.agentsLimit;
@@ -192,6 +195,10 @@ export async function renewWhatsAppPaidSubscription({
     {
       $set: {
         "subscription.status": "active",
+        "subscription.messageLimit": 10000,
+        "subscription.messagesUsed": 0,
+        "subscription.lastMessageResetAt": new Date(),
+        "subscription.nextMessageResetAt": expiresAt,
         "subscription.nextBillingDate": expiresAt,
         updatedAt: new Date(),
       },
@@ -212,6 +219,11 @@ export async function downgradeWhatsAppSubscriptionToFree(
         "subscription.status": "trial",
         "subscription.billingCycle": "monthly",
         "subscription.messageLimit": freePlan.messageLimit,
+        "subscription.messagesUsed": 0,
+        "subscription.lastMessageResetAt": new Date(),
+        "subscription.nextMessageResetAt": new Date(
+          Date.now() + 30 * 24 * 60 * 60 * 1000,
+        ),
         "subscription.numbersLimit": freePlan.numbersLimit,
         "subscription.seatsLimit": freePlan.seatsLimit,
         "subscription.agentsLimit": freePlan.agentsLimit,

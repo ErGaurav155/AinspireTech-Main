@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { Check, MessageCircle } from "lucide-react";
 import { Button } from "@rocketreplai/ui";
+import { SocialWhatsAppPackagePromo } from "@/components/shared/SocialWhatsAppPackagePromo";
 
 const plan = {
   name: "WhatsApp Automation",
   price: "INR 1,999",
-  limit: "10k automated customer messages",
+  limit: "Unlimited response messages",
   features: [
     "1 connected WhatsApp number",
     "1 team inbox",
@@ -19,7 +20,7 @@ const limits = [
   ["WhatsApp number", "1"],
   ["Team inbox", "1"],
   ["AI agents", "3"],
-  ["Included messages", "10k/mo"],
+  ["Included messages", "Unlimited"],
 ];
 
 export default function WhatsAppPricingPage() {
@@ -102,6 +103,8 @@ export default function WhatsAppPricingPage() {
             </p>
           </div>
         </div>
+
+        <SocialWhatsAppPackagePromo className="mt-12 max-w-5xl" />
       </div>
     </main>
   );

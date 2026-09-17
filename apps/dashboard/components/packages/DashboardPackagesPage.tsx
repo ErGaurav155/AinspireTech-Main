@@ -47,6 +47,10 @@ import {
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
+const VISIBLE_AUTOMATION_PACKAGE_IDS = new Set<
+  DashboardPackagePlan["id"]
+>(["package-whatsapp"]);
+const SHOW_META_ADS_PLANS = false;
 
 const serviceStyles: Record<
   DashboardPackageServiceKey,
@@ -119,7 +123,7 @@ export function DashboardPackagesPage() {
   const { styles, isDark } = useThemeStyles();
   const [status, setStatus] = useState<DashboardPackageStatus | null>(null);
   const [selectedPackageId, setSelectedPackageId] =
-    useState<DashboardPackagePlan["id"]>("package-starter");
+    useState<DashboardPackagePlan["id"]>("package-whatsapp");
   const [isLoading, setIsLoading] = useState(true);
   const [checkingPackageId, setCheckingPackageId] =
     useState<DashboardPackagePlan["id"] | null>(null);
@@ -149,8 +153,11 @@ export function DashboardPackagesPage() {
   const loadStatus = useCallback(async () => {
     const data = await getDashboardPackageStatus(apiRequest);
     setStatus(data);
-    if (!data.plans.some((plan) => plan.id === selectedPackageId)) {
-      setSelectedPackageId(data.plans[0]?.id || "package-starter");
+    const visiblePlans = data.plans.filter((plan) =>
+      VISIBLE_AUTOMATION_PACKAGE_IDS.has(plan.id),
+    );
+    if (!visiblePlans.some((plan) => plan.id === selectedPackageId)) {
+      setSelectedPackageId(visiblePlans[0]?.id || "package-whatsapp");
     }
     return data;
   }, [apiRequest, selectedPackageId]);
@@ -167,12 +174,20 @@ export function DashboardPackagesPage() {
       .finally(() => setIsLoading(false));
   }, [loadStatus]);
 
+  const visiblePackagePlans = useMemo(
+    () =>
+      (status?.plans || []).filter((plan) =>
+        VISIBLE_AUTOMATION_PACKAGE_IDS.has(plan.id),
+      ),
+    [status],
+  );
+
   const selectedPackage = useMemo(
     () =>
-      status?.plans.find((plan) => plan.id === selectedPackageId) ||
-      status?.plans[0] ||
+      visiblePackagePlans.find((plan) => plan.id === selectedPackageId) ||
+      visiblePackagePlans[0] ||
       null,
-    [selectedPackageId, status],
+    [selectedPackageId, visiblePackagePlans],
   );
 
   const checksByKey = useMemo(() => {
@@ -958,14 +973,14 @@ export function DashboardPackagesPage() {
               }`}
             >
               <PackageCheck className="h-4 w-4" />
-              Common packages for every dashboard
+              Social + WhatsApp package
             </div>
             <h1 className={`text-3xl font-black md:text-5xl ${styles.text.primary}`}>
-              One subscription for your automation stack
+              Your core automation stack in one plan
             </h1>
             <p className={`mt-3 text-base md:text-lg ${styles.text.secondary}`}>
-              Pick one package, complete the required free setup checks, and then
-              activate all included dashboards with Razorpay billing.
+              Connect Instagram, your website chatbot, and WhatsApp automation,
+              complete the setup checks, and activate them with one subscription.
             </p>
           </div>
           <Link href="/">
@@ -1056,8 +1071,8 @@ export function DashboardPackagesPage() {
           </section>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {(status?.plans || []).map((plan) => {
+        <section className="grid max-w-xl gap-4">
+          {visiblePackagePlans.map((plan) => {
             const isSelected = selectedPackage?.id === plan.id;
             const isCurrent = activePackage?.packageId === plan.id;
             const isCallPackageLocked =
@@ -1192,13 +1207,14 @@ export function DashboardPackagesPage() {
           })}
         </section>
 
-        <section
-          className={`rounded-2xl border p-5 ${
-            isDark
-              ? "border-blue-500/20 bg-blue-500/10"
-              : "border-blue-200 bg-blue-50"
-          }`}
-        >
+        {SHOW_META_ADS_PLANS ? (
+          <section
+            className={`rounded-2xl border p-5 ${
+              isDark
+                ? "border-blue-500/20 bg-blue-500/10"
+                : "border-blue-200 bg-blue-50"
+            }`}
+          >
           <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-blue-500/20 bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-500">
@@ -1315,7 +1331,8 @@ export function DashboardPackagesPage() {
               );
             })}
           </div>
-        </section>
+          </section>
+        ) : null}
 
         <section
           className={`rounded-2xl border p-5 ${

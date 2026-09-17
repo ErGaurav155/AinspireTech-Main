@@ -57,6 +57,8 @@ export interface IWhatsAppWorkspace extends Document {
     billingCycle: "monthly" | "yearly";
     messageLimit: number;
     messagesUsed: number;
+    lastMessageResetAt?: Date;
+    nextMessageResetAt?: Date;
     numbersLimit: number;
     seatsLimit: number;
     agentsLimit: number;
@@ -406,6 +408,11 @@ const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
       },
       messageLimit: { type: Number, default: 10 },
       messagesUsed: { type: Number, default: 0 },
+      lastMessageResetAt: { type: Date, default: Date.now },
+      nextMessageResetAt: {
+        type: Date,
+        default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
       numbersLimit: { type: Number, default: 1 },
       seatsLimit: { type: Number, default: 1 },
       agentsLimit: { type: Number, default: 3 },

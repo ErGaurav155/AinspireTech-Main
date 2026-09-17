@@ -1,8 +1,11 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 
-// GET /api/cron/web-token - Reset free web tokens for users
+const MONTH_IN_MS = 30 * 24 * 60 * 60 * 1000;
+
+// GET /api/cron/web-token - Reset monthly web tokens and WhatsApp message usage
 export const resetWebTokensController = async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
@@ -32,11 +35,42 @@ export const resetWebTokensController = async (req: Request, res: Response) => {
       }
     }
 
+    const whatsappWorkspacesToReset = await WhatsAppWorkspace.find({
+      $or: [
+        { "subscription.nextMessageResetAt": { $lte: now } },
+        { "subscription.nextMessageResetAt": { $exists: false } },
+      ],
+    });
+    let whatsappResetCount = 0;
+
+    for (const workspace of whatsappWorkspacesToReset) {
+      try {
+        const isPaidPlan = ["launch", "package"].includes(
+          workspace.subscription.plan,
+        );
+        workspace.subscription.messageLimit = isPaidPlan ? 10000 : 10;
+        workspace.subscription.messagesUsed = 0;
+        workspace.subscription.lastMessageResetAt = now;
+        workspace.subscription.nextMessageResetAt = new Date(
+          now.getTime() + MONTH_IN_MS,
+        );
+        await workspace.save();
+        whatsappResetCount++;
+      } catch (error) {
+        console.error(
+          `Error resetting WhatsApp messages for workspace ${workspace._id}:`,
+          error,
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       data: {
-        message: `Reset free tokens for ${resetCount} users`,
+        message: `Reset free web tokens for ${resetCount} users and WhatsApp message usage for ${whatsappResetCount} workspaces`,
         resetCount,
+        webResetCount: resetCount,
+        whatsappResetCount,
       },
       timestamp: now.toISOString(),
     });

@@ -6,6 +6,7 @@ import { BreadcrumbsDefault, Button, Switch } from "@rocketreplai/ui";
 
 import { PricingPlan } from "@rocketreplai/shared";
 import { useRouter } from "next/navigation";
+import { SocialWhatsAppPackagePromo } from "@/components/shared/SocialWhatsAppPackagePromo";
 interface ThemeStyles {
   textPrimary: string;
   textSecondary: string;
@@ -313,6 +314,9 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+
+      <SocialWhatsAppPackagePromo className="mb-16 px-4 sm:px-6 lg:px-8" />
+
       {/* Feature Comparison Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">

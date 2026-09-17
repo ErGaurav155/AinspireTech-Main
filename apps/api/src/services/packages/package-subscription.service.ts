@@ -89,14 +89,16 @@ export const dashboardPackagePlans: DashboardPackagePlan[] = [
   {
     id: "package-whatsapp",
     name: "Social + WhatsApp",
-    description: "Starter services with WhatsApp business automation.",
-    amountInr: 10000,
+    description:
+      "Instagram, Web Chatbot , and WhatsApp automation in one subscription.",
+    amountInr: 2999,
     billingCycle: "monthly",
     includedServices: ["insta", "web", "whatsapp"],
     setupServices: ["insta", "web", "whatsapp"],
     features: [
-      "Everything in Starter Automation",
-      "WhatsApp automation",
+      "Instagram chatbot automation",
+      "Website lead chatbot",
+      "WhatsApp automation with unlimited response messages",
       "Customer support and appointment workflow",
       "Website creation guidance",
       "Content creation support",
@@ -238,19 +240,19 @@ const nextBillingDate = (expiresAt?: Date) =>
 const isWhatsAppWorkspaceReady = (workspace: any) =>
   Boolean(
     workspace?.meta?.businessManagerId &&
-      workspace?.meta?.wabaId &&
-      workspace?.meta?.phoneNumberId &&
-      workspace?.meta?.displayPhoneNumber &&
-      workspace?.meta?.accessToken,
+    workspace?.meta?.wabaId &&
+    workspace?.meta?.phoneNumberId &&
+    workspace?.meta?.displayPhoneNumber &&
+    workspace?.meta?.accessToken,
   );
 
 const isCallWorkspaceReady = (workspace: any) =>
   Boolean(
     workspace?.isConfigured &&
-      workspace?.organization?.name &&
-      workspace?.organization?.phone &&
-      workspace?.organization?.email &&
-      workspace?.owner?.whatsappNumber,
+    workspace?.organization?.name &&
+    workspace?.organization?.phone &&
+    workspace?.organization?.email &&
+    workspace?.owner?.whatsappNumber,
   );
 
 export const getDashboardPackagePlan = (packageId: string) =>
@@ -840,7 +842,9 @@ async function grantPackageServices({
   const tasks: Promise<unknown>[] = [];
 
   if (packagePlan.includedServices.includes("web")) {
-    tasks.push(initializeSubscriptionTokens(clerkId, "chatbot-lead-generation"));
+    tasks.push(
+      initializeSubscriptionTokens(clerkId, "chatbot-lead-generation"),
+    );
     tasks.push(
       WebSubscription.findOneAndUpdate(
         {
@@ -924,6 +928,9 @@ async function grantPackageServices({
             "subscription.status": "active",
             "subscription.billingCycle": "monthly",
             "subscription.messageLimit": whatsappPlan.messageLimit,
+            "subscription.messagesUsed": 0,
+            "subscription.lastMessageResetAt": new Date(),
+            "subscription.nextMessageResetAt": grantExpiry,
             "subscription.numbersLimit": whatsappPlan.numbersLimit,
             "subscription.seatsLimit": whatsappPlan.seatsLimit,
             "subscription.agentsLimit": whatsappPlan.agentsLimit,
@@ -992,6 +999,11 @@ export async function cancelDashboardPackageLocally({
           "subscription.status": "trial",
           "subscription.billingCycle": "monthly",
           "subscription.messageLimit": freeWhatsAppPlan.messageLimit,
+          "subscription.messagesUsed": 0,
+          "subscription.lastMessageResetAt": now,
+          "subscription.nextMessageResetAt": new Date(
+            now.getTime() + 30 * 24 * 60 * 60 * 1000,
+          ),
           "subscription.numbersLimit": freeWhatsAppPlan.numbersLimit,
           "subscription.seatsLimit": freeWhatsAppPlan.seatsLimit,
           "subscription.agentsLimit": freeWhatsAppPlan.agentsLimit,
