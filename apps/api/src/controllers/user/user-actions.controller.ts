@@ -18,7 +18,22 @@ import {
 // POST /api/user/create - Create a new user
 export const createUserController = async (req: Request, res: Response) => {
   try {
-    const userData = req.body;
+    const authenticatedUserId = getAuth(req).userId;
+    if (!authenticatedUserId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    const {
+      clerkId: _ignoredClerkId,
+      totalReplies: _ignoredReplies,
+      replyLimit: _ignoredReplyLimit,
+      accountLimit: _ignoredAccountLimit,
+      ...safeUserData
+    } = req.body || {};
+    const userData = { ...safeUserData, clerkId: authenticatedUserId };
 
     if (!userData || !userData.clerkId) {
       return res.status(400).json({
@@ -49,11 +64,19 @@ export const createUserController = async (req: Request, res: Response) => {
 export const getUserByIdController = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+    const authenticatedUserId = getAuth(req).userId;
 
     if (!userId) {
       return res.status(400).json({
         success: false,
         error: "User ID is required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    if (!authenticatedUserId || authenticatedUserId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: "Access denied",
         timestamp: new Date().toISOString(),
       });
     }
@@ -319,12 +342,13 @@ export const checkAndPrepareScrapeController = async (
   res: Response,
 ) => {
   try {
-    const { userId, url, chatbotId } = req.body;
+    const userId = getAuth(req).userId;
+    const { url, chatbotId } = req.body;
 
     if (!userId || !url || !chatbotId) {
       return res.status(400).json({
         success: false,
-        error: "userId, url, and chatbotId are required",
+        error: "Authentication, url, and chatbotId are required",
         timestamp: new Date().toISOString(),
       });
     }

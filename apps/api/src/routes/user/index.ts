@@ -4,7 +4,6 @@ import {
   getUserByIdController,
   updateUserNumberController,
   hasActiveSubscriptionsController,
-  updateUserLimitsController,
   getAffiliateUserController,
   checkAndPrepareScrapeController,
 } from "@/controllers/user/user-actions.controller";
@@ -18,10 +17,10 @@ import {
 
 const router = Router();
 
-// POST /api/user/create - Create user
-router.post("/create", createUserController);
-
 router.use(requireAuth());
+
+// POST /api/user/create - Create the authenticated user only
+router.post("/create", createUserController);
 
 router.get("/business-knowledge", getSharedBusinessKnowledgeController);
 router.put(
@@ -31,22 +30,20 @@ router.put(
 );
 router.delete("/business-knowledge", deleteSharedBusinessKnowledgeController);
 
-// GET /api/user/:userId - Get user by ID
-router.get("/:userId", getUserByIdController);
-
 // PUT /api/user/update-number - Update user phone number
 router.put("/update-number", updateUserNumberController);
 
 // GET /api/user/active-subscriptions - Check active subscriptions
 router.get("/active-subscriptions", hasActiveSubscriptionsController);
 
-// PUT /api/user/update-limits - Update user limits
-router.put("/update-limits", updateUserLimitsController);
-
 // GET /api/user/affiliate/:userId - Get affiliate user
 router.get("/affiliate/:userId", getAffiliateUserController);
 
 // POST /api/user/check-scrape - Check and prepare for scraping
 router.post("/check-scrape", checkAndPrepareScrapeController);
+
+// Keep parameter routes last so they cannot shadow fixed routes.
+// GET /api/user/:userId - Get authenticated user's record
+router.get("/:userId", getUserByIdController);
 
 export default router;

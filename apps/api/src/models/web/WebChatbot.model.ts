@@ -18,6 +18,7 @@ export interface IChatbotAnalytics {
 }
 
 export interface IChatbot extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   clerkId: string;
   name: string;
   type: ChatbotType;
@@ -94,6 +95,7 @@ const ChatbotAnalyticsSchema = new Schema<IChatbotAnalytics>(
 
 const ChatbotSchema = new Schema<IChatbot>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     clerkId: {
       type: String,
       required: true,
@@ -157,6 +159,7 @@ ChatbotSchema.index({ clerkId: 1, type: 1 }, { unique: true });
 
 // Indexes for optimized queries
 ChatbotSchema.index({ clerkId: 1 });
+ChatbotSchema.index({ workspaceId: 1, type: 1 });
 ChatbotSchema.index({ type: 1, isActive: 1 });
 
 const WebChatbot = (mongoose.models?.WebChatbot ||

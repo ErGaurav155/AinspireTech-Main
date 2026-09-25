@@ -17,6 +17,7 @@ import miscRoutes from "@/routes/misc";
 import callRoutes from "@/routes/call";
 import whatsappRoutes from "@/routes/whatsapp";
 import packagesRoutes from "@/routes/packages";
+import platformRoutes from "@/routes/platform";
 import { embedCors } from "@/middleware/embed-cors.middleware";
 
 const router = Router();
@@ -43,5 +44,6 @@ router.use("/web", webRoutes);
 router.use("/user", userRoutes);
 router.use("/misc", miscRoutes);
 router.use("/packages", packagesRoutes);
+router.use("/platform", platformRoutes);
 
 export default router;

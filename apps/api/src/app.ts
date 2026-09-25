@@ -192,6 +192,8 @@ const corsMiddleware = cors({
     "x-cron-key",
     "x-api-key",
     "x-cron-secret",
+    "x-idempotency-key",
+    "x-workspace-id",
     "x-hub-signature-256",
   ],
   optionsSuccessStatus: 200,

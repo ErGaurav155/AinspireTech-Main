@@ -40,8 +40,6 @@ function ChooseProductContent() {
       router.push("/insta");
     } else if (product === "whatsapp-automation") {
       router.push("/whatsapp");
-    } else {
-      router.push("/call");
     }
   };
 
@@ -303,8 +301,7 @@ function ChooseProductContent() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className={`${styles.card} p-8 rounded-3xl cursor-pointer group relative overflow-hidden`}
-            onClick={() => handleSelectProduct("call-assistant")}
+            className={`${styles.card} p-8 rounded-3xl cursor-default relative overflow-hidden opacity-80`}
           >
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-6">
@@ -314,7 +311,7 @@ function ChooseProductContent() {
 
                 <span className="inline-flex px-3 py-1 rounded-full text-xs font-medium bg-cyan-500/10 text-cyan-500 border border-cyan-500/20">
                   <Zap className="h-3 w-3 mr-1" />
-                  Voice AI
+                  Coming soon
                 </span>
               </div>
 
@@ -349,9 +346,8 @@ function ChooseProductContent() {
                 })}
               </div>
 
-              <Button className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-6 text-base font-medium group-hover:shadow-lg transition-all hover:from-cyan-600 hover:to-blue-600">
-                Start with AI Call
-                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              <Button disabled className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white py-6 text-base font-medium opacity-70">
+                AI Call Assistant — Coming Soon
               </Button>
             </div>
           </motion.div>

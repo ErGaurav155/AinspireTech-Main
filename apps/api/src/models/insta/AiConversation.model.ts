@@ -1,6 +1,7 @@
 import mongoose, { Document, Model, Schema } from "mongoose";
 
 export interface IInstagramAiConversation extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   clerkId: string;
   accountId: string;
   participantId: string;
@@ -17,6 +18,7 @@ export interface IInstagramAiConversation extends Document {
 const InstagramAiConversationSchema =
   new Schema<IInstagramAiConversation>(
     {
+      workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
       clerkId: { type: String, required: true, index: true },
       accountId: { type: String, required: true },
       participantId: { type: String, required: true },
@@ -40,6 +42,7 @@ InstagramAiConversationSchema.index(
   { clerkId: 1, accountId: 1, participantId: 1 },
   { unique: true },
 );
+InstagramAiConversationSchema.index({ workspaceId: 1, accountId: 1, participantId: 1 });
 InstagramAiConversationSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 const InstagramAiConversation =

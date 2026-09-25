@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import ReplyTemplate from "@/models/insta/ReplyTemplate.model";
+import { getAuth } from "@clerk/express";
 
 // POST /api/insta/templates/bulk - Bulk template actions
 export const bulkTemplateActionController = async (
@@ -9,6 +10,15 @@ export const bulkTemplateActionController = async (
 ) => {
   try {
     await connectToDatabase();
+
+    const userId = getAuth(req).userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const { action, templateIds, accountId } = req.body;
 
@@ -20,13 +30,18 @@ export const bulkTemplateActionController = async (
       });
     }
 
+    const ownerFilter = {
+      _id: { $in: templateIds },
+      userId,
+      ...(accountId ? { accountId } : {}),
+    };
     let result;
     let message = "";
 
     switch (action) {
       case "activate":
         result = await ReplyTemplate.updateMany(
-          { _id: { $in: templateIds } },
+          ownerFilter,
           { isActive: true, updatedAt: new Date() },
         );
         message = `Successfully activated ${result.modifiedCount} templates`;
@@ -34,16 +49,14 @@ export const bulkTemplateActionController = async (
 
       case "deactivate":
         result = await ReplyTemplate.updateMany(
-          { _id: { $in: templateIds } },
+          ownerFilter,
           { isActive: false, updatedAt: new Date() },
         );
         message = `Successfully deactivated ${result.modifiedCount} templates`;
         break;
 
       case "delete":
-        result = await ReplyTemplate.deleteMany({
-          _id: { $in: templateIds },
-        });
+        result = await ReplyTemplate.deleteMany(ownerFilter);
         message = `Successfully deleted ${result.deletedCount} templates`;
         break;
 

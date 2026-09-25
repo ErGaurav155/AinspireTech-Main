@@ -1,6 +1,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IInstagramAccount extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   userId: string; // Clerk user ID
   instagramId: string; // Instagram Business Account ID
   userInstaId: string;
@@ -44,6 +45,7 @@ export interface IInstagramAccount extends Document {
 
 const InstagramAccountSchema = new Schema<IInstagramAccount>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     userId: { type: String, required: true, index: true },
     instagramId: { type: String, required: true, unique: true },
     userInstaId: { type: String, unique: true, sparse: true },
@@ -91,6 +93,7 @@ const InstagramAccountSchema = new Schema<IInstagramAccount>(
 
 // Indexes for performance
 InstagramAccountSchema.index({ userId: 1, isActive: 1 });
+InstagramAccountSchema.index({ workspaceId: 1, isActive: 1 });
 InstagramAccountSchema.index({ instagramId: 1, isActive: 1 });
 InstagramAccountSchema.index({ lastActivity: -1 });
 

@@ -163,6 +163,15 @@ export const createRazorpaySubscriptionController = async (
   try {
     const { razorpayplanId, buyerId, amount, referralCode, metadata } =
       req.body;
+    const authenticatedUserId = getAuth(req).userId;
+
+    if (!authenticatedUserId || authenticatedUserId !== buyerId) {
+      return res.status(403).json({
+        success: false,
+        error: "Subscription buyer does not match authenticated user",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     // Validate required fields
     if (!buyerId || !razorpayplanId || !amount || !metadata) {

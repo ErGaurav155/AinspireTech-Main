@@ -20,8 +20,13 @@ import {
 
 import { razorpaySubsCancelWebhookController } from "@/controllers/webhooks/razorpay/subscription-cancelorcharged.controller";
 import { razorpaySubsCreateOrChargeWebhookController } from "@/controllers/webhooks/razorpay/subscription-create.controller";
+import { platformRazorpayWebhookController } from "@/controllers/webhooks/razorpay/platform-billing.controller";
 
 const router = Router();
+
+// Unified platform billing webhook. Configure Razorpay to send subscription
+// lifecycle events here. Legacy endpoints remain during the compatibility window.
+router.post("/razorpay", platformRazorpayWebhookController);
 
 //clerk
 // POST /api/webhooks/clerk - Handle Clerk webhooks

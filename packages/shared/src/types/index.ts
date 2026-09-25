@@ -32,3 +32,5 @@ export interface Subscription {
   endDate: string;
   razorpaySubscriptionId?: string;
 }
+
+export type * from "./platform";

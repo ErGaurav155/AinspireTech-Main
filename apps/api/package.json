@@ -8,6 +8,11 @@
     "build": "tsc && tsc-alias",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
+    "test:platform": "node --import tsx --test src/config/platform-catalog.config.test.ts src/services/auth/permission.service.test.ts src/services/billing/entitlement-calculator.test.ts",
+    "migrate:platform": "tsx src/scripts/migrate-platform-workspaces.ts",
+    "migrate:platform:apply": "tsx src/scripts/migrate-platform-workspaces.ts --apply",
+    "migrate:platform:rollback": "tsx src/scripts/migrate-platform-workspaces.ts --rollback",
+    "sync:platform-catalog": "tsx src/scripts/sync-platform-catalog.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

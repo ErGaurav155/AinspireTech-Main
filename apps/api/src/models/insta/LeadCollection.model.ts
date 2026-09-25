@@ -2,6 +2,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface ILeadCollection extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   userId: string;
   accountId: string;
   accountUsername: string;
@@ -21,6 +22,7 @@ export interface ILeadCollection extends Document {
 
 const LeadCollectionSchema = new Schema<ILeadCollection>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     userId: { type: String, required: true, index: true },
     accountId: { type: String, required: true, index: true },
     accountUsername: { type: String, required: true },
@@ -47,6 +49,7 @@ const LeadCollectionSchema = new Schema<ILeadCollection>(
 );
 
 LeadCollectionSchema.index({ userId: 1, createdAt: -1 });
+LeadCollectionSchema.index({ workspaceId: 1, createdAt: -1 });
 LeadCollectionSchema.index({ templateId: 1, createdAt: -1 });
 LeadCollectionSchema.index({ accountId: 1, source: 1, createdAt: -1 });
 LeadCollectionSchema.index({ commenterUserId: 1, templateId: 1 });

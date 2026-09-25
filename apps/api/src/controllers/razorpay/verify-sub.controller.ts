@@ -548,6 +548,18 @@ export const verifyRazorpayPaymentController = async (
       });
     }
 
+    // A valid checkout signature proves Razorpay produced the tuple, but does
+    // not prove the authenticated user owns the subscription. Bind it to the
+    // server-side notes before activating legacy entitlements.
+    const signedSubscription = await getRazorpay().subscriptions.fetch(subscription_id);
+    if (!signedSubscription.notes?.buyerId || signedSubscription.notes.buyerId !== userId) {
+      return res.status(403).json({
+        success: false,
+        error: "Subscription does not belong to this user",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // Initialize subscription tokens and create/update subscription record
     try {
       const activationResult = await activateVerifiedSubscription({
@@ -561,6 +573,7 @@ export const verifyRazorpayPaymentController = async (
         billingCycle,
         previousSubscriptionId,
         previousSubscriptionType,
+        razorpaySubscription: signedSubscription,
       });
 
       return res.status(200).json({

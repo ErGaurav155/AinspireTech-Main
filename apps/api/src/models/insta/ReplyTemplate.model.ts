@@ -79,6 +79,7 @@ export interface IDMFlow {
 }
 
 export interface IReplyTemplate extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   userId: string;
   accountId: string;
   accountUsername: string;
@@ -148,6 +149,7 @@ export interface IReplyTemplate extends Document {
 
 const ReplyTemplateSchema = new Schema<IReplyTemplate>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     userId: { type: String, required: true, index: true },
     accountId: { type: String, required: true, index: true },
     accountUsername: { type: String, required: true },
@@ -326,6 +328,7 @@ const ReplyTemplateSchema = new Schema<IReplyTemplate>(
 );
 
 ReplyTemplateSchema.index({ userId: 1, mediaId: 1, isActive: 1 });
+ReplyTemplateSchema.index({ workspaceId: 1, accountId: 1, isActive: 1 });
 ReplyTemplateSchema.index({ accountId: 1, mediaId: 1 });
 ReplyTemplateSchema.index({ triggers: 1 });
 ReplyTemplateSchema.index({ quickReplyTriggers: 1 });

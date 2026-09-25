@@ -2,6 +2,7 @@ import mongoose, { Document, Model, Schema } from "mongoose";
 
 export type WhatsAppPlanId = "free" | "launch" | "package";
 export interface IWhatsAppWorkspace extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   clerkId: string;
   isConfigured: boolean;
   onboarding: {
@@ -317,6 +318,7 @@ export interface IWhatsAppWorkspace extends Document {
 
 const WhatsAppWorkspaceSchema = new Schema<IWhatsAppWorkspace>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     clerkId: { type: String, required: true, unique: true, index: true },
     isConfigured: { type: Boolean, default: false },
     onboarding: {

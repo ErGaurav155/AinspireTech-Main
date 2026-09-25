@@ -20,6 +20,7 @@ export interface IFormField {
 }
 
 export interface IChatConversation extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   chatbotType: "chatbot-lead-generation";
   clerkId: string;
   sessionId: string; // Unique identifier for the chat session
@@ -98,6 +99,7 @@ const FormFieldSchema = new Schema<IFormField>(
 
 const ChatConversationSchema = new Schema<IChatConversation>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     chatbotType: {
       type: String,
       required: true,
@@ -169,6 +171,7 @@ const ChatConversationSchema = new Schema<IChatConversation>(
 // Indexes for optimized queries
 ChatConversationSchema.index({ chatbotType: 1, status: 1 });
 ChatConversationSchema.index({ clerkId: 1, status: 1 });
+ChatConversationSchema.index({ workspaceId: 1, status: 1, lastActivity: -1 });
 ChatConversationSchema.index({ sessionId: 1 });
 ChatConversationSchema.index({ lastActivity: -1 });
 ChatConversationSchema.index({ "messages.timestamp": 1 });

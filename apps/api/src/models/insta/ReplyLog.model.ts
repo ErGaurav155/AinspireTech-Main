@@ -2,6 +2,7 @@
 import mongoose, { Schema, Document, Model } from "mongoose";
 
 export interface IReplyLog extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   userId: string;
   accountId: string;
   templateId?: string;
@@ -59,6 +60,7 @@ export interface IReplyLog extends Document {
 
 const ReplyLogSchema = new Schema<IReplyLog>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     userId: { type: String, required: true, index: true },
     accountId: { type: String, required: true, index: true },
     templateId: { type: String, index: true },
@@ -114,6 +116,7 @@ const ReplyLogSchema = new Schema<IReplyLog>(
 );
 
 ReplyLogSchema.index({ userId: 1, createdAt: -1 });
+ReplyLogSchema.index({ workspaceId: 1, createdAt: -1 });
 ReplyLogSchema.index({ accountId: 1, createdAt: -1 });
 ReplyLogSchema.index({ templateId: 1, createdAt: -1 });
 ReplyLogSchema.index({ success: 1, createdAt: -1 });

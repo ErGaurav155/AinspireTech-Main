@@ -7,6 +7,13 @@ import {
 } from "@/services/user.service";
 import { clerkClient } from "@clerk/express";
 import Affiliate from "@/models/affiliate/Affiliate";
+import { createHash } from "crypto";
+import { connectToDatabase } from "@/config/database.config";
+import WebhookEvent from "@/models/WebhookEvent.model";
+import Agency from "@/models/tenant/Agency.model";
+import AgencyMember from "@/models/tenant/AgencyMember.model";
+import Workspace from "@/models/tenant/Workspace.model";
+import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 
 /* eslint-disable camelcase */
 
@@ -74,6 +81,53 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
 
     // Get the ID and type
     const eventType = evt.type;
+    const payloadHash = createHash("sha256").update(body).digest("hex");
+    await connectToDatabase();
+    let webhookEvent = await WebhookEvent.findOne({
+      provider: "clerk",
+      providerEventId: svix_id,
+    });
+    if (webhookEvent?.status === "processed" || webhookEvent?.status === "ignored") {
+      return res.status(200).json({
+        success: true,
+        message: "Webhook already processed",
+        data: { eventType },
+        timestamp: new Date().toISOString(),
+      });
+    }
+    if (webhookEvent) {
+      webhookEvent.status = "processing";
+      webhookEvent.attempts += 1;
+      webhookEvent.error = undefined;
+      await webhookEvent.save();
+    } else {
+      try {
+        webhookEvent = await WebhookEvent.create({
+          provider: "clerk",
+          providerEventId: svix_id,
+          eventType,
+          payloadHash,
+          status: "processing",
+        });
+      } catch (error: any) {
+        if (error?.code === 11000) {
+          return res.status(200).json({
+            success: true,
+            message: "Webhook is already being processed",
+            data: { eventType },
+            timestamp: new Date().toISOString(),
+          });
+        }
+        throw error;
+      }
+    }
+
+    const finishEvent = async (status: "processed" | "ignored" = "processed") => {
+      await WebhookEvent.updateOne(
+        { _id: webhookEvent!._id },
+        { $set: { status, processedAt: new Date() }, $unset: { error: 1 } },
+      );
+    };
 
     // CREATE
     if (eventType === "user.created") {
@@ -145,6 +199,8 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
         // Don't fail the whole webhook if affiliate creation fails
       }
 
+      await finishEvent();
+
       return res.status(200).json({
         success: true,
         message: "User created successfully",
@@ -166,6 +222,8 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
 
       const updatedUser = await updateUser(id, user);
 
+      await finishEvent();
+
       return res.status(200).json({
         success: true,
         message: "User updated successfully",
@@ -180,6 +238,8 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
 
       const deletedUser = await deleteUserData(id!);
 
+      await finishEvent();
+
       return res.status(200).json({
         success: true,
         message: "User deleted successfully",
@@ -188,7 +248,108 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
       });
     }
 
+    if (
+      eventType === "organizationMembership.created" ||
+      eventType === "organizationMembership.updated"
+    ) {
+      const data = evt.data || {};
+      const organizationId =
+        data.organization?.id || data.organization_id || data.organizationId;
+      const membershipId = data.id;
+      const userId =
+        data.public_user_data?.user_id ||
+        data.publicUserData?.userId ||
+        data.user_id ||
+        data.userId;
+      const identifier = String(
+        data.public_user_data?.identifier ||
+          data.publicUserData?.identifier ||
+          "",
+      ).toLowerCase();
+      if (!organizationId || !membershipId || !userId) {
+        await finishEvent("ignored");
+        return res.status(200).json({ success: true, message: "Incomplete membership event ignored" });
+      }
+
+      const workspace = await Workspace.findOne({ clerkOrganizationId: organizationId });
+      if (!workspace) {
+        await finishEvent("ignored");
+        return res.status(200).json({ success: true, message: "Unmanaged organization ignored" });
+      }
+
+      if (workspace.agencyId) {
+        const [agency, agencyMember] = await Promise.all([
+          Agency.findById(workspace.agencyId).select("ownerUserId").lean(),
+          AgencyMember.findOne({
+            agencyId: workspace.agencyId,
+            userId,
+            status: "active",
+          }).lean(),
+        ]);
+        if (agency?.ownerUserId === userId || agencyMember) {
+          await finishEvent("ignored");
+          return res.status(200).json({ success: true, message: "Agency membership kept in agency authorization layer" });
+        }
+      }
+
+      const isOwner = identifier !== "" && identifier === workspace.ownerEmail.toLowerCase();
+      await WorkspaceMember.findOneAndUpdate(
+        { workspaceId: workspace._id, userId },
+        {
+          $set: {
+            clerkMembershipId: membershipId,
+            role: isOwner ? "CLIENT_OWNER" : "CLIENT_MEMBER",
+            status: "active",
+          },
+          $setOnInsert: { permissions: [], deniedPermissions: [] },
+        },
+        { upsert: true, new: true },
+      );
+      if (isOwner && !workspace.ownerUserId) {
+        workspace.ownerUserId = userId;
+        await workspace.save();
+      }
+      await finishEvent();
+      return res.status(200).json({
+        success: true,
+        message: "Organization membership synchronized",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    if (eventType === "organizationMembership.deleted") {
+      const data = evt.data || {};
+      const membershipId = data.id;
+      const organizationId =
+        data.organization?.id || data.organization_id || data.organizationId;
+      const userId =
+        data.public_user_data?.user_id ||
+        data.publicUserData?.userId ||
+        data.user_id ||
+        data.userId;
+      const workspace = organizationId
+        ? await Workspace.findOne({ clerkOrganizationId: organizationId }).select("_id").lean()
+        : null;
+      const update = workspace
+        ? membershipId
+          ? { workspaceId: workspace._id, clerkMembershipId: membershipId }
+          : userId
+            ? { workspaceId: workspace._id, userId }
+            : null
+        : null;
+      if (update) {
+        await WorkspaceMember.updateOne(update, { $set: { status: "removed" } });
+      }
+      await finishEvent(update ? "processed" : "ignored");
+      return res.status(200).json({
+        success: true,
+        message: update ? "Organization membership removed" : "Incomplete membership event ignored",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     // For other event types, return success
+    await finishEvent("ignored");
     return res.status(200).json({
       success: true,
       message: "Webhook received",
@@ -197,6 +358,22 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     console.error("Webhook processing error:", error);
+    const eventId = req.headers["svix-id"] as string | undefined;
+    if (eventId) {
+      try {
+        await WebhookEvent.updateOne(
+          { provider: "clerk", providerEventId: eventId },
+          {
+            $set: {
+              status: "failed",
+              error: String(error?.message || "Webhook processing failed").slice(0, 1900),
+            },
+          },
+        );
+      } catch (trackingError) {
+        console.error("Unable to record Clerk webhook failure:", trackingError);
+      }
+    }
     return res.status(500).json({
       success: false,
       error: "Internal server error",

@@ -4,6 +4,7 @@ export type CallPlanId = "free" | "business" | "starter" | "growth" | "enterpris
 export type CallStatus = "answered" | "missed" | "transferred" | "voicemail";
 
 export interface ICallAssistantWorkspace extends Document {
+  workspaceId?: mongoose.Types.ObjectId;
   clerkId: string;
   isConfigured: boolean;
   owner: {
@@ -127,6 +128,7 @@ export interface ICallAssistantWorkspace extends Document {
 
 const CallAssistantWorkspaceSchema = new Schema<ICallAssistantWorkspace>(
   {
+    workspaceId: { type: Schema.Types.ObjectId, ref: "Workspace", index: true },
     clerkId: { type: String, required: true, unique: true, index: true },
     isConfigured: { type: Boolean, default: false },
     owner: {

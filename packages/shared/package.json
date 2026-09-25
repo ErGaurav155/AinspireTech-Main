@@ -4,6 +4,7 @@
   "private": true,
   "exports": {
     ".": "./src/index.ts",
+    "./platform": "./src/types/platform.d.ts",
     "./types": "./src/types/index.ts",
     "./constants": "./src/constants/index.ts",
     "./utils": "./src/utils/index.ts"

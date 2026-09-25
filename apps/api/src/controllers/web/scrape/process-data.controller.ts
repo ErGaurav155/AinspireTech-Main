@@ -5,6 +5,7 @@ import {
   toPublicSharedKnowledge,
   updateSharedBusinessKnowledge,
 } from "@/services/shared-business-knowledge.service";
+import { getAuth } from "@clerk/express";
 
 interface ScrapedPage {
   url: string;
@@ -75,7 +76,12 @@ export const processScrapedDataController = async (
   try {
     await connectToDatabase();
 
-    const { fileName, domain, userId, chatbotId, scrapedPages } = req.body;
+    const authenticatedUserId = getAuth(req).userId;
+    if (!authenticatedUserId) {
+      return res.status(401).json({ success: false, error: "Authentication required" });
+    }
+    const { fileName, domain, chatbotId, scrapedPages } = req.body;
+    const userId = authenticatedUserId;
 
     if (!fileName || !domain || !userId || !chatbotId || !scrapedPages) {
       return res.status(400).json({

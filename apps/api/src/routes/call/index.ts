@@ -1,5 +1,7 @@
 import { Router } from "express";
-import { requireAuth } from "@clerk/express";
+import { getAuth, requireAuth } from "@clerk/express";
+import type { NextFunction, Request, Response } from "express";
+import { isAdminOwnerId } from "@/utils/admin-owner";
 import {
   connectCallController,
   createCallAssistantController,
@@ -21,6 +23,28 @@ const router = Router();
 router.post("/webhooks/exotel", exotelWebhookController);
 
 router.use(requireAuth());
+
+const requireCallAssistantAvailability = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  const userId = getAuth(req).userId;
+  if (
+    process.env.CALL_ASSISTANT_PUBLIC_ENABLED === "true" ||
+    (userId && isAdminOwnerId(userId))
+  ) {
+    return next();
+  }
+  return res.status(403).json({
+    success: false,
+    error: "AI Call Assistant is coming soon",
+    code: "CALL_ASSISTANT_COMING_SOON",
+    timestamp: new Date().toISOString(),
+  });
+};
+
+router.use(requireCallAssistantAvailability);
 
 router.get("/plans", getCallPlansController);
 router.get("/dashboard", getCallDashboardController);
