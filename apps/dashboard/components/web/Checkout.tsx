@@ -33,7 +33,6 @@ import {
   processScrapedData,
   scrapeWebsite,
 } from "@/lib/services/web-actions.api";
-import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 interface CheckoutProps {
   userId: string;
@@ -584,7 +583,6 @@ export const Checkout = ({
         return;
       }
 
-      const referralCode = getStoredReferralCode();
       const razorpayPlanId =
         billingCycle === "monthly"
           ? razorpayPlanRef.current?.monthly
@@ -598,7 +596,6 @@ export const Checkout = ({
         amount: amount,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode: referralCode || null,
         metadata: {
           productId: productId,
           subscriptionType: "web",
@@ -663,7 +660,6 @@ export const Checkout = ({
           chatbotName: chatbotNameRef.current,
           websiteUrl: websiteUrlRef.current,
           chatbotId: createdChatbotId,
-          referralCode: referralCode || "",
         },
         handler: async (response: any) => {
           await handleChatbotPaymentSuccess(response, result.subscriptionId);
@@ -748,7 +744,6 @@ export const Checkout = ({
       }
 
       clearPendingRazorpayCheckout();
-      clearStoredReferralCode();
       showSuccessToast("Subscription activated successfully!");
 
       setTimeout(() => {

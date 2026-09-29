@@ -8,7 +8,6 @@ import { cn } from "@/lib/utils";
 import { ClerkThemeProvider } from "@rocketreplai/ui";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import MetaPixel from "@/components/shared/MetaPixel";
-import { ReferralTracker } from "@/components/shared/ReferralTracker";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -51,7 +50,6 @@ export default async function RootLayout({
         </ThemeProvider>
         <SpeedInsights />
         <Suspense fallback={null}>
-          <ReferralTracker />
           <MetaPixel />
         </Suspense>
       </body>

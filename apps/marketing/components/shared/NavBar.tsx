@@ -7,14 +7,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { Contact, LogIn, Menu, X } from "lucide-react";
 import { Button, ThemeToggle } from "@rocketreplai/ui";
 import Logo from "@/public/assets/img/logo.png";
-import { withReferral } from "@/lib/referral";
 
 const navItems = [
   { id: "insta", label: "Instagram", href: "/insta" },
   { id: "web", label: "Websites", href: "/web" },
   { id: "call", label: "AI Calls", href: "/call" },
   { id: "whatsapp", label: "WhatsApp", href: "/whatsapp" },
-  { id: "affiliate", label: "Affiliate", href: "/affiliate" },
 ];
 
 export function NavBar() {
@@ -31,7 +29,7 @@ export function NavBar() {
   }, []);
 
   const handleSignInClick = () => {
-    window.location.href = withReferral("https://app.rocketreplai.com");
+    window.location.href = "https://app.rocketreplai.com";
   };
 
   return (

@@ -11,7 +11,6 @@ import {
   PhoneCall,
   Settings,
   Users,
-  WalletCards,
 } from "lucide-react";
 
 export type AdminNavHref = "/admin" | `/admin/${string}`;
@@ -229,16 +228,6 @@ export const ADMIN_NAV_ITEMS = [
     icon: CalendarDays,
     color: "blue",
     mobilePrimary: false,
-  },
-  {
-    id: "payouts",
-    label: "Payouts",
-    mobileLabel: "Payouts",
-    description: "Affiliate payouts",
-    href: "/admin/payouts",
-    icon: WalletCards,
-    color: "amber",
-    mobilePrimary: true,
   },
   {
     id: "rate-limits",

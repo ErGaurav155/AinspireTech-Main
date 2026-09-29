@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Bot,
@@ -15,17 +15,14 @@ import {
   Phone,
 } from "lucide-react";
 import { Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
-import { storeReferralCode } from "@/lib/referral";
 function ChooseProductContent() {
-  const searchParams = useSearchParams();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const { styles, isDark } = useThemeStyles();
 
   useEffect(() => {
-    storeReferralCode(searchParams.get("ref"));
     setMounted(true);
-  }, [searchParams]);
+  }, []);
 
   const handleSelectProduct = (
     product:

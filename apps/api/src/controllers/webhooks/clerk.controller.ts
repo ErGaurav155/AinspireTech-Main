@@ -6,7 +6,6 @@ import {
   updateUser,
 } from "@/services/user.service";
 import { clerkClient } from "@clerk/express";
-import Affiliate from "@/models/affiliate/Affiliate";
 import { createHash } from "crypto";
 import { connectToDatabase } from "@/config/database.config";
 import WebhookEvent from "@/models/WebhookEvent.model";
@@ -16,16 +15,6 @@ import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 
 /* eslint-disable camelcase */
-
-// Helper function to generate unique affiliate code
-function generateAffiliateCode(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-  let result = "";
-  for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
 
 // POST /api/webhooks/clerk - Handle Clerk webhooks
 export const clerkWebhookController = async (req: Request, res: Response) => {
@@ -167,36 +156,6 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
             userId: newUser._id,
           },
         });
-      }
-
-      // ✅ AUTO-CREATE AFFILIATE for every new user
-      try {
-        let affiliateCode = "";
-        let isUnique = false;
-
-        // Generate unique affiliate code
-        while (!isUnique) {
-          const newCode = generateAffiliateCode();
-          const existing = await Affiliate.findOne({ affiliateCode: newCode });
-          if (!existing) {
-            affiliateCode = newCode;
-            isUnique = true;
-          }
-        }
-
-        // Create affiliate record (no payment details required initially)
-        await Affiliate.create({
-          userId: id,
-          affiliateCode,
-          status: "active",
-          commissionRate: 0.25, // 25%
-          monthlyMonths: 10,
-          yearlyYears: 3,
-          // paymentDetails: null - will be added later
-        });
-      } catch (affiliateError) {
-        console.error("Error creating affiliate:", affiliateError);
-        // Don't fail the whole webhook if affiliate creation fails
       }
 
       await finishEvent();

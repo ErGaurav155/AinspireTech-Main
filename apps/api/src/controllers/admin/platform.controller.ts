@@ -17,7 +17,6 @@ import ContentCreationSubscription from "@/models/packages/ContentCreationSubscr
 import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
 import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
-import AffiPayout from "@/models/affiliate/Payout";
 import RateLimitQueue from "@/models/Rate/RateLimitQueue.model";
 import User from "@/models/user.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
@@ -938,7 +937,6 @@ export const getAdminOverviewController = async (
       whatsappWorkspaceCount,
       callWorkspaceCount,
       packageWorkspaceCount,
-      pendingPayoutRows,
       queueRows,
       failedInstagramAutomations,
       whatsappSetupAttention,
@@ -958,10 +956,6 @@ export const getAdminOverviewController = async (
       WhatsAppWorkspace.countDocuments(),
       CallAssistantWorkspace.countDocuments(),
       PackageSubscription.countDocuments(),
-      AffiPayout.aggregate([
-        { $match: { status: "processing" } },
-        { $group: { _id: null, count: { $sum: 1 }, amount: { $sum: "$amount" } } },
-      ]),
       RateLimitQueue.aggregate([
         { $match: { status: { $in: ["pending", "failed"] } } },
         { $group: { _id: "$status", count: { $sum: 1 } } },
@@ -1002,7 +996,6 @@ export const getAdminOverviewController = async (
       (sum, item) => sum + Number(item.amountInr || 0),
       0,
     );
-    const pendingPayouts = pendingPayoutRows[0] || { count: 0, amount: 0 };
     const queueByStatus = new Map(
       queueRows.map((row: any) => [String(row._id), Number(row.count || 0)]),
     );
@@ -1013,16 +1006,6 @@ export const getAdminOverviewController = async (
     }).length;
 
     const attention = [
-      Number(pendingPayouts.count || 0) > 0
-        ? {
-            id: "pending-payouts",
-            severity: "warning",
-            title: "Payout approvals pending",
-            description: "Affiliate payout requests are waiting for review.",
-            count: Number(pendingPayouts.count || 0),
-            href: "/admin/payouts",
-          }
-        : null,
       Number(queueByStatus.get("failed") || 0) > 0
         ? {
             id: "failed-rate-limit-jobs",
@@ -1204,8 +1187,6 @@ export const getAdminOverviewController = async (
           callWorkspaceCount +
           packageWorkspaceCount,
         monthlyValueInr: Math.round(monthlyValueInr),
-        pendingPayouts: Number(pendingPayouts.count || 0),
-        pendingPayoutAmountInr: Number(pendingPayouts.amount || 0),
         appointments: engagementData.engagement.appointments,
         leads: engagementData.engagement.leads,
       },
@@ -1297,7 +1278,7 @@ export const getAdminCustomersController = async (
         .skip(skip)
         .limit(limit)
         .select(
-          "clerkId email firstName lastName username photo totalReplies replyLimit accountLimit hasUsedReferral createdAt updatedAt",
+          "clerkId email firstName lastName username photo totalReplies replyLimit accountLimit createdAt updatedAt",
         )
         .lean(),
       User.find(query).select("clerkId").lean(),

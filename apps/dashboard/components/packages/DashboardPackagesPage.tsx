@@ -20,7 +20,6 @@ import {
 } from "lucide-react";
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
-import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import {
   cancelContentCreationSubscription,
   cancelDashboardPackageSubscription,
@@ -271,12 +270,10 @@ export function DashboardPackagesPage() {
         );
       }
 
-      const referralCode = getStoredReferralCode();
       const result = await createRazorpaySubscription(apiRequest, {
         amount: plan.amountInr,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId: plan.id,
           packageId: plan.id,
@@ -285,7 +282,6 @@ export function DashboardPackagesPage() {
           billingCycle: "monthly",
           includedServices: plan.includedServices.join(","),
           email: user?.primaryEmailAddress?.emailAddress || "",
-          referralCode: referralCode || "",
         },
       });
 
@@ -319,7 +315,6 @@ export function DashboardPackagesPage() {
             subscriptionKind: "package",
             billingCycle: "monthly",
           });
-          clearStoredReferralCode();
           toast({
             title: "Package activated",
             description: "All included dashboards are now on the package plan.",
@@ -381,18 +376,15 @@ export function DashboardPackagesPage() {
         throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
       }
 
-      const referralCode = getStoredReferralCode();
       const result = await createRazorpaySubscription(apiRequest, {
         amount: plan.amountInr,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId: plan.id,
           subscriptionType: "meta-ads",
           billingCycle: "monthly",
           email: user?.primaryEmailAddress?.emailAddress || "",
-          referralCode: referralCode || "",
         },
       });
 
@@ -424,7 +416,6 @@ export function DashboardPackagesPage() {
             subscriptionKind: "meta-ads",
             billingCycle: "monthly",
           });
-          clearStoredReferralCode();
           toast({
             title: "Meta Ads plan activated",
             description: `${plan.name} is now active.`,
@@ -489,18 +480,15 @@ export function DashboardPackagesPage() {
         throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
       }
 
-      const referralCode = getStoredReferralCode();
       const result = await createRazorpaySubscription(apiRequest, {
         amount: plan.amountInr,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId: plan.id,
           subscriptionType: "website-maintenance",
           billingCycle: "monthly",
           email: user?.primaryEmailAddress?.emailAddress || "",
-          referralCode: referralCode || "",
         },
       });
 
@@ -531,7 +519,6 @@ export function DashboardPackagesPage() {
             subscriptionKind: "website-maintenance",
             billingCycle: "monthly",
           });
-          clearStoredReferralCode();
           toast({
             title: "Website maintenance activated",
             description: `${plan.name} is now active.`,
@@ -594,18 +581,15 @@ export function DashboardPackagesPage() {
         throw new Error(`Razorpay monthly plan is not configured for ${plan.id}`);
       }
 
-      const referralCode = getStoredReferralCode();
       const result = await createRazorpaySubscription(apiRequest, {
         amount: plan.amountInr,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId: plan.id,
           subscriptionType: "content-creation",
           billingCycle: "monthly",
           email: user?.primaryEmailAddress?.emailAddress || "",
-          referralCode: referralCode || "",
         },
       });
 
@@ -636,7 +620,6 @@ export function DashboardPackagesPage() {
             subscriptionKind: "content-creation",
             billingCycle: "monthly",
           });
-          clearStoredReferralCode();
           toast({
             title: "Content creation activated",
             description: `${plan.name} is now active.`,

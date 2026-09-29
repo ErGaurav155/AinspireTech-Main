@@ -31,7 +31,6 @@ export const createSubscription = (
   plan: string,
   billingCycle: string,
   subscriptionId: string,
-  referralCode?: string | null,
 ) =>
   apiRequest("/web/subscription/create", {
     method: "POST",
@@ -40,7 +39,6 @@ export const createSubscription = (
       plan,
       billingCycle,
       subscriptionId,
-      referralCode: referralCode || null,
     }),
   });
 

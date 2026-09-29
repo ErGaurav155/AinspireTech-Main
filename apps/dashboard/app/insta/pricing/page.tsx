@@ -56,7 +56,6 @@ import {
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
-import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 // Types
 interface Subscription {
@@ -459,7 +458,6 @@ function PricingWithSearchParams() {
 
       clearPendingCheckout();
       clearPendingRazorpayCheckout();
-      clearStoredReferralCode();
       setIsSubscribed(true);
       setCurrentSubscription({
         productId,
@@ -520,12 +518,10 @@ function PricingWithSearchParams() {
           throw new Error("Plan not found");
         }
 
-        const referralCode = getStoredReferralCode();
         const result = await createRazorpaySubscription(apiRequest, {
           amount: price,
           razorpayplanId: razorpayPlanId,
           buyerId: userId!,
-          referralCode: referralCode || null,
           metadata: {
             productId: plan.id,
             subscriptionType: "insta",
@@ -578,7 +574,6 @@ function PricingWithSearchParams() {
             razorpayplanId: razorpayPlanId,
             buyerId: userId,
             amount: price,
-            referralCode: referralCode || "",
           },
           handler: async (response: any) => {
             try {

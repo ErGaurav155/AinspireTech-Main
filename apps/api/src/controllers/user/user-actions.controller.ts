@@ -5,7 +5,6 @@ import {
   updatePhoneNumber,
   updateUserLimits,
   checkActiveSubscriptions,
-  getAffiliateUser,
   checkAndPrepareScrape,
 } from "../../services/user.service";
 import { getAuth } from "@clerk/express";
@@ -285,52 +284,6 @@ export const updateUserLimitsController = async (
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to update user limits",
-      timestamp: new Date().toISOString(),
-    });
-  }
-};
-
-// GET /api/user/affiliate/:userId - Get affiliate user
-export const getAffiliateUserController = async (
-  req: Request,
-  res: Response,
-) => {
-  try {
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({
-        success: false,
-        error: "User ID is required",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    const user = await getAffiliateUser(userId);
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        user,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error: any) {
-    console.error("Error fetching affiliate user:", error);
-
-    if (error.message.includes("Affiliate user not found")) {
-      return res.status(200).json({
-        success: false,
-        data: {
-          message: "User Not Found",
-        },
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    return res.status(500).json({
-      success: false,
-      error: error.message || "Failed to fetch affiliate user",
       timestamp: new Date().toISOString(),
     });
   }

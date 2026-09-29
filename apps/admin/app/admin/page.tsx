@@ -21,7 +21,6 @@ import {
   ShieldCheck,
   Sparkles,
   Users,
-  WalletCards,
 } from "lucide-react";
 import {
   Button,
@@ -46,8 +45,6 @@ interface AdminOverview {
     activeSubscriptions: number;
     workspaces: number;
     monthlyValueInr: number;
-    pendingPayouts: number;
-    pendingPayoutAmountInr: number;
     appointments: number;
     leads: number;
   };
@@ -93,8 +90,6 @@ const EMPTY_OVERVIEW: AdminOverview = {
     activeSubscriptions: 0,
     workspaces: 0,
     monthlyValueInr: 0,
-    pendingPayouts: 0,
-    pendingPayoutAmountInr: 0,
     appointments: 0,
     leads: 0,
   },
@@ -175,12 +170,6 @@ const QUICK_ACTIONS = [
     description: "See booking activity across channels",
     href: "/admin/appointments",
     icon: CalendarDays,
-  },
-  {
-    title: "Process payouts",
-    description: "Resolve pending affiliate requests",
-    href: "/admin/payouts",
-    icon: WalletCards,
   },
 ] as const;
 
@@ -431,7 +420,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           <StatCard
             icon={<Users className="h-5 w-5 text-blue-500" />}
             iconBg={styles.icon.blue}
@@ -466,17 +455,6 @@ export default function AdminDashboard() {
             sub={
               <span className={`text-xs ${styles.text.muted}`}>
                 Based on stored or canonical plan amounts
-              </span>
-            }
-          />
-          <StatCard
-            icon={<WalletCards className="h-5 w-5 text-amber-500" />}
-            iconBg={styles.icon.amber}
-            label="Pending payouts"
-            value={formatInr(number(overview.summary.pendingPayoutAmountInr))}
-            sub={
-              <span className={`text-xs ${styles.text.muted}`}>
-                {formatCompact(number(overview.summary.pendingPayouts))} requests
               </span>
             }
           />

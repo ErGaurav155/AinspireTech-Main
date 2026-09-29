@@ -92,27 +92,6 @@ export const resetFreeRepliesForAllUsers = (apiRequest: ApiRequestFn) =>
     method: "POST",
   });
 
-export const getAffiliateUser = async (
-  apiRequest: ApiRequestFn,
-  userId: string,
-): Promise<{ success: boolean; user?: any; message?: string }> => {
-  try {
-    const data = await apiRequest<{ user: any }>(`/user/affiliate/${userId}`, {
-      method: "GET",
-    });
-
-    return {
-      success: true,
-      user: data.user,
-    };
-  } catch (error: any) {
-    return {
-      success: false,
-      message: error.message || "Failed to fetch affiliate user",
-    };
-  }
-};
-
 export const checkAndPrepareScrape = async (
   apiRequest: ApiRequestFn,
   input: {

@@ -161,8 +161,7 @@ export const createRazorpaySubscriptionController = async (
   res: Response,
 ) => {
   try {
-    const { razorpayplanId, buyerId, amount, referralCode, metadata } =
-      req.body;
+    const { razorpayplanId, buyerId, amount, metadata } = req.body;
     const authenticatedUserId = getAuth(req).userId;
 
     if (!authenticatedUserId || authenticatedUserId !== buyerId) {
@@ -539,7 +538,6 @@ export const createRazorpaySubscriptionController = async (
           buyerId: buyerId,
           productId: productId,
           amount: amount.toString(),
-          referralCode: referralCode || "",
           billingCycle,
           previousSubscriptionId: previousSubscriptionId || "",
           previousSubscriptionType: previousSubscriptionType || "",

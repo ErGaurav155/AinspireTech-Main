@@ -35,7 +35,6 @@ import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
-import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 import {
@@ -1800,13 +1799,11 @@ function WhatsAppCheckoutButton({
         throw new Error("Razorpay monthly plan is not configured for WhatsApp");
       }
 
-      const referralCode = getStoredReferralCode();
       const previousSubscriptionId = currentSubscription?.subscriptionId || "";
       const result = await createRazorpaySubscription(apiRequest, {
         amount,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId: WHATSAPP_PRODUCT_ID,
           subscriptionType: "whatsapp",
@@ -1817,7 +1814,6 @@ function WhatsAppCheckoutButton({
             : undefined,
           email,
           offerId: WHATSAPP_FIRST_MONTH_OFFER_ID || undefined,
-          referralCode: referralCode || "",
         },
       });
 
@@ -1837,7 +1833,6 @@ function WhatsAppCheckoutButton({
           offerId: WHATSAPP_FIRST_MONTH_OFFER_ID || "",
         },
         handler: () => {
-          clearStoredReferralCode();
           toast({
             title: "Payment received",
             description:

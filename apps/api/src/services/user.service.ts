@@ -1,6 +1,4 @@
 import { connectToDatabase } from "../config/database.config";
-import Affiliate from "../models/affiliate/Affiliate";
-import AffiReferral from "../models/affiliate/Referral";
 import InstagramAccount from "../models/insta/InstagramAccount.model";
 import InstaSubscription from "../models/insta/InstaSubscription.model";
 import InstaReplyLog from "../models/insta/ReplyLog.model";
@@ -19,7 +17,6 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
-import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 
 export const TIER_LIMITS = {
   free: 200,
@@ -87,7 +84,6 @@ export async function createUser(user: CreateUserParams) {
           totalReplies: 0,
           replyLimit: 200,
           accountLimit: 1,
-          hasUsedReferral: false,
           createdAt: new Date(),
         },
       },
@@ -343,11 +339,6 @@ export async function deleteUserData(clerkId: string) {
     RateLimitQueue.deleteMany({ clerkId }),
     RateUserRateLimit.deleteMany({ clerkId }),
     InstaLeadCollection.deleteMany({ userId: clerkId }),
-    // Affiliate Data
-    AffiCommissionRecord.deleteMany({ referredUserId: clerkId }),
-    Affiliate.deleteMany({ userId: clerkId }),
-    AffiReferral.deleteMany({ referredUserId: clerkId }),
-    AffiReferral.deleteMany({ affiliateUserId: clerkId }),
     // User
     User.deleteOne({ clerkId }),
   ];
@@ -419,18 +410,6 @@ export async function resetFreeRepliesForAllUsers(): Promise<number> {
   }
 
   return processedCount;
-}
-
-export async function getAffiliateUser(userId: string) {
-  await connectToDatabase();
-
-  const user = await Affiliate.findOne({ userId });
-
-  if (!user) {
-    throw new Error("Affiliate user not found");
-  }
-
-  return user;
 }
 
 export async function checkAndPrepareScrape({

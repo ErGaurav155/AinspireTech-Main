@@ -4,7 +4,6 @@ import {
   getUserByIdController,
   updateUserNumberController,
   hasActiveSubscriptionsController,
-  getAffiliateUserController,
   checkAndPrepareScrapeController,
 } from "@/controllers/user/user-actions.controller";
 import { requireAuth } from "@clerk/express";
@@ -35,9 +34,6 @@ router.put("/update-number", updateUserNumberController);
 
 // GET /api/user/active-subscriptions - Check active subscriptions
 router.get("/active-subscriptions", hasActiveSubscriptionsController);
-
-// GET /api/user/affiliate/:userId - Get affiliate user
-router.get("/affiliate/:userId", getAffiliateUserController);
 
 // POST /api/user/check-scrape - Check and prepare for scraping
 router.post("/check-scrape", checkAndPrepareScrapeController);

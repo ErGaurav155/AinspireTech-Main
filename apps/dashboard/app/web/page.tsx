@@ -727,28 +727,6 @@ export default function WebDashboardPage() {
             </Link>
 
             <Link
-              href="/web/refer"
-              className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${styles.icon.pink}`}
-              >
-                <Users className="h-5 w-5 text-pink-500" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${styles.text.primary}`}>
-                  Refer & Earn
-                </p>
-                <p className={`text-xs ${styles.text.muted}`}>
-                  Get free tokens by referring
-                </p>
-              </div>
-              <ArrowUpRight
-                className={`h-4 w-4 transition-colors ${styles.text.muted} group-hover:text-pink-500`}
-              />
-            </Link>
-
-            <Link
               href="/web/settings"
               className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
             >

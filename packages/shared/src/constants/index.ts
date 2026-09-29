@@ -28,11 +28,6 @@ export const API_ROUTES = {
   RAZORPAY_CANCEL_SUB: "/razorpay/cancel-sub",
   RAZORPAY_PLAN_INFO: "/razorpay/plan-info",
 
-  // Affiliate
-  AFFILIATE_CREATE: "/affiliates/create",
-  AFFILIATE_DASHBOARD: "/affiliates/dashboard",
-  AFFILIATE_REQUEST_PAYOUT: "/affiliates/request-payout",
-
   // Admin
   ADMIN_USERS: "/admin/users",
   ADMIN_RATE_LIMITS: "/admin/rate-limits",

@@ -10,7 +10,6 @@ import {
   Home,
   Settings,
   Users,
-  Share2,
   Zap,
   ChevronDown,
   MessageSquare,
@@ -71,12 +70,6 @@ const BOTTOM_NAV_ITEMS = [
     label: "Packages",
     href: "/packages",
     icon: PackageCheck,
-    isNew: true,
-  },
-  {
-    label: "Refer & Earn",
-    href: "/web/refer",
-    icon: Share2,
     isNew: true,
   },
 ];

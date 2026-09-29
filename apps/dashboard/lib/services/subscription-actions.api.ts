@@ -18,7 +18,6 @@ export const createRazorpaySubscription = (
     amount: number;
     razorpayplanId: string;
     buyerId: string;
-    referralCode: string | null;
     metadata: {
       productId: string;
       subscriptionType:
@@ -48,7 +47,6 @@ export const createRazorpaySubscription = (
       chatbotId?: string | null;
       chatbotName?: string;
       websiteUrl?: string;
-      referralCode?: string;
     };
   },
 ): Promise<any> => {

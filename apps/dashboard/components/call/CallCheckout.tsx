@@ -11,7 +11,6 @@ import {
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
 import { getCallDashboard } from "@/lib/services/call-actions.api";
-import { clearStoredReferralCode, getStoredReferralCode } from "@/lib/referral";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -113,13 +112,10 @@ export function CallCheckout({
         throw new Error("Razorpay plan is not configured for this call plan");
       }
 
-      const referralCode = getStoredReferralCode();
-
       const result = await createRazorpaySubscription(apiRequest, {
         amount,
         razorpayplanId: razorpayPlanId,
         buyerId: userId,
-        referralCode,
         metadata: {
           productId,
           subscriptionType: "call",
@@ -132,7 +128,6 @@ export function CallCheckout({
           concurrentCallLimit,
           agentLimit,
           overageRate,
-          referralCode: referralCode || "",
         },
       });
 
@@ -158,7 +153,6 @@ export function CallCheckout({
           overageRate,
         },
         handler: () => {
-          clearStoredReferralCode();
           toast({
             title: "Payment received",
             description:

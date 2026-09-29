@@ -13,8 +13,6 @@ import ReplyLog from "@/models/insta/ReplyLog.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import User from "@/models/user.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
-import AffiReferral from "@/models/affiliate/Referral";
-import Affiliate from "@/models/affiliate/Affiliate";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 import { downgradeWhatsAppSubscriptionToFree } from "@/services/billing/paid-subscription.service";
 
@@ -161,63 +159,6 @@ async function handleInstaAccountLimit(userId: string) {
   }
 }
 
-// Helper function to handle referral cancellation when subscription ends
-async function handleReferralCancellation(
-  subscriptionId: string,
-  clerkId: string,
-) {
-  try {
-    // Find the subscription object first to get its _id
-    let subscription = await InstaSubscription.findOne({ subscriptionId });
-    let isWeb = false;
-
-    if (!subscription) {
-      subscription = await WebSubscription.findOne({
-        subscriptionId,
-        chatbotType: "chatbot-lead-generation",
-      });
-      isWeb = true;
-    }
-
-    if (!subscription) {
-      subscription = await CallSubscription.findOne({ subscriptionId });
-    }
-
-    if (!subscription) {
-      subscription = await WhatsAppWorkspace.findOne({
-        "subscription.subscriptionId": subscriptionId,
-      });
-    }
-
-    if (!subscription) {
-      return;
-    }
-
-    // Find active referral for this subscription
-    const referral = await AffiReferral.findOne({
-      subscriptionId: subscription._id.toString(),
-      status: "active",
-    });
-
-    if (referral) {
-      // Update referral status to cancelled
-      referral.status = "cancelled";
-      await referral.save();
-
-      // Decrement active referrals count for affiliate
-      await Affiliate.findByIdAndUpdate(referral.affiliateId, {
-        $inc: { activeReferrals: -1 },
-      });
-    } else {
-      console.log(
-        `ℹ️ No active referral found for subscription ${subscription._id}`,
-      );
-    }
-  } catch (error) {
-    console.error("Error handling referral cancellation:", error);
-  }
-}
-
 // Helper function to handle subscription cancelled/expired/halted
 async function handleSubscriptionEnded(subscriptionId: string) {
   // Try to update in InstaSubscription first
@@ -233,11 +174,8 @@ async function handleSubscriptionEnded(subscriptionId: string) {
     { new: true },
   );
 
-  // If it's an Instagram subscription, handle account cleanup and referral cancellation
+  // If it's an Instagram subscription, handle account cleanup.
   if (updatedSub) {
-    // Handle referral cancellation
-    await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
-
     // Handle Instagram account cleanup (downgrade to free plan)
     await handleInstaAccountLimit(updatedSub.clerkId);
   } else {
@@ -257,10 +195,8 @@ async function handleSubscriptionEnded(subscriptionId: string) {
       { new: true },
     );
 
-    // For web subscriptions, just update the status and handle referral cancellation
+    // For web subscriptions, just update the status.
     if (updatedSub) {
-      // Handle referral cancellation for web subscription
-      await handleReferralCancellation(subscriptionId, updatedSub.clerkId);
     } else {
       const callUpdatedSub = await CallSubscription.findOneAndUpdate(
         { subscriptionId },
@@ -275,10 +211,6 @@ async function handleSubscriptionEnded(subscriptionId: string) {
       );
 
       if (callUpdatedSub) {
-        await handleReferralCancellation(
-          subscriptionId,
-          callUpdatedSub.clerkId,
-        );
         await CallAssistantWorkspace.findOneAndUpdate(
           { clerkId: callUpdatedSub.clerkId },
           {
@@ -298,12 +230,7 @@ async function handleSubscriptionEnded(subscriptionId: string) {
         const whatsAppUpdated = await downgradeWhatsAppSubscriptionToFree(
           subscriptionId,
         );
-        if (whatsAppUpdated) {
-          await handleReferralCancellation(
-            subscriptionId,
-            whatsAppUpdated.clerkId,
-          );
-        } else {
+        if (!whatsAppUpdated) {
           console.warn(`Subscription ${subscriptionId} not found in any model`);
         }
       }
@@ -361,7 +288,7 @@ export const razorpaySubsCancelWebhookController = async (
     await connectToDatabase();
 
     // Handle subscription ended events (cancelled, halted, expired)
-    // All have the same behavior - downgrade user to free plan and cancel referral
+    // All have the same behavior: downgrade the user to the free plan.
     if (
       event === "subscription.cancelled" ||
       event === "subscription.halted" ||

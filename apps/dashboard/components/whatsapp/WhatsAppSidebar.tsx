@@ -19,7 +19,6 @@ import {
   PackageCheck,
   Phone,
   Settings,
-  Share2,
   Workflow,
   X,
 } from "lucide-react";
@@ -63,12 +62,6 @@ const NAV_ITEMS = [
     isNew: false,
   },
   { label: "Packages", href: "/packages", icon: PackageCheck, isNew: true },
-  {
-    label: "Refer & Earn",
-    href: "/whatsapp/refer",
-    icon: Share2,
-    isNew: true,
-  },
 ] as const;
 
 interface WhatsAppSidebarProps {

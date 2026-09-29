@@ -4,22 +4,16 @@
 import TestimonialSection from "@/components/shared/Testimonial";
 import HeroSection from "@/components/web/Hero";
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { BusinessMessagingTemplate } from "@/components/shared/BusinessMessagingTemplate";
 import StickyScrollFeatures from "@/components/shared/EngagementToolsection";
 import { AIVoiceAgentShowcase } from "@/components/shared/OurProducts";
 import OutProduct from "@/components/shared/product";
-import { storeReferralCode } from "@/lib/referral";
 
 const Home = () => {
   const [mounted, setMounted] = useState(false);
-  const searchParams = useSearchParams();
-
   useEffect(() => {
     setMounted(true);
-
-    storeReferralCode(searchParams.get("ref"));
-  }, [searchParams]);
+  }, []);
 
   if (!mounted) {
     return (

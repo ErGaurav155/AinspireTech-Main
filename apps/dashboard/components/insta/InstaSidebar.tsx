@@ -9,7 +9,6 @@ import {
   Home,
   Settings,
   Users,
-  Share2,
   Zap,
   ChevronDown,
   MessageSquare,
@@ -65,7 +64,6 @@ const NAV_ITEMS = [
     icon: PackageCheck,
     isNew: true,
   },
-  { label: "Refer & Earn", href: "/insta/refer", icon: Share2, isNew: true },
 ] as const;
 
 const FREE_DM_LIMIT = 1000;

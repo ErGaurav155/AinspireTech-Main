@@ -2,7 +2,6 @@
 import { Router } from "express";
 import healthRoutes from "@/routes/health";
 import adminRoutes from "@/routes/admin";
-import affiliateRoutes from "@/routes/affiliates";
 import cronRoutes from "@/routes/cron";
 import embedRoutes from "@/routes/embed";
 import instaRoutes from "@/routes/insta";
@@ -32,7 +31,6 @@ router.use("/embed", embedCors, embedRoutes);
 
 // Protected routes (require Clerk authentication)
 router.use("/admin", adminRoutes);
-router.use("/affiliates", affiliateRoutes);
 router.use("/call", callRoutes);
 router.use("/whatsapp", whatsappRoutes);
 router.use("/insta", instaRoutes);

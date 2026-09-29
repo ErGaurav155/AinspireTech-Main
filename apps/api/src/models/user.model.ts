@@ -10,8 +10,6 @@ export interface IUser extends Document {
   photo?: string;
   firstName?: string;
   lastName?: string;
-  referredBy?: string;
-  hasUsedReferral: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,8 +25,6 @@ const UserSchema = new Schema<IUser>(
     photo: { type: String },
     firstName: { type: String },
     lastName: { type: String },
-    referredBy: { type: String },
-    hasUsedReferral: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

@@ -23,7 +23,6 @@ export const getUsersController = async (req: Request, res: Response) => {
       totalReplies: user.totalReplies,
       replyLimit: user.replyLimit,
       accountLimit: user.accountLimit,
-      hasUsedReferral: user.hasUsedReferral,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     }));

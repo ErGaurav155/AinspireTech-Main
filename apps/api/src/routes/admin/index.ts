@@ -14,10 +14,6 @@ import { getAppLimitController } from "@/controllers/insta/rate-limit/rate-limit
 import { getAllChatbotsController } from "@/controllers/admin/web-chatbots.controller";
 import { getInstaAccountsController } from "@/controllers/admin/insta-accounts.controller";
 import {
-  approvePayoutController,
-  listPayoutsController,
-} from "@/controllers/admin/approve-payout.controller";
-import {
   getAdminCustomersController,
   getAdminOverviewController,
   getAdminSubscriptionsController,
@@ -61,8 +57,4 @@ router.get("/app-limit", getAppLimitController);
 router.get("/insta-accounts", getInstaAccountsController);
 // GET /api/admin/web-chatbots - Get web chatbots  (admin only)
 router.get("/web-chatbots", getAllChatbotsController);
-// GET /api/admin/payouts - List payouts
-router.get("/payouts", listPayoutsController);
-// POST /api/admin/payouts/:payoutId - Approve a payout
-router.post("/payouts/:payoutId", approvePayoutController);
 export default router;

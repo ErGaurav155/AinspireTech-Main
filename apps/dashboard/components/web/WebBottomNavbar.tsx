@@ -8,7 +8,6 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   MessageSquare,
   Coins,
-  Share2,
   Target,
   ChevronRight,
   Zap,
@@ -43,16 +42,6 @@ const MENU_ITEMS = [
     color: "#f59e0b",
     description: "Monitor usage",
     isNew: false,
-    type: "global",
-  },
-  {
-    id: "refer",
-    label: "Referrals",
-    href: "/web/refer",
-    icon: Share2,
-    color: "#3b82f6",
-    description: "Refer and earn money",
-    isNew: true,
     type: "global",
   },
 ] as const;

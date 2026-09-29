@@ -9,7 +9,6 @@ import {
   Coins,
   ChevronLeft,
   ChevronRight,
-  HandshakeIcon,
   Phone,
   MessageCircle,
 } from "lucide-react";
@@ -125,20 +124,6 @@ export function Navbar({
           {/* Instagram Specific Actions */}
           {isInstaDashboard && (
             <>
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={`text-xs font-semibold ${isDark ? "text-pink-400 border-pink-500/30 hover:bg-white/[0.06]" : "text-pink-500 border-pink-200 hover:bg-pink-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
-              >
-                <Link href="/insta/refer">
-                  <HandshakeIcon className="h-3.5 w-3.5 lg:mr-1.5" />
-                  <span className="hidden lg:inline">
-                    Collab<span className="hidden xl:inline">oration</span>
-                  </span>
-                </Link>
-              </Button>
-
               {instaAction && (
                 <Button
                   variant="ghost"

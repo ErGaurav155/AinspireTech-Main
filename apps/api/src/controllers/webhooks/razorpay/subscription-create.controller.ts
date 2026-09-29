@@ -12,9 +12,6 @@ import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
-import Affiliate from "@/models/affiliate/Affiliate";
-import AffiReferral from "@/models/affiliate/Referral";
-import AffiCommissionRecord from "@/models/affiliate/CommissionRecord";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { initializeSubscriptionTokens } from "@/services/token.service";
 import {
@@ -35,66 +32,6 @@ const NON_CORE_SUBSCRIPTION_TYPES = new Set([
   "website-maintenance",
   "content-creation",
 ]);
-
-const MONTHLY_FIRST_CYCLE_COMMISSION_BASE = {
-  insta: {
-    "Insta-Automation-Pro": 99,
-  },
-  web: {
-    "chatbot-lead-generation": 499,
-  },
-  call: {
-    "call-business": 2500,
-    business: 2500,
-  },
-  whatsapp: {
-    "whatsapp-launch": 999,
-    launch: 999,
-  },
-} as const;
-
-const getFirstCycleCommissionBase = (
-  subscriptionType: string,
-  productId: string,
-  billingCycle: string,
-  recurringPrice: number,
-) => {
-  if (billingCycle !== "monthly") return recurringPrice;
-
-  if (subscriptionType === "insta") {
-    return (
-      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.insta[
-        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.insta
-      ] || recurringPrice
-    );
-  }
-
-  if (subscriptionType === "web") {
-    return (
-      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web[
-        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.web
-      ] || recurringPrice
-    );
-  }
-
-  if (subscriptionType === "call") {
-    return (
-      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.call[
-        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.call
-      ] || recurringPrice
-    );
-  }
-
-  if (subscriptionType === "whatsapp") {
-    return (
-      MONTHLY_FIRST_CYCLE_COMMISSION_BASE.whatsapp[
-        productId as keyof typeof MONTHLY_FIRST_CYCLE_COMMISSION_BASE.whatsapp
-      ] || recurringPrice
-    );
-  }
-
-  return recurringPrice;
-};
 
 async function finalizeSubscriptionReplacementFromNotes(notes: any) {
   const previousSubscriptionId = notes.previousSubscriptionId;
@@ -188,7 +125,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionType = notes.subscriptionType;
   const clerkId = notes.buyerId;
   const chatbotType = notes.productId;
-  const referralCode = notes.referralCode;
   const plan = subscriptionData.plan_id;
   const billingCycle = notes.billingCycle;
   const notesAmount = Number(notes.amount);
@@ -205,7 +141,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       subscriptionType,
       subscriptionId: subscriptionData?.id,
     });
-    return { subscription: null, referral: null };
+    return { subscription: null };
   }
 
   if (
@@ -215,7 +151,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     console.info("Skipping unsupported web chatbot subscription", {
       subscriptionId: subscriptionData?.id,
     });
-    return { subscription: null, referral: null };
+    return { subscription: null };
   }
 
   // Find or create user
@@ -239,7 +175,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
             totalReplies: 0,
             replyLimit: 200,
             accountLimit: 1,
-            hasUsedReferral: false,
             createdAt: new Date(),
           },
         },
@@ -288,7 +223,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
   }
 
   if (existingSubscription) {
-    return { subscription: existingSubscription, referral: null };
+    return { subscription: existingSubscription };
   }
 
   if (subscriptionPrice <= 0) {
@@ -297,7 +232,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       entityAmount: subscriptionData.amount,
       subscriptionId: subscriptionData.id,
     });
-    return { subscription: null, referral: null };
+    return { subscription: null };
   }
 
   const expiresAt = subscriptionData.current_end
@@ -412,183 +347,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     });
   }
 
-  let referralRecord = null;
-
-  const normalizedReferralCode =
-    typeof referralCode === "string" ? referralCode.trim() : "";
-
-  // Handle referral per product so one referred customer can credit multiple subscriptions.
-  if (
-    normalizedReferralCode &&
-    normalizedReferralCode !== "null" &&
-    normalizedReferralCode !== "undefined"
-  ) {
-    const affiliate = await Affiliate.findOne({
-      affiliateCode: normalizedReferralCode,
-      status: "active",
-    });
-
-    if (affiliate && affiliate.userId !== clerkId.toString()) {
-      const commissionRate = affiliate.commissionRate || 0.25;
-      const firstCycleCommissionBase = getFirstCycleCommissionBase(
-        subscriptionType,
-        chatbotType,
-        billingCycle,
-        Number(subscriptionPrice),
-      );
-
-      let monthlyCommission = 0;
-      let yearlyCommission = 0;
-      let monthsRemaining = 0;
-      let yearsRemaining = 0;
-
-      if (billingCycle === "monthly") {
-        monthlyCommission = Number(subscriptionPrice) * Number(commissionRate);
-        monthsRemaining = Number(affiliate.monthlyMonths) || 10;
-        yearlyCommission = 0;
-        yearsRemaining = 0;
-      } else if (billingCycle === "yearly") {
-        yearlyCommission = Number(subscriptionPrice) * Number(commissionRate);
-        yearsRemaining = Number(affiliate.yearlyYears) || 3;
-        monthlyCommission = 0;
-        monthsRemaining = 0;
-      } else {
-        console.error("Unknown billing cycle:", billingCycle);
-        return { subscription: newSubscription, referral: null };
-      }
-
-      const productType =
-        subscriptionType === "insta"
-          ? "insta-automation"
-          : subscriptionType === "call"
-            ? "call-assistant"
-            : subscriptionType === "whatsapp"
-              ? "whatsapp-automation"
-              : "web-chatbot";
-      const subscriptionModel =
-        subscriptionType === "insta"
-          ? "InstaSubscription"
-          : subscriptionType === "call"
-            ? "CallSubscription"
-            : subscriptionType === "whatsapp"
-              ? "WhatsAppWorkspace"
-              : "WebSubscription";
-      const productName =
-        chatbotType ||
-        (subscriptionType === "insta"
-          ? "Instagram Automation"
-          : subscriptionType === "call"
-            ? "AI Call Assistant"
-            : subscriptionType === "whatsapp"
-              ? "WhatsApp Automation"
-              : "Web Chatbot");
-
-      const existingReferral = await AffiReferral.findOne({
-        referredUserId: clerkId.toString(),
-        productType,
-        status: "active",
-      });
-
-      if (existingReferral) {
-        existingReferral.subscriptionId = newSubscription._id.toString();
-        existingReferral.subscriptionModel = subscriptionModel;
-        existingReferral.subscriptionType = billingCycle;
-        existingReferral.subscriptionPrice = Number(subscriptionPrice);
-        existingReferral.commissionRate = Number(commissionRate);
-        existingReferral.monthlyCommission = Number(monthlyCommission);
-        existingReferral.yearlyCommission = Number(yearlyCommission);
-        existingReferral.chatbotType =
-          subscriptionType === "web" ||
-          subscriptionType === "call" ||
-          subscriptionType === "whatsapp"
-            ? chatbotType
-            : undefined;
-        existingReferral.instaPlan =
-          subscriptionType === "insta" ? chatbotType : undefined;
-        existingReferral.nextCommissionDate = expiresAt;
-        await existingReferral.save();
-
-        referralRecord = existingReferral;
-        return { subscription: newSubscription, referral: referralRecord };
-      }
-
-      // Create referral record
-      referralRecord = await AffiReferral.create({
-        affiliateId: affiliate._id.toString(),
-        referredUserId: clerkId.toString(),
-        productType,
-        subscriptionId: newSubscription._id.toString(),
-        subscriptionModel,
-        subscriptionType: billingCycle,
-        chatbotType:
-          subscriptionType === "web" ||
-          subscriptionType === "call" ||
-          subscriptionType === "whatsapp"
-            ? chatbotType
-            : undefined,
-        instaPlan: subscriptionType === "insta" ? chatbotType : undefined,
-        subscriptionPrice: Number(subscriptionPrice),
-        commissionRate: Number(commissionRate),
-        monthlyCommission: Number(monthlyCommission),
-        yearlyCommission: Number(yearlyCommission),
-        totalCommissionEarned: 0,
-        monthsRemaining: Number(monthsRemaining),
-        yearsRemaining: Number(yearsRemaining),
-        status: "active",
-        lastCommissionDate: new Date(),
-        nextCommissionDate: expiresAt,
-      });
-
-      // Calculate commission amount for this period
-      const commissionAmount =
-        billingCycle === "monthly"
-          ? Number(firstCycleCommissionBase) * Number(commissionRate)
-          : Number(yearlyCommission);
-
-      if (commissionAmount > 0) {
-        const periodKey = new Date().toISOString().slice(0, 7);
-        const existingCommission = await AffiCommissionRecord.findOne({
-          referralId: referralRecord._id.toString(),
-          period: periodKey,
-        });
-
-        if (existingCommission) {
-          return { subscription: newSubscription, referral: referralRecord };
-        }
-
-        await AffiCommissionRecord.create({
-          affiliateId: affiliate._id.toString(),
-          referralId: referralRecord._id.toString(),
-          referredUserId: clerkId.toString(),
-          amount: Number(commissionAmount),
-          period: periodKey,
-          productType,
-          productName,
-          subscriptionType: billingCycle,
-          status: "pending",
-        });
-
-        // Update affiliate earnings
-        const currentPending = Number(affiliate.pendingEarnings) || 0;
-        const currentTotal = Number(affiliate.totalEarnings) || 0;
-
-        affiliate.pendingEarnings = currentPending + Number(commissionAmount);
-        affiliate.totalEarnings = currentTotal + Number(commissionAmount);
-        affiliate.totalReferrals = Number(affiliate.totalReferrals) + 1;
-        affiliate.activeReferrals = Number(affiliate.activeReferrals) + 1;
-        await affiliate.save();
-
-        referralRecord.totalCommissionEarned = Number(commissionAmount);
-        await referralRecord.save();
-      }
-
-      user.referredBy = affiliate._id.toString();
-      user.hasUsedReferral = true;
-      await user.save();
-    }
-  }
-
-  return { subscription: newSubscription, referral: referralRecord };
+  return { subscription: newSubscription };
 }
 
 async function handleSubscriptionCharged(
@@ -692,98 +451,7 @@ async function handleSubscriptionCharged(
     websiteMaintenanceUpdate ||
     contentCreationUpdate;
 
-  if (subscription) {
-    // Find active referral for this subscription
-    const referral = await AffiReferral.findOne({
-      subscriptionId: subscription._id.toString(),
-      status: "active",
-    });
-
-    if (referral && referral.status === "active") {
-      // Check if referral has remaining months/years
-      let commissionAmount = 0;
-      let updatedMonthsRemaining = Number(referral.monthsRemaining);
-      let updatedYearsRemaining = Number(referral.yearsRemaining);
-
-      if (
-        referral.subscriptionType === "monthly" &&
-        updatedMonthsRemaining > 0
-      ) {
-        commissionAmount = Number(referral.monthlyCommission);
-        updatedMonthsRemaining -= 1;
-      } else if (
-        referral.subscriptionType === "yearly" &&
-        updatedYearsRemaining > 0
-      ) {
-        commissionAmount = Number(referral.yearlyCommission);
-        updatedYearsRemaining -= 1;
-      }
-
-      if (commissionAmount > 0) {
-        const periodKey = new Date().toISOString().slice(0, 7);
-        const existingCommission = await AffiCommissionRecord.findOne({
-          referralId: referral._id.toString(),
-          period: periodKey,
-        });
-
-        if (existingCommission) {
-          return { subscription, referral };
-        }
-
-        await AffiCommissionRecord.create({
-          affiliateId: referral.affiliateId,
-          referralId: referral._id.toString(),
-          referredUserId: referral.referredUserId,
-          amount: Number(commissionAmount),
-          period: periodKey,
-          productType: referral.productType,
-          productName:
-            (referral as any).productType === "web-chatbot"
-              ? referral.chatbotType || "Web Chatbot"
-              : (referral as any).productType === "call-assistant"
-                ? referral.chatbotType || "AI Call Assistant"
-                : (referral as any).productType === "whatsapp-automation"
-                  ? referral.chatbotType || "WhatsApp Automation"
-                  : referral.instaPlan || "Instagram Automation",
-          subscriptionType: referral.subscriptionType,
-          status: "pending",
-        });
-
-        // Update affiliate pending earnings
-        const affiliate = await Affiliate.findOne({
-          _id: referral.affiliateId,
-        });
-        if (affiliate) {
-          const currentPending = Number(affiliate.pendingEarnings) || 0;
-          const currentTotal = Number(affiliate.totalEarnings) || 0;
-
-          affiliate.pendingEarnings = currentPending + Number(commissionAmount);
-          affiliate.totalEarnings = currentTotal + Number(commissionAmount);
-          await affiliate.save();
-        }
-
-        // Update referral record
-        const currentTotalEarned = Number(referral.totalCommissionEarned) || 0;
-        referral.totalCommissionEarned =
-          currentTotalEarned + Number(commissionAmount);
-        referral.monthsRemaining = updatedMonthsRemaining;
-        referral.yearsRemaining = updatedYearsRemaining;
-        referral.lastCommissionDate = new Date();
-        referral.nextCommissionDate = nextBillingDate;
-
-        if (
-          (referral.subscriptionType === "monthly" &&
-            updatedMonthsRemaining <= 0) ||
-          (referral.subscriptionType === "yearly" && updatedYearsRemaining <= 0)
-        ) {
-          referral.status = "completed";
-          referral.completionDate = new Date();
-        }
-
-        await referral.save();
-      }
-    }
-  } else {
+  if (!subscription) {
     console.warn(`Subscription ${subscriptionId} not found`);
   }
 }
