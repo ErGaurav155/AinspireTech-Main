@@ -27,6 +27,7 @@ import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
   useCallAssistantAdmin,
 } from "@/lib/call-access";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard, isNew: false },
@@ -77,6 +78,8 @@ export default function WhatsAppSidebar({
   const { isDark } = useThemeStyles();
   const [isProductOpen, setIsProductOpen] = useState(false);
   const isCallAdmin = useCallAssistantAdmin();
+  const { clientOnly, loading: platformAccessLoading } = usePlatformAccess();
+  const hideClientBilling = clientOnly || platformAccessLoading;
 
   const styles = useMemo(
     () => ({
@@ -207,7 +210,7 @@ export default function WhatsAppSidebar({
           </div>
 
           <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-            {NAV_ITEMS.map((item) => {
+            {NAV_ITEMS.filter((item) => !hideClientBilling || !["Pricing", "Packages"].includes(item.label)).map((item) => {
               const active = isActive(item.href);
               const Icon = item.icon;
               return (

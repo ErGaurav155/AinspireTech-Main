@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Building2, Plus, RefreshCw, Store } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import {
   createAgency,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/services/platform.api";
 
 export default function SelectWorkspacePage() {
+  const router = useRouter();
   const { apiRequest } = useApi();
   const [data, setData] = useState<any>(null);
   const [name, setName] = useState("");
@@ -20,11 +22,14 @@ export default function SelectWorkspacePage() {
 
   const load = useCallback(async () => {
     try {
-      setData(await getPlatformContext(apiRequest));
+      const context = await getPlatformContext(apiRequest);
+      setData(context);
+      const clientOnly = context.agencies.length === 0 && context.workspaces.length === 1 && Boolean(context.workspaces[0]?.agencyId);
+      if (clientOnly) router.replace(`/workspace/${context.workspaces[0]._id}`);
     } catch (value: any) {
       setError(value.message || "Unable to load workspaces");
     }
-  }, [apiRequest]);
+  }, [apiRequest, router]);
 
   useEffect(() => void load(), [load]);
 
@@ -77,7 +82,7 @@ export default function SelectWorkspacePage() {
           ))}
         </div>
 
-        <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+        {!(data?.agencies?.length === 0 && data?.workspaces?.length > 0 && data.workspaces.every((workspace: any) => Boolean(workspace.agencyId))) && <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div className="flex items-center gap-3"><Plus className="h-5 w-5 text-violet-400" /><h2 className="text-lg font-semibold">Create a workspace</h2></div>
           <div className="mt-5 flex gap-2">
             {(["agency", "business"] as const).map((item) => (
@@ -88,7 +93,7 @@ export default function SelectWorkspacePage() {
             <input value={name} onChange={(event) => setName(event.target.value)} placeholder={mode === "agency" ? "Agency name" : "Business name"} className="flex-1 rounded-xl border border-white/10 bg-slate-900 px-4 py-3 outline-none focus:border-violet-500" />
             <button disabled={busy || name.trim().length < 2} onClick={create} className="rounded-xl bg-violet-500 px-6 py-3 font-semibold disabled:opacity-50">{busy ? "Creating…" : "Create"}</button>
           </div>
-        </section>
+        </section>}
       </div>
     </main>
   );

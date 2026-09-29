@@ -15,6 +15,9 @@ import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
 import { entitlementService } from "@/services/billing/entitlement.service";
 import { provisioningService } from "@/services/tenant/provisioning.service";
 import { usageService } from "@/services/usage/usage.service";
+import { getAgencyAnalytics } from "@/services/analytics/agency-analytics.service";
+import PlanDefinition from "@/models/billing/PlanDefinition.model";
+import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
 
 const serviceSchema = z.enum(["WHATSAPP", "INSTAGRAM", "WEBSITE", "CALL"]);
 const createAgencySchema = z.object({ name: z.string().trim().min(2).max(160) }).strict();
@@ -243,6 +246,20 @@ export const listAgencyClientsController = async (req: Request, res: Response) =
   }
 };
 
+export const getAgencyAnalyticsController = async (req: Request, res: Response) => {
+  const rangeSchema = z.object({ from: z.coerce.date().optional(), to: z.coerce.date().optional() });
+  const parsed = rangeSchema.safeParse(req.query);
+  if (!parsed.success) return fail(res, 400, "Invalid analytics date range");
+  const to = parsed.data.to || new Date();
+  const from = parsed.data.from || new Date(to.getTime() - 30 * 24 * 60 * 60 * 1000);
+  if (from >= to || to.getTime() - from.getTime() > 366 * 24 * 60 * 60 * 1000) return fail(res, 400, "Analytics range must be between 1 and 366 days");
+  try {
+    return ok(res, await getAgencyAnalytics({ agencyId: req.agencyContext!.agencyId, from, to }));
+  } catch (error) {
+    return handleError(res, error, "Unable to load agency analytics");
+  }
+};
+
 export const updateClientServiceController = async (req: Request, res: Response) => {
   const parsed = updateServiceSchema.safeParse(req.body);
   const service = serviceSchema.safeParse(String(req.params.service || "").toUpperCase());
@@ -371,6 +388,18 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
       ),
       comingSoon: service.service === "CALL",
     }));
+    let managedBy: { agencyName: string; planName: string; planCode: string } | undefined;
+    if (workspace?.agencyId) {
+      const planCode = entitlements.sourcePlanCodes[0] || FREE_AGENCY_PLAN.code;
+      const [agency, plan] = await Promise.all([
+        Agency.findById(workspace.agencyId, { name: 1 }).lean(),
+        planCode === FREE_AGENCY_PLAN.code
+          ? Promise.resolve(null)
+          : PlanDefinition.findOne({ code: planCode }, { name: 1, code: 1 }).sort({ revision: -1 }).lean(),
+      ]);
+      managedBy = { agencyName: agency?.name || "Your agency", planName: plan?.name || FREE_AGENCY_PLAN.name, planCode: plan?.code || FREE_AGENCY_PLAN.code };
+    }
+    const clientFacing = Boolean(workspace?.agencyId && req.platformContext!.accessKind !== "agency_management");
     return ok(res, {
       workspace,
       services: effectiveServices,
@@ -380,7 +409,8 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
         permissions: req.platformContext!.permissions,
         accessKind: req.platformContext!.accessKind,
       },
-      entitlements,
+      managedBy,
+      ...(clientFacing ? {} : { entitlements }),
     });
   } catch (error) {
     return handleError(res, error, "Unable to load workspace");

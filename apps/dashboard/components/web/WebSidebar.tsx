@@ -42,6 +42,7 @@ import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
   useCallAssistantAdmin,
 } from "@/lib/call-access";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // Chatbot items
 const CHATBOT_ITEMS = [
@@ -94,6 +95,8 @@ export default function WebSidebar({
   const { apiRequest } = useApi();
   const { isDark } = useThemeStyles();
   const isCallAdmin = useCallAssistantAdmin();
+  const { clientOnly, loading: platformAccessLoading } = usePlatformAccess();
+  const hideClientBilling = clientOnly || platformAccessLoading;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
@@ -326,13 +329,13 @@ export default function WebSidebar({
                     </p>
                   </div>
                 </div>
-                <Button
+                {!clientOnly && <Button
                   onClick={() => router.push("/web/pricing")}
                   size="sm"
                   className={styles.tokenButton}
                 >
                   Buy
-                </Button>
+                </Button>}
               </div>
             </div>
           </div>
@@ -359,9 +362,9 @@ export default function WebSidebar({
                 <p className={styles.selectorType}>AI Chatbot</p>
               </div>
             </div>
-            <span className={styles.planBadge(isSubscribed)}>
-              {isSubscribed && <Crown className="w-4 h-4 animate-pulse" />}
-              {isSubscribed ? "Pro" : "Free"}
+            <span className={styles.planBadge(clientOnly || isSubscribed)}>
+              {(clientOnly || isSubscribed) && <Crown className="w-4 h-4 animate-pulse" />}
+              {clientOnly ? "Agency" : isSubscribed ? "Pro" : "Free"}
             </span>
             <ChevronDown
               className={`${styles.selectorChevron} transition-transform duration-200 ${
@@ -627,7 +630,7 @@ export default function WebSidebar({
           <div className={styles.navDivider} />
 
           {/* Bottom navigation items */}
-          {BOTTOM_NAV_ITEMS.map((item) => {
+          {BOTTOM_NAV_ITEMS.filter(() => !hideClientBilling).map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
@@ -659,7 +662,7 @@ export default function WebSidebar({
         </nav>
 
         {/* Upgrade Section — only show for free users */}
-        {!isSubscribed && !pricingClose && (
+        {!hideClientBilling && !isSubscribed && !pricingClose && (
           <div className="p-4">
             <div className={styles.upgradeCard}>
               <div className="flex items-center gap-2 mb-3">
@@ -817,6 +820,8 @@ export default function WebSidebar({
     onToggle,
     styles,
     isDark,
+    clientOnly,
+    hideClientBilling,
   ]);
 
   if (isLoading) {

@@ -101,6 +101,29 @@ const perClientLimits: LimitEntitlements = {
   callAssistants: 0,
 };
 
+// Free agency access is intentionally kept outside Razorpay's paid catalog.
+// Edit these allowances here; every API limit check consumes this same object.
+export const FREE_AGENCY_PLAN = {
+  code: "agency-free",
+  name: "Free Agency",
+  features: {
+    ...baseFeatures,
+    advancedReporting: false,
+    customBranding: false,
+    prioritySupport: false,
+  } satisfies FeatureEntitlements,
+  limits: {
+    clientWorkspaces: 1,
+    teamMembers: 1,
+    aiTokens: 100_000,
+    conversations: 1_000,
+    instagramAccounts: 3,
+    whatsappAccounts: 1,
+    websiteChatbots: 1,
+    ...perClientLimits,
+  } satisfies LimitEntitlements,
+} as const;
+
 export const AGENCY_PLAN_CATALOG: PlatformCatalogItem[] = AGENCY_PLAN_TIERS.flatMap(
   (tier) =>
     (["monthly", "yearly"] as const).map((billingInterval) => ({
@@ -164,5 +187,5 @@ export const AGENCY_ADDON_CATALOG = [
 ] as const;
 
 export const PLATFORM_URLS = {
-  clerkInvitationRedirect: "https://app.rocketreplai.com/select-workspace",
+  clerkInvitationRedirect: "https://app.rocketreplai.com/accept-invitation",
 } as const;

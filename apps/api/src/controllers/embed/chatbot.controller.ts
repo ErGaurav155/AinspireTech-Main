@@ -83,6 +83,9 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
             });
 
             if (conversation) {
+              if (!conversation.workspaceId && tokenResult.workspaceId) {
+                conversation.workspaceId = tokenResult.workspaceId as any;
+              }
               // Update existing conversation
               conversation.messages.push(userMessage, botMessage);
               conversation.totalTokensUsed += tokensUsed;
@@ -92,6 +95,7 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
             } else {
               // Create new conversation
               await WebChatConversation.create({
+                ...(tokenResult.workspaceId ? { workspaceId: tokenResult.workspaceId } : {}),
                 chatbotType: agentId,
                 clerkId: userId,
                 sessionId,

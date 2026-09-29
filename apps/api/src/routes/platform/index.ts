@@ -5,6 +5,7 @@ import {
   createBusinessWorkspaceController,
   createClientWorkspaceController,
   getAgencyController,
+  getAgencyAnalyticsController,
   getPlatformContextController,
   getWorkspaceController,
   listAgencyClientsController,
@@ -51,6 +52,12 @@ router.get(
   requireAgencyContext,
   requireAgencyPermission("clients.view"),
   listAgencyClientsController,
+);
+router.get(
+  "/agencies/:agencyId/analytics",
+  requireAgencyContext,
+  requireAgencyPermission("analytics.view"),
+  getAgencyAnalyticsController,
 );
 router.post(
   "/agencies/:agencyId/clients",

@@ -20,6 +20,7 @@ import { useApi } from "@/lib/useApi";
 import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
 import { Button, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ export default function InstaBottomNavbar() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { clientOnly } = usePlatformAccess();
 
   // ✅ All account data from context
   const { accounts, selectedAccount, selectAccount } = useInstaAccount();
@@ -72,8 +74,9 @@ export default function InstaBottomNavbar() {
     fetch();
   }, [userId, apiRequest]);
 
+  const effectiveAccountLimit = clientOnly ? 3 : accountLimit;
   const BOTTOM_NAV_ITEMS = useMemo(() => {
-    if (accountLimit > 1) {
+    if (effectiveAccountLimit > 1) {
       return [
         ...BASE_NAV_ITEMS.slice(0, 3),
         CONTACTS_ITEM,
@@ -82,7 +85,7 @@ export default function InstaBottomNavbar() {
     }
     // Free user - no Contacts
     return BASE_NAV_ITEMS;
-  }, [accountLimit]);
+  }, [effectiveAccountLimit]);
 
   // ── Active check ──────────────────────────────────────────────────────────
 
@@ -247,7 +250,7 @@ export default function InstaBottomNavbar() {
           {/* Account count */}
           <div className={localStyles.limitIndicator}>
             <p className={localStyles.limitText}>
-              {accounts.length} / {accountLimit} accounts used
+              {accounts.length} / {effectiveAccountLimit} accounts used
             </p>
           </div>
 
@@ -302,7 +305,7 @@ export default function InstaBottomNavbar() {
           })}
 
           {/* Add account — only if below limit */}
-          {accounts.length < accountLimit && (
+          {accounts.length < effectiveAccountLimit && (
             <Link
               href="/insta/accounts/add"
               onClick={() => setAccountMenuOpen(false)}
@@ -344,7 +347,7 @@ export default function InstaBottomNavbar() {
           )}
 
           {/* Upgrade prompt if at limit and not subscribed */}
-          {accounts.length >= accountLimit && !isSubscribed && (
+          {!clientOnly && accounts.length >= effectiveAccountLimit && !isSubscribed && (
             <div className={localStyles.upgradePrompt}>
               <p className={localStyles.upgradeTitle}>Account limit reached</p>
               <p className={localStyles.upgradeDesc}>
@@ -375,7 +378,7 @@ export default function InstaBottomNavbar() {
             const Icon = item.icon;
 
             // Check if this is a locked item (Contacts for free users)
-            const isLocked = item.label === "Contacts" && accountLimit === 1;
+            const isLocked = item.label === "Contacts" && effectiveAccountLimit === 1;
 
             return (
               <Link

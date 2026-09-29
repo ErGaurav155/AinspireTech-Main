@@ -3,7 +3,16 @@ import test from "node:test";
 import {
   AGENCY_ADDON_CATALOG,
   AGENCY_PLAN_CATALOG,
+  FREE_AGENCY_PLAN,
 } from "./platform-catalog.config";
+
+test("free agency allowance permits one limited client without payment", () => {
+  assert.equal(FREE_AGENCY_PLAN.code, "agency-free");
+  assert.equal(FREE_AGENCY_PLAN.limits.clientWorkspaces, 1);
+  assert.equal(FREE_AGENCY_PLAN.limits.aiTokens, 100_000);
+  assert.equal(FREE_AGENCY_PLAN.features.agencyDashboard, true);
+  assert.equal(FREE_AGENCY_PLAN.features.advancedReporting, false);
+});
 
 test("agency plans use the approved workspace and team limits", () => {
   const monthly = new Map(

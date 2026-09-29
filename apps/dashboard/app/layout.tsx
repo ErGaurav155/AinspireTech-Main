@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ClerkThemeProvider } from "@rocketreplai/ui";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import MetaPixel from "@/components/shared/MetaPixel";
+import PlatformAccessProvider from "@/components/platform/PlatformAccessProvider";
 
 const orbitron = Orbitron({
   subsets: ["latin"],
@@ -45,7 +46,7 @@ export default async function RootLayout({
           enableSystem={false}
         >
           <ClerkThemeProvider>
-            <div className="relative z-10 min-h-screen">{children}</div>
+            <PlatformAccessProvider><div className="relative z-10 min-h-screen">{children}</div></PlatformAccessProvider>
           </ClerkThemeProvider>
         </ThemeProvider>
         <SpeedInsights />

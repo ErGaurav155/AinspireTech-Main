@@ -43,8 +43,15 @@ export const useApi = () => {
             throw new Error("Unauthorized");
           }
 
-          const errorText = await response.text();
-          throw new Error(errorText || "API request failed");
+          const errorBody = await response.json().catch(() => null) as
+            | { error?: string; message?: string; details?: { code?: string } }
+            | null;
+          const code = errorBody?.details?.code;
+          throw new Error(
+            [errorBody?.error || errorBody?.message || "API request failed", code]
+              .filter(Boolean)
+              .join(" (" ) + (code ? ")" : ""),
+          );
         }
 
         const result: ApiResponse<T> = await response.json();

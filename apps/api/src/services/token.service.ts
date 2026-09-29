@@ -4,8 +4,25 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import { sendWebTokenExhaustedEmailToUser } from "@/services/sendEmail.service";
+import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
+import Workspace from "@/models/tenant/Workspace.model";
+import { usageService } from "@/services/usage/usage.service";
+import { Types } from "mongoose";
 
 export const SUBSCRIPTION_TOKEN_ALLOWANCE = 2000000;
+
+async function getAgencyManagedUsageOwner(userId: string) {
+  const memberships = await WorkspaceMember.find({ userId, status: "active" }, { workspaceId: 1 }).limit(2).lean();
+  if (memberships.length !== 1) return null;
+  const workspace = await Workspace.findOne({
+    _id: memberships[0].workspaceId,
+    agencyId: { $exists: true },
+    billingOwnerType: "AGENCY",
+    status: "active",
+  }, { billingOwnerId: 1 }).lean();
+  if (!workspace) return null;
+  return { ownerType: "AGENCY" as const, ownerId: String(workspace.billingOwnerId), workspaceId: String(workspace._id) };
+}
 
 // Get user's token balance
 export async function getUserTokenBalance(userId: string) {
@@ -194,6 +211,36 @@ export async function usedTokens(
   }
 
   await connectToDatabase();
+
+  const agencyOwner = await getAgencyManagedUsageOwner(userId);
+  if (agencyOwner) {
+    const result = await usageService.recordUsage({
+      owner: agencyOwner,
+      metric: "aiTokens",
+      amount: tokens,
+      idempotencyKey: `web-ai:${new Types.ObjectId().toString()}`,
+      source: "website_chatbot",
+      metadata: { chatbotId },
+    }) as { applied?: boolean; limit?: number; used?: number };
+    if (!result.applied) throw new Error("Insufficient tokens");
+    const remainingTokens = result.limit === -1 ? -1 : Math.max(0, Number(result.limit || 0) - Number(result.used || 0));
+    const tokenUsage = await TokenUsage.create({
+      userId,
+      chatbotId,
+      tokensUsed: tokens,
+      totalCost,
+      timestamp: new Date(),
+    });
+    return {
+      success: true,
+      agencyManaged: true,
+      workspaceId: agencyOwner.workspaceId,
+      tokenUsage,
+      remainingTokens,
+      freeTokensRemaining: 0,
+      subscriptionTokensRemaining: remainingTokens,
+    };
+  }
 
   const tokenBalance = await getUserTokenBalance(userId);
 

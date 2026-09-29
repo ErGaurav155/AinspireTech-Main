@@ -40,7 +40,7 @@ Provisioning and checkout POST requests require an `X-Idempotency-Key` containin
 
 ## Required provider configuration
 
-1. Add `CLERK_INVITATION_REDIRECT_URL` to the API environment and allow the URL in Clerk.
+1. Add `CLERK_INVITATION_REDIRECT_URL=https://app.rocketreplai.com/accept-invitation` to the API environment and allow that URL in Clerk.
 2. Subscribe the Clerk webhook to organization membership create, update and delete events in addition to the existing user events.
 3. Configure Razorpay subscription lifecycle events to `POST /api/webhooks/razorpay`.
 4. Keep the legacy Razorpay webhook endpoints enabled during the compatibility window for old subscriptions.

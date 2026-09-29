@@ -38,6 +38,7 @@ import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
   useCallAssistantAdmin,
 } from "@/lib/call-access";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,8 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const isCallAdmin = useCallAssistantAdmin();
+  const { clientOnly, loading: platformAccessLoading } = usePlatformAccess();
+  const hideClientBilling = clientOnly || platformAccessLoading;
 
   // ✅ All account data comes from context — no local fetch needed
   const {
@@ -100,11 +103,13 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const [accountLimit, setAccountLimit] = useState(1);
   const [pricingClose, setPricingClose] = useState(false);
   const [subsLoading, setSubsLoading] = useState(true);
+  const managedServiceAccess = clientOnly || isSubscribed;
+  const effectiveAccountLimit = clientOnly ? 3 : accountLimit;
   const dmSent = selectedAccount?.accountDMSent || 0;
   const followChecks = selectedAccount?.accountFollowCheck || 0;
-  const dmLimitReached = !isSubscribed && dmSent >= FREE_DM_LIMIT;
+  const dmLimitReached = !managedServiceAccess && dmSent >= FREE_DM_LIMIT;
   const followCheckLimitReached =
-    !isSubscribed && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
+    !managedServiceAccess && followChecks >= FREE_FOLLOW_CHECK_LIMIT;
 
   // ── Fetch subscription info only (accounts come from context) ─────────────
 
@@ -313,9 +318,9 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
               </div>
             </div>
 
-            <span className={localStyles.planBadge(isSubscribed)}>
-              {isSubscribed && <Crown className="w-4 h-4 animate-pulse" />}
-              {isSubscribed ? "Pro" : "Free"}
+            <span className={localStyles.planBadge(managedServiceAccess)}>
+              {managedServiceAccess && <Crown className="w-4 h-4 animate-pulse" />}
+              {clientOnly ? "Agency" : isSubscribed ? "Pro" : "Free"}
             </span>
 
             <ChevronDown
@@ -328,7 +333,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             <div className={localStyles.dropdown}>
               <div className={localStyles.dropdownLimit}>
                 <p className={localStyles.dropdownLimitText}>
-                  {accounts.length} / {accountLimit} accounts used
+                  {accounts.length} / {effectiveAccountLimit} accounts used
                 </p>
               </div>
 
@@ -383,7 +388,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
               })}
 
               {/* Add account, or upgrade when the free account limit is reached */}
-              {accounts.length < accountLimit ? (
+              {accounts.length < effectiveAccountLimit ? (
                 <Link
                   href="/insta/accounts/add"
                   className={localStyles.dropdownItemLast}
@@ -399,7 +404,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                   </div>
                   Connect new account
                 </Link>
-              ) : !isSubscribed ? (
+              ) : !managedServiceAccess ? (
                 <button
                   type="button"
                   className={localStyles.dropdownItemLast}
@@ -418,7 +423,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 </button>
               ) : null}
 
-              {accounts.length >= accountLimit && !isSubscribed && (
+              {accounts.length >= effectiveAccountLimit && !managedServiceAccess && (
                 <div className={localStyles.dropdownUpgrade}>
                   <p className={localStyles.dropdownUpgradeTitle}>
                     Account limit reached
@@ -467,14 +472,14 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
               <span className={localStyles.quotaLabel}>DM sent</span>
               <span className={localStyles.quotaValue(dmLimitReached)}>
                 {dmSent.toLocaleString()} /{" "}
-                {isSubscribed ? "Unlimited" : FREE_DM_LIMIT.toLocaleString()}
+                {managedServiceAccess ? "Included" : FREE_DM_LIMIT.toLocaleString()}
               </span>
             </div>
             <div className={`${localStyles.quotaRow} mt-1.5`}>
               <span className={localStyles.quotaLabel}>Follow checks</span>
               <span className={localStyles.quotaValue(followCheckLimitReached)}>
                 {followChecks.toLocaleString()} /{" "}
-                {isSubscribed ? "Unlimited" : FREE_FOLLOW_CHECK_LIMIT}
+                {managedServiceAccess ? "Included" : FREE_FOLLOW_CHECK_LIMIT}
               </span>
             </div>
             {dmLimitReached && (
@@ -493,7 +498,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
+          {NAV_ITEMS.filter((item) => !hideClientBilling || !["Pricing", "Packages"].includes(item.label)).map((item) => {
             const active = isActive(item.href);
             const Icon = item.icon;
             return (
@@ -503,7 +508,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                 )}
                 <Link
                   href={
-                    accountLimit === 1 && item.label === "Contacts"
+                    !hideClientBilling && effectiveAccountLimit === 1 && item.label === "Contacts"
                       ? "/insta/pricing"
                       : item.href
                   }
@@ -519,7 +524,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
                   {item.isNew && (
                     <Badge className={localStyles.newBadge}>NEW</Badge>
                   )}
-                  {accountLimit === 1 && item.label === "Contacts" && (
+                  {!hideClientBilling && effectiveAccountLimit === 1 && item.label === "Contacts" && (
                     <Badge className="p-2 text-red-400/40 bg-red-400/10  hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors">
                       <Lock className="h-4 w-4" />
                     </Badge>
@@ -534,7 +539,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
         </nav>
 
         {/* Upgrade section — only for free users */}
-        {!isSubscribed && !pricingClose && (
+        {!hideClientBilling && !isSubscribed && !pricingClose && (
           <div className="p-4">
             <div className={localStyles.upgradeCard}>
               <div className="flex items-center gap-2 mb-3">
@@ -682,10 +687,14 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   }, [
     accounts,
     accountLimit,
+    clientOnly,
+    effectiveAccountLimit,
+    hideClientBilling,
     isAccountOpen,
     isActive,
     isDark,
     isSubscribed,
+    managedServiceAccess,
     isProductOpen,
     localStyles,
     onToggle,

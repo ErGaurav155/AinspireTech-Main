@@ -15,6 +15,7 @@ import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
 import { calculateEntitlements } from "@/services/billing/entitlement-calculator";
+import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
 
 const SERVICE_FEATURE: Record<PlatformService, EntitlementFeature> = {
   WHATSAPP: "whatsapp",
@@ -98,6 +99,18 @@ export class EntitlementService {
       quantity: number;
       limitOperation: "add" | "replace";
     }> = [];
+
+    // An agency without a verified paid subscription receives exactly one
+    // small client workspace. A paid subscription replaces this base rather
+    // than stacking on top of it.
+    if (ownerType === "AGENCY" && subscriptions.length === 0) {
+      sourcePlanCodes.add(FREE_AGENCY_PLAN.code);
+      baseSources.push({
+        code: FREE_AGENCY_PLAN.code,
+        features: { ...FREE_AGENCY_PLAN.features },
+        limits: { ...FREE_AGENCY_PLAN.limits },
+      });
+    }
 
     for (const subscription of subscriptions) {
       const plan = plansById.get(String(subscription.planId));

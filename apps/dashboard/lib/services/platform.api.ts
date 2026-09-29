@@ -35,6 +35,12 @@ export const getAgency = (apiRequest: ApiRequestFn, agencyId: string) =>
 export const getAgencyClients = (apiRequest: ApiRequestFn, agencyId: string) =>
   apiRequest<any[]>(`/platform/agencies/${agencyId}/clients`);
 
+export const getAgencyAnalytics = (apiRequest: ApiRequestFn, agencyId: string, days = 30) => {
+  const to = new Date();
+  const from = new Date(to.getTime() - days * 24 * 60 * 60 * 1000);
+  return apiRequest<any>(`/platform/agencies/${agencyId}/analytics?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`);
+};
+
 export const createAgencyClient = (
   apiRequest: ApiRequestFn,
   agencyId: string,
