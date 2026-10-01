@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   CalendarCheck,
+  Building2,
   CircleHelp,
   Settings,
   Workflow,
@@ -16,6 +17,7 @@ const ITEMS = [
   { label: "Automate", href: "/whatsapp/automations", icon: Workflow },
   { label: "Booking", href: "/whatsapp/appointments", icon: CalendarCheck },
   { label: "FAQs", href: "/whatsapp/faqs", icon: CircleHelp },
+  { label: "Business", href: "/whatsapp/business-info", icon: Building2 },
   { label: "Settings", href: "/whatsapp/settings", icon: Settings },
 ] as const;
 
@@ -31,7 +33,7 @@ export default function WhatsAppBottomNavbar() {
           : "border-gray-200 bg-white/95 shadow-[0_-4px_16px_rgba(15,23,42,0.06)]"
       }`}
     >
-      <div className="grid grid-cols-5 gap-0.5">
+      <div className="grid grid-cols-6 gap-0.5">
         {ITEMS.map((item) => {
           const active =
             pathname === item.href ||

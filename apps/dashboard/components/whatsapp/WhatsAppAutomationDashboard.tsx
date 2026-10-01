@@ -188,20 +188,14 @@ export default function WhatsAppAutomationDashboard({
     };
   }, [data]);
 
-  const pageClass = isDark
-    ? "min-h-screen w-full min-w-0 overflow-x-hidden bg-[#0F0F11] text-white"
-    : "min-h-screen w-full min-w-0 overflow-x-hidden bg-[#F7FAF9] text-gray-950";
-  const cardClass = isDark
-    ? "border-white/[0.08] bg-white/[0.04]"
-    : "border-gray-200 bg-white";
-  const softCardClass = isDark
-    ? "border-white/[0.08] bg-white/[0.03]"
-    : "border-gray-100 bg-gray-50";
+  const pageClass = `${styles.page} w-full min-w-0 overflow-x-hidden ${styles.text.primary}`;
+  const cardClass = styles.card;
+  const softCardClass = styles.innerCard;
 
   return (
     <div className={pageClass}>
       {isDark && <Orbs />}
-      <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full sm:px-4 sm:py-6 md:px-6 lg:px-8">
+      <div className={`${styles.container} w-full min-w-0 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full`}>
         <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
         {isLoading && (
           <div className={`rounded-2xl border ${cardClass} p-10`}>
@@ -209,7 +203,7 @@ export default function WhatsAppAutomationDashboard({
           </div>
         )}
         {!isLoading && error && (
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-5 text-red-300">
+          <div className="rounded-2xl border border-red-500/20 bg-red-50 p-5 text-red-700 dark:bg-red-500/10 dark:text-red-300">
             {error}
           </div>
         )}
@@ -389,14 +383,18 @@ function StatusPill({
   value: string;
   tone: "ok" | "warn";
 }) {
+  const { styles } = useThemeStyles();
+
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-3">
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-400">
+    <div className={`${styles.innerCard} p-3`}>
+      <p className={`text-[11px] font-semibold uppercase tracking-widest ${styles.text.muted}`}>
         {label}
       </p>
       <p
         className={`mt-1 text-sm font-bold ${
-          tone === "ok" ? "text-emerald-400" : "text-amber-400"
+          tone === "ok"
+            ? "text-emerald-600 dark:text-emerald-400"
+            : "text-amber-600 dark:text-amber-400"
         }`}
       >
         {value}
@@ -516,12 +514,12 @@ function Overview({
             ].map(([label, value]) => (
               <div
                 key={label}
-                className="flex items-center justify-between rounded-xl bg-white/[0.04] px-3 py-2.5"
+                className={`flex items-center justify-between px-3 py-2.5 ${softCardClass}`}
               >
                 <span className="text-sm text-gray-500 dark:text-white/55">
                   {label}
                 </span>
-                <Badge className="bg-amber-500/15 text-amber-300 hover:bg-amber-500/15">
+                <Badge className="bg-amber-500/15 text-amber-700 hover:bg-amber-500/15 dark:text-amber-300">
                   {value}
                 </Badge>
               </div>
@@ -574,7 +572,7 @@ function Overview({
             Greeting menu, appointment questions, service pricing, support,
             owner handoff, and follow-ups.
           </p>
-          <Badge className="mt-4 bg-emerald-500/15 text-emerald-300">
+          <Badge className="mt-4 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
             {data.automationConfig?.enabled !== false ? "active" : "paused"}
           </Badge>
         </section>
@@ -594,13 +592,15 @@ function MetricCard({
   change: string;
   icon: React.ElementType;
 }) {
+  const { styles } = useThemeStyles();
+
   return (
-    <div className="min-w-0 rounded-2xl border border-emerald-500/15 bg-emerald-500/[0.06] p-4 sm:p-5">
+    <div className={`${styles.card} min-w-0 border-emerald-500/15 p-4 sm:p-5`}>
       <div className="flex items-center justify-between">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
           <Icon className="h-5 w-5" />
         </div>
-        <span className="text-xs font-bold text-emerald-400">{change}</span>
+        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{change}</span>
       </div>
       <p className="mt-4 text-sm text-gray-500 dark:text-white/50">{label}</p>
       <p className="mt-1 text-3xl font-black">{value}</p>
