@@ -422,10 +422,19 @@ export class ProvisioningService {
               used: activeClientCount,
               reserved: 0,
             },
+          },
+          { upsert: true, session },
+        );
+        // MongoDB does not allow $setOnInsert and $max to target `used` in
+        // one update. Keep initialization and reconciliation separate while
+        // retaining both operations in this transaction.
+        await UsageCounter.updateOne(
+          counterIdentity,
+          {
             $max: { used: activeClientCount },
             $set: { limitSnapshot: clientLimit },
           },
-          { upsert: true, session },
+          { session },
         );
         const reserved = await UsageCounter.findOneAndUpdate(
           {
