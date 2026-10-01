@@ -1,5 +1,15 @@
 # RocketReplAI tenant platform rollout
 
+## Primary account ownership
+
+One Clerk identity may own exactly one primary RocketReplAI account: either an
+Agency or a direct Business workspace. Agency staff and client users join that
+account through memberships; memberships never create another free allowance.
+The claim is enforced atomically on the backend. For historical duplicate
+agencies, only the earliest owned agency receives the free entitlement and is
+returned as the primary owned agency; duplicate records are retained for admin
+review and are never deleted automatically.
+
 ## What is implemented
 
 The new tenant platform is additive. Existing Instagram, WhatsApp, Website and Call automation engines continue to use their legacy Clerk-owner fields while migration adds `workspaceId` in parallel.

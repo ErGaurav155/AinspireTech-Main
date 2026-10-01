@@ -55,6 +55,22 @@ const operationKey = (operation: string, userId: string, key: string) =>
 const externalError = (error: unknown) =>
   error instanceof Error ? error.message.slice(0, 1900) : "External provisioning failed";
 
+const accountConflict = () => {
+  const error = new Error(
+    "This account already belongs to a RocketReplAI workspace. One account can own only one agency or business workspace.",
+  ) as Error & { code?: string };
+  error.code = "PRIMARY_ACCOUNT_ALREADY_EXISTS";
+  return error;
+};
+
+async function hasPlatformMembership(userId: string) {
+  const [agencyMembership, workspaceMembership] = await Promise.all([
+    AgencyMember.exists({ userId, status: "active" }),
+    WorkspaceMember.exists({ userId, status: "active" }),
+  ]);
+  return Boolean(agencyMembership || workspaceMembership);
+}
+
 async function provisionClerkOrganization({
   name,
   slug,
@@ -121,8 +137,20 @@ export class ProvisioningService {
       $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
       agencyId: { $exists: false },
       status: { $ne: "archived" },
-    }).lean();
-    if (alreadyOwned) return alreadyOwned;
+    }).sort({ createdAt: 1 }).lean();
+    if (alreadyOwned) {
+      await User.updateOne(
+        { clerkId: userId, platformAccountType: { $exists: false } },
+        { $set: { platformAccountType: "BUSINESS", platformOwnerId: alreadyOwned._id } },
+      );
+      return alreadyOwned;
+    }
+
+    const [ownedAgency, memberElsewhere] = await Promise.all([
+      Agency.findOne({ ownerUserId: userId, status: { $ne: "archived" } }).lean(),
+      hasPlatformMembership(userId),
+    ]);
+    if (ownedAgency || memberElsewhere) throw accountConflict();
 
     const user = await User.findOne({ clerkId: userId }).lean();
     if (!user?.email) throw new Error("User profile must exist before creating a workspace");
@@ -146,6 +174,24 @@ export class ProvisioningService {
     const session = await mongoose.startSession();
     try {
       await session.withTransaction(async () => {
+        const claimedUser = await User.findOneAndUpdate(
+          {
+            clerkId: userId,
+            $or: [
+              { platformAccountType: { $exists: false } },
+              { platformAccountType: null },
+            ],
+          },
+          {
+            $set: {
+              platformAccountType: "BUSINESS",
+              platformOwnerId: workspaceId,
+            },
+          },
+          { new: true, session },
+        );
+        if (!claimedUser) throw accountConflict();
+
         await Workspace.create(
           [{
             _id: workspaceId,
@@ -256,6 +302,30 @@ export class ProvisioningService {
 
   async createAgency(userId: string, input: CreateAgencyInput) {
     await connectToDatabase();
+    const existingAgency = await Agency.findOne({
+      ownerUserId: userId,
+      status: { $ne: "archived" },
+    }).sort({ createdAt: 1 }).lean();
+    if (existingAgency) {
+      await User.updateOne(
+        { clerkId: userId, platformAccountType: { $exists: false } },
+        { $set: { platformAccountType: "AGENCY", platformOwnerId: existingAgency._id } },
+      );
+      return existingAgency;
+    }
+
+    const [ownedBusiness, memberElsewhere, user] = await Promise.all([
+      Workspace.findOne({
+        $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
+        agencyId: { $exists: false },
+        status: { $ne: "archived" },
+      }).lean(),
+      hasPlatformMembership(userId),
+      User.findOne({ clerkId: userId }).lean(),
+    ]);
+    if (!user?.email) throw new Error("User profile must exist before creating an agency");
+    if (ownedBusiness || memberElsewhere) throw accountConflict();
+
     const idempotencyKey = operationKey(
       "CREATE_AGENCY",
       userId,
@@ -275,6 +345,24 @@ export class ProvisioningService {
     const session = await mongoose.startSession();
     try {
       await session.withTransaction(async () => {
+        const claimedUser = await User.findOneAndUpdate(
+          {
+            clerkId: userId,
+            $or: [
+              { platformAccountType: { $exists: false } },
+              { platformAccountType: null },
+            ],
+          },
+          {
+            $set: {
+              platformAccountType: "AGENCY",
+              platformOwnerId: agencyId,
+            },
+          },
+          { new: true, session },
+        );
+        if (!claimedUser) throw accountConflict();
+
         await Agency.create(
           [{ _id: agencyId, name: input.name, slug, ownerUserId: userId, status: "pending" }],
           { session },

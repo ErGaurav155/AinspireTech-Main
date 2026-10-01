@@ -16,6 +16,7 @@ import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
 import { calculateEntitlements } from "@/services/billing/entitlement-calculator";
 import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
+import Agency from "@/models/tenant/Agency.model";
 
 const SERVICE_FEATURE: Record<PlatformService, EntitlementFeature> = {
   WHATSAPP: "whatsapp",
@@ -104,12 +105,26 @@ export class EntitlementService {
     // small client workspace. A paid subscription replaces this base rather
     // than stacking on top of it.
     if (ownerType === "AGENCY" && subscriptions.length === 0) {
-      sourcePlanCodes.add(FREE_AGENCY_PLAN.code);
-      baseSources.push({
-        code: FREE_AGENCY_PLAN.code,
-        features: { ...FREE_AGENCY_PLAN.features },
-        limits: { ...FREE_AGENCY_PLAN.limits },
-      });
+      const agency = await Agency.findById(ownerObjectId)
+        .select("ownerUserId status")
+        .lean();
+      const primaryAgency = agency
+        ? await Agency.findOne({
+            ownerUserId: agency.ownerUserId,
+            status: { $in: ["pending", "active"] },
+          })
+            .sort({ createdAt: 1, _id: 1 })
+            .select("_id")
+            .lean()
+        : null;
+      if (primaryAgency && String(primaryAgency._id) === ownerId) {
+        sourcePlanCodes.add(FREE_AGENCY_PLAN.code);
+        baseSources.push({
+          code: FREE_AGENCY_PLAN.code,
+          features: { ...FREE_AGENCY_PLAN.features },
+          limits: { ...FREE_AGENCY_PLAN.limits },
+        });
+      }
     }
 
     for (const subscription of subscriptions) {

@@ -13,6 +13,7 @@ import Agency from "@/models/tenant/Agency.model";
 import AgencyMember from "@/models/tenant/AgencyMember.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
+import User from "@/models/user.model";
 
 /* eslint-disable camelcase */
 
@@ -263,6 +264,16 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
           $setOnInsert: { permissions: [], deniedPermissions: [] },
         },
         { upsert: true, new: true },
+      );
+      await User.updateOne(
+        {
+          clerkId: userId,
+          $or: [
+            { platformAccountType: { $exists: false } },
+            { platformAccountType: null },
+          ],
+        },
+        { $set: { platformAccountType: "MEMBER" } },
       );
       if (isOwner && !workspace.ownerUserId) {
         workspace.ownerUserId = userId;

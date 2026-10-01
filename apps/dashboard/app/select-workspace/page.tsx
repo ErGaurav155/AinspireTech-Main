@@ -82,7 +82,7 @@ export default function SelectWorkspacePage() {
           ))}
         </div>
 
-        {!(data?.agencies?.length === 0 && data?.workspaces?.length > 0 && data.workspaces.every((workspace: any) => Boolean(workspace.agencyId))) && <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
+        {data?.canCreatePrimaryAccount && <section className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-6">
           <div className="flex items-center gap-3"><Plus className="h-5 w-5 text-violet-400" /><h2 className="text-lg font-semibold">Create a workspace</h2></div>
           <div className="mt-5 flex gap-2">
             {(["agency", "business"] as const).map((item) => (

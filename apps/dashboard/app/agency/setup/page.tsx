@@ -18,6 +18,15 @@ export default function AgencySetupPage() {
     try {
       const context = await getPlatformContext(apiRequest);
       if (context.agencies[0]?._id) { router.replace(`/agency/${context.agencies[0]._id}`); return; }
+      if (!context.canCreatePrimaryAccount && context.workspaces[0]?._id) {
+        router.replace(`/workspace/${context.workspaces[0]._id}`);
+        return;
+      }
+      if (!context.canCreatePrimaryAccount) {
+        setError("This account is already a member of another RocketReplAI workspace and cannot create a second primary account.");
+        setChecking(false);
+        return;
+      }
     } catch (value: any) { setError(value.message || "Unable to load your account"); }
     setChecking(false);
   }, [apiRequest, router]);

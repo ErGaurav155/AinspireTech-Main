@@ -11,6 +11,7 @@ import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import WorkspaceOnboarding from "@/models/tenant/WorkspaceOnboarding.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
 import UsageCounter from "@/models/usage/UsageCounter.model";
+import User from "@/models/user.model";
 import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
 import { entitlementService } from "@/services/billing/entitlement.service";
 import { provisioningService } from "@/services/tenant/provisioning.service";
@@ -71,6 +72,11 @@ const handleError = (res: Response, error: any, fallback: string) => {
   }
   if (String(error?.message || "").includes("not included")) {
     return fail(res, 403, error.message);
+  }
+  if (error?.code === "PRIMARY_ACCOUNT_ALREADY_EXISTS") {
+    return fail(res, 409, error.message, {
+      code: "PRIMARY_ACCOUNT_ALREADY_EXISTS",
+    });
   }
   return fail(res, 500, fallback);
 };
@@ -160,15 +166,20 @@ export const getPlatformContextController = async (req: Request, res: Response) 
   if (!userId) return fail(res, 401, "Authentication required");
   try {
     await connectToDatabase();
-    const [ownedAgencies, agencyMemberships, ownedWorkspaces, workspaceMemberships] =
+    const [ownedAgencies, agencyMemberships, ownedWorkspaces, workspaceMemberships, userAccount] =
       await Promise.all([
-        Agency.find({ ownerUserId: userId, status: { $ne: "archived" } }).lean(),
+        Agency.find({ ownerUserId: userId, status: { $ne: "archived" } })
+          .sort({ createdAt: 1, _id: 1 })
+          .lean(),
         AgencyMember.find({ userId, status: "active" }).lean(),
         Workspace.find({
           $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
           status: { $ne: "archived" },
-        }).lean(),
+        })
+          .sort({ createdAt: 1, _id: 1 })
+          .lean(),
         WorkspaceMember.find({ userId, status: "active" }).lean(),
+        User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
       ]);
 
     const ownedAgencyIds = new Set(ownedAgencies.map((agency) => String(agency._id)));
@@ -185,14 +196,22 @@ export const getPlatformContextController = async (req: Request, res: Response) 
     const memberWorkspaces = memberWorkspaceIds.length
       ? await Workspace.find({ _id: { $in: memberWorkspaceIds }, status: { $ne: "archived" } }).lean()
       : [];
+    const primaryOwnedAgencies = ownedAgencies.slice(0, 1);
+    const primaryOwnedWorkspaces = ownedWorkspaces.slice(0, 1);
 
     return ok(res, {
       accountModes: {
         business: ownedWorkspaces.length + memberWorkspaces.length > 0,
         agency: ownedAgencies.length + memberAgencies.length > 0,
       },
-      agencies: [...ownedAgencies, ...memberAgencies],
-      workspaces: [...ownedWorkspaces, ...memberWorkspaces],
+      canCreatePrimaryAccount:
+        !userAccount?.platformAccountType &&
+        ownedAgencies.length === 0 &&
+        memberAgencies.length === 0 &&
+        ownedWorkspaces.length === 0 &&
+        memberWorkspaces.length === 0,
+      agencies: [...primaryOwnedAgencies, ...memberAgencies],
+      workspaces: [...primaryOwnedWorkspaces, ...memberWorkspaces],
     });
   } catch (error) {
     return handleError(res, error, "Unable to load platform context");
