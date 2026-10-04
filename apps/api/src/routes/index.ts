@@ -18,6 +18,7 @@ import whatsappRoutes from "@/routes/whatsapp";
 import packagesRoutes from "@/routes/packages";
 import platformRoutes from "@/routes/platform";
 import { embedCors } from "@/middleware/embed-cors.middleware";
+import { requireAutomationAccountAccess } from "@/middleware/automation-account-access.middleware";
 
 const router = Router();
 
@@ -32,16 +33,16 @@ router.use("/embed", embedCors, embedRoutes);
 // Protected routes (require Clerk authentication)
 router.use("/admin", adminRoutes);
 router.use("/call", callRoutes);
-router.use("/whatsapp", whatsappRoutes);
-router.use("/insta", instaRoutes);
-router.use("/rate-limit", rateLimitRoutes);
+router.use("/whatsapp", requireAutomationAccountAccess, whatsappRoutes);
+router.use("/insta", requireAutomationAccountAccess, instaRoutes);
+router.use("/rate-limit", requireAutomationAccountAccess, rateLimitRoutes);
 router.use("/razorpay", razorpayRoutes);
-router.use("/scrape", scrapeRoutes);
-router.use("/tokens", tokensRoutes);
-router.use("/web", webRoutes);
+router.use("/scrape", requireAutomationAccountAccess, scrapeRoutes);
+router.use("/tokens", requireAutomationAccountAccess, tokensRoutes);
+router.use("/web", requireAutomationAccountAccess, webRoutes);
 router.use("/user", userRoutes);
 router.use("/misc", miscRoutes);
-router.use("/packages", packagesRoutes);
+router.use("/packages", requireAutomationAccountAccess, packagesRoutes);
 router.use("/platform", platformRoutes);
 
 export default router;

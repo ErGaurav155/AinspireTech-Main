@@ -4,10 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { UserButton } from "@clerk/nextjs";
 import { ThemeToggle } from "@rocketreplai/ui";
 import Link from "next/link";
-import { Bot, Instagram, MessageCircle, Phone } from "lucide-react";
-import { useParams, useSearchParams } from "next/navigation";
+import { Bot, Instagram, MessageCircle, Phone, Trash2 } from "lucide-react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/useApi";
-import { getWorkspace } from "@/lib/services/platform.api";
+import { deleteAgencyClient, getWorkspace } from "@/lib/services/platform.api";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 
 const serviceMeta: Record<string, { label: string; icon: any; href: string }> = {
   WHATSAPP: { label: "WhatsApp Automation", icon: MessageCircle, href: "/whatsapp" },
@@ -19,17 +20,34 @@ const serviceMeta: Record<string, { label: string; icon: any; href: string }> = 
 export default function WorkspaceOverviewPage() {
   const { workspaceId } = useParams<{ workspaceId: string }>();
   const agencyId = useSearchParams().get("agency");
+  const router = useRouter();
   const { apiRequest } = useApi();
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const load = useCallback(async () => { try { setData(await getWorkspace(apiRequest, workspaceId)); } catch (value: any) { setError(value.message || "Workspace access denied"); } }, [apiRequest, workspaceId]);
   useEffect(() => void load(), [load]);
   const agencyManaged = data?.access?.accessKind === "agency_management";
 
+  const removeClient = async () => {
+    if (!agencyId || deleting) return;
+    setDeleting(true);
+    setError("");
+    try {
+      await deleteAgencyClient(apiRequest, agencyId, workspaceId);
+      router.replace(`/agency/${agencyId}/clients`);
+    } catch (value: any) {
+      setError(value?.message || "Unable to delete client workspace");
+      setDeleting(false);
+      setDeleteOpen(false);
+    }
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 px-5 py-10 text-slate-900 transition-colors dark:bg-slate-950 dark:text-white">
       <div className="mx-auto max-w-6xl">
-        <div className="flex items-center justify-between gap-3"><div>{agencyId && <Link href={`/agency/${agencyId}/clients`} className="text-sm text-violet-600 hover:underline dark:text-violet-400">← Return to agency clients</Link>}</div><div className="flex items-center gap-2"><ThemeToggle /><UserButton /></div></div>
+        <div className="flex items-center justify-between gap-3"><div>{agencyId && <Link href={`/agency/${agencyId}/clients`} className="text-sm text-violet-600 hover:underline dark:text-violet-400">← Return to agency clients</Link>}</div><div className="flex items-center gap-2">{agencyId && <button type="button" onClick={() => setDeleteOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 dark:border-red-500/30 dark:text-red-300 dark:hover:bg-red-500/10"><Trash2 className="h-4 w-4" /><span className="hidden sm:inline">Delete client</span></button>}<ThemeToggle /><UserButton /></div></div>
         {error ? <div className="mt-6 rounded-xl border border-red-500/30 bg-red-50 p-5 text-red-700 dark:bg-red-500/10 dark:text-red-300">{error}</div> : <>
           <p className="mt-6 text-sm text-emerald-600 dark:text-emerald-400">Business workspace</p><h1 className="mt-1 text-3xl font-bold">{data?.workspace?.name || "Loading…"}</h1><p className="mt-2 text-slate-500 dark:text-slate-400">Only enabled modules are shown. Every API request still verifies membership, permission and entitlement.</p>
           {data?.managedBy && <div className="mt-6 rounded-2xl border border-violet-300 bg-violet-50 p-5 dark:border-violet-500/25 dark:bg-violet-500/10"><p className="text-xs uppercase tracking-widest text-violet-700 dark:text-violet-300">Managed by agency</p><p className="mt-2 font-semibold">{data.managedBy.agencyName}</p><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Your agency provides these services under its {data.managedBy.planName} plan. Billing and prices are managed by the agency.</p></div>}
@@ -37,6 +55,23 @@ export default function WorkspaceOverviewPage() {
           {!data?.services?.some((service: any) => service.effectiveEnabled || service.comingSoon) && <div className="mt-8 rounded-2xl border border-dashed border-slate-300 p-12 text-center text-slate-500 dark:border-white/15 dark:text-slate-400">No entitled services are enabled for this workspace.</div>}
         </>}
       </div>
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={(open) => { if (!deleting) setDeleteOpen(open); }}
+        onConfirm={removeClient}
+        title={`Delete ${data?.workspace?.name || "client workspace"}?`}
+        description="This permanently removes this client and releases the agency plan slot. It cannot be restored."
+        confirmText="Permanently delete client"
+        cancelText="Keep client"
+        isDestructive
+        isLoading={deleting}
+        acknowledgements={[
+          { id: "workspace-remove-access", label: "I understand every client member and pending invitation will lose access to this Clerk workspace." },
+          { id: "workspace-delete-services", label: "I understand the client's WhatsApp, Instagram, website chatbot, integrations and configuration will be deleted." },
+          { id: "workspace-delete-results", label: "I understand the client's leads, conversations, appointments, usage and automation history will be deleted." },
+          { id: "workspace-delete-permanent", label: "I understand this deletion is permanent and the data cannot be recovered." },
+        ]}
+      />
     </main>
   );
 }

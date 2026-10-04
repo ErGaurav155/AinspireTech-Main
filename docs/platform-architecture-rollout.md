@@ -10,6 +10,21 @@ agencies, only the earliest owned agency receives the free entitlement and is
 returned as the primary owned agency; duplicate records are retained for admin
 review and are never deleted automatically.
 
+Agency ownership is also an execution boundary. An identity whose primary
+account is `AGENCY` can use agency management, billing, client provisioning and
+client reporting, but cannot create or use a parallel individual WhatsApp,
+Instagram, Website or Call automation account. Dashboard routing and protected
+product APIs both enforce this rule. Changing the home-page selection does not
+change persisted account mode.
+
+Deleting an agency client requires four explicit confirmations. It deletes the
+client's dedicated Clerk organization (revoking memberships and invitations),
+workspace-scoped service/configuration/usage data, the agency-client
+relationship and the workspace, and then releases the agency client slot. It
+does not delete any member's global Clerk user. Legacy data keyed only by Clerk
+user ID is deleted only when that identity has no other workspace, agency
+membership or owned primary account. Audit records are retained.
+
 ## What is implemented
 
 The new tenant platform is additive. Existing Instagram, WhatsApp, Website and Call automation engines continue to use their legacy Clerk-owner fields while migration adds `workspaceId` in parallel.
@@ -40,7 +55,7 @@ All routes below require Clerk authentication except the signed webhook.
 - `GET /api/platform/agencies/:agencyId`
 - `GET|POST /api/platform/agencies/:agencyId/clients`
 - `PATCH /api/platform/agencies/:agencyId/clients/:workspaceId/services/:service`
-- `DELETE /api/platform/agencies/:agencyId/clients/:workspaceId` (archive only; never deletes client data)
+- `DELETE /api/platform/agencies/:agencyId/clients/:workspaceId` (permanent deletion; all confirmation flags required)
 - `GET /api/platform/agencies/:agencyId/billing/plans`
 - `POST /api/platform/agencies/:agencyId/billing/checkout`
 - `POST /api/platform/agencies/:agencyId/billing/addons/checkout`

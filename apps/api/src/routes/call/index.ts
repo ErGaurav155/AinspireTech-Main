@@ -2,6 +2,7 @@ import { Router } from "express";
 import { getAuth, requireAuth } from "@clerk/express";
 import type { NextFunction, Request, Response } from "express";
 import { isAdminOwnerId } from "@/utils/admin-owner";
+import { requireAutomationAccountAccess } from "@/middleware/automation-account-access.middleware";
 import {
   connectCallController,
   createCallAssistantController,
@@ -23,6 +24,7 @@ const router = Router();
 router.post("/webhooks/exotel", exotelWebhookController);
 
 router.use(requireAuth());
+router.use(requireAutomationAccountAccess);
 
 const requireCallAssistantAvailability = (
   req: Request,

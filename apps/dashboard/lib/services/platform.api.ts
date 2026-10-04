@@ -4,6 +4,7 @@ export type PlatformService = "WHATSAPP" | "INSTAGRAM" | "WEBSITE" | "CALL";
 
 export const getPlatformContext = (apiRequest: ApiRequestFn) =>
   apiRequest<{
+    primaryAccountType: "AGENCY" | "BUSINESS" | "MEMBER";
     accountModes: { business: boolean; agency: boolean };
     canCreatePrimaryAccount: boolean;
     agencies: any[];
@@ -58,6 +59,29 @@ export const createAgencyClient = (
     method: "POST",
     headers: { "X-Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(data),
+  });
+
+export const deleteAgencyClient = (
+  apiRequest: ApiRequestFn,
+  agencyId: string,
+  workspaceId: string,
+) =>
+  apiRequest<{
+    workspaceId: string;
+    clerkOrganizationDeleted: boolean;
+    removedMemberCount: number;
+    releasedClientSlot: boolean;
+    dataDeleted: boolean;
+  }>(`/platform/agencies/${agencyId}/clients/${workspaceId}`, {
+    method: "DELETE",
+    body: JSON.stringify({
+      confirmations: {
+        removeClerkAccess: true,
+        deleteAutomationData: true,
+        deleteLeadsAndAppointments: true,
+        permanentAndIrreversible: true,
+      },
+    }),
   });
 
 export const getAgencyPlans = (apiRequest: ApiRequestFn, agencyId: string) =>

@@ -10,7 +10,7 @@ import {
   getWorkspaceController,
   listAgencyClientsController,
   updateClientServiceController,
-  archiveClientWorkspaceController,
+  deleteClientWorkspaceController,
 } from "@/controllers/platform/platform.controller";
 import {
   requireAgencyContext,
@@ -75,7 +75,7 @@ router.delete(
   "/agencies/:agencyId/clients/:workspaceId",
   requireAgencyContext,
   requireAgencyPermission("clients.archive"),
-  archiveClientWorkspaceController,
+  deleteClientWorkspaceController,
 );
 router.get(
   "/agencies/:agencyId/billing/plans",

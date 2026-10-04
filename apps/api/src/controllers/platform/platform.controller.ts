@@ -2,7 +2,7 @@ import { getAuth } from "@clerk/express";
 import type { Request, Response } from "express";
 import { Types } from "mongoose";
 import { z } from "zod";
-import { connectToDatabase, mongoose } from "@/config/database.config";
+import { connectToDatabase } from "@/config/database.config";
 import Agency from "@/models/tenant/Agency.model";
 import AgencyClient from "@/models/tenant/AgencyClient.model";
 import AgencyMember from "@/models/tenant/AgencyMember.model";
@@ -10,7 +10,6 @@ import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import WorkspaceOnboarding from "@/models/tenant/WorkspaceOnboarding.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
-import UsageCounter from "@/models/usage/UsageCounter.model";
 import User from "@/models/user.model";
 import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
 import { entitlementService } from "@/services/billing/entitlement.service";
@@ -19,6 +18,7 @@ import { usageService } from "@/services/usage/usage.service";
 import { getAgencyAnalytics } from "@/services/analytics/agency-analytics.service";
 import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
+import { permanentlyDeleteAgencyClientWorkspace } from "@/services/tenant/client-workspace-deletion.service";
 
 const serviceSchema = z.enum(["WHATSAPP", "INSTAGRAM", "WEBSITE", "CALL"]);
 const createAgencySchema = z.object({ name: z.string().trim().min(2).max(160) }).strict();
@@ -42,6 +42,18 @@ const createClientSchema = z
   })
   .strict();
 const updateServiceSchema = z.object({ enabled: z.boolean() }).strict();
+const deleteClientSchema = z
+  .object({
+    confirmations: z
+      .object({
+        removeClerkAccess: z.literal(true),
+        deleteAutomationData: z.literal(true),
+        deleteLeadsAndAppointments: z.literal(true),
+        permanentAndIrreversible: z.literal(true),
+      })
+      .strict(),
+  })
+  .strict();
 
 const ok = (res: Response, data: unknown, status = 200) =>
   res.status(status).json({ success: true, data, timestamp: new Date().toISOString() });
@@ -200,6 +212,9 @@ export const getPlatformContextController = async (req: Request, res: Response) 
     const primaryOwnedWorkspaces = ownedWorkspaces.slice(0, 1);
 
     return ok(res, {
+      primaryAccountType:
+        userAccount?.platformAccountType ||
+        (ownedAgencies.length ? "AGENCY" : ownedWorkspaces.length ? "BUSINESS" : "MEMBER"),
       accountModes: {
         business: ownedWorkspaces.length + memberWorkspaces.length > 0,
         agency: ownedAgencies.length + memberAgencies.length > 0,
@@ -331,54 +346,40 @@ export const updateClientServiceController = async (req: Request, res: Response)
   }
 };
 
-export const archiveClientWorkspaceController = async (req: Request, res: Response) => {
-  const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
+export const deleteClientWorkspaceController = async (req: Request, res: Response) => {
+  const parsed = deleteClientSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return fail(
+      res,
+      400,
+      "All permanent-deletion confirmations are required",
+      parsed.error.flatten(),
+    );
+  }
+  const agencyId = req.agencyContext!.agencyId;
   const workspaceId = String(req.params.workspaceId || "");
   if (!Types.ObjectId.isValid(workspaceId)) return fail(res, 400, "Invalid workspace id");
-  const workspaceObjectId = new Types.ObjectId(workspaceId);
-  const session = await mongoose.startSession();
   try {
-    let archived = false;
-    await session.withTransaction(async () => {
-      const relationship = await AgencyClient.findOne({
-        agencyId,
-        workspaceId: workspaceObjectId,
-        status: { $ne: "archived" },
-      }).session(session);
-      if (!relationship) return;
-      relationship.status = "archived";
-      relationship.archivedAt = new Date();
-      await relationship.save({ session });
-      await Workspace.updateOne(
-        { _id: workspaceObjectId, agencyId },
-        { $set: { status: "archived" } },
-        { session },
-      );
-      await UsageCounter.updateOne(
-        {
-          ownerType: "AGENCY",
-          ownerId: agencyId,
-          metric: "clientWorkspaces",
-          periodKey: "current",
-          used: { $gt: 0 },
-        },
-        { $inc: { used: -1 } },
-        { session },
-      );
-      archived = true;
+    const result = await permanentlyDeleteAgencyClientWorkspace({
+      agencyId,
+      workspaceId,
     });
-    if (!archived) return fail(res, 404, "Client workspace not found");
+    if (!result) return fail(res, 404, "Client workspace not found");
     await writePlatformAuditLog({
       req,
-      action: "client.archived",
+      action: "client.deleted",
       targetType: "workspace",
       targetId: workspaceId,
+      metadata: {
+        workspaceId,
+        removedMemberCount: result.removedMemberCount,
+        clerkOrganizationDeleted: result.clerkOrganizationDeleted,
+        releasedClientSlot: result.releasedClientSlot,
+      },
     });
-    return ok(res, { workspaceId, status: "archived", dataDeleted: false });
+    return ok(res, result);
   } catch (error) {
-    return handleError(res, error, "Unable to archive client workspace");
-  } finally {
-    await session.endSession();
+    return handleError(res, error, "Unable to permanently delete client workspace");
   }
 };
 

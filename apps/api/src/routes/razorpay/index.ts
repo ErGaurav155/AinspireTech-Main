@@ -5,6 +5,7 @@ import { verifyRazorpayPaymentController } from "@/controllers/razorpay/verify-s
 import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel-sub.controller";
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
 import { razorpayCheckoutCallbackController } from "@/controllers/razorpay/checkout-callback.controller";
+import { requireAutomationAccountAccess } from "@/middleware/automation-account-access.middleware";
 
 const router = Router();
 
@@ -12,6 +13,7 @@ router.get("/checkout-callback", razorpayCheckoutCallbackController);
 router.post("/checkout-callback", razorpayCheckoutCallbackController);
 
 router.use(requireAuth());
+router.use(requireAutomationAccountAccess);
 
 // GET /api/razorpay/plan/:productId - Get Razorpay planInfo
 router.get("/plan/:productId", getRazerpayPlanInfoController);
