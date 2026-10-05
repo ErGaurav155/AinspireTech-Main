@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -18,16 +18,20 @@ import {
   MessageCircle,
   PackageCheck,
   Phone,
+  Plus,
   Settings,
+  Sparkles,
   Workflow,
   X,
 } from "lucide-react";
-import { Badge, Orbs, useThemeStyles } from "@rocketreplai/ui";
+import { Badge, Button, Orbs, useThemeStyles } from "@rocketreplai/ui";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
   useCallAssistantAdmin,
 } from "@/lib/call-access";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
+import { useApi } from "@/lib/useApi";
+import { getWhatsAppDashboard } from "@/lib/services/whatsapp-actions.api";
 
 const NAV_ITEMS = [
   { label: "Overview", href: "/whatsapp", icon: LayoutDashboard, isNew: false },
@@ -76,10 +80,44 @@ export default function WhatsAppSidebar({
 }: WhatsAppSidebarProps) {
   const pathname = usePathname();
   const { isDark } = useThemeStyles();
+  const { apiRequest } = useApi();
+  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isProductOpen, setIsProductOpen] = useState(false);
+  const [workspace, setWorkspace] = useState<any>(null);
+  const [workspaceLoading, setWorkspaceLoading] = useState(true);
+  const [pricingClose, setPricingClose] = useState(false);
   const isCallAdmin = useCallAssistantAdmin();
   const { clientOnly, loading: platformAccessLoading } = usePlatformAccess();
   const hideClientBilling = clientOnly || platformAccessLoading;
+
+  const loadWorkspace = useCallback(async () => {
+    try {
+      const result = await getWhatsAppDashboard(apiRequest);
+      setWorkspace(result?.workspace || null);
+    } catch {
+      setWorkspace(null);
+    } finally {
+      setWorkspaceLoading(false);
+    }
+  }, [apiRequest]);
+
+  useEffect(() => {
+    void loadWorkspace();
+  }, [loadWorkspace]);
+
+  const isConnected = Boolean(
+    workspace?.isConfigured || workspace?.meta?.phoneNumberId,
+  );
+  const isSubscribed = Boolean(
+    workspace?.subscription?.plan && workspace.subscription.plan !== "free",
+  );
+  const accountName =
+    workspace?.onboarding?.businessDisplayName ||
+    workspace?.organization?.name ||
+    workspace?.meta?.displayPhoneNumber ||
+    "WhatsApp account";
+  const accountDetail =
+    workspace?.meta?.displayPhoneNumber || "WhatsApp Business connected";
 
   const styles = useMemo(
     () => ({
@@ -134,6 +172,33 @@ export default function WhatsAppSidebar({
       newBadge: isDark
         ? "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full"
         : "bg-pink-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full",
+      selectorButton: isDark
+        ? "w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.07] transition-colors"
+        : "w-full flex items-center justify-between gap-2 p-3 rounded-xl border border-gray-100 bg-gray-50 hover:bg-gray-100 transition-colors",
+      selectorName: isDark
+        ? "truncate text-sm font-semibold text-white"
+        : "truncate text-sm font-semibold text-gray-800",
+      selectorDetail: isDark
+        ? "truncate text-xs text-white/40"
+        : "truncate text-xs text-gray-500",
+      accountMenu: isDark
+        ? "absolute left-4 right-4 top-full z-50 mt-2 overflow-hidden rounded-xl border border-white/[0.08] bg-gray-900/95 shadow-xl backdrop-blur-3xl"
+        : "absolute left-4 right-4 top-full z-50 mt-2 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-xl",
+      accountItem: isDark
+        ? "flex w-full items-center gap-3 border-b border-white/[0.06] px-4 py-3 text-left text-white/80"
+        : "flex w-full items-center gap-3 border-b border-gray-100 px-4 py-3 text-left text-gray-800",
+      accountAction: isDark
+        ? "flex w-full items-center gap-3 px-4 py-3 text-sm text-white/70 transition-colors hover:bg-white/[0.06] hover:text-white"
+        : "flex w-full items-center gap-3 px-4 py-3 text-sm text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900",
+      upgradeCard: isDark
+        ? "rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-white/[0.03] to-emerald-500/10 p-4"
+        : "rounded-2xl border border-emerald-100 bg-gradient-to-br from-gray-50 to-emerald-50/70 p-4",
+      upgradeTitle: isDark
+        ? "text-[13px] font-bold text-white"
+        : "text-[13px] font-bold text-gray-800",
+      upgradeText: isDark ? "text-xs text-white/55" : "text-xs text-gray-600",
+      upgradeButton:
+        "h-9 w-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-xs font-bold text-white shadow-md transition-all hover:from-emerald-600 hover:to-teal-600",
     }),
     [isDark],
   );
@@ -172,41 +237,83 @@ export default function WhatsAppSidebar({
             </Link>
           </div>
 
-          <div className="p-4">
-            <div
-              className={`rounded-xl p-3 border ${
-                isDark
-                  ? "bg-emerald-500/10 border-emerald-500/20"
-                  : "bg-emerald-50 border-emerald-100"
-              }`}
+          <div className="relative z-20 p-4">
+            <button
+              type="button"
+              className={styles.selectorButton}
+              onClick={() => setIsAccountOpen((open) => !open)}
+              aria-expanded={isAccountOpen}
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 text-white shadow-sm">
                   <MessageCircle className="h-4 w-4" />
                 </div>
-                <div className="min-w-0">
-                  <p
-                    className={
-                      isDark
-                        ? "break-words text-sm font-bold text-white"
-                        : "break-words text-sm font-bold text-gray-900"
-                    }
-                  >
-                    WhatsApp Automation
+                <div className="min-w-0 flex-1 text-left">
+                  <p className={styles.selectorName}>
+                    {workspaceLoading
+                      ? "Loading account..."
+                      : isConnected
+                        ? accountName
+                        : "No account connected"}
                   </p>
-                  <p
-                    className={
-                      isDark ? "text-xs text-white/45" : "text-xs text-gray-500"
-                    }
-                  >
-                    Booking and replies
+                  <p className={styles.selectorDetail}>
+                    {isConnected ? accountDetail : "Add a WhatsApp account"}
                   </p>
                 </div>
-                <Badge className="ml-auto bg-emerald-500 text-white text-[10px] rounded-full">
-                  ADMIN
-                </Badge>
               </div>
-            </div>
+              {!workspaceLoading && (
+                <Badge
+                  className={`flex-shrink-0 rounded-full text-[10px] ${
+                    clientOnly || isSubscribed
+                      ? "bg-emerald-500 text-white"
+                      : isDark
+                        ? "bg-white/[0.08] text-white/55"
+                        : "bg-gray-200 text-gray-600"
+                  }`}
+                >
+                  {clientOnly ? "AGENCY" : isSubscribed ? "PRO" : "FREE"}
+                </Badge>
+              )}
+              <ChevronDown
+                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${
+                  isAccountOpen ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+
+            {isAccountOpen && (
+              <div className={styles.accountMenu}>
+                {isConnected && (
+                  <div className={styles.accountItem}>
+                    <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+                      <MessageCircle className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{accountName}</p>
+                      <p className={styles.selectorDetail}>{accountDetail}</p>
+                    </div>
+                    <Check className="h-4 w-4 flex-shrink-0 text-emerald-500" />
+                  </div>
+                )}
+                <Link
+                  href="/whatsapp/settings"
+                  className={styles.accountAction}
+                  onClick={() => {
+                    setIsAccountOpen(false);
+                    if (window.innerWidth < 768) onToggle();
+                  }}
+                >
+                  <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-500">
+                    {isConnected ? (
+                      <Settings className="h-3.5 w-3.5" />
+                    ) : (
+                      <Plus className="h-3.5 w-3.5" />
+                    )}
+                  </div>
+                  {isConnected ? "Manage account" : "Add account"}
+                </Link>
+              </div>
+            )}
           </div>
 
           <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
@@ -242,6 +349,48 @@ export default function WhatsAppSidebar({
               );
             })}
           </nav>
+
+          {!hideClientBilling &&
+            !workspaceLoading &&
+            !isSubscribed &&
+            !pricingClose && (
+              <div className="p-4 pt-1">
+                <div className={styles.upgradeCard}>
+                  <div className="mb-3 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-emerald-500" />
+                    <span className={styles.upgradeTitle}>Unlock more power</span>
+                    <button
+                      type="button"
+                      onClick={() => setPricingClose(true)}
+                      className="ml-auto rounded-md bg-red-500 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-red-600"
+                      aria-label="Dismiss upgrade offer"
+                    >
+                      X
+                    </button>
+                  </div>
+                  <ul className={`mb-4 space-y-2 ${styles.upgradeText}`}>
+                    {["Unlimited response messages", "Appointment automation", "Owner alerts and follow-ups"].map(
+                      (feature) => (
+                        <li key={feature} className="flex items-center gap-2">
+                          <Check className="h-3.5 w-3.5 flex-shrink-0 text-emerald-500" />
+                          <span>{feature}</span>
+                        </li>
+                      ),
+                    )}
+                  </ul>
+                  <Button asChild className={styles.upgradeButton}>
+                    <Link
+                      href="/whatsapp/pricing"
+                      onClick={() => {
+                        if (window.innerWidth < 768) onToggle();
+                      }}
+                    >
+                      Upgrade to Pro
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
 
           <div className="p-4 pt-0">
             <div className={styles.productSwitcher}>

@@ -196,7 +196,9 @@ export default function WhatsAppAutomationDashboard({
     <div className={pageClass}>
       {isDark && <Orbs />}
       <div className={`${styles.container} w-full min-w-0 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full`}>
-        <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
+        {view === "overview" && (
+          <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
+        )}
         {isLoading && (
           <div className={`rounded-2xl border ${cardClass} p-10`}>
             <Spinner label="Loading WhatsApp workspace..." />

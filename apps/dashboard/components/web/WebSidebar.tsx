@@ -193,14 +193,14 @@ export default function WebSidebar({
         ? "h-7 px-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs"
         : "h-7 px-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs",
       selectorButton: isDark
-        ? "w-full flex items-center justify-between p-3 rounded-xl glass-pill hover:bg-white/[0.09] transition-colors group"
-        : "w-full flex items-center justify-between p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group",
+        ? "w-full min-w-0 flex items-center justify-between gap-2 p-3 rounded-xl glass-pill hover:bg-white/[0.09] transition-colors group overflow-hidden"
+        : "w-full min-w-0 flex items-center justify-between gap-2 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group overflow-hidden",
       selectorName: isDark
-        ? "text-sm font-semibold text-white truncate max-w-[130px]"
-        : "text-sm font-semibold text-gray-800 truncate max-w-[130px]",
+        ? "text-sm font-semibold text-white truncate"
+        : "text-sm font-semibold text-gray-800 truncate",
       selectorType: isDark
-        ? "text-xs text-white/40 truncate max-w-[130px]"
-        : "text-xs text-gray-400 truncate max-w-[130px]",
+        ? "text-xs text-white/40 truncate"
+        : "text-xs text-gray-400 truncate",
       selectorChevron: isDark
         ? "h-4 w-4 text-white/40 flex-shrink-0"
         : "h-4 w-4 text-gray-400 flex-shrink-0",
@@ -347,15 +347,15 @@ export default function WebSidebar({
             onClick={() => setIsChatbotOpen(!isChatbotOpen)}
             className={styles.selectorButton}
           >
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
               <div
-                className={`w-9 h-9 rounded-full bg-gradient-to-br ${
+                className={`w-9 h-9 flex-shrink-0 rounded-full bg-gradient-to-br ${
                   currentChatbot.gradient
                 } flex items-center justify-center text-white font-bold text-sm shadow-sm`}
               >
                 {currentChatbot.displayName[0].toUpperCase()}
               </div>
-              <div className="text-left min-w-0">
+              <div className="min-w-0 flex-1 text-left">
                 <p className={styles.selectorName}>
                   {currentChatbot.displayName}
                 </p>

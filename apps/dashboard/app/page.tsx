@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, Bot, Building2, Check, Instagram, MessageCircle, Phone, Sparkles, Store, Users } from "lucide-react";
 import { Orbs, useThemeStyles } from "@rocketreplai/ui";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 const products: Array<{
   key: string;
@@ -28,7 +29,10 @@ export default function HomePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
   const { styles, isDark } = useThemeStyles();
+  const platformAccess = usePlatformAccess();
   const [mode, setMode] = useState<"choose" | "individual">("choose");
+  const individualAccountLocked = platformAccess.primaryAccountType === "BUSINESS";
+  const visibleMode = individualAccountLocked ? "individual" : mode;
 
   const openProtected = (path: string) => {
     if (isLoaded) router.push(isSignedIn ? path : signInDestination(path));
@@ -38,7 +42,7 @@ export default function HomePage() {
     <main className={`${styles.page} ${isDark ? "bg-[#0f0f11]" : "bg-[#f8f9fa]"}`}>
       {isDark && <Orbs />}
       <div className={`${styles.container} relative z-10 mx-auto max-w-7xl py-14`}>
-        {mode === "choose" ? (
+        {visibleMode === "choose" ? (
           <>
             <div className="mx-auto max-w-3xl text-center">
               <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-2 text-sm font-medium text-violet-400"><Sparkles className="h-4 w-4" /> Welcome to RocketReplAI</div>
@@ -64,8 +68,8 @@ export default function HomePage() {
           </>
         ) : (
           <>
-            <button onClick={() => setMode("choose")} className={`inline-flex items-center gap-2 text-sm ${styles.text.secondary}`}><ArrowLeft className="h-4 w-4" /> Back to account type</button>
-            <div className="mt-8 text-center"><p className="text-sm font-semibold text-emerald-500">Individual business</p><h1 className={`mt-2 text-4xl font-bold md:text-5xl ${styles.text.primary}`}>Choose your AI product</h1><p className={`mx-auto mt-4 max-w-2xl ${styles.text.secondary}`}>After sign-in, you will return to the selected product and continue its existing setup.</p></div>
+            {!individualAccountLocked && <button onClick={() => setMode("choose")} className={`inline-flex items-center gap-2 text-sm ${styles.text.secondary}`}><ArrowLeft className="h-4 w-4" /> Back to account type</button>}
+            <div className={individualAccountLocked ? "text-center" : "mt-8 text-center"}><p className="text-sm font-semibold text-emerald-500">Individual business</p><h1 className={`mt-2 text-4xl font-bold md:text-5xl ${styles.text.primary}`}>Choose your AI product</h1><p className={`mx-auto mt-4 max-w-2xl ${styles.text.secondary}`}>{individualAccountLocked ? "Your account is registered as an Individual business. Choose the automation product you want to manage." : "After sign-in, you will return to the selected product and continue its existing setup."}</p></div>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {products.map((product, index) => { const Icon = product.icon; return (
                 <motion.button key={product.key} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} disabled={product.comingSoon} onClick={() => openProtected(product.href)} className={`${styles.card} group rounded-3xl p-7 text-left disabled:cursor-not-allowed disabled:opacity-70`}>
@@ -76,7 +80,7 @@ export default function HomePage() {
                 </motion.button>
               ); })}
             </div>
-            <div className={`mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-2xl p-4 text-sm ${styles.innerCard} ${styles.text.secondary}`}><Users className="h-4 w-4 text-violet-400" /> Need to manage client businesses? Return and choose Agency.</div>
+            {!individualAccountLocked && <div className={`mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-2xl p-4 text-sm ${styles.innerCard} ${styles.text.secondary}`}><Users className="h-4 w-4 text-violet-400" /> Need to manage client businesses? Return and choose Agency.</div>}
           </>
         )}
       </div>

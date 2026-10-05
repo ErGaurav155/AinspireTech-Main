@@ -56,6 +56,8 @@ import {
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 import { trackMetaEvent } from "@/lib/meta-pixel";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
+import { getWorkspace } from "@/lib/services/platform.api";
 
 // Types
 interface Subscription {
@@ -174,6 +176,11 @@ function PricingWithSearchParams() {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const { refreshAccounts } = useInstaAccount();
+  const {
+    clientOnly,
+    clientWorkspaceId,
+    loading: platformAccessLoading,
+  } = usePlatformAccess();
 
   // State
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">(
@@ -189,6 +196,14 @@ function PricingWithSearchParams() {
   const [isLoading, setIsLoading] = useState(false);
   const hasStartedAutoCheckout = useRef(false);
   const processedInstagramCodeRef = useRef<string | null>(null);
+  const processedManagedInstagramCodeRef = useRef<string | null>(null);
+  const [isManagedOAuthFlow, setIsManagedOAuthFlow] = useState(false);
+  const [managedOAuthStatus, setManagedOAuthStatus] = useState<
+    "connecting" | "success" | "error"
+  >("connecting");
+  const [managedOAuthError, setManagedOAuthError] = useState("");
+  const [managedWorkspaceDetails, setManagedWorkspaceDetails] =
+    useState<any>(null);
 
   // Dialog states
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -346,6 +361,101 @@ function PricingWithSearchParams() {
 
     router.replace(nextUrl, { scroll: false });
   }, [router]);
+
+  useEffect(() => {
+    if (
+      platformAccessLoading ||
+      !clientOnly ||
+      !clientWorkspaceId ||
+      !activeProductId ||
+      !isLoaded ||
+      !userId
+    ) {
+      return;
+    }
+
+    setIsManagedOAuthFlow(true);
+    if (processedManagedInstagramCodeRef.current === activeProductId) return;
+    processedManagedInstagramCodeRef.current = activeProductId;
+
+    let cancelled = false;
+
+    const completeManagedInstagramConnection = async () => {
+      setManagedOAuthStatus("connecting");
+      setManagedOAuthError("");
+
+      try {
+        const workspaceDetails = await getWorkspace(
+          apiRequest,
+          clientWorkspaceId,
+        );
+        if (cancelled) return;
+        setManagedWorkspaceDetails(workspaceDetails);
+
+        const instagramService = workspaceDetails?.services?.find(
+          (service: any) => service.service === "INSTAGRAM",
+        );
+        if (!instagramService?.effectiveEnabled) {
+          throw new Error(
+            "Instagram Automation is not enabled for this client workspace. Contact your agency.",
+          );
+        }
+
+        const processedCodeKey = `${PROCESSED_INSTA_OAUTH_CODE_PREFIX}${activeProductId}`;
+        const wasAlreadyProcessed = sessionStorage.getItem(processedCodeKey);
+
+        if (!wasAlreadyProcessed) {
+          const connected = await connectInstagramAccount(activeProductId);
+          if (!connected) {
+            throw new Error(
+              "Instagram could not be connected. Please return to your workspace and try again.",
+            );
+          }
+          sessionStorage.setItem(processedCodeKey, Date.now().toString());
+        } else {
+          await refreshUserAccounts();
+        }
+
+        if (cancelled) return;
+        setManagedOAuthStatus("success");
+
+        window.setTimeout(() => {
+          if (!cancelled) {
+            router.replace("/insta/automations?connected=true");
+          }
+        }, 900);
+      } catch (error: any) {
+        if (cancelled) return;
+        console.error("Managed Instagram connection error:", error);
+        setManagedOAuthStatus("error");
+        setManagedOAuthError(
+          error?.message || "Unable to connect the Instagram account.",
+        );
+      }
+    };
+
+    void completeManagedInstagramConnection();
+
+    return () => {
+      cancelled = true;
+      if (
+        processedManagedInstagramCodeRef.current === activeProductId
+      ) {
+        processedManagedInstagramCodeRef.current = null;
+      }
+    };
+  }, [
+    activeProductId,
+    apiRequest,
+    clientOnly,
+    clientWorkspaceId,
+    connectInstagramAccount,
+    isLoaded,
+    platformAccessLoading,
+    refreshUserAccounts,
+    router,
+    userId,
+  ]);
 
   const loadRazorpayScript = useCallback(() => {
     if (window.Razorpay) return Promise.resolve();
@@ -686,7 +796,7 @@ function PricingWithSearchParams() {
 
   useEffect(() => {
     const processRazorpayRedirectCallback = async () => {
-      if (!userId) return;
+      if (!userId || clientOnly) return;
 
       const isRazorpayCallback = searchParams.get("razorpay_checkout") === "1";
 
@@ -763,6 +873,7 @@ function PricingWithSearchParams() {
     void processRazorpayRedirectCallback();
   }, [
     finishWebhookActivatedInstaPayment,
+    clientOnly,
     router,
     searchParams,
     showToast,
@@ -771,7 +882,12 @@ function PricingWithSearchParams() {
 
   useEffect(() => {
     const recoverPendingRazorpayCheckout = async () => {
-      if (!userId || searchParams.get("razorpay_checkout") === "1") return;
+      if (
+        !userId ||
+        clientOnly ||
+        searchParams.get("razorpay_checkout") === "1"
+      )
+        return;
       if (typeof window === "undefined") return;
 
       const pendingCheckout = sessionStorage.getItem(
@@ -840,6 +956,7 @@ function PricingWithSearchParams() {
     void recoverPendingRazorpayCheckout();
   }, [
     clearPendingRazorpayCheckout,
+    clientOnly,
     finishWebhookActivatedInstaPayment,
     searchParams,
     showToast,
@@ -850,7 +967,11 @@ function PricingWithSearchParams() {
   // Fetch user data and subscription info
   useEffect(() => {
     const fetchUserData = async () => {
-      if (!isLoaded) return;
+      if (!isLoaded || platformAccessLoading) return;
+      if (clientOnly) {
+        setIsLoading(false);
+        return;
+      }
       setIsLoading(true);
 
       if (!userId) {
@@ -973,6 +1094,7 @@ function PricingWithSearchParams() {
     userId,
     router,
     activeProductId,
+    clientOnly,
     isLoaded,
     connectInstagramAccount,
     getPendingCheckout,
@@ -981,6 +1103,7 @@ function PricingWithSearchParams() {
     showToast,
     apiRequest,
     fetchUserAccounts,
+    platformAccessLoading,
   ]);
 
   // Handle subscription change
@@ -1008,13 +1131,14 @@ function PricingWithSearchParams() {
   };
 
   useEffect(() => {
+    if (clientOnly) return;
     trackMetaEvent("ViewContent", {
       content_name: "Instagram pricing",
       content_category: "pricing",
       content_ids: instagramPricingPlans.map((plan) => plan.id),
       content_type: "product_group",
     });
-  }, []);
+  }, [clientOnly]);
 
   // Handle confirmed subscription change
   const handleConfirmedChange = async () => {
@@ -1305,6 +1429,131 @@ function PricingWithSearchParams() {
   const alternateBillingCycle =
     currentSubscription?.billingCycle === "yearly" ? "monthly" : "yearly";
   const isAccountDataLoading = !isLoaded || isLoading;
+  const showManagedOAuthFlow =
+    clientOnly && (Boolean(activeProductId) || isManagedOAuthFlow);
+
+  if (showManagedOAuthFlow) {
+    const onboardingStatus = String(
+      managedWorkspaceDetails?.onboarding?.status || "in progress",
+    ).replaceAll("_", " ");
+    const workspaceName =
+      managedWorkspaceDetails?.workspace?.name || "Your client workspace";
+    const agencyName =
+      managedWorkspaceDetails?.managedBy?.agencyName || "Your agency";
+    const agencyPlan =
+      managedWorkspaceDetails?.managedBy?.planName || "Loading plan…";
+
+    return (
+      <div className={`${styles.page} min-h-screen`}>
+        {isDark && <Orbs />}
+        <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] max-w-3xl items-center px-4 py-10 sm:px-6">
+          <div className={`${styles.card} w-full rounded-3xl border p-6 shadow-xl sm:p-9`}>
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/20">
+              <Zap className="h-8 w-8" />
+            </div>
+
+            <div className="mt-6 text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-pink-500">
+                Agency-managed Instagram setup
+              </p>
+              <h1 className={`mt-3 text-2xl font-bold sm:text-3xl ${styles.text.primary}`}>
+                Connecting Instagram to {workspaceName}
+              </h1>
+              <p className={`mx-auto mt-3 max-w-xl text-sm leading-6 ${styles.text.secondary}`}>
+                Instagram access is provided by your agency. You will not be
+                shown individual plans or asked to purchase a subscription.
+              </p>
+            </div>
+
+            <div className="mt-7 grid gap-3 sm:grid-cols-3">
+              <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
+                <p className={`text-xs ${styles.text.muted}`}>Managed by</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}>
+                  {agencyName}
+                </p>
+              </div>
+              <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
+                <p className={`text-xs ${styles.text.muted}`}>Agency plan</p>
+                <p className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}>
+                  {agencyPlan}
+                </p>
+              </div>
+              <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
+                <p className={`text-xs ${styles.text.muted}`}>Onboarding</p>
+                <p className={`mt-1 truncate text-sm font-semibold capitalize ${styles.text.primary}`}>
+                  {onboardingStatus}
+                </p>
+              </div>
+            </div>
+
+            <div
+              className={`mt-7 rounded-2xl border p-5 text-center ${
+                managedOAuthStatus === "error"
+                  ? "border-red-500/25 bg-red-500/10"
+                  : managedOAuthStatus === "success"
+                    ? "border-emerald-500/25 bg-emerald-500/10"
+                    : "border-pink-500/25 bg-pink-500/10"
+              }`}
+            >
+              {managedOAuthStatus === "connecting" && (
+                <>
+                  <Loader2 className="mx-auto h-7 w-7 animate-spin text-pink-500" />
+                  <h2 className={`mt-3 font-semibold ${styles.text.primary}`}>
+                    Connecting your Instagram account
+                  </h2>
+                  <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                    Please wait while we securely finish the account setup.
+                  </p>
+                </>
+              )}
+
+              {managedOAuthStatus === "success" && (
+                <>
+                  <BadgeCheck className="mx-auto h-8 w-8 text-emerald-500" />
+                  <h2 className={`mt-3 font-semibold ${styles.text.primary}`}>
+                    Instagram account connected
+                  </h2>
+                  <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                    Opening your Instagram automations…
+                  </p>
+                </>
+              )}
+
+              {managedOAuthStatus === "error" && (
+                <>
+                  <Shield className="mx-auto h-8 w-8 text-red-500" />
+                  <h2 className={`mt-3 font-semibold ${styles.text.primary}`}>
+                    We could not finish the connection
+                  </h2>
+                  <p className="mx-auto mt-2 max-w-lg text-sm text-red-600 dark:text-red-300">
+                    {managedOAuthError}
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      router.replace(
+                        clientWorkspaceId
+                          ? `/workspace/${clientWorkspaceId}`
+                          : "/insta",
+                      )
+                    }
+                    className="mt-5 rounded-xl bg-pink-500 px-5 text-white hover:bg-pink-600"
+                  >
+                    Return to workspace
+                  </Button>
+                </>
+              )}
+            </div>
+
+            <div className={`mt-6 flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}>
+              <Crown className="h-4 w-4 text-amber-500" />
+              Access and limits are controlled by {agencyName}&apos;s plan.
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
