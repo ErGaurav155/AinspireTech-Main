@@ -438,9 +438,7 @@ function PricingWithSearchParams() {
 
     return () => {
       cancelled = true;
-      if (
-        processedManagedInstagramCodeRef.current === activeProductId
-      ) {
+      if (processedManagedInstagramCodeRef.current === activeProductId) {
         processedManagedInstagramCodeRef.current = null;
       }
     };
@@ -1447,7 +1445,9 @@ function PricingWithSearchParams() {
       <div className={`${styles.page} min-h-screen`}>
         {isDark && <Orbs />}
         <div className="relative z-10 mx-auto flex min-h-[calc(100vh-5rem)] max-w-3xl items-center px-4 py-10 sm:px-6">
-          <div className={`${styles.card} w-full rounded-3xl border p-6 shadow-xl sm:p-9`}>
+          <div
+            className={`${styles.card} w-full rounded-3xl border p-6 shadow-xl sm:p-9`}
+          >
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-500 text-white shadow-lg shadow-pink-500/20">
               <Zap className="h-8 w-8" />
             </div>
@@ -1456,10 +1456,14 @@ function PricingWithSearchParams() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-pink-500">
                 Agency-managed Instagram setup
               </p>
-              <h1 className={`mt-3 text-2xl font-bold sm:text-3xl ${styles.text.primary}`}>
+              <h1
+                className={`mt-3 text-2xl font-bold sm:text-3xl ${styles.text.primary}`}
+              >
                 Connecting Instagram to {workspaceName}
               </h1>
-              <p className={`mx-auto mt-3 max-w-xl text-sm leading-6 ${styles.text.secondary}`}>
+              <p
+                className={`mx-auto mt-3 max-w-xl text-sm leading-6 ${styles.text.secondary}`}
+              >
                 Instagram access is provided by your agency. You will not be
                 shown individual plans or asked to purchase a subscription.
               </p>
@@ -1468,19 +1472,25 @@ function PricingWithSearchParams() {
             <div className="mt-7 grid gap-3 sm:grid-cols-3">
               <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
                 <p className={`text-xs ${styles.text.muted}`}>Managed by</p>
-                <p className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}>
+                <p
+                  className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}
+                >
                   {agencyName}
                 </p>
               </div>
               <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
                 <p className={`text-xs ${styles.text.muted}`}>Agency plan</p>
-                <p className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}>
+                <p
+                  className={`mt-1 truncate text-sm font-semibold ${styles.text.primary}`}
+                >
                   {agencyPlan}
                 </p>
               </div>
               <div className={`${styles.innerCard} min-w-0 rounded-2xl p-4`}>
                 <p className={`text-xs ${styles.text.muted}`}>Onboarding</p>
-                <p className={`mt-1 truncate text-sm font-semibold capitalize ${styles.text.primary}`}>
+                <p
+                  className={`mt-1 truncate text-sm font-semibold capitalize ${styles.text.primary}`}
+                >
                   {onboardingStatus}
                 </p>
               </div>
@@ -1545,7 +1555,9 @@ function PricingWithSearchParams() {
               )}
             </div>
 
-            <div className={`mt-6 flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}>
+            <div
+              className={`mt-6 flex items-center justify-center gap-2 text-xs ${styles.text.muted}`}
+            >
               <Crown className="h-4 w-4 text-amber-500" />
               Access and limits are controlled by {agencyName}&apos;s plan.
             </div>

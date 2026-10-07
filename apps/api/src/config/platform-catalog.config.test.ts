@@ -16,14 +16,14 @@ test("free agency allowance permits one limited client without payment", () => {
 
 test("agency plans use the approved workspace and team limits", () => {
   const monthly = new Map(
-    AGENCY_PLAN_CATALOG
-      .filter((item) => item.billingInterval === "monthly")
-      .map((item) => [item.name, item]),
+    AGENCY_PLAN_CATALOG.filter(
+      (item) => item.billingInterval === "monthly",
+    ).map((item) => [item.name, item]),
   );
   assert.equal(monthly.get("Partner")?.limits.clientWorkspaces, 5);
   assert.equal(monthly.get("Growth Partner")?.limits.clientWorkspaces, 20);
-  assert.equal(monthly.get("Agency")?.limits.clientWorkspaces, 50);
-  assert.equal(monthly.get("Agency")?.limits.teamMembers, 10);
+  assert.equal(monthly.get("Agency Pro Partner")?.limits.clientWorkspaces, 50);
+  assert.equal(monthly.get("Agency Pro Partner")?.limits.teamMembers, 10);
 });
 
 test("per-client service limits and call preview are consistent", () => {
@@ -37,7 +37,9 @@ test("per-client service limits and call preview are consistent", () => {
 });
 
 test("extra client slots also add dependent product capacity", () => {
-  const addon = AGENCY_ADDON_CATALOG.find((item) => item.code === "extra-client-slots");
+  const addon = AGENCY_ADDON_CATALOG.find(
+    (item) => item.code === "extra-client-slots",
+  );
   assert.equal(addon?.limits.clientWorkspaces, 5);
   assert.equal(addon?.limits.instagramAccounts, 15);
   assert.equal(addon?.limits.whatsappAccounts, 5);

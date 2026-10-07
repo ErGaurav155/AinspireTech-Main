@@ -71,11 +71,11 @@ export const AGENCY_PLAN_TIERS = [
   {
     code: "agency",
     revision: 1,
-    name: "Agency",
+    name: "Agency Pro Partner",
     description: "For established agencies managing a large client portfolio.",
     monthlyPrice: 59_999,
     yearlyPrice: 599_990,
-    razorpayProductId: "agency",
+    razorpayProductId: "agency-pro-partner",
     features: {
       advancedReporting: true,
       customBranding: true,
