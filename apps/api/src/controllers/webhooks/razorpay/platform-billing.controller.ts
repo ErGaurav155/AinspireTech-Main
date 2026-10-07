@@ -5,6 +5,7 @@ import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import { connectToDatabase } from "@/config/database.config";
+import { purgeAgencyClients } from "@/services/tenant/agency-termination.service";
 
 const dateFromSeconds = (value: unknown) => {
   const seconds = Number(value);
@@ -128,6 +129,17 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       platformSubscription.cancelledAt = status === "cancelled" ? new Date() : undefined;
       platformSubscription.lastProviderEventAt = new Date();
       await platformSubscription.save();
+      if (
+        platformSubscription.ownerType === "AGENCY" &&
+        platformSubscription.kind === "base" &&
+        ["cancelled", "expired"].includes(status)
+      ) {
+        await purgeAgencyClients({
+          agencyId: String(platformSubscription.ownerId),
+          reason: status === "expired" ? "plan_expired" : "plan_cancelled",
+          skipProviderSubscriptionId: platformSubscription.providerSubscriptionId,
+        });
+      }
     } else if (purchasedAddon) {
       purchasedAddon.status = status === "paused" ? "past_due" : (status as any);
       const confirmedQuantity = Number(entity.quantity);

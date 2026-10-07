@@ -25,6 +25,23 @@ does not delete any member's global Clerk user. Legacy data keyed only by Clerk
 user ID is deleted only when that identity has no other workspace, agency
 membership or owned primary account. Audit records are retained.
 
+Final agency plan cancellation or expiry is intentionally destructive. Only a
+verified Razorpay `subscription.cancelled` or `subscription.completed` event
+triggers it; `pending`, `past_due`, `halted` and `paused` events do not. The
+termination workflow immediately suspends every agency client workspace,
+cancels separate paid add-ons, deletes every client Clerk organization and
+invitation, deletes all workspace automation/lead/appointment/onboarding/usage
+data, and deletes invited Clerk identities that have no other RocketReplAI
+ownership or membership. The agency owner identity and agency shell remain so
+the owner can subscribe again and provision new clients.
+
+Deleting the agency owner's Clerk account performs the same client purge, then
+also cancels remaining agency billing, deletes exclusive agency staff
+identities, deletes the agency Clerk organization, and removes the agency and
+its remaining platform records. Duplicate Clerk and Razorpay webhook deliveries
+are safe: already-removed organizations/users are accepted and local workspace
+deletion is transactional and idempotent.
+
 ## What is implemented
 
 The new tenant platform is additive. Existing Instagram, WhatsApp, Website and Call automation engines continue to use their legacy Clerk-owner fields while migration adds `workspaceId` in parallel.

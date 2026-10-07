@@ -8,6 +8,7 @@ import MyAppointment from "@/models/MyAppointment.model";
 import RateLimitQueue from "@/models/Rate/RateLimitQueue.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
+import PlatformAuditLog from "@/models/PlatformAuditLog.model";
 import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import InstagramAiConversation from "@/models/insta/AiConversation.model";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
@@ -33,6 +34,7 @@ import TokenBalance from "@/models/web/token/TokenBalance.model";
 import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
+import { deleteUserData } from "@/services/user.service";
 
 const clerkNotFound = (error: any) =>
   Number(error?.status || error?.statusCode || error?.clerkError?.status) === 404;
@@ -81,9 +83,13 @@ async function exclusiveWorkspaceUsers(
 export async function permanentlyDeleteAgencyClientWorkspace({
   agencyId,
   workspaceId,
+  deleteExclusiveClerkUsers = false,
+  allowOrphanedWorkspace = false,
 }: {
   agencyId: string;
   workspaceId: string;
+  deleteExclusiveClerkUsers?: boolean;
+  allowOrphanedWorkspace?: boolean;
 }) {
   await connectToDatabase();
   const agencyObjectId = new Types.ObjectId(agencyId);
@@ -98,7 +104,7 @@ export async function permanentlyDeleteAgencyClientWorkspace({
     WorkspaceMember.find({ workspaceId: workspaceObjectId }).lean(),
   ]);
 
-  if (!relationship || !workspace) return null;
+  if (!workspace || (!relationship && !allowOrphanedWorkspace)) return null;
 
   const candidateUserIds = [
     workspace.ownerUserId,
@@ -121,6 +127,22 @@ export async function permanentlyDeleteAgencyClientWorkspace({
       );
     } catch (error) {
       if (!clerkNotFound(error)) throw error;
+    }
+  }
+
+  // Normal client removal only revokes organization access. Full agency
+  // termination additionally removes invited identities that have no access
+  // to any other agency/workspace. External deletion happens before the local
+  // transaction so a Clerk failure remains safely retryable while the member
+  // identifiers are still available in MongoDB.
+  if (deleteExclusiveClerkUsers) {
+    for (const userId of exclusiveUserIds) {
+      try {
+        await clerkClient.users.deleteUser(userId);
+      } catch (error) {
+        if (!clerkNotFound(error)) throw error;
+      }
+      await deleteUserData(userId);
     }
   }
 
@@ -199,31 +221,49 @@ export async function permanentlyDeleteAgencyClientWorkspace({
       await WorkspaceService.deleteMany({ workspaceId: workspaceObjectId }, { session });
       await WorkspaceOnboarding.deleteMany({ workspaceId: workspaceObjectId }, { session });
       await WorkspaceMember.deleteMany({ workspaceId: workspaceObjectId }, { session });
+      if (deleteExclusiveClerkUsers) {
+        await PlatformAuditLog.deleteMany(
+          { workspaceId: workspaceObjectId },
+          { session },
+        );
+      }
       await ProvisioningOperation.deleteMany({ workspaceId: workspaceObjectId }, { session });
 
-      await UsageCounter.updateOne(
-        {
-          ownerType: "AGENCY",
-          ownerId: agencyObjectId,
-          metric: "clientWorkspaces",
-          periodKey: "current",
-          used: { $gt: 0 },
-        },
-        { $inc: { used: -1 } },
+      if (relationship) {
+        await UsageCounter.updateOne(
+          {
+            ownerType: "AGENCY",
+            ownerId: agencyObjectId,
+            metric: "clientWorkspaces",
+            periodKey: "current",
+            used: { $gt: 0 },
+          },
+          { $inc: { used: -1 } },
+          { session },
+        );
+      }
+      await AgencyClient.deleteMany(
+        { agencyId: agencyObjectId, workspaceId: workspaceObjectId },
         { session },
       );
-      await AgencyClient.deleteOne({ _id: relationship._id }, { session });
       await Workspace.deleteOne({ _id: workspaceObjectId }, { session });
 
       if (exclusiveUserIds.length) {
-        await User.updateMany(
-          {
-            clerkId: { $in: exclusiveUserIds },
-            platformAccountType: "MEMBER",
-          },
-          { $unset: { platformAccountType: 1, platformOwnerId: 1 } },
-          { session },
-        );
+        if (deleteExclusiveClerkUsers) {
+          await User.deleteMany(
+            { clerkId: { $in: exclusiveUserIds } },
+            { session },
+          );
+        } else {
+          await User.updateMany(
+            {
+              clerkId: { $in: exclusiveUserIds },
+              platformAccountType: "MEMBER",
+            },
+            { $unset: { platformAccountType: 1, platformOwnerId: 1 } },
+            { session },
+          );
+        }
       }
     });
   } finally {
@@ -242,6 +282,9 @@ export async function permanentlyDeleteAgencyClientWorkspace({
     workspaceId,
     clerkOrganizationDeleted: Boolean(workspace.clerkOrganizationId),
     removedMemberCount: members.length,
+    deletedClerkUserCount: deleteExclusiveClerkUsers
+      ? exclusiveUserIds.length
+      : 0,
     releasedClientSlot: true,
     dataDeleted: true,
   };

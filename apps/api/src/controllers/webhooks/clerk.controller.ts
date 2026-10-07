@@ -14,6 +14,7 @@ import AgencyMember from "@/models/tenant/AgencyMember.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import User from "@/models/user.model";
+import { permanentlyDeleteAgencyForOwner } from "@/services/tenant/agency-termination.service";
 
 /* eslint-disable camelcase */
 
@@ -195,6 +196,19 @@ export const clerkWebhookController = async (req: Request, res: Response) => {
     // DELETE
     if (eventType === "user.deleted") {
       const { id } = evt.data;
+
+      const ownedAgencies = await Agency.find({
+        ownerUserId: id,
+        status: { $ne: "archived" },
+      })
+        .select("_id")
+        .lean();
+      for (const agency of ownedAgencies) {
+        await permanentlyDeleteAgencyForOwner({
+          agencyId: String(agency._id),
+          ownerUserId: id!,
+        });
+      }
 
       const deletedUser = await deleteUserData(id!);
 
