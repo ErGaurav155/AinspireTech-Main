@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
@@ -322,13 +323,23 @@ export default function WhatsAppAutomationPage() {
           <div>
             <FileText className="h-7 w-7 text-emerald-600 dark:text-emerald-300" />
             <h2 className="mt-4 text-3xl font-black">
-              Built for Meta Cloud API
+              Built on Meta&apos;s official WhatsApp Cloud API
             </h2>
             <p className="mt-3 text-sm leading-6 text-slate-600 dark:text-white/60">
-              The backend includes workspace storage, Cloud API send-message
-              support, public webhook verification, inbound message processing,
-              contact creation, conversation logging, and plan limits.
+              Connect through the official Cloud API workflow with webhook
+              verification, inbound message processing, contact creation,
+              conversation history, delivery status, and secure workspace
+              configuration.
             </p>
+            <div className="mt-6 inline-flex rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10">
+              <Image
+                src="/assets/img/metaImg.png"
+                alt="Meta Tech Provider"
+                width={642}
+                height={383}
+                className="h-auto w-64 object-contain sm:w-72"
+              />
+            </div>
           </div>
           <div className="grid gap-3">
             {steps.map((step) => (

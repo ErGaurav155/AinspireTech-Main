@@ -5,7 +5,6 @@ import { z } from "zod";
 import { connectToDatabase } from "@/config/database.config";
 import Agency from "@/models/tenant/Agency.model";
 import AgencyClient from "@/models/tenant/AgencyClient.model";
-import AgencyMember from "@/models/tenant/AgencyMember.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import WorkspaceOnboarding from "@/models/tenant/WorkspaceOnboarding.model";
@@ -178,12 +177,11 @@ export const getPlatformContextController = async (req: Request, res: Response) 
   if (!userId) return fail(res, 401, "Authentication required");
   try {
     await connectToDatabase();
-    const [ownedAgencies, agencyMemberships, ownedWorkspaces, workspaceMemberships, userAccount] =
+    const [ownedAgencies, ownedWorkspaces, workspaceMemberships, userAccount] =
       await Promise.all([
         Agency.find({ ownerUserId: userId, status: { $ne: "archived" } })
           .sort({ createdAt: 1, _id: 1 })
           .lean(),
-        AgencyMember.find({ userId, status: "active" }).lean(),
         Workspace.find({
           $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
           status: { $ne: "archived" },
@@ -194,13 +192,6 @@ export const getPlatformContextController = async (req: Request, res: Response) 
         User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
       ]);
 
-    const ownedAgencyIds = new Set(ownedAgencies.map((agency) => String(agency._id)));
-    const memberAgencyIds = agencyMemberships
-      .map((membership) => membership.agencyId)
-      .filter((id) => !ownedAgencyIds.has(String(id)));
-    const memberAgencies = memberAgencyIds.length
-      ? await Agency.find({ _id: { $in: memberAgencyIds }, status: { $ne: "archived" } }).lean()
-      : [];
     const ownedWorkspaceIds = new Set(ownedWorkspaces.map((workspace) => String(workspace._id)));
     const memberWorkspaceIds = workspaceMemberships
       .map((membership) => membership.workspaceId)
@@ -217,15 +208,14 @@ export const getPlatformContextController = async (req: Request, res: Response) 
         (ownedAgencies.length ? "AGENCY" : ownedWorkspaces.length ? "BUSINESS" : "MEMBER"),
       accountModes: {
         business: ownedWorkspaces.length + memberWorkspaces.length > 0,
-        agency: ownedAgencies.length + memberAgencies.length > 0,
+        agency: ownedAgencies.length > 0,
       },
       canCreatePrimaryAccount:
         !userAccount?.platformAccountType &&
         ownedAgencies.length === 0 &&
-        memberAgencies.length === 0 &&
         ownedWorkspaces.length === 0 &&
         memberWorkspaces.length === 0,
-      agencies: [...primaryOwnedAgencies, ...memberAgencies],
+      agencies: primaryOwnedAgencies,
       workspaces: [...primaryOwnedWorkspaces, ...memberWorkspaces],
     });
   } catch (error) {

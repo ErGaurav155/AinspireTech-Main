@@ -24,6 +24,7 @@ export interface WhatsAppAiDecision {
   intent: WhatsAppAiIntent;
   reply: string;
   sentiment: "positive" | "neutral" | "negative";
+  tokens?: number;
 }
 
 const isGenericWhatsAppFallback = (reply: string) => {
@@ -442,6 +443,7 @@ export const generateWhatsAppAiResponse = async ({
     : [];
 
   return runWithAiFallback("WhatsApp response", async (provider) => {
+    let initialAttemptTokens = 0;
     try {
       const completion = await provider.client.chat.completions.create({
         model: provider.model,
@@ -484,6 +486,7 @@ ${safeKnowledge}`,
         max_tokens: 800,
         temperature: 0.35,
       });
+      initialAttemptTokens = completion.usage?.total_tokens ?? 0;
 
       const choice = completion.choices[0];
       const safetyFilteredReply = getSafetyFilteredReply(choice);
@@ -492,14 +495,18 @@ ${safeKnowledge}`,
           intent: "other",
           sentiment: "neutral",
           reply: safetyFilteredReply.slice(0, 3500),
+          tokens: completion.usage?.total_tokens ?? 1,
         };
       }
 
-      return parseWhatsAppAiDecision({
-        raw: choice?.message?.content?.trim() || "",
-        userInput,
-        providerName: provider.name,
-      });
+      return {
+        ...parseWhatsAppAiDecision({
+          raw: choice?.message?.content?.trim() || "",
+          userInput,
+          providerName: provider.name,
+        }),
+        tokens: completion.usage?.total_tokens ?? 1,
+      };
     } catch (error) {
       // Transport/API errors should fail over immediately. The same provider is
       // retried only when its output was present but unusable.
@@ -545,15 +552,23 @@ ${safeKnowledge}`,
           intent: "other",
           sentiment: "neutral",
           reply: safetyFilteredReply.slice(0, 3500),
+          tokens:
+            initialAttemptTokens +
+            (retryCompletion.usage?.total_tokens ?? 1),
         };
       }
 
-      return parseWhatsAppAiDecision({
-        raw: retryChoice?.message?.content?.trim() || "",
-        userInput,
-        providerName: provider.name,
-        retried: true,
-      });
+      return {
+        ...parseWhatsAppAiDecision({
+          raw: retryChoice?.message?.content?.trim() || "",
+          userInput,
+          providerName: provider.name,
+          retried: true,
+        }),
+        tokens:
+          initialAttemptTokens +
+          (retryCompletion.usage?.total_tokens ?? 1),
+      };
     }
   });
 };

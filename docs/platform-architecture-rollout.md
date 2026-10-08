@@ -56,7 +56,7 @@ Core records:
 - `UsageCounter`, `UsageLedger`
 - `BillingEvent`, `WebhookEvent`, `PlatformAuditLog`
 
-Backend authorization resolves a workspace or agency from the authenticated Clerk user. A browser-supplied workspace ID is only an identifier; it never establishes access. Product access is the intersection of the billing owner's effective plan/add-on entitlements and that workspace's enabled services.
+Backend authorization resolves a workspace or agency from the authenticated Clerk user. A browser-supplied workspace ID is only an identifier; it never establishes access. Product access is the intersection of the billing owner's effective plan entitlements and that workspace's enabled services.
 
 The platform also preserves the existing Call Assistant module even though the original brief listed three products, because it is active production functionality.
 
@@ -75,7 +75,7 @@ All routes below require Clerk authentication except the signed webhook.
 - `DELETE /api/platform/agencies/:agencyId/clients/:workspaceId` (permanent deletion; all confirmation flags required)
 - `GET /api/platform/agencies/:agencyId/billing/plans`
 - `POST /api/platform/agencies/:agencyId/billing/checkout`
-- `POST /api/platform/agencies/:agencyId/billing/addons/checkout`
+- `POST /api/platform/agencies/:agencyId/billing/addons/checkout` (disabled while agency add-ons are unavailable)
 - `POST /api/webhooks/razorpay` (Razorpay signature required)
 
 Provisioning and checkout POST requests require an `X-Idempotency-Key` containing 8–200 alphanumeric, colon, underscore or dash characters.
@@ -86,13 +86,12 @@ Provisioning and checkout POST requests require an `X-Idempotency-Key` containin
 2. Subscribe the Clerk webhook to organization membership create, update and delete events in addition to the existing user events.
 3. Configure Razorpay subscription lifecycle events to `POST /api/webhooks/razorpay`.
 4. Keep the legacy Razorpay webhook endpoints enabled during the compatibility window for old subscriptions.
-5. Create active `PlanDefinition` and `AddonDefinition` documents with the correct Razorpay plan IDs. Prices, limits and features live in these documents, not in UI components.
+5. Create active `PlanDefinition` documents with the correct Razorpay plan IDs. Prices, limits and features live in these documents, not in UI components.
 
 The editable agency catalog is `apps/api/src/config/platform-catalog.config.ts`.
 The configured product IDs are `agency-partner`, `agency-growth-partner`,
-`agency`, `addon-extra-client-slots`, `addon-extra-team-seats`,
-`addon-extra-ai-tokens` and `addon-extra-conversations`. Add their monthly and
-yearly Razorpay IDs to the existing `Plan` collection, then run:
+and `agency-pro-partner`. Add their monthly and yearly Razorpay IDs to the
+existing `Plan` collection, then run:
 
 ```bash
 npm run sync:platform-catalog --workspace=api
@@ -102,15 +101,22 @@ The sync stops without changing the platform catalog if any required provider
 plan mapping is missing. When commercial terms change, increment that item's
 `revision` so existing subscriptions retain their entitlement snapshot.
 
+Agency access is owner-only. Paid tiers limit client members/workspaces, while
+the agency itself always has one owner account. Agency staff invitations and
+all paid add-ons are disabled; catalog synchronization marks every previously
+published agency add-on definition inactive.
+
+Conversation counts are unlimited. AI usage is limited independently for each
+client workspace and refills at the start of each UTC calendar month: Free
+Agency 100,000 tokens, Partner 200,000, Growth Partner 250,000, and Agency Pro
+Partner 300,000 tokens per client. The agency-owner account cannot run product
+automation and therefore has no personal AI-token allowance.
+
 The initial monthly prices are ₹9,999 (Partner), ₹29,999 (Growth Partner) and
 ₹59,999 (Agency); annual prices provide approximately two months free. Meta
 WhatsApp message charges, telephony charges and other provider pass-through
 costs are not included in these platform prices and should be disclosed
 separately in commercial terms.
-
-Add-on quantity reductions and cancellations are scheduled at Razorpay cycle
-end. The current paid capacity remains active until the verified webhook
-confirms the change; customer data is never removed when capacity decreases.
 
 AI Call Assistant is catalogued as a preview but has zero allowance. The UI and
 API return Coming Soon unless `CALL_ASSISTANT_PUBLIC_ENABLED=true` or the caller
@@ -156,7 +162,7 @@ Rollback only removes records created by this migration version and unsets match
 
 1. Back up MongoDB and test against a production snapshot.
 2. Add environment variables and provider webhook subscriptions.
-3. Populate inactive plan/add-on definitions, review them, then activate approved revisions.
+3. Populate inactive plan definitions, review them, then activate approved revisions.
 4. Deploy the additive API and verify signed Clerk/Razorpay events.
 5. Run migration dry-run; review conflicts and the unowned appointment report.
 6. Apply migration in batches during a monitored window.

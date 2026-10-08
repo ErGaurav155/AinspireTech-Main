@@ -5,23 +5,16 @@ import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import { sendWebTokenExhaustedEmailToUser } from "@/services/sendEmail.service";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
-import Workspace from "@/models/tenant/Workspace.model";
 import { usageService } from "@/services/usage/usage.service";
 import { Types } from "mongoose";
+import { resolveAgencyWorkspaceAiUsageOwner } from "@/services/usage/agency-ai-usage.service";
 
 export const SUBSCRIPTION_TOKEN_ALLOWANCE = 2000000;
 
 async function getAgencyManagedUsageOwner(userId: string) {
   const memberships = await WorkspaceMember.find({ userId, status: "active" }, { workspaceId: 1 }).limit(2).lean();
   if (memberships.length !== 1) return null;
-  const workspace = await Workspace.findOne({
-    _id: memberships[0].workspaceId,
-    agencyId: { $exists: true },
-    billingOwnerType: "AGENCY",
-    status: "active",
-  }, { billingOwnerId: 1 }).lean();
-  if (!workspace) return null;
-  return { ownerType: "AGENCY" as const, ownerId: String(workspace.billingOwnerId), workspaceId: String(workspace._id) };
+  return resolveAgencyWorkspaceAiUsageOwner(String(memberships[0].workspaceId));
 }
 
 // Get user's token balance
@@ -194,6 +187,15 @@ export async function hasSufficientTokens(
   requiredTokens: number,
   chatbotId?: string,
 ) {
+  const agencyOwner = await getAgencyManagedUsageOwner(userId);
+  if (agencyOwner) {
+    const quota = await usageService.checkLimit(
+      agencyOwner,
+      "aiTokens",
+      Math.max(1, requiredTokens),
+    );
+    return quota.allowed;
+  }
   const tokenBalance = await getUserTokenBalance(userId);
   const availableTokens = getAvailableTokensForChatbot(tokenBalance, chatbotId);
   return availableTokens >= requiredTokens;

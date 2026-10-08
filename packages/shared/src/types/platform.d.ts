@@ -65,6 +65,7 @@ export const ENTITLEMENT_LIMITS = [
   "clientWorkspaces",
   "teamMembers",
   "aiTokens",
+  "aiTokensPerWorkspace",
   "conversations",
   "instagramAccounts",
   "whatsappAccounts",

@@ -9,6 +9,7 @@ import {
   Bot,
   CheckCircle,
   Instagram,
+  MessageCircle,
   Network,
   Phone,
   Sparkles,
@@ -54,6 +55,45 @@ const aiCallFeatures = [
   },
 ];
 
+const whatsappFeatures = [
+  {
+    id: 1,
+    name: "AI WhatsApp Replies",
+    description:
+      "Answer FAQs, service questions, pricing enquiries, and business-information requests instantly from your verified knowledge.",
+    tools: ["AI replies", "Business knowledge", "24/7 availability"],
+    role: "Always-on WhatsApp support",
+    link: "/assets/img/customer-support.png",
+  },
+  {
+    id: 2,
+    name: "Lead and Contact Capture",
+    description:
+      "Turn incoming WhatsApp chats into organized contacts with intent, lifecycle status, conversation history, and follow-up context.",
+    tools: ["Contact profiles", "Lead intent", "Conversation history"],
+    role: "Chat-to-lead workflow",
+    link: "/assets/img/lead-capture.png",
+  },
+  {
+    id: 3,
+    name: "Guided Appointment Requests",
+    description:
+      "Collect the customer's name, service, preferred date and time, then place the request in the dashboard for confirmation.",
+    tools: ["Booking questions", "Service selection", "Owner alerts"],
+    role: "Appointment capture",
+    link: "/assets/img/home-chatbot.png",
+  },
+  {
+    id: 4,
+    name: "Human Handoff and Shared Inbox",
+    description:
+      "Move complex or high-intent conversations to a person while preserving the full context your team needs to continue.",
+    tools: ["Human handoff", "Shared inbox", "Conversation status"],
+    role: "AI-to-team handoff",
+    link: "/assets/img/customer-support.png",
+  },
+];
+
 const tabs = [
   {
     id: "webchat",
@@ -68,6 +108,13 @@ const tabs = [
     icon: Instagram,
     gradient: "from-pink-500 to-fuchsia-600",
     accent: "text-pink-600 dark:text-pink-200",
+  },
+  {
+    id: "whatsapp",
+    label: "WhatsApp",
+    icon: MessageCircle,
+    gradient: "from-emerald-500 to-teal-500",
+    accent: "text-emerald-600 dark:text-emerald-200",
   },
   {
     id: "call",
@@ -89,6 +136,8 @@ function MiniFlow({ activeTab }: { activeTab: TabId }) {
   const flow =
     activeTab === "instagram"
       ? ["Comment", "Keyword", "DM sent", "Lead saved"]
+      : activeTab === "whatsapp"
+        ? ["Customer message", "AI reply", "Lead captured", "Team handoff"]
       : activeTab === "call"
         ? ["Incoming call", "AI answers", "Summary", "Owner alert"]
         : ["Visitor asks", "AI answers", "Source found", "Lead captured"];
@@ -130,7 +179,9 @@ function StickyFeaturesSection() {
       ? webChatFeatures
       : activeTab === "instagram"
         ? instagramFeatures
-        : aiCallFeatures;
+        : activeTab === "whatsapp"
+          ? whatsappFeatures
+          : aiCallFeatures;
 
   const styles = useMemo(() => {
     const isDark = currentTheme === "dark";
@@ -178,14 +229,14 @@ function StickyFeaturesSection() {
             variants={fadeUp}
             className={`mx-auto mt-4 max-w-2xl text-sm leading-relaxed sm:text-lg ${styles.muted}`}
           >
-            Switch between web chat, Instagram automation, and AI calls to see
+            Switch between web chat, Instagram, WhatsApp, and AI calls to see
             how RocketReplai turns attention into qualified follow-up.
           </motion.p>
         </motion.div>
 
-        <div className="sticky top-16 z-30 mx-auto mt-8 flex justify-center sm:top-20">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-1 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
-            <div className="grid grid-cols-3 gap-1">
+        <div className="no-scrollbar sticky top-16 z-30 -mx-4 mt-8 flex overflow-x-auto px-4 sm:top-20 sm:mx-auto sm:justify-center sm:px-0">
+          <div className="shrink-0 rounded-2xl border border-slate-200 bg-white/80 p-1 shadow-lg backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/70">
+            <div className="grid grid-cols-4 gap-1">
               {tabs.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -236,6 +287,8 @@ function StickyFeaturesSection() {
                   <Bot className="h-7 w-7" />
                 ) : activeTab === "instagram" ? (
                   <Instagram className="h-7 w-7" />
+                ) : activeTab === "whatsapp" ? (
+                  <MessageCircle className="h-7 w-7" />
                 ) : (
                   <Phone className="h-7 w-7" />
                 )}

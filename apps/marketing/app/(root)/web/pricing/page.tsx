@@ -276,56 +276,69 @@ const PricingContent = () => {
   // Free Tier Card
   const renderFreeTierCard = () => (
     <Card
-      className={`mb-12 relative group h-full flex flex-col items-center justify-between rounded-2xl backdrop-blur-sm border shadow-sm transition-all duration-300 p-5 ${themeStyles.cardBg} ${themeStyles.cardBorder} hover:-translate-y-1 hover:border-green-400/50 hover:shadow-xl hover:shadow-green-950/10`}
+      className={`relative group h-full overflow-hidden rounded-3xl border p-0 shadow-sm backdrop-blur-sm transition-all duration-300 ${themeStyles.cardBg} ${themeStyles.cardBorder} hover:-translate-y-1 hover:border-emerald-400/60 hover:shadow-2xl hover:shadow-emerald-950/10`}
     >
-      <div className="absolute inset-x-0 top-0 h-1 bg-green-500 opacity-0 group-hover:opacity-100 transition-opacity" />
-      <CardContent className="p-8">
-        <div className="flex flex-col md:flex-row items-center justify-between">
-          <div className="mb-6 md:mb-0 md:mr-8">
-            <h3
-              className={`text-2xl font-bold ${themeStyles.textPrimary} mb-2`}
-            >
-              Free Tier
-            </h3>
-            <p
-              className={`${themeStyles.textSecondary} mb-4 font-montserrat font-medium text-lg`}
-            >
-              Get started with 10,000 free tokens
-            </p>
-            <ul
-              className={`space-y-2 font-montserrat ${themeStyles.textSecondary}`}
-            >
-              <li className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
-                <span>10,000 free tokens monthly</span>
-              </li>
-              <li className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
-                <span>Access to all chatbots</span>
-              </li>
-              <li className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
-                <span>Website scraping required</span>
-              </li>
-              <li className="flex items-center">
-                <Check className="h-5 w-5 text-green-500 mr-2" />
-                <span>Basic support</span>
-              </li>
-            </ul>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl font-bold text-green-600 mb-2">10,000</div>
-            <div className={`${themeStyles.textMuted} mb-4`}>
-              Free Tokens/Month
+      <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400" />
+      <div className="relative border-b border-emerald-200/70 bg-gradient-to-br from-emerald-50 via-teal-50/80 to-cyan-50 px-6 pb-7 pt-8 dark:border-emerald-300/15 dark:from-emerald-500/15 dark:via-teal-500/10 dark:to-cyan-500/10">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+              <Bot className="h-6 w-6" />
+            </span>
+            <div>
+              <span className="inline-flex rounded-full border border-emerald-300 bg-white/80 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:border-emerald-300/25 dark:bg-white/10 dark:text-emerald-200">
+                No card required
+              </span>
+              <h3 className={`mt-2 text-2xl font-black ${themeStyles.textPrimary}`}>
+                Free
+              </h3>
             </div>
-            <Button
-              onClick={handleStartAutomation}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:opacity-90 text-white relative"
-            >
-              Get Started Free
-            </Button>
+          </div>
+          <div className="text-right">
+            <p className="text-4xl font-black text-emerald-600 dark:text-emerald-300">₹0</p>
+            <p className={`text-xs font-semibold ${themeStyles.textMuted}`}>per month</p>
           </div>
         </div>
+        <div className="mt-6 rounded-2xl border border-emerald-200 bg-white/75 p-4 dark:border-emerald-300/15 dark:bg-black/10">
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-widest text-emerald-700 dark:text-emerald-200">Monthly AI allowance</p>
+              <p className={`mt-1 text-sm ${themeStyles.textSecondary}`}>Enough to build and test your first customer workflow.</p>
+            </div>
+            <p className="shrink-0 text-2xl font-black text-emerald-600 dark:text-emerald-300">10,000</p>
+          </div>
+        </div>
+      </div>
+
+      <CardContent className="flex h-full flex-col p-6">
+        <p className={`text-sm font-semibold ${themeStyles.textSecondary}`}>
+          Launch one lead-generation chatbot and upgrade only when your usage grows.
+        </p>
+        <ul className={`mt-6 flex-grow space-y-4 font-montserrat ${themeStyles.textSecondary}`}>
+          {[
+            "10,000 AI tokens refilled monthly",
+            "One lead-generation website chatbot",
+            "Answers based on your website or business information",
+            "Lead and customer-detail capture",
+            "Basic conversation and usage visibility",
+          ].map((feature) => (
+            <li key={feature} className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+                <Check className="h-3 w-3" />
+              </span>
+              <span className="text-sm leading-6">{feature}</span>
+            </li>
+          ))}
+        </ul>
+        <Button
+          onClick={handleStartAutomation}
+          className="relative mt-7 w-full rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 font-bold text-white shadow-lg shadow-emerald-500/15 hover:opacity-90"
+        >
+          Start free
+        </Button>
+        <p className={`mt-3 text-center text-xs ${themeStyles.textMuted}`}>
+          Set up now. Upgrade later without rebuilding your chatbot.
+        </p>
       </CardContent>
     </Card>
   );
@@ -438,7 +451,7 @@ const PricingContent = () => {
         <div className="w-full mt-3 z-10">
           <Button
             onClick={handleStartAutomation}
-            className="w-full py-3 rounded-full font-bold bg-blue-700 text-white hover:bg-blue-800 transition-colors"
+            className="w-full py-3 rounded-xl font-bold bg-blue-700 text-white hover:bg-blue-800 transition-colors"
           >
             Start Automating
           </Button>
@@ -549,7 +562,6 @@ const PricingContent = () => {
 
       <div className="w-full px-4 py-8 relative z-10">
         {renderHeader()}
-        {renderFreeTierCard()}
 
         {/* Dynamic Content based on Tab */}
         <Tabs
@@ -559,6 +571,7 @@ const PricingContent = () => {
         >
           <TabsContent value="chatbot" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2  gap-8 max-w-6xl mx-auto">
+              {renderFreeTierCard()}
               {Object.values(productSubscriptionDetails).map(
                 renderChatbotPricingCard,
               )}

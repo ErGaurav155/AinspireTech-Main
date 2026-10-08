@@ -10,11 +10,13 @@ test("free agency allowance permits one limited client without payment", () => {
   assert.equal(FREE_AGENCY_PLAN.code, "agency-free");
   assert.equal(FREE_AGENCY_PLAN.limits.clientWorkspaces, 1);
   assert.equal(FREE_AGENCY_PLAN.limits.aiTokens, 100_000);
+  assert.equal(FREE_AGENCY_PLAN.limits.aiTokensPerWorkspace, 100_000);
+  assert.equal(FREE_AGENCY_PLAN.limits.conversations, -1);
   assert.equal(FREE_AGENCY_PLAN.features.agencyDashboard, true);
   assert.equal(FREE_AGENCY_PLAN.features.advancedReporting, false);
 });
 
-test("agency plans use the approved workspace and team limits", () => {
+test("agency plans use the approved client-member limits without team seats", () => {
   const monthly = new Map(
     AGENCY_PLAN_CATALOG.filter(
       (item) => item.billingInterval === "monthly",
@@ -23,7 +25,14 @@ test("agency plans use the approved workspace and team limits", () => {
   assert.equal(monthly.get("Partner")?.limits.clientWorkspaces, 5);
   assert.equal(monthly.get("Growth Partner")?.limits.clientWorkspaces, 20);
   assert.equal(monthly.get("Agency Pro Partner")?.limits.clientWorkspaces, 50);
-  assert.equal(monthly.get("Agency Pro Partner")?.limits.teamMembers, 10);
+  assert.equal(monthly.get("Partner")?.limits.aiTokensPerWorkspace, 200_000);
+  assert.equal(monthly.get("Growth Partner")?.limits.aiTokensPerWorkspace, 250_000);
+  assert.equal(monthly.get("Agency Pro Partner")?.limits.aiTokensPerWorkspace, 300_000);
+  for (const plan of monthly.values()) {
+    assert.equal(plan.limits.teamMembers, undefined);
+    assert.equal(plan.limits.conversations, -1);
+  }
+  assert.equal(AGENCY_ADDON_CATALOG.length, 0);
 });
 
 test("per-client service limits and call preview are consistent", () => {
@@ -36,12 +45,3 @@ test("per-client service limits and call preview are consistent", () => {
   }
 });
 
-test("extra client slots also add dependent product capacity", () => {
-  const addon = AGENCY_ADDON_CATALOG.find(
-    (item) => item.code === "extra-client-slots",
-  );
-  assert.equal(addon?.limits.clientWorkspaces, 5);
-  assert.equal(addon?.limits.instagramAccounts, 15);
-  assert.equal(addon?.limits.whatsappAccounts, 5);
-  assert.equal(addon?.limits.websiteChatbots, 5);
-});

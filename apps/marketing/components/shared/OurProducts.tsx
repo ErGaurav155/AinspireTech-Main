@@ -284,10 +284,10 @@ export function AIVoiceAgentShowcase() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="flex justify-center mb-8 md:mb-12"
+          className="no-scrollbar -mx-4 flex w-[calc(100%+2rem)] snap-x snap-mandatory justify-start overflow-x-auto px-4 pb-2 mb-6 md:mx-0 md:w-full md:justify-center md:px-0 md:pb-0 md:mb-12"
         >
           <div
-            className={`${themeStyles.tabBg} border ${themeStyles.tabBorder} rounded-2xl p-1.5 flex gap-1 backdrop-blur-sm`}
+            className={`${themeStyles.tabBg} min-w-max border ${themeStyles.tabBorder} rounded-2xl p-1.5 flex gap-1 backdrop-blur-sm`}
           >
             {[
               {
@@ -303,22 +303,22 @@ export function AIVoiceAgentShowcase() {
                 gradient: "from-pink-500 to-purple-500",
               },
               {
-                id: "call",
-                label: "Calls",
-                icon: <Phone className="h-5 w-5" />,
-                gradient: "from-cyan-500 to-emerald-500",
-              },
-              {
                 id: "whatsapp",
                 label: "WhatsApp",
                 icon: <MessageCircle className="h-5 w-5" />,
                 gradient: "from-emerald-500 to-teal-500",
               },
+              {
+                id: "call",
+                label: "Calls",
+                icon: <Phone className="h-5 w-5" />,
+                gradient: "from-cyan-500 to-emerald-500",
+              },
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActivePlatform(tab.id as any)}
-                className={`flex items-center px-4 md:px-7 py-3 rounded-xl transition-all duration-300 ${
+                className={`flex shrink-0 snap-start items-center px-4 md:px-7 py-3 rounded-xl transition-all duration-300 ${
                   activePlatform === tab.id
                     ? `${themeStyles.glowEffect} text-white bg-gradient-to-r ${tab.gradient}`
                     : `${themeStyles.tabText} hover:bg-white/10`

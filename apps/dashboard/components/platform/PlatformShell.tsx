@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   Menu,
   Settings,
-  Users,
   X,
 } from "lucide-react";
 import { useSidebar } from "@/lib/useSidebar";
@@ -30,7 +29,6 @@ export default function PlatformShell({
   const links = [
     { href: `/agency/${agencyId}`, label: "Overview", icon: LayoutDashboard },
     { href: `/agency/${agencyId}/clients`, label: "Clients", icon: Building2 },
-    { href: `/agency/${agencyId}/team`, label: "Team", icon: Users },
     { href: `/agency/${agencyId}/billing`, label: "Billing", icon: CreditCard },
     { href: `/agency/${agencyId}/settings`, label: "Settings", icon: Settings },
   ];

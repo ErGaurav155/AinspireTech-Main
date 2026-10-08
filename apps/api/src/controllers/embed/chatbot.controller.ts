@@ -1,6 +1,6 @@
 import { generateGptResponse } from "@/services/ai.service";
 import { Request, Response } from "express";
-import { usedTokens } from "@/services/token.service";
+import { hasSufficientTokens, usedTokens } from "@/services/token.service";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
 
@@ -36,6 +36,14 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
     }
 
     await connectToDatabase();
+
+    if (!(await hasSufficientTokens(userId, 1, agentId))) {
+      return res.status(402).json({
+        success: false,
+        error: "Monthly AI token allowance exhausted. AI replies resume next month.",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     // Generate AI response
     const result = await generateGptResponse({
@@ -132,8 +140,7 @@ export const handleChatbotRequest = async (req: Request, res: Response) => {
         if (tokenError.message === "Insufficient tokens") {
           return res.status(402).json({
             success: false,
-            error:
-              "Insufficient tokens. Please upgrade your plan to continue.",
+            error: "Monthly AI token allowance exhausted. AI replies resume next month.",
             timestamp: new Date().toISOString(),
           });
         }

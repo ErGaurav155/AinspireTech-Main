@@ -17,6 +17,16 @@ export type PlatformCatalogItem = {
   active: boolean;
 };
 
+export type PlatformAddonCatalogItem = {
+  code: string;
+  revision: number;
+  name: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  razorpayProductId: string;
+  limits: LimitEntitlements;
+};
+
 const baseFeatures: FeatureEntitlements = {
   whatsapp: true,
   instagram: true,
@@ -41,9 +51,9 @@ export const AGENCY_PLAN_TIERS = [
     features: {},
     limits: {
       clientWorkspaces: 5,
-      teamMembers: 2,
       aiTokens: 1_000_000,
-      conversations: 10_000,
+      aiTokensPerWorkspace: 200_000,
+      conversations: -1,
       instagramAccounts: 15,
       whatsappAccounts: 5,
       websiteChatbots: 5,
@@ -60,9 +70,9 @@ export const AGENCY_PLAN_TIERS = [
     features: { advancedReporting: true, customBranding: true },
     limits: {
       clientWorkspaces: 20,
-      teamMembers: 5,
       aiTokens: 5_000_000,
-      conversations: 50_000,
+      aiTokensPerWorkspace: 250_000,
+      conversations: -1,
       instagramAccounts: 60,
       whatsappAccounts: 20,
       websiteChatbots: 20,
@@ -83,9 +93,9 @@ export const AGENCY_PLAN_TIERS = [
     },
     limits: {
       clientWorkspaces: 50,
-      teamMembers: 10,
       aiTokens: 15_000_000,
-      conversations: 150_000,
+      aiTokensPerWorkspace: 300_000,
+      conversations: -1,
       instagramAccounts: 150,
       whatsappAccounts: 50,
       websiteChatbots: 50,
@@ -114,9 +124,9 @@ export const FREE_AGENCY_PLAN = {
   } satisfies FeatureEntitlements,
   limits: {
     clientWorkspaces: 1,
-    teamMembers: 1,
     aiTokens: 100_000,
-    conversations: 1_000,
+    aiTokensPerWorkspace: 100_000,
+    conversations: -1,
     instagramAccounts: 3,
     whatsappAccounts: 1,
     websiteChatbots: 1,
@@ -142,48 +152,20 @@ export const AGENCY_PLAN_CATALOG: PlatformCatalogItem[] = AGENCY_PLAN_TIERS.flat
     })),
 );
 
-export const AGENCY_ADDON_CATALOG = [
-  {
-    code: "extra-client-slots",
-    revision: 1,
-    name: "5 Extra Client Workspaces",
-    monthlyPrice: 2_499,
-    yearlyPrice: 24_990,
-    razorpayProductId: "addon-extra-client-slots",
-    limits: {
-      clientWorkspaces: 5,
-      instagramAccounts: 15,
-      whatsappAccounts: 5,
-      websiteChatbots: 5,
-    },
-  },
-  {
-    code: "extra-team-seats",
-    revision: 1,
-    name: "2 Extra Agency Team Seats",
-    monthlyPrice: 999,
-    yearlyPrice: 9_990,
-    razorpayProductId: "addon-extra-team-seats",
-    limits: { teamMembers: 2 },
-  },
-  {
-    code: "extra-ai-tokens",
-    revision: 1,
-    name: "1 Million Extra AI Tokens",
-    monthlyPrice: 1_499,
-    yearlyPrice: 14_990,
-    razorpayProductId: "addon-extra-ai-tokens",
-    limits: { aiTokens: 1_000_000 },
-  },
-  {
-    code: "extra-conversations",
-    revision: 1,
-    name: "10,000 Extra Conversations",
-    monthlyPrice: 999,
-    yearlyPrice: 9_990,
-    razorpayProductId: "addon-extra-conversations",
-    limits: { conversations: 10_000 },
-  },
+export const AGENCY_ADDONS_ENABLED = false;
+export const AGENCY_ADDON_CATALOG: PlatformAddonCatalogItem[] = [];
+
+// Kept as explicit tombstones so previously synchronized definitions cannot
+// remain visible or purchasable after agency team seats were removed.
+export const RETIRED_AGENCY_ADDON_CODES = [
+  "extra-client-slots-monthly",
+  "extra-client-slots-yearly",
+  "extra-team-seats-monthly",
+  "extra-team-seats-yearly",
+  "extra-ai-tokens-monthly",
+  "extra-ai-tokens-yearly",
+  "extra-conversations-monthly",
+  "extra-conversations-yearly",
 ] as const;
 
 export const PLATFORM_URLS = {

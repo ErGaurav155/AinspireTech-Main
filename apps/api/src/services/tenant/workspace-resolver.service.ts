@@ -6,7 +6,6 @@ import type {
 import { connectToDatabase } from "@/config/database.config";
 import Agency from "@/models/tenant/Agency.model";
 import AgencyClient from "@/models/tenant/AgencyClient.model";
-import AgencyMember from "@/models/tenant/AgencyMember.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import { getEffectivePermissions } from "@/services/auth/permission.service";
@@ -100,32 +99,22 @@ export async function resolveWorkspaceAccess({
 
   if (!workspace.agencyId) return null;
 
-  const [relationship, agencyMember, agency] = await Promise.all([
+  const [relationship, agency] = await Promise.all([
     AgencyClient.findOne({
       agencyId: workspace.agencyId,
       workspaceId: workspace._id,
-      status: "active",
-    }).lean(),
-    AgencyMember.findOne({
-      agencyId: workspace.agencyId,
-      userId,
       status: "active",
     }).lean(),
     Agency.findById(workspace.agencyId).select("ownerUserId status").lean(),
   ]);
 
   if (!relationship || !agency || agency.status !== "active") return null;
+  if (agency.ownerUserId !== userId) return null;
 
-  const isAgencyOwner = agency.ownerUserId === userId;
-  if (!agencyMember && !isAgencyOwner) return null;
-
-  const role = isAgencyOwner ? "AGENCY_OWNER" : agencyMember!.role;
-  const granted = [
-    ...(agencyMember?.permissions || []),
-    ...(relationship.defaultPermissions || []).filter((permission) =>
-      WORKSPACE_DELEGATABLE_PERMISSIONS.has(permission),
-    ),
-  ];
+  const role = "AGENCY_OWNER" as const;
+  const granted = relationship.defaultPermissions.filter((permission) =>
+    WORKSPACE_DELEGATABLE_PERMISSIONS.has(permission),
+  );
 
   return {
     workspaceId,
@@ -135,7 +124,6 @@ export async function resolveWorkspaceAccess({
     permissions: getEffectivePermissions({
       role,
       granted,
-      denied: agencyMember?.deniedPermissions || [],
     }),
     accessKind: "agency_management",
     billingOwnerType: workspace.billingOwnerType,

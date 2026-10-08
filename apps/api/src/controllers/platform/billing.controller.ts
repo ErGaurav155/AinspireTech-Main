@@ -7,6 +7,12 @@ import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
 import { getRazorpay } from "@/utils/util";
+import {
+  AGENCY_ADDONS_ENABLED,
+  RETIRED_AGENCY_ADDON_CODES,
+} from "@/config/platform-catalog.config";
+
+const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
 const planCheckoutSchema = z.object({ planCode: z.string().trim().min(2).max(100) }).strict();
 const addonCheckoutSchema = z
@@ -28,17 +34,11 @@ const checkoutKey = (req: Request, type: string) => {
 
 export const listAgencyPlansController = async (req: Request, res: Response) => {
   try {
-    const [plans, addons] = await Promise.all([
-      PlanDefinition.find({ accountType: "AGENCY", active: true })
-        .select("code revision name description billingInterval price currency features limits kind")
-        .sort({ price: 1 })
-        .lean(),
-      AddonDefinition.find({ accountTypes: "AGENCY", active: true })
-        .select("code revision name billingInterval price currency entitlementChanges limitOperation")
-        .sort({ price: 1 })
-        .lean(),
-    ]);
-    return ok(res, { plans, addons });
+    const plans = await PlanDefinition.find({ accountType: "AGENCY", active: true })
+      .select("code revision name description billingInterval price currency features limits kind")
+      .sort({ price: 1 })
+      .lean();
+    return ok(res, { plans, addons: [] });
   } catch (error) {
     console.error("Unable to list agency plans:", error);
     return fail(res, 500, "Unable to list plans");
@@ -160,8 +160,12 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
 };
 
 export const createAgencyAddonCheckoutController = async (req: Request, res: Response) => {
+  if (!AGENCY_ADDONS_ENABLED) return fail(res, 404, "Agency add-ons are not available");
   const parsed = addonCheckoutSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, "Invalid request body", parsed.error.flatten());
+  if (retiredAgencyAddonCodes.has(parsed.data.addonCode.toLowerCase())) {
+    return fail(res, 404, "Add-on is not available");
+  }
   const key = checkoutKey(req, "addon");
   if (!key) return fail(res, 400, "A valid X-Idempotency-Key header is required");
   const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
@@ -234,6 +238,7 @@ export const createAgencyAddonCheckoutController = async (req: Request, res: Res
 };
 
 export const updateAgencyAddonController = async (req: Request, res: Response) => {
+  if (!AGENCY_ADDONS_ENABLED) return fail(res, 404, "Agency add-ons are not available");
   const parsed = addonQuantitySchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, "Invalid add-on quantity", parsed.error.flatten());
   const purchaseId = String(req.params.purchaseId || "");

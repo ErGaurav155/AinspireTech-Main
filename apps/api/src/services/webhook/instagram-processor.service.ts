@@ -10,6 +10,7 @@ import {
   sendInstagramAiKnowledgeReply,
   sendDMStarterQuickReplies,
 } from "@/services/automation/message-processor.service";
+import { checkAgencyWorkspaceAiTokens } from "@/services/usage/agency-ai-usage.service";
 
 function getQuickReplyKeyword(payload?: string) {
   if (!payload || !payload.startsWith("DM_KEYWORD_")) return "";
@@ -38,6 +39,24 @@ export async function processInstagramWebhook(payload: any): Promise<{
     if (payload.entry && Array.isArray(payload.entry)) {
       for (const entry of payload.entry) {
         const instagramBusinessId = entry.id;
+
+        const managedAccount = await InstagramAccount.findOne({
+          instagramId: instagramBusinessId,
+          isActive: true,
+        })
+          .select("workspaceId")
+          .lean();
+        if (managedAccount?.workspaceId) {
+          const quota = await checkAgencyWorkspaceAiTokens(
+            String(managedAccount.workspaceId),
+          );
+          if (quota && !quota.allowed) {
+            results.errors.push(
+              `Monthly AI token allowance exhausted for Instagram account ${instagramBusinessId}`,
+            );
+            continue;
+          }
+        }
 
         // ── Changes (comments, story mentions) ─────────────────────────────
         if (entry.changes && Array.isArray(entry.changes)) {

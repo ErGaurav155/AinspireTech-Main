@@ -3,6 +3,7 @@ import { connectToDatabase, mongoose } from "@/config/database.config";
 import {
   AGENCY_ADDON_CATALOG,
   AGENCY_PLAN_CATALOG,
+  RETIRED_AGENCY_ADDON_CODES,
 } from "@/config/platform-catalog.config";
 import AddonDefinition from "@/models/billing/AddonDefinition.model";
 import PlanDefinition from "@/models/billing/PlanDefinition.model";
@@ -107,6 +108,16 @@ async function main() {
       );
     }
   }
+
+  await AddonDefinition.updateMany(
+    {
+      $or: [
+        { accountTypes: "AGENCY" },
+        { code: { $in: [...RETIRED_AGENCY_ADDON_CODES] } },
+      ],
+    },
+    { $set: { active: false } },
+  );
 
   console.info(
     `Synchronized ${AGENCY_PLAN_CATALOG.length} agency plans and ${AGENCY_ADDON_CATALOG.length * 2} add-ons.`,

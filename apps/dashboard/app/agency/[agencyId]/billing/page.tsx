@@ -10,7 +10,7 @@ import { createAgencyPlanCheckout, getAgencyPlans } from "@/lib/services/platfor
 export default function AgencyBillingPage() {
   const { agencyId } = useParams<{ agencyId: string }>();
   const { apiRequest } = useApi();
-  const [catalog, setCatalog] = useState<{ plans: any[]; addons: any[] }>({ plans: [], addons: [] });
+  const [catalog, setCatalog] = useState<{ plans: any[] }>({ plans: [] });
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -52,10 +52,9 @@ export default function AgencyBillingPage() {
         const limits = plan.limits || {};
         const features = plan.features || {};
         return <article key={plan.code} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none"><h2 className="text-xl font-bold">{plan.name}</h2><p className="mt-2 min-h-10 text-sm text-slate-500 dark:text-slate-400">{plan.description}</p><p className="mt-6 text-3xl font-bold">₹{Number(plan.price).toLocaleString("en-IN")}</p><p className="text-sm text-slate-500 dark:text-slate-400">per {interval === "monthly" ? "month" : "year"}</p><ul className="mt-6 space-y-3 text-sm text-slate-700 dark:text-slate-300">{[
-          `${limits.clientWorkspaces} client workspaces`, `${limits.teamMembers} agency team members`, "1 WhatsApp account per client", "3 Instagram accounts per client", "1 website chatbot per client", `${Number(limits.aiTokens || 0).toLocaleString("en-IN")} AI tokens`, features.advancedReporting ? "Advanced reporting" : "Standard reporting", features.customBranding ? "Branding controls" : "RocketReplAI branding", features.prioritySupport ? "Priority support" : "Standard support", "AI Call Assistant — coming soon",
+          `${limits.clientWorkspaces} client members (one per workspace)`, "1 agency owner account", "1 WhatsApp account per client", "3 Instagram accounts per client", "1 website chatbot per client", `${Number(limits.aiTokensPerWorkspace || 0).toLocaleString("en-IN")} AI tokens per client each month`, `${Number(limits.aiTokens || 0).toLocaleString("en-IN")} total agency AI tokens`, "Unlimited conversations while AI tokens remain", features.advancedReporting ? "Advanced reporting" : "Standard reporting", features.customBranding ? "Branding controls" : "RocketReplAI branding", features.prioritySupport ? "Priority support" : "Standard support", "AI Call Assistant — coming soon",
         ].map((item) => <li key={item} className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />{item}</li>)}</ul><button onClick={() => choose(plan)} disabled={busy === plan.code} className="mt-7 w-full rounded-xl bg-violet-500 px-5 py-3 font-semibold text-white disabled:opacity-50">{busy === plan.code ? "Please wait…" : `Choose ${plan.name}`}</button></article>;
       })}</div>
-      <section className="mt-10"><h2 className="text-2xl font-bold">Available add-ons</h2><p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Add-on reductions and cancellation are scheduled for the billing-cycle end, so already-paid capacity remains available.</p><div className="mt-5 grid gap-4 sm:grid-cols-2">{catalog.addons.filter((addon) => addon.billingInterval === interval).map((addon) => <div key={addon.code} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none"><h3 className="font-semibold">{addon.name}</h3><p className="mt-2 text-lg font-bold">₹{Number(addon.price).toLocaleString("en-IN")} <span className="text-sm font-normal text-slate-500 dark:text-slate-400">/{interval === "monthly" ? "mo" : "yr"}</span></p></div>)}</div></section>
     </div>
   );
 }

@@ -29,20 +29,20 @@ const products = [
     tag: "Best for websites",
   },
   {
-    href: "/call",
-    icon: Phone,
-    title: "AI Call Assistant",
-    description: "Answer missed calls, qualify leads, and send summaries.",
-    price: "from ₹2,999/mo",
-    tag: "Best for local business",
-  },
-  {
     href: "/whatsapp",
     icon: MessageCircle,
     title: "WhatsApp Automation",
     description: "Automate support replies, FAQs, handoff, and appointments.",
     price: "from ₹1,999/mo",
     tag: "Best for clinics & teams",
+  },
+  {
+    href: "/call",
+    icon: Phone,
+    title: "AI Call Assistant",
+    description: "Answer missed calls, qualify leads, and send summaries.",
+    price: "from ₹2,999/mo",
+    tag: "Best for local business",
   },
 ];
 

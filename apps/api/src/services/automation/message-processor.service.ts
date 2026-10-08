@@ -26,6 +26,12 @@ import {
   objectToAppointmentAlert,
   sendAppointmentNotifications,
 } from "@/services/appointment-notification.service";
+import { Types } from "mongoose";
+import {
+  AiTokenAllowanceExhaustedError,
+  checkAgencyWorkspaceAiTokens,
+  recordAgencyWorkspaceAiTokens,
+} from "@/services/usage/agency-ai-usage.service";
 
 const MAX_INSTAGRAM_QUICK_REPLIES = 13;
 
@@ -86,6 +92,19 @@ export async function sendInstagramAiKnowledgeReply(
       return { success: false, message: dmLimitMessage(), processed: false };
     }
 
+    if (account.workspaceId) {
+      const quota = await checkAgencyWorkspaceAiTokens(
+        String(account.workspaceId),
+      );
+      if (quota && !quota.allowed) {
+        return {
+          success: false,
+          message: "Monthly AI token allowance exhausted",
+          processed: false,
+        };
+      }
+    }
+
     const result = await generateGptResponse({
       userInput: messageText,
       userfileName: knowledge.knowledgeBaseUrl,
@@ -97,6 +116,15 @@ export async function sendInstagramAiKnowledgeReply(
         })),
       clerkId,
     });
+    if (account.workspaceId) {
+      await recordAgencyWorkspaceAiTokens({
+        workspaceId: String(account.workspaceId),
+        tokens: result.tokens || 1,
+        idempotencyKey: `instagram-ai:${account.instagramId}:${senderId}:${new Types.ObjectId()}`,
+        source: "instagram_ai_reply",
+        metadata: { accountId: account.instagramId, participantId: senderId },
+      });
+    }
     const reply = result.response.trim().slice(0, 1000);
     if (!reply) {
       return { success: false, message: "AI returned no reply", processed: false };
@@ -142,6 +170,13 @@ export async function sendInstagramAiKnowledgeReply(
     });
     return { success: true, message: "AI reply sent", processed: true };
   } catch (error) {
+    if (error instanceof AiTokenAllowanceExhaustedError) {
+      return {
+        success: false,
+        message: error.message,
+        processed: false,
+      };
+    }
     console.error("[instagram:ai] Knowledge reply failed", {
       accountId,
       clerkId,

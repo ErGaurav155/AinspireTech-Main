@@ -15,7 +15,10 @@ import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
 import { calculateEntitlements } from "@/services/billing/entitlement-calculator";
-import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
+import {
+  AGENCY_ADDONS_ENABLED,
+  FREE_AGENCY_PLAN,
+} from "@/config/platform-catalog.config";
 import Agency from "@/models/tenant/Agency.model";
 
 const SERVICE_FEATURE: Record<PlatformService, EntitlementFeature> = {
@@ -75,8 +78,12 @@ export class EntitlementService {
       }).lean(),
     ]);
 
+    const effectivePurchasedAddons =
+      ownerType === "AGENCY" && !AGENCY_ADDONS_ENABLED
+        ? []
+        : purchasedAddons;
     const planIds = subscriptions.map((subscription) => subscription.planId);
-    const addonIds = purchasedAddons.map((addon) => addon.addonId);
+    const addonIds = effectivePurchasedAddons.map((addon) => addon.addonId);
     const [plans, addonDefinitions] = await Promise.all([
       PlanDefinition.find({ _id: { $in: planIds } }).lean(),
       AddonDefinition.find({ _id: { $in: addonIds }, active: true }).lean(),
@@ -143,7 +150,7 @@ export class EntitlementService {
       });
     }
 
-    for (const purchase of purchasedAddons) {
+    for (const purchase of effectivePurchasedAddons) {
       const definition = addonsById.get(String(purchase.addonId));
       if (!definition) continue;
       sourceAddonCodes.add(purchase.addonCode);

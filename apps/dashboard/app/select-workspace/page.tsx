@@ -26,6 +26,10 @@ export default function SelectWorkspacePage() {
     try {
       const context = await getPlatformContext(apiRequest);
       setData(context);
+      if (context.primaryAccountType === "BUSINESS") {
+        router.replace("/");
+        return;
+      }
       const clientOnly = context.agencies.length === 0 && context.workspaces.length === 1 && Boolean(context.workspaces[0]?.agencyId);
       if (clientOnly) router.replace(`/workspace/${context.workspaces[0]._id}`);
     } catch (value: any) {
@@ -73,7 +77,7 @@ export default function SelectWorkspacePage() {
               <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Agency dashboard</p>
             </Link>
           ))}
-          {data?.workspaces?.map((workspace: any) => (
+          {data?.workspaces?.filter((workspace: any) => Boolean(workspace.agencyId)).map((workspace: any) => (
             <Link key={workspace._id} href={`/workspace/${workspace._id}`} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-emerald-400 hover:bg-emerald-50 dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:hover:border-emerald-500/50 dark:hover:bg-white/10">
               <Store className="h-8 w-8 text-emerald-500 dark:text-emerald-400" />
               <h2 className="mt-5 text-xl font-semibold">{workspace.name}</h2>

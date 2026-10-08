@@ -5,7 +5,6 @@ import type {
 } from "@rocketreplai/shared/platform";
 import { connectToDatabase } from "@/config/database.config";
 import Agency from "@/models/tenant/Agency.model";
-import AgencyMember from "@/models/tenant/AgencyMember.model";
 import { getEffectivePermissions } from "@/services/auth/permission.service";
 
 export interface ResolvedAgencyAccess {
@@ -13,7 +12,7 @@ export interface ResolvedAgencyAccess {
   userId: string;
   role: Extract<
     PlatformRole,
-    "AGENCY_OWNER" | "AGENCY_ADMIN" | "AGENCY_STAFF"
+    "AGENCY_OWNER"
   >;
   permissions: PlatformPermission[];
 }
@@ -37,23 +36,14 @@ export async function resolveAgencyAccess({
   }).lean();
   if (!agency) return null;
 
-  const member = await AgencyMember.findOne({
-    agencyId: agency._id,
-    userId,
-    status: "active",
-  }).lean();
   const isOwner = agency.ownerUserId === userId;
-  if (!isOwner && !member) return null;
+  if (!isOwner) return null;
 
-  const role = isOwner ? "AGENCY_OWNER" : member!.role;
+  const role = "AGENCY_OWNER" as const;
   return {
     agencyId: String(agency._id),
     userId,
     role,
-    permissions: getEffectivePermissions({
-      role,
-      granted: member?.permissions,
-      denied: member?.deniedPermissions,
-    }),
+    permissions: getEffectivePermissions({ role }),
   };
 }

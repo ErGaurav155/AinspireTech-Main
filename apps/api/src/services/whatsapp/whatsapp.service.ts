@@ -16,6 +16,11 @@ import {
   WhatsAppAiDecision,
 } from "@/services/ai.service";
 import { getRuntimeSharedKnowledge } from "@/services/shared-business-knowledge-format";
+import {
+  AiTokenAllowanceExhaustedError,
+  checkAgencyWorkspaceAiTokens,
+  recordAgencyWorkspaceAiTokens,
+} from "@/services/usage/agency-ai-usage.service";
 
 const defaultAppointmentChatQuestions = [
   {
@@ -1002,6 +1007,14 @@ const generateWorkspaceAiDecision = async ({
   const businessName = workspace.organization?.name || "our business";
   let knowledge = "";
   try {
+    if (workspace.workspaceId) {
+      const quota = await checkAgencyWorkspaceAiTokens(
+        String(workspace.workspaceId),
+      );
+      if (quota && !quota.allowed) {
+        throw new AiTokenAllowanceExhaustedError();
+      }
+    }
     const knowledgeResult = await buildBusinessKnowledgeContext(workspace);
     knowledge = knowledgeResult.context;
     const conversationHistory = toAiConversationHistory(conversation);
@@ -1022,6 +1035,15 @@ const generateWorkspaceAiDecision = async ({
       conversationHistory,
       firstMessage,
     });
+    if (workspace.workspaceId) {
+      await recordAgencyWorkspaceAiTokens({
+        workspaceId: String(workspace.workspaceId),
+        tokens: decision.tokens || 1,
+        idempotencyKey: `whatsapp-ai:${workspace._id}:${crypto.randomUUID()}`,
+        source: "whatsapp_ai_reply",
+        metadata: { whatsappWorkspaceId: String(workspace._id) },
+      });
+    }
     console.info("[whatsapp:ai] Response generated", {
       workspaceId: String(workspace._id),
       intent: decision.intent,
@@ -1030,6 +1052,7 @@ const generateWorkspaceAiDecision = async ({
     });
     return decision;
   } catch (error) {
+    if (error instanceof AiTokenAllowanceExhaustedError) throw error;
     console.error("[whatsapp:ai] Response generation failed", {
       workspaceId: String(workspace._id),
       deepSeekConfigured: Boolean(process.env.DEEPSEEK_API_KEY),
@@ -2153,8 +2176,16 @@ export async function processWhatsAppWebhook(payload: any) {
         conversation.messages[conversation.messages.length - 1];
       results.push(message.id);
 
+      let hasMonthlyTokenCapacity = true;
+      if (workspace.workspaceId) {
+        const quota = await checkAgencyWorkspaceAiTokens(
+          String(workspace.workspaceId),
+        );
+        hasMonthlyTokenCapacity = !quota || quota.allowed;
+      }
       const canAutoReply =
         workspace.isConfigured &&
+        hasMonthlyTokenCapacity &&
         workspace.subscription.messagesUsed <
           workspace.subscription.messageLimit;
 
@@ -2183,6 +2214,7 @@ export async function processWhatsAppWebhook(payload: any) {
         console.info("[whatsapp:process] Auto-reply skipped", {
           waId,
           isConfigured: workspace.isConfigured,
+          hasMonthlyTokenCapacity,
           messagesUsed: workspace.subscription.messagesUsed,
           messageLimit: workspace.subscription.messageLimit,
           conversationStatus: conversation.status,
@@ -2502,6 +2534,17 @@ export async function processWhatsAppWebhook(payload: any) {
           }
         }
       } catch (error) {
+        if (error instanceof AiTokenAllowanceExhaustedError) {
+          console.info("[whatsapp:ai] Monthly workspace token allowance exhausted", {
+            workspaceId: workspace.workspaceId
+              ? String(workspace.workspaceId)
+              : undefined,
+            waId,
+          });
+          conversation.status = "open";
+          conversation.owner = "ai";
+          continue;
+        }
         console.error("WhatsApp AI automation send failed:", error);
         recordWhatsAppSendFailure({
           workspace,

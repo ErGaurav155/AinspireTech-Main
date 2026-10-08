@@ -31,6 +31,7 @@ const UsageCounterSchema = new Schema<IUsageCounter>(
         "clientWorkspaces",
         "teamMembers",
         "aiTokens",
+        "aiTokensPerWorkspace",
         "conversations",
         "instagramAccounts",
         "whatsappAccounts",
