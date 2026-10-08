@@ -32,6 +32,10 @@ import {
   checkAgencyWorkspaceAiTokens,
   recordAgencyWorkspaceAiTokens,
 } from "@/services/usage/agency-ai-usage.service";
+import {
+  checkIndividualAiTokens,
+  recordIndividualAiTokens,
+} from "@/services/usage/individual-ai-usage.service";
 
 const MAX_INSTAGRAM_QUICK_REPLIES = 13;
 
@@ -92,11 +96,25 @@ export async function sendInstagramAiKnowledgeReply(
       return { success: false, message: dmLimitMessage(), processed: false };
     }
 
+    let agencyAiMetered = false;
+    let individualAiMetered = false;
     if (account.workspaceId) {
       const quota = await checkAgencyWorkspaceAiTokens(
         String(account.workspaceId),
       );
+      agencyAiMetered = Boolean(quota);
       if (quota && !quota.allowed) {
+        return {
+          success: false,
+          message: "Monthly AI token allowance exhausted",
+          processed: false,
+        };
+      }
+    }
+    if (!agencyAiMetered) {
+      const quota = await checkIndividualAiTokens(clerkId, "instagram");
+      individualAiMetered = quota.applicable;
+      if (!quota.allowed) {
         return {
           success: false,
           message: "Monthly AI token allowance exhausted",
@@ -116,11 +134,20 @@ export async function sendInstagramAiKnowledgeReply(
         })),
       clerkId,
     });
-    if (account.workspaceId) {
+    if (agencyAiMetered && account.workspaceId) {
       await recordAgencyWorkspaceAiTokens({
         workspaceId: String(account.workspaceId),
         tokens: result.tokens || 1,
         idempotencyKey: `instagram-ai:${account.instagramId}:${senderId}:${new Types.ObjectId()}`,
+        source: "instagram_ai_reply",
+        metadata: { accountId: account.instagramId, participantId: senderId },
+      });
+    } else if (individualAiMetered) {
+      await recordIndividualAiTokens({
+        userId: clerkId,
+        service: "instagram",
+        tokens: result.tokens || 1,
+        idempotencyKey: `individual-instagram-ai:${account.instagramId}:${senderId}:${new Types.ObjectId()}`,
         source: "instagram_ai_reply",
         metadata: { accountId: account.instagramId, participantId: senderId },
       });

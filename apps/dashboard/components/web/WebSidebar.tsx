@@ -189,9 +189,6 @@ export default function WebSidebar({
       tokenValue: isDark
         ? "text-sm font-bold text-amber-400"
         : "text-sm font-bold text-amber-800",
-      tokenButton: isDark
-        ? "h-7 px-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs"
-        : "h-7 px-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs",
       selectorButton: isDark
         ? "w-full min-w-0 flex items-center justify-between gap-2 p-3 rounded-xl glass-pill hover:bg-white/[0.09] transition-colors group overflow-hidden"
         : "w-full min-w-0 flex items-center justify-between gap-2 p-3 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors group overflow-hidden",
@@ -216,9 +213,6 @@ export default function WebSidebar({
       dropdownItem: isDark
         ? "flex items-center gap-3 px-4 py-3 hover:bg-white/[0.06] transition-colors"
         : "flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors",
-      dropdownDivider: isDark
-        ? "border-t border-white/[0.06] my-1"
-        : "border-t border-gray-100 my-1",
       navLink: (isActive: boolean) =>
         isDark
           ? `flex items-center justify-between px-3 py-2.5 rounded-xl transition-all duration-150 group ${
@@ -329,13 +323,6 @@ export default function WebSidebar({
                     </p>
                   </div>
                 </div>
-                {!clientOnly && <Button
-                  onClick={() => router.push("/web/pricing")}
-                  size="sm"
-                  className={styles.tokenButton}
-                >
-                  Buy
-                </Button>}
               </div>
             </div>
           </div>
@@ -411,45 +398,6 @@ export default function WebSidebar({
                   {bot.isNew && <Badge className={styles.newBadge}>NEW</Badge>}
                 </Link>
               ))}
-              <div className={styles.dropdownDivider} />
-              <Link
-                href="/web/tokens"
-                className={styles.dropdownItem}
-                onClick={() => {
-                  setIsChatbotOpen(false);
-                  if (window.innerWidth < 768) {
-                    onToggle();
-                  }
-                }}
-              >
-                <div
-                  className={`w-7 h-7 rounded-full ${
-                    isDark ? "bg-amber-500/20" : "bg-amber-100"
-                  } flex items-center justify-center`}
-                >
-                  <Coins
-                    className={`h-3.5 w-3.5 ${
-                      isDark ? "text-amber-400" : "text-amber-600"
-                    }`}
-                  />
-                </div>
-                <div>
-                  <p
-                    className={`text-sm font-medium ${
-                      isDark ? "text-white" : "text-gray-700"
-                    }`}
-                  >
-                    Tokens
-                  </p>
-                  <p
-                    className={`text-xs ${
-                      isDark ? "text-white/40" : "text-gray-400"
-                    }`}
-                  >
-                    Monitor usage
-                  </p>
-                </div>
-              </Link>
             </div>
           )}
         </div>

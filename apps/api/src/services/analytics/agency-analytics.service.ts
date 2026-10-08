@@ -10,6 +10,7 @@ import InstaReplyLog from "@/models/insta/ReplyLog.model";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
 import MyAppointment from "@/models/MyAppointment.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
+import { aiTokenServiceFromSource } from "@/services/usage/agency-ai-usage.service";
 
 type MetricRow = { _id: Types.ObjectId; [key: string]: unknown };
 type ClientMetrics = {
@@ -93,7 +94,7 @@ export async function getAgencyAnalytics({ agencyId, from, to }: { agencyId: str
     ]),
     UsageLedger.aggregate<MetricRow>([
       { $match: { ownerType: "AGENCY", ownerId: agencyObjectId, workspaceId: { $in: activeIds }, metric: "aiTokens", status: "applied", createdAt: dateMatch } },
-      { $group: { _id: "$workspaceId", tokens: { $sum: "$amount" } } },
+      { $group: { _id: { workspaceId: "$workspaceId", source: "$source" }, tokens: { $sum: "$amount" } } },
     ]),
     UsageCounter.find({
       ownerType: "AGENCY",
@@ -107,7 +108,21 @@ export async function getAgencyAnalytics({ agencyId, from, to }: { agencyId: str
 
   const map = (rows: MetricRow[]) => new Map(rows.map((row) => [String(row._id), row]));
   const igLeadMap = map(instagramLeads), igConversationMap = map(instagramConversations), igContactMap = map(instagramContacts);
-  const webMap = map(web), webAppointmentMap = map(webAppointments), whatsappMap = map(whatsapp), usageMap = map(usage);
+  const webMap = map(web), webAppointmentMap = map(webAppointments), whatsappMap = map(whatsapp);
+  const tokenUsageByWorkspace = new Map<string, Record<"website" | "instagram" | "whatsapp" | "other", number>>();
+  for (const row of usage) {
+    const groupedId = row._id as unknown as { workspaceId: Types.ObjectId; source: string };
+    const workspaceId = String(groupedId.workspaceId);
+    const service = aiTokenServiceFromSource(groupedId.source || "");
+    const current = tokenUsageByWorkspace.get(workspaceId) || {
+      website: 0,
+      instagram: 0,
+      whatsapp: 0,
+      other: 0,
+    };
+    current[service] += number(row.tokens);
+    tokenUsageByWorkspace.set(workspaceId, current);
+  }
   const monthlyUsageMap = new Map(
     monthlyUsage.map((counter) => [String(counter.workspaceId), number(counter.used)]),
   );
@@ -119,11 +134,11 @@ export async function getAgencyAnalytics({ agencyId, from, to }: { agencyId: str
     const igConversations = igConversationMap.get(id);
     const igContacts = igContactMap.get(id);
     const website = webMap.get(id) || { _id: workspace._id };
-    const ledgerTokens = number(usageMap.get(id)?.tokens);
+    const ledgerTokens = tokenUsageByWorkspace.get(id) || { website: 0, instagram: 0, whatsapp: 0, other: 0 };
     const services = {
-      whatsapp: { ...emptyService(), leads: number(wa.leads), conversations: number(wa.conversations), contacts: number(wa.contacts), appointments: number(wa.appointments) },
-      instagram: { ...emptyService(), leads: number(igLeads?.leads), conversations: number(igConversations?.conversations), contacts: number(igContacts?.contacts) },
-      website: { ...emptyService(), tokens: ledgerTokens || number(website.tokens), leads: number(website.leads), conversations: number(website.conversations), contacts: number(website.contacts), appointments: number(webAppointmentMap.get(id)?.appointments) },
+      whatsapp: { ...emptyService(), tokens: ledgerTokens.whatsapp, leads: number(wa.leads), conversations: number(wa.conversations), contacts: number(wa.contacts), appointments: number(wa.appointments) },
+      instagram: { ...emptyService(), tokens: ledgerTokens.instagram, leads: number(igLeads?.leads), conversations: number(igConversations?.conversations), contacts: number(igContacts?.contacts) },
+      website: { ...emptyService(), tokens: ledgerTokens.website || number(website.tokens), leads: number(website.leads), conversations: number(website.conversations), contacts: number(website.contacts), appointments: number(webAppointmentMap.get(id)?.appointments) },
     };
     return {
       workspaceId: id,
@@ -143,6 +158,6 @@ export async function getAgencyAnalytics({ agencyId, from, to }: { agencyId: str
     range: { from: from.toISOString(), to: to.toISOString() },
     totals: { ...totals, monthlyTokens, bookingRate: totals.leads ? Number(((totals.appointments / totals.leads) * 100).toFixed(1)) : 0 },
     clients,
-    coverage: { tokens: "Tracked usage ledger, with website conversation totals as fallback", workspaceScopedOnly: true },
+    coverage: { tokens: "Shared workspace usage ledger grouped by service, with website conversation totals as fallback", workspaceScopedOnly: true },
   };
 }

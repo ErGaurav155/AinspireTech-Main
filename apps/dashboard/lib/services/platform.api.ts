@@ -102,3 +102,64 @@ export const createAgencyPlanCheckout = (
 
 export const getWorkspace = (apiRequest: ApiRequestFn, workspaceId: string) =>
   apiRequest<any>(`/platform/workspaces/${workspaceId}`);
+
+export type WorkspaceAiTokenUsage = {
+  mode: "agency_workspace";
+  workspaceId: string;
+  limit: number;
+  used: number;
+  remaining: number;
+  exhausted: boolean;
+  periodStart: string;
+  periodEnd: string;
+  byService: {
+    website: number;
+    instagram: number;
+    whatsapp: number;
+    other: number;
+  };
+};
+
+export type IndividualAiTokenUsage = {
+  mode: "individual";
+  service: "website" | "instagram" | "whatsapp";
+  applicable: boolean;
+  metered: boolean;
+  sharedAcrossServices: boolean;
+  limit: number;
+  used: number;
+  remaining: number;
+  exhausted: boolean;
+  periodStart: string;
+  periodEnd: string;
+  buckets: Array<{
+    key: string;
+    kind: "free" | "service" | "package";
+    label: string;
+    limit: number;
+    used: number;
+    remaining: number;
+    services: Array<"website" | "instagram" | "whatsapp">;
+  }>;
+  byService: {
+    website: number;
+    instagram: number;
+    whatsapp: number;
+  };
+};
+
+export const getWorkspaceAiTokenUsage = (
+  apiRequest: ApiRequestFn,
+  workspaceId: string,
+) =>
+  apiRequest<WorkspaceAiTokenUsage>(
+    `/platform/workspaces/${workspaceId}/usage/ai-tokens`,
+  );
+
+export const getIndividualAiTokenUsage = (
+  apiRequest: ApiRequestFn,
+  service: "website" | "instagram" | "whatsapp",
+) =>
+  apiRequest<IndividualAiTokenUsage>(
+    `/tokens/ai-usage?service=${encodeURIComponent(service)}`,
+  );

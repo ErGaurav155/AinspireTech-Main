@@ -19,8 +19,15 @@ export default function AgencySetupPage() {
   const findExistingAgency = useCallback(async () => {
     try {
       const context = await getPlatformContext(apiRequest);
-      if (context.agencies[0]?._id) { router.replace(`/agency/${context.agencies[0]._id}`); return; }
-      if (!context.canCreatePrimaryAccount && context.workspaces[0]?._id) {
+      if (context.primaryAccountType === "AGENCY" && context.agencies[0]?._id) {
+        router.replace(`/agency/${context.agencies[0]._id}`);
+        return;
+      }
+      if (context.primaryAccountType === "BUSINESS") {
+        router.replace("/");
+        return;
+      }
+      if (context.primaryAccountType === "MEMBER" && context.workspaces[0]?._id) {
         router.replace(`/workspace/${context.workspaces[0]._id}`);
         return;
       }
@@ -57,7 +64,7 @@ export default function AgencySetupPage() {
         </section>
         <aside className="rounded-3xl border border-violet-300 bg-violet-50 p-8 dark:border-violet-500/30 dark:bg-violet-500/10">
           <span className="rounded-full bg-violet-500 px-3 py-1 text-xs font-bold text-white">FREE STARTER ACCESS</span><h2 className="mt-6 text-2xl font-bold">Invite your first client free</h2><p className="mt-3 text-slate-600 dark:text-slate-300">No payment is required to create the agency or its first client workspace.</p>
-          <ul className="mt-7 space-y-4 text-sm text-slate-700 dark:text-slate-200">{["1 client workspace", "100,000 AI tokens per month", "1,000 conversations per month", "WhatsApp, Instagram and Website modules", "1 WhatsApp, 3 Instagram accounts and 1 chatbot per client"].map((item) => <li key={item} className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />{item}</li>)}</ul>
+          <ul className="mt-7 space-y-4 text-sm text-slate-700 dark:text-slate-200">{["1 client workspace", "100,000 shared AI tokens per month", "Unlimited conversations while AI tokens remain", "WhatsApp, Instagram and Website modules", "1 WhatsApp, 3 Instagram accounts and 1 chatbot per client"].map((item) => <li key={item} className="flex gap-3"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500 dark:text-emerald-400" />{item}</li>)}</ul>
           <p className="mt-8 text-xs text-slate-500 dark:text-slate-400">For another client, choose Partner, Growth Partner or Agency Pro Partner. Paid access is granted only after a verified payment webhook.</p>
         </aside>
       </div>

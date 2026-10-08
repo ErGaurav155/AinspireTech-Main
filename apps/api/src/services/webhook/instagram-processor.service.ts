@@ -44,7 +44,7 @@ export async function processInstagramWebhook(payload: any): Promise<{
           instagramId: instagramBusinessId,
           isActive: true,
         })
-          .select("workspaceId")
+          .select("workspaceId userId")
           .lean();
         if (managedAccount?.workspaceId) {
           const quota = await checkAgencyWorkspaceAiTokens(

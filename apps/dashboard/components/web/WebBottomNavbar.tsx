@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import {
   MessageSquare,
-  Coins,
   Target,
   ChevronRight,
   Zap,
@@ -34,16 +33,6 @@ const CHATBOT_ITEMS = [
 
 const MENU_ITEMS = [
   ...CHATBOT_ITEMS,
-  {
-    id: "tokens",
-    label: "Tokens",
-    href: "/web/tokens",
-    icon: Coins,
-    color: "#f59e0b",
-    description: "Monitor usage",
-    isNew: false,
-    type: "global",
-  },
 ] as const;
 
 const BASE_NAV_ITEMS = [
@@ -103,10 +92,7 @@ export default function WebBottomNavbar() {
   const isActive = useCallback((href: string) => pathname === href, [pathname]);
 
   const isMenuItemActive = useCallback(
-    (item: (typeof MENU_ITEMS)[number]) => {
-      if (item.type === "global") return pathname === item.href;
-      return pathname.startsWith(item.href);
-    },
+    (item: (typeof MENU_ITEMS)[number]) => pathname.startsWith(item.href),
     [pathname],
   );
 
@@ -161,11 +147,7 @@ export default function WebBottomNavbar() {
                       return (
                         <DropdownMenu.Item asChild key={item.id}>
                           <Link
-                            href={
-                              item.type === "global"
-                                ? item.href
-                                : `${item.href}`
-                            }
+                            href={item.href}
                             className={`flex items-center gap-3 px-4 py-3.5 transition-colors ${
                               isDark
                                 ? "hover:bg-white/[0.06] border-b border-white/[0.06]"

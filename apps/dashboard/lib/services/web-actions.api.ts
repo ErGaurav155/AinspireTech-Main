@@ -251,16 +251,8 @@ export const getEmbedFAQ = (
    TOKENS
 ========================= */
 
-export const resetFreeTokens = (apiRequest: ApiRequestFn) =>
-  apiRequest("/tokens/reset-free", { method: "POST" });
-
 export const getTokenBalance = (apiRequest: ApiRequestFn) =>
   apiRequest("/tokens/balance", { method: "GET" });
-
-export const getTokenUsage = (
-  apiRequest: ApiRequestFn,
-  period: string = "month",
-) => apiRequest(`/tokens/usage?period=${period}`, { method: "GET" });
 
 /* =========================
    OTP

@@ -13,7 +13,6 @@ import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenance
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
 import { cancelRazorPaySubscription } from "@/services/subscription.service";
-import { initializeSubscriptionTokens } from "@/services/token.service";
 import {
   sendSubscriptionEmailToOwner,
   sendSubscriptionEmailToUser,
@@ -302,8 +301,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
       chatbotName: notes.chatbotName || "AI Assistance",
       chatbotMessage: "Hi, How May I help you?",
     });
-    await initializeSubscriptionTokens(clerkId, chatbotType);
-
     if (notes.chatbotId) {
       await WebChatbot.findOneAndUpdate(
         {

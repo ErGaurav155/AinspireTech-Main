@@ -1,40 +1,16 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
-import TokenBalance from "@/models/web/token/TokenBalance.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 
 const MONTH_IN_MS = 30 * 24 * 60 * 60 * 1000;
 
-// GET /api/cron/web-token - Reset monthly web tokens and WhatsApp message usage
+// GET /api/cron/web-token - Reset monthly WhatsApp message usage.
+// AI token allowances use UTC period keys and require no refill cron.
 export const resetWebTokensController = async (req: Request, res: Response) => {
   try {
     await connectToDatabase();
 
     const now = new Date();
-    const usersToReset = await TokenBalance.find({
-      nextResetAt: { $lte: now },
-    });
-
-    let resetCount = 0;
-
-    for (const userTokenBalance of usersToReset) {
-      try {
-        // Reset tokens logic
-        userTokenBalance.freeTokens = 10000; // Set your default free tokens amount
-        userTokenBalance.lastResetAt = new Date(Date.now());
-        userTokenBalance.nextResetAt = new Date(
-          Date.now() + 30 * 24 * 60 * 60 * 1000,
-        ); // Reset in 30 days
-        await userTokenBalance.save();
-        resetCount++;
-      } catch (error) {
-        console.error(
-          `Error resetting tokens for user ${userTokenBalance.userId}:`,
-          error,
-        );
-      }
-    }
-
     const whatsappWorkspacesToReset = await WhatsAppWorkspace.find({
       $or: [
         { "subscription.nextMessageResetAt": { $lte: now } },
@@ -67,9 +43,7 @@ export const resetWebTokensController = async (req: Request, res: Response) => {
     return res.status(200).json({
       success: true,
       data: {
-        message: `Reset free web tokens for ${resetCount} users and WhatsApp message usage for ${whatsappResetCount} workspaces`,
-        resetCount,
-        webResetCount: resetCount,
+        message: `Reset WhatsApp message usage for ${whatsappResetCount} workspaces`,
         whatsappResetCount,
       },
       timestamp: now.toISOString(),

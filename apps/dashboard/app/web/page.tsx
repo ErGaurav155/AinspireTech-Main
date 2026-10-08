@@ -32,7 +32,6 @@ import { useApi } from "@/lib/useApi";
 import {
   getChatbots,
   getTokenBalance,
-  getTokenUsage,
   getConversations,
 } from "@/lib/services/web-actions.api";
 import {
@@ -44,6 +43,7 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { formatDistanceToNow } from "date-fns";
+import WorkspaceAiTokenUsageCard from "@/components/platform/WorkspaceAiTokenUsageCard";
 
 interface ChatbotOverview {
   id: string;
@@ -64,14 +64,15 @@ interface ChatbotOverview {
 }
 
 interface TokenStats {
+  agencyManaged: boolean;
   availableTokens: number;
   freeTokensRemaining: number;
-  purchasedTokensRemaining: number;
+  planTokensRemaining: number;
   totalTokensUsed: number;
   freeTokens: number;
-  purchasedTokens: number;
+  planTokens: number;
   usedFreeTokens: number;
-  usedPurchasedTokens: number;
+  usedPlanTokens: number;
   nextResetAt: string;
 }
 
@@ -102,28 +103,26 @@ export default function WebDashboardPage() {
       setError(null);
 
       // Fetch all data in parallel
-      const [chatbotsData, tokenBalanceRes, tokenUsageRes] = await Promise.all([
+      const [chatbotsData, tokenBalanceRes] = await Promise.all([
         getChatbots(apiRequest),
         getTokenBalance(apiRequest),
-        getTokenUsage(apiRequest, "month").catch(() => null),
       ]);
 
       // Process token data
       const tokenBalance = tokenBalanceRes?.data || tokenBalanceRes || {};
-      const tokenUsage = tokenUsageRes?.data || tokenUsageRes || {};
-
       const processedTokenStats: TokenStats = {
+        agencyManaged: Boolean(tokenBalance.agencyManaged),
         availableTokens: tokenBalance.availableTokens || 0,
         freeTokensRemaining: tokenBalance.freeTokensRemaining || 0,
-        purchasedTokensRemaining: tokenBalance.purchasedTokensRemaining || 0,
-        totalTokensUsed:
-          tokenBalance.totalTokensUsed ||
-          tokenUsage?.totalUsage?.totalTokens ||
+        planTokensRemaining:
+          tokenBalance.planTokensRemaining ||
+          tokenBalance.subscriptionTokensRemaining ||
           0,
-        freeTokens: tokenBalance.freeTokens || 10000,
-        purchasedTokens: tokenBalance.purchasedTokens || 0,
+        totalTokensUsed: tokenBalance.totalTokensUsed || 0,
+        freeTokens: tokenBalance.freeTokens ?? 10000,
+        planTokens: tokenBalance.planTokens || 0,
         usedFreeTokens: tokenBalance.usedFreeTokens || 0,
-        usedPurchasedTokens: tokenBalance.usedPurchasedTokens || 0,
+        usedPlanTokens: tokenBalance.usedPlanTokens || 0,
         nextResetAt:
           tokenBalance.nextResetAt ||
           new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
@@ -337,9 +336,11 @@ export default function WebDashboardPage() {
 
   const getTokenPercentage = () => {
     if (!tokenStats) return 0;
-    const totalFree = tokenStats.freeTokens || 10000;
-    const usedFree = tokenStats.usedFreeTokens || 0;
-    return Math.min(100, Math.max(0, (usedFree / totalFree) * 100));
+    const total = tokenStats.freeTokens + tokenStats.planTokens;
+    const used = tokenStats.usedFreeTokens + tokenStats.usedPlanTokens;
+    return total > 0
+      ? Math.min(100, Math.max(0, (used / total) * 100))
+      : 0;
   };
 
   if (!isLoaded) {
@@ -434,20 +435,30 @@ export default function WebDashboardPage() {
                 <span className={`text-sm font-medium ${styles.text.primary}`}>
                   {availableTokens.toLocaleString()} tokens available
                 </span>
-                <Link
-                  href="/web/tokens"
-                  className={`text-xs font-semibold ${styles.text.primary} hover:opacity-80`}
+                <span
+                  className={`text-xs font-semibold ${styles.text.secondary}`}
                 >
-                  Buy more →
-                </Link>
+                  {tokenStats?.agencyManaged
+                    ? "Agency allowance"
+                    : "Included with your plan"}
+                </span>
               </div>
 
               {/* Token Usage Progress */}
               <div className="flex items-center gap-2">
                 <span className={`text-xs ${styles.text.muted}`}>
-                  Free tokens used:{" "}
-                  {tokenStats?.usedFreeTokens?.toLocaleString() || 0} /{" "}
-                  {tokenStats?.freeTokens?.toLocaleString() || 10000}
+                  {tokenStats?.agencyManaged
+                    ? "Shared plan tokens used"
+                    : "Monthly tokens used"}
+                  :{" "}
+                  {(
+                    (tokenStats?.usedFreeTokens || 0) +
+                    (tokenStats?.usedPlanTokens || 0)
+                  ).toLocaleString()} /{" "}
+                  {(
+                    (tokenStats?.freeTokens || 0) +
+                    (tokenStats?.planTokens || 0)
+                  ).toLocaleString()}
                 </span>
                 <div
                   className={`w-32 h-2 rounded-full ${isDark ? "bg-white/[0.08]" : "bg-gray-200"}`}
@@ -468,6 +479,8 @@ export default function WebDashboardPage() {
             </div>
           </div>
         </div>
+
+        <WorkspaceAiTokenUsageCard currentService="website" />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -518,11 +531,14 @@ export default function WebDashboardPage() {
             <div className="flex items-center gap-2 mb-2">
               <Zap className="h-4 w-4 text-purple-400" />
               <span className={`text-xs ${styles.text.secondary}`}>
-                Free Tokens Left
+                {tokenStats?.agencyManaged ? "Shared Tokens Left" : "Free Tokens Left"}
               </span>
             </div>
             <p className={`text-xl font-bold ${styles.text.primary}`}>
-              {tokenStats?.freeTokensRemaining?.toLocaleString() || 0}
+              {(tokenStats?.agencyManaged
+                ? tokenStats.availableTokens
+                : tokenStats?.freeTokensRemaining
+              )?.toLocaleString() || 0}
             </p>
           </div>
 
@@ -681,31 +697,9 @@ export default function WebDashboardPage() {
           <h3 className={`text-base font-semibold mb-4 ${styles.text.primary}`}>
             Quick Actions
           </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Link
-              href="/web/tokens"
-              className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform ${styles.icon.amber}`}
-              >
-                <Coins className="h-5 w-5 text-amber-500" />
-              </div>
-              <div className="flex-1">
-                <p className={`text-sm font-medium ${styles.text.primary}`}>
-                  Tokens
-                </p>
-                <p className={`text-xs ${styles.text.muted}`}>
-                  Monitor your monthly token balance
-                </p>
-              </div>
-              <ArrowUpRight
-                className={`h-4 w-4 transition-colors ${styles.text.muted} group-hover:text-amber-500`}
-              />
-            </Link>
-
-            <Link
-              href="/web/tokens?tab=usage"
+              href="/web/chatbot-lead-generation/analytics"
               className={`flex items-center gap-3 p-3 rounded-xl transition-all group ${styles.innerCard} ${styles.rowHover}`}
             >
               <div
@@ -718,7 +712,7 @@ export default function WebDashboardPage() {
                   View Analytics
                 </p>
                 <p className={`text-xs ${styles.text.muted}`}>
-                  Track token usage and stats
+                  Track chatbot conversations and performance
                 </p>
               </div>
               <ArrowUpRight

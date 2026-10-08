@@ -21,6 +21,10 @@ import {
   checkAgencyWorkspaceAiTokens,
   recordAgencyWorkspaceAiTokens,
 } from "@/services/usage/agency-ai-usage.service";
+import {
+  checkIndividualAiTokens,
+  recordIndividualAiTokens,
+} from "@/services/usage/individual-ai-usage.service";
 
 const defaultAppointmentChatQuestions = [
   {
@@ -1007,11 +1011,24 @@ const generateWorkspaceAiDecision = async ({
   const businessName = workspace.organization?.name || "our business";
   let knowledge = "";
   try {
+    let agencyAiMetered = false;
+    let individualAiMetered = false;
     if (workspace.workspaceId) {
       const quota = await checkAgencyWorkspaceAiTokens(
         String(workspace.workspaceId),
       );
+      agencyAiMetered = Boolean(quota);
       if (quota && !quota.allowed) {
+        throw new AiTokenAllowanceExhaustedError();
+      }
+    }
+    if (!agencyAiMetered) {
+      const quota = await checkIndividualAiTokens(
+        workspace.clerkId,
+        "whatsapp",
+      );
+      individualAiMetered = quota.applicable;
+      if (quota.applicable && !quota.allowed) {
         throw new AiTokenAllowanceExhaustedError();
       }
     }
@@ -1035,9 +1052,18 @@ const generateWorkspaceAiDecision = async ({
       conversationHistory,
       firstMessage,
     });
-    if (workspace.workspaceId) {
+    if (agencyAiMetered && workspace.workspaceId) {
       await recordAgencyWorkspaceAiTokens({
         workspaceId: String(workspace.workspaceId),
+        tokens: decision.tokens || 1,
+        idempotencyKey: `whatsapp-ai:${workspace._id}:${crypto.randomUUID()}`,
+        source: "whatsapp_ai_reply",
+        metadata: { whatsappWorkspaceId: String(workspace._id) },
+      });
+    } else if (individualAiMetered) {
+      await recordIndividualAiTokens({
+        userId: workspace.clerkId,
+        service: "whatsapp",
         tokens: decision.tokens || 1,
         idempotencyKey: `whatsapp-ai:${workspace._id}:${crypto.randomUUID()}`,
         source: "whatsapp_ai_reply",

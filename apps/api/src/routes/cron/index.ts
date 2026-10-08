@@ -26,7 +26,7 @@ router.use(cronAuth(allowedCronOrigins));
 // POST /api/cron/hourly-window-reset - Hourly window reset
 router.post("/hourly-window-reset", hourlyWindowResetController);
 
-// GET /api/cron/web-token - Monthly web token and WhatsApp usage reset
+// GET /api/cron/web-token - Monthly WhatsApp message usage reset
 router.get("/web-token", resetWebTokensController);
 
 // GET /api/cron/insta - Monthly insta info reset

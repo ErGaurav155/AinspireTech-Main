@@ -8,6 +8,7 @@ import {
   getAgencyAnalyticsController,
   getPlatformContextController,
   getWorkspaceController,
+  getWorkspaceAiTokenUsageController,
   listAgencyClientsController,
   updateClientServiceController,
   deleteClientWorkspaceController,
@@ -100,6 +101,13 @@ router.patch(
   requireAgencyContext,
   requireAgencyPermission("agency.billing.manage"),
   updateAgencyAddonController,
+);
+
+router.get(
+  "/workspaces/:workspaceId/usage/ai-tokens",
+  requireWorkspaceContext,
+  requirePermission("workspace.view"),
+  getWorkspaceAiTokenUsageController,
 );
 
 router.get(

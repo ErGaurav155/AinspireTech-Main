@@ -48,6 +48,7 @@ import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import WorkspaceAiTokenUsageCard from "@/components/platform/WorkspaceAiTokenUsageCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -596,6 +597,7 @@ export default function Dashboard() {
     >
       {isDark && <Orbs />}
       <div className="p-4 md:p-6 space-y-5 mx-auto relative z-10">
+        <WorkspaceAiTokenUsageCard currentService="instagram" />
         {/* ── Automations Not Working Warning ────────────────────────────── */}
         {userAccounts.filter(
           (a) =>

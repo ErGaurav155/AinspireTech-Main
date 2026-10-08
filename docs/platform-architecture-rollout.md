@@ -67,6 +67,8 @@ All routes below require Clerk authentication except the signed webhook.
 - `GET /api/platform/context`
 - `POST /api/platform/workspaces`
 - `GET /api/platform/workspaces/:workspaceId`
+- `GET /api/platform/workspaces/:workspaceId/usage/ai-tokens`
+- `GET /api/tokens/ai-usage?service=website|instagram|whatsapp`
 - `POST /api/platform/workspaces/:workspaceId/billing/checkout`
 - `POST /api/platform/agencies`
 - `GET /api/platform/agencies/:agencyId`
@@ -111,6 +113,46 @@ client workspace and refills at the start of each UTC calendar month: Free
 Agency 100,000 tokens, Partner 200,000, Growth Partner 250,000, and Agency Pro
 Partner 300,000 tokens per client. The agency-owner account cannot run product
 automation and therefore has no personal AI-token allowance.
+
+Each agency-managed client has one shared monthly AI-token balance. Website,
+Instagram and WhatsApp AI replies debit that same workspace counter; there is
+no additional 10,000-token Website allowance for a Client Member. The usage
+ledger retains the originating service so dashboards can show the Website,
+Instagram and WhatsApp contribution without creating separate balances.
+Counters use UTC calendar-month period keys, so a new allowance becomes
+available automatically at the next month boundary without a refill cron.
+The legacy 10,000 monthly Website allowance remains available only to direct
+Individual Business accounts.
+
+Direct Individual Business billing uses a hybrid token model. Its editable
+allowances and package-to-service mapping live in
+`apps/api/src/config/individual-ai-catalog.config.ts`:
+
+- the 10,000 free Website tokens are isolated to Website;
+- each standalone paid Website, Instagram or WhatsApp subscription has its own
+  monthly service balance;
+- an active package has one monthly shared balance, but only services included
+  in that package can spend it;
+- if a customer has more than one eligible balance, usage consumes Website's
+  free balance first, then its standalone service balance, then the shared
+  package balance;
+- Instagram comment rules, lead gates, fixed replies and WhatsApp menu or
+  appointment flows continue to use their existing action/message limits.
+  Only model-generated AI replies consume AI tokens;
+- counters are keyed by UTC calendar month. The next month is available
+  automatically, so no token refill cron is required for this new ledger.
+- token allowances cannot be purchased separately. Business allowances come
+  only from the free Website tier, an active standalone service plan or an
+  active package; Client Member allowances come only from the agency plan.
+  The former `/web/tokens` dashboard, manual refill endpoint and token-purchase
+  model have been removed. Product dashboards show the relevant plan allowance
+  directly.
+
+`IndividualAiUsageCounter` stores current-period bucket totals and
+`IndividualAiUsageLedger` stores an idempotent per-service audit trail. The
+legacy Website token records remain in place for compatibility and production
+rollback, but new direct-business AI authorization and deductions use this
+ledger.
 
 The initial monthly prices are ₹9,999 (Partner), ₹29,999 (Growth Partner) and
 ₹59,999 (Agency); annual prices provide approximately two months free. Meta

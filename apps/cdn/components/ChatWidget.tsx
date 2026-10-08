@@ -75,7 +75,7 @@ interface BotConfig {
 interface TokenBalance {
   availableTokens: number;
   freeTokensRemaining: number;
-  purchasedTokensRemaining: number;
+  planTokensRemaining: number;
   totalTokensUsed: number;
 }
 
@@ -1132,7 +1132,10 @@ export default function ChatWidget({
           availableTokens:
             data.data.remainingTokens || data.data.availableTokens || 0,
           freeTokensRemaining: data.data.freeTokensRemaining || 0,
-          purchasedTokensRemaining: data.data.purchasedTokensRemaining || 0,
+          planTokensRemaining:
+            data.data.planTokensRemaining ||
+            data.data.subscriptionTokensRemaining ||
+            0,
           totalTokensUsed: data.data.totalTokensUsed || 0,
         });
       }

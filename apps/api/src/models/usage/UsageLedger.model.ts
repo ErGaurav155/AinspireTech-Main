@@ -44,6 +44,14 @@ const UsageLedgerSchema = new Schema<IUsageLedger>(
 );
 
 UsageLedgerSchema.index({ ownerType: 1, ownerId: 1, metric: 1, createdAt: -1 });
+UsageLedgerSchema.index({
+  ownerType: 1,
+  ownerId: 1,
+  workspaceId: 1,
+  metric: 1,
+  status: 1,
+  createdAt: -1,
+});
 
 const UsageLedger = (mongoose.models?.UsageLedger ||
   mongoose.model<IUsageLedger>(

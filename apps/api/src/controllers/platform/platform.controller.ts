@@ -18,6 +18,7 @@ import { getAgencyAnalytics } from "@/services/analytics/agency-analytics.servic
 import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
 import { permanentlyDeleteAgencyClientWorkspace } from "@/services/tenant/client-workspace-deletion.service";
+import { getAgencyWorkspaceAiTokenSummary } from "@/services/usage/agency-ai-usage.service";
 
 const serviceSchema = z.enum(["WHATSAPP", "INSTAGRAM", "WEBSITE", "CALL"]);
 const createAgencySchema = z.object({ name: z.string().trim().min(2).max(160) }).strict();
@@ -201,11 +202,19 @@ export const getPlatformContextController = async (req: Request, res: Response) 
       : [];
     const primaryOwnedAgencies = ownedAgencies.slice(0, 1);
     const primaryOwnedWorkspaces = ownedWorkspaces.slice(0, 1);
+    const primaryAccountType = ownedAgencies.length
+      ? "AGENCY"
+      : ownedWorkspaces.length
+        ? "BUSINESS"
+        : memberWorkspaces.length
+          ? "MEMBER"
+          : userAccount?.platformAccountType || "MEMBER";
 
     return ok(res, {
-      primaryAccountType:
-        userAccount?.platformAccountType ||
-        (ownedAgencies.length ? "AGENCY" : ownedWorkspaces.length ? "BUSINESS" : "MEMBER"),
+      // Ownership and active membership are authoritative. This prevents a
+      // stale User.platformAccountType from classifying an invited client as
+      // both BUSINESS and MEMBER, which previously caused redirect loops.
+      primaryAccountType,
       accountModes: {
         business: ownedWorkspaces.length + memberWorkspaces.length > 0,
         agency: ownedAgencies.length > 0,
@@ -424,5 +433,30 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
     });
   } catch (error) {
     return handleError(res, error, "Unable to load workspace");
+  }
+};
+
+export const getWorkspaceAiTokenUsageController = async (
+  req: Request,
+  res: Response,
+) => {
+  try {
+    const context = req.platformContext!;
+    if (context.billingOwnerType !== "AGENCY") {
+      return fail(
+        res,
+        409,
+        "This workspace uses individual product token balances",
+      );
+    }
+    const summary = await getAgencyWorkspaceAiTokenSummary(
+      context.workspaceId,
+    );
+    if (!summary) {
+      return fail(res, 404, "Workspace token allowance not found");
+    }
+    return ok(res, summary);
+  } catch (error) {
+    return handleError(res, error, "Unable to load workspace token usage");
   }
 };

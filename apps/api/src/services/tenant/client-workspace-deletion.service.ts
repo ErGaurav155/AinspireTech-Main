@@ -31,7 +31,6 @@ import WebChatConversation from "@/models/web/WebChatConversation.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import webFaq from "@/models/web/webFaq.model";
 import TokenBalance from "@/models/web/token/TokenBalance.model";
-import TokenPurchase from "@/models/web/token/TokenPurchase.model";
 import TokenUsage from "@/models/web/token/TokenUsage.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import { deleteUserData } from "@/services/user.service";
@@ -201,7 +200,6 @@ export async function permanentlyDeleteAgencyClientWorkspace({
         );
         await TokenBalance.deleteMany({ userId: { $in: exclusiveUserIds } }, { session });
         await TokenUsage.deleteMany({ userId: { $in: exclusiveUserIds } }, { session });
-        await TokenPurchase.deleteMany({ userId: { $in: exclusiveUserIds } }, { session });
         await RateLimitQueue.deleteMany({ clerkId: { $in: exclusiveUserIds } }, { session });
         await UserRateLimit.deleteMany({ clerkId: { $in: exclusiveUserIds } }, { session });
         await EmailNotificationLog.deleteMany({ userId: { $in: exclusiveUserIds } }, { session });

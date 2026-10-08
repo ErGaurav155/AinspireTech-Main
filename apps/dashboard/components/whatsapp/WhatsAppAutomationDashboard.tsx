@@ -42,6 +42,7 @@ import {
   WhatsAppAutomationsPanel,
   WhatsAppFaqsPanel,
 } from "@/components/whatsapp/WhatsAppOperationsPanels";
+import WorkspaceAiTokenUsageCard from "@/components/platform/WorkspaceAiTokenUsageCard";
 
 declare global {
   interface Window {
@@ -198,6 +199,11 @@ export default function WhatsAppAutomationDashboard({
       <div className={`${styles.container} w-full min-w-0 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full`}>
         {view === "overview" && (
           <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
+        )}
+        {view === "overview" && (
+          <div className="mb-5 md:mb-6">
+            <WorkspaceAiTokenUsageCard currentService="whatsapp" />
+          </div>
         )}
         {isLoading && (
           <div className={`rounded-2xl border ${cardClass} p-10`}>

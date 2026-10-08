@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Instagram,
   Bot,
-  Coins,
   ChevronLeft,
   ChevronRight,
   Phone,
@@ -158,17 +157,6 @@ export function Navbar({
                 </Button>
               )}
 
-              <Button
-                variant="ghost"
-                size="sm"
-                asChild
-                className={`text-xs font-semibold ${isDark ? "text-amber-400 border-amber-500/30 hover:bg-white/[0.06]" : "text-amber-500 border-amber-200 hover:bg-amber-50"} border px-3 md:px-4 py-1.5 rounded-full transition-colors`}
-              >
-                <Link href="/web/tokens">
-                  <Coins className="h-3.5 w-3.5 sm:mr-1.5" />
-                  <span className="hidden sm:inline">Tokens</span>
-                </Link>
-              </Button>
             </>
           )}
           {isCallDashboard && (

@@ -72,6 +72,7 @@ type StatsType = LeadStats | null;
 
 interface TokenBalanceInfo {
   freeTokensRemaining?: number;
+  planTokensRemaining?: number;
   subscriptionTokens?: Record<
     string,
     {
@@ -315,11 +316,12 @@ export default function DynamicOverviewPage() {
 
   // Initial load
   useEffect(() => {
-    if (!chatbotType || !isLoaded || !userId) return;
+    if (!isLoaded || !userId) return;
     if (chatbotId !== "chatbot-lead-generation") {
-      router.push("/web");
+      router.replace("/web");
       return;
     }
+    if (!chatbotType) return;
     const init = async () => {
       await Promise.all([loadChatbot(), loadData()]);
     };
@@ -488,9 +490,11 @@ export default function DynamicOverviewPage() {
   ];
 
   const freeTokensRemaining = tokenBalance?.freeTokensRemaining || 0;
-  const purchasedTokensRemaining =
-    tokenBalance?.subscriptionTokens?.[chatbotType || ""]?.remaining || 0;
-  const availableTokens = freeTokensRemaining + purchasedTokensRemaining;
+  const planTokensRemaining =
+    tokenBalance?.planTokensRemaining ??
+    tokenBalance?.subscriptionTokens?.[chatbotType || ""]?.remaining ??
+    0;
+  const availableTokens = freeTokensRemaining + planTokensRemaining;
   return (
     <div className={styles.page}>
       {isDark && <Orbs />}
@@ -661,18 +665,10 @@ export default function DynamicOverviewPage() {
                     : "bg-gray-100 text-gray-700"
                 }`}
               >
-                Purchased: {purchasedTokensRemaining.toLocaleString()}
+                Plan allowance: {planTokensRemaining.toLocaleString()}
               </span>
             </div>
           </div>
-          <Link
-            href="/web/pricing"
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all`}
-            style={{ background: pc, color: "#fff" }}
-          >
-            Buy More
-            <ArrowUpRight className="h-3 w-3" />
-          </Link>
         </div>
 
         {/* Recent Leads Section - Only for Lead Generation */}

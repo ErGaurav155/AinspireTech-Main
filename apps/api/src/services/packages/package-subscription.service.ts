@@ -19,7 +19,6 @@ import WebsiteMaintenanceSubscription, {
 import WebChatbot from "@/models/web/WebChatbot.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
-import { initializeSubscriptionTokens } from "@/services/token.service";
 import { getPlanById } from "@/services/whatsapp/whatsapp.service";
 import { syncCallWorkspaceFromSubscription } from "@/services/billing/paid-subscription.service";
 
@@ -842,9 +841,6 @@ async function grantPackageServices({
   const tasks: Promise<unknown>[] = [];
 
   if (packagePlan.includedServices.includes("web")) {
-    tasks.push(
-      initializeSubscriptionTokens(clerkId, "chatbot-lead-generation"),
-    );
     tasks.push(
       WebSubscription.findOneAndUpdate(
         {
