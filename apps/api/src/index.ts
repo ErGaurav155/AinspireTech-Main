@@ -70,6 +70,21 @@ async function connectServices() {
     const { connectToDatabase } = await import("@/config/database.config.js");
     await connectToDatabase();
     console.log("✅ Database connected");
+
+    try {
+      const { syncPlatformCatalog } = await import(
+        "@/services/billing/platform-catalog-sync.service.js"
+      );
+      const catalog = await syncPlatformCatalog();
+      console.log(
+        `✅ Platform catalog synchronized (${catalog.plans} plans, ${catalog.addons} add-ons)`,
+      );
+    } catch (catalogError: any) {
+      console.error(
+        "⚠️ Platform catalog synchronization failed:",
+        catalogError.message,
+      );
+    }
   } catch (dbError: any) {
     console.error("❌ Database connection failed:", dbError.message);
     console.error("⚠️ Continuing without database");

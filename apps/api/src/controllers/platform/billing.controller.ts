@@ -6,6 +6,7 @@ import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
+import { syncPlatformCatalog } from "@/services/billing/platform-catalog-sync.service";
 import { getRazorpay } from "@/utils/util";
 import {
   AGENCY_ADDONS_ENABLED,
@@ -34,10 +35,21 @@ const checkoutKey = (req: Request, type: string) => {
 
 export const listAgencyPlansController = async (req: Request, res: Response) => {
   try {
-    const plans = await PlanDefinition.find({ accountType: "AGENCY", active: true })
+    let plans = await PlanDefinition.find({ accountType: "AGENCY", active: true })
       .select("code revision name description billingInterval price currency features limits kind")
       .sort({ price: 1 })
       .lean();
+
+    // A fresh production database may only contain the legacy Plan records.
+    // Materialize the platform catalog once instead of returning a blank page.
+    if (plans.length === 0) {
+      await syncPlatformCatalog();
+      plans = await PlanDefinition.find({ accountType: "AGENCY", active: true })
+        .select("code revision name description billingInterval price currency features limits kind")
+        .sort({ price: 1 })
+        .lean();
+    }
+
     return ok(res, { plans, addons: [] });
   } catch (error) {
     console.error("Unable to list agency plans:", error);
