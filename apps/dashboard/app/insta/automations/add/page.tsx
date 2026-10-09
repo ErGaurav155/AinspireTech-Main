@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import { getSubscriptioninfo } from "@/lib/services/insta-actions.api";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 const FREE_DM_LIMIT = 1000;
 const FREE_FOLLOW_CHECK_LIMIT = 50;
@@ -137,7 +138,9 @@ export default function AddAutomationPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { selectedAccount } = useInstaAccount();
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [individualSubscribed, setIndividualSubscribed] = useState(false);
+  const { clientOnly } = usePlatformAccess();
+  const isSubscribed = clientOnly || individualSubscribed;
 
   const dmSent = selectedAccount?.accountDMSent || 0;
   const followChecks = selectedAccount?.accountFollowCheck || 0;
@@ -148,11 +151,11 @@ export default function AddAutomationPage() {
   const fetchSubscription = useCallback(async () => {
     if (!userId) return;
     const result = await getSubscriptioninfo(apiRequest);
-    setIsSubscribed(!!result.subscriptions?.length);
+    setIndividualSubscribed(!!result.subscriptions?.length);
   }, [apiRequest, userId]);
 
   useEffect(() => {
-    fetchSubscription().catch(() => setIsSubscribed(false));
+    fetchSubscription().catch(() => setIndividualSubscribed(false));
   }, [fetchSubscription]);
 
   return (

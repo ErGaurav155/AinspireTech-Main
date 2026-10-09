@@ -17,7 +17,13 @@ type PlatformAccess = {
 };
 const PlatformAccessContext = createContext<PlatformAccess>({ clientOnly: false, agencyOnly: false, loading: false });
 
-const CLIENT_BLOCKED_PATHS = ["/packages", "/web/pricing", "/insta/pricing", "/whatsapp/pricing"];
+const CLIENT_BLOCKED_PATHS = [
+  "/packages",
+  "/web/pricing",
+  "/insta/pricing",
+  "/whatsapp/pricing",
+  "/call/pricing",
+];
 const AUTOMATION_PATHS = ["/packages", "/web", "/insta", "/whatsapp", "/call"];
 
 export function usePlatformAccess() {
@@ -41,6 +47,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
   const workspacePath = pathname === "/workspace" || pathname.startsWith("/workspace/");
   const workspaceSelectionPath = pathname === "/select-workspace";
   const callPath = pathname === "/call" || pathname.startsWith("/call/");
+  const businessSetupPath = pathname === "/business/setup";
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -49,9 +56,13 @@ export default function PlatformAccessProvider({ children }: { children: React.R
     getPlatformContext(apiRequest)
       .then((context) => {
         if (cancelled) return;
-        const clientOnly = context.primaryAccountType === "MEMBER" && context.agencies.length === 0 && context.workspaces.length > 0 && context.workspaces.every((workspace: any) => Boolean(workspace.agencyId));
+        const clientOnly = context.primaryAccountType === "MEMBER";
         const agencyOnly = context.primaryAccountType === "AGENCY";
-        setAccess({ primaryAccountType: context.primaryAccountType, clientOnly, clientWorkspaceId: clientOnly ? context.workspaces[0]?._id : undefined, agencyOnly, agencyId: agencyOnly ? context.agencies[0]?._id : undefined, loading: false });
+        const clientWorkspace = clientOnly
+          ? context.workspaces.find((workspace: any) => Boolean(workspace.agencyId)) ||
+            context.workspaces[0]
+          : undefined;
+        setAccess({ primaryAccountType: context.primaryAccountType || undefined, clientOnly, clientWorkspaceId: clientWorkspace?._id, agencyOnly, agencyId: agencyOnly ? context.agencies[0]?._id : undefined, loading: false });
       })
       .catch(() => { if (!cancelled) setAccess({ clientOnly: false, agencyOnly: false, loading: false }); });
     return () => { cancelled = true; };
@@ -92,8 +103,17 @@ export default function PlatformAccessProvider({ children }: { children: React.R
       return "/";
     }
 
+    if (
+      !access.primaryAccountType &&
+      !businessSetupPath &&
+      (automationPath || workspacePath || workspaceSelectionPath ||
+        (agencyPath && pathname !== "/agency/setup"))
+    ) {
+      return "/";
+    }
+
     return null;
-  }, [access, agencyPath, automationPath, clientBlockedPath, pathname, workspacePath, workspaceSelectionPath]);
+  }, [access, agencyPath, automationPath, businessSetupPath, clientBlockedPath, pathname, workspacePath, workspaceSelectionPath]);
 
   useEffect(() => {
     if (redirectTarget) router.replace(redirectTarget);
@@ -104,6 +124,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
   if (redirectTarget && access.primaryAccountType === "MEMBER") return <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">Returning to your client workspace…</main>;
   if (redirectTarget && access.primaryAccountType === "AGENCY") return <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">Returning to your agency dashboard…</main>;
   if (redirectTarget && access.primaryAccountType === "BUSINESS") return <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">Returning to your individual dashboard…</main>;
+  if (redirectTarget && !access.primaryAccountType) return <main className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-500 dark:bg-slate-950 dark:text-slate-400">Choose your account type to continue…</main>;
   if (callPath) return <main className="flex min-h-screen items-center justify-center bg-slate-950 px-5 text-center text-white"><div className="max-w-xl rounded-3xl border border-cyan-500/25 bg-cyan-500/10 p-10"><Phone className="mx-auto h-10 w-10 text-cyan-400" /><p className="mt-6 text-sm font-semibold uppercase tracking-widest text-cyan-300">Coming soon</p><h1 className="mt-3 text-3xl font-bold">AI Call Assistant is not open yet</h1><p className="mt-4 text-slate-300">The service is visible as a preview only. Your existing dashboards and data are unaffected.</p></div></main>;
   return <PlatformAccessContext.Provider value={value}>{children}</PlatformAccessContext.Provider>;
 }

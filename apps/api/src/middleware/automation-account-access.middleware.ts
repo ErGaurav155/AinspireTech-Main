@@ -16,6 +16,23 @@ const deny = (res: Response) =>
     timestamp: new Date().toISOString(),
   });
 
+const denyIndividualBilling = (res: Response) =>
+  res.status(403).json({
+    success: false,
+    error:
+      "Individual pricing is available only to Business accounts. Agency client members receive services from their agency plan.",
+    details: { code: "INDIVIDUAL_BILLING_ACCESS_DENIED" },
+    timestamp: new Date().toISOString(),
+  });
+
+const requireAccountType = (res: Response) =>
+  res.status(403).json({
+    success: false,
+    error: "Choose an Individual Business or Agency account before continuing.",
+    details: { code: "PLATFORM_ACCOUNT_TYPE_REQUIRED" },
+    timestamp: new Date().toISOString(),
+  });
+
 /**
  * Agency ownership is a permanent account mode. Product engines remain
  * available to direct businesses and client-workspace members, but not to an
@@ -52,11 +69,7 @@ export const requireAutomationAccountAccess = async (
         status: "active",
       });
       if (workspaceMembership) return next();
-      const agencyMembership = await AgencyMember.exists({
-        userId,
-        status: "active",
-      });
-      return agencyMembership ? deny(res) : next();
+      return deny(res);
     }
 
     const [ownsAgency, agencyMembership, ownsWorkspace, workspaceMembership] =
@@ -65,6 +78,7 @@ export const requireAutomationAccountAccess = async (
         AgencyMember.exists({ userId, status: "active" }),
         Workspace.exists({
           $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
+          agencyId: null,
           status: { $in: ["pending", "active"] },
         }),
         WorkspaceMember.exists({ userId, status: "active" }),
@@ -74,12 +88,57 @@ export const requireAutomationAccountAccess = async (
       Boolean(ownsAgency || agencyMembership) &&
       !Boolean(ownsWorkspace || workspaceMembership);
     if (agencyOnly) return deny(res);
-    return next();
+    if (ownsWorkspace || workspaceMembership) return next();
+    return requireAccountType(res);
   } catch (error) {
     console.error("Automation account-mode authorization failed:", error);
     return res.status(500).json({
       success: false,
       error: "Unable to verify automation account access",
+      timestamp: new Date().toISOString(),
+    });
+  }
+};
+
+/**
+ * Product plans and checkout belong to direct Business accounts. MEMBER
+ * entitlements come from the agency owner and AGENCY accounts use agency
+ * billing routes, so neither account type may call individual billing APIs.
+ */
+export const requireIndividualBillingAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = getAuth(req).userId;
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "Authentication required",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    await connectToDatabase();
+    const user = await User.findOne({ clerkId: userId })
+      .select("platformAccountType")
+      .lean();
+    if (user?.platformAccountType === "BUSINESS") return next();
+    if (user?.platformAccountType) {
+      return denyIndividualBilling(res);
+    }
+    const ownsDirectWorkspace = await Workspace.exists({
+      $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
+      agencyId: null,
+      status: { $in: ["pending", "active"] },
+    });
+    return ownsDirectWorkspace ? next() : requireAccountType(res);
+  } catch (error) {
+    console.error("Individual billing account-mode authorization failed:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Unable to verify billing access",
       timestamp: new Date().toISOString(),
     });
   }

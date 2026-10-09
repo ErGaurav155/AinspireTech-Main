@@ -7,10 +7,12 @@ import {
   cancelWebsiteMaintenanceSubscriptionController,
   getDashboardPackageStatusController,
 } from "@/controllers/packages/package.controller";
+import { requireIndividualBillingAccess } from "@/middleware/automation-account-access.middleware";
 
 const router = Router();
 
 router.use(requireAuth());
+router.use(requireIndividualBillingAccess);
 
 router.get("/status", getDashboardPackageStatusController);
 router.post("/subscription/cancel", cancelDashboardPackageSubscriptionController);

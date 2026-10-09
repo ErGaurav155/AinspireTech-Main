@@ -5,6 +5,7 @@ import type {
 } from "@rocketreplai/shared/platform";
 import { connectToDatabase } from "@/config/database.config";
 import Agency from "@/models/tenant/Agency.model";
+import User from "@/models/user.model";
 import { getEffectivePermissions } from "@/services/auth/permission.service";
 
 export interface ResolvedAgencyAccess {
@@ -35,6 +36,16 @@ export async function resolveAgencyAccess({
     status: { $in: ["pending", "active"] },
   }).lean();
   if (!agency) return null;
+
+  const account = await User.findOne({ clerkId: userId })
+    .select("platformAccountType")
+    .lean();
+  if (
+    account?.platformAccountType &&
+    account.platformAccountType !== "AGENCY"
+  ) {
+    return null;
+  }
 
   const isOwner = agency.ownerUserId === userId;
   if (!isOwner) return null;

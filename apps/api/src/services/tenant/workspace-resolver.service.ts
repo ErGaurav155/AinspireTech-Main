@@ -8,6 +8,7 @@ import Agency from "@/models/tenant/Agency.model";
 import AgencyClient from "@/models/tenant/AgencyClient.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
+import User from "@/models/user.model";
 import { getEffectivePermissions } from "@/services/auth/permission.service";
 
 const WORKSPACE_DELEGATABLE_PERMISSIONS = new Set<PlatformPermission>([
@@ -57,12 +58,22 @@ export async function resolveWorkspaceAccess({
   }).lean();
   if (!workspace) return null;
 
+  const account = await User.findOne({ clerkId: userId })
+    .select("platformAccountType")
+    .lean();
+  const accountType = account?.platformAccountType;
+  if (accountType === "BUSINESS" && workspace.agencyId) return null;
+  if (accountType === "MEMBER" && !workspace.agencyId) return null;
+
   const workspaceId = String(workspace._id);
-  const membership = await WorkspaceMember.findOne({
-    workspaceId: workspace._id,
-    userId,
-    status: "active",
-  }).lean();
+  const membership =
+    accountType === "AGENCY"
+      ? null
+      : await WorkspaceMember.findOne({
+          workspaceId: workspace._id,
+          userId,
+          status: "active",
+        }).lean();
 
   if (membership) {
     return {
@@ -82,8 +93,9 @@ export async function resolveWorkspaceAccess({
   }
 
   if (
-    workspace.ownerUserId === userId ||
-    workspace.legacyOwnerClerkId === userId
+    accountType !== "AGENCY" &&
+    (workspace.ownerUserId === userId ||
+      workspace.legacyOwnerClerkId === userId)
   ) {
     return {
       workspaceId,

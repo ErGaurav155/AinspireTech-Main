@@ -24,6 +24,8 @@ const products: Array<{
 ];
 
 const signInDestination = (path: string) => `/sign-in?redirect_url=${encodeURIComponent(path)}`;
+const businessSetupDestination = (path: string) =>
+  `/business/setup?redirect=${encodeURIComponent(path)}`;
 
 export default function HomePage() {
   const router = useRouter();
@@ -72,7 +74,7 @@ export default function HomePage() {
             <div className={individualAccountLocked ? "text-center" : "mt-8 text-center"}><p className="text-sm font-semibold text-emerald-500">Individual business</p><h1 className={`mt-2 text-4xl font-bold md:text-5xl ${styles.text.primary}`}>Choose your AI product</h1><p className={`mx-auto mt-4 max-w-2xl ${styles.text.secondary}`}>{individualAccountLocked ? "Your account is registered as an Individual business. Choose the automation product you want to manage." : "After sign-in, you will return to the selected product and continue its existing setup."}</p></div>
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
               {products.map((product, index) => { const Icon = product.icon; return (
-                <motion.button key={product.key} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} disabled={product.comingSoon} onClick={() => openProtected(product.href)} className={`${styles.card} group rounded-3xl p-7 text-left disabled:cursor-not-allowed disabled:opacity-70`}>
+                <motion.button key={product.key} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} disabled={product.comingSoon} onClick={() => openProtected(businessSetupDestination(product.href))} className={`${styles.card} group rounded-3xl p-7 text-left disabled:cursor-not-allowed disabled:opacity-70`}>
                   <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${product.accent} text-white`}><Icon className="h-7 w-7" /></div>
                   <div className="mt-6 flex min-h-14 items-start justify-between gap-2"><h2 className={`text-xl font-bold ${styles.text.primary}`}>{product.title}</h2>{product.comingSoon && <span className="rounded-full bg-cyan-500/10 px-2 py-1 text-[10px] font-semibold text-cyan-400">COMING SOON</span>}</div>
                   <p className={`mt-3 min-h-24 text-sm ${styles.text.secondary}`}>{product.description}</p>

@@ -4,7 +4,7 @@ export type PlatformService = "WHATSAPP" | "INSTAGRAM" | "WEBSITE" | "CALL";
 
 export const getPlatformContext = (apiRequest: ApiRequestFn) =>
   apiRequest<{
-    primaryAccountType: "AGENCY" | "BUSINESS" | "MEMBER";
+    primaryAccountType: "AGENCY" | "BUSINESS" | "MEMBER" | null;
     accountModes: { business: boolean; agency: boolean };
     canCreatePrimaryAccount: boolean;
     agencies: any[];

@@ -135,7 +135,7 @@ export class ProvisioningService {
     await connectToDatabase();
     const alreadyOwned = await Workspace.findOne({
       $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
-      agencyId: { $exists: false },
+      agencyId: null,
       status: { $ne: "archived" },
     }).sort({ createdAt: 1 }).lean();
     if (alreadyOwned) {
@@ -317,7 +317,7 @@ export class ProvisioningService {
     const [ownedBusiness, memberElsewhere, user] = await Promise.all([
       Workspace.findOne({
         $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
-        agencyId: { $exists: false },
+        agencyId: null,
         status: { $ne: "archived" },
       }).lean(),
       hasPlatformMembership(userId),
@@ -457,6 +457,19 @@ export class ProvisioningService {
           input,
         );
       }
+    }
+
+    const existingInvitee = await User.findOne({
+      email: input.ownerEmail.toLowerCase(),
+    })
+      .select("platformAccountType")
+      .lean();
+    if (existingInvitee?.platformAccountType) {
+      const error = new Error(
+        "This email already belongs to a RocketReplAI account. Client invitations require an email that is not already registered as an Agency, Business, or Member account.",
+      ) as Error & { code?: string };
+      error.code = "INVITEE_ACCOUNT_CONFLICT";
+      throw error;
     }
 
     const [agency, entitlements] = await Promise.all([

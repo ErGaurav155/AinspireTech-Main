@@ -36,6 +36,7 @@ import {
 } from "@/lib/services/insta-actions.api";
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 import Link from "next/link";
 import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 
@@ -555,7 +556,7 @@ export default function CreateAutomationPage() {
   const [followUpLinkForms, setFollowUpLinkForms] = useState<
     Record<number, { url: string; title: string; open: boolean }>
   >({});
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [individualSubscribed, setIndividualSubscribed] = useState(false);
   const [isLoadingSubscription, setIsLoadingSubscription] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -563,6 +564,8 @@ export default function CreateAutomationPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { clientOnly } = usePlatformAccess();
+  const isSubscribed = clientOnly || individualSubscribed;
 
   // ─── Styles ───────────────────────────────────────────────────────────────
 
@@ -855,7 +858,7 @@ export default function CreateAutomationPage() {
         const result = await getSubscriptioninfo(apiRequest);
         const subscribed =
           result.subscriptions && result.subscriptions.length > 0;
-        setIsSubscribed(subscribed);
+        setIndividualSubscribed(subscribed);
       } catch (error) {
         console.error("Error fetching subscription:", error);
       } finally {

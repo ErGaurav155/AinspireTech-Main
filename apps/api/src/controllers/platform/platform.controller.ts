@@ -90,6 +90,11 @@ const handleError = (res: Response, error: any, fallback: string) => {
       code: "PRIMARY_ACCOUNT_ALREADY_EXISTS",
     });
   }
+  if (error?.code === "INVITEE_ACCOUNT_CONFLICT") {
+    return fail(res, 409, error.message, {
+      code: "INVITEE_ACCOUNT_CONFLICT",
+    });
+  }
   return fail(res, 500, fallback);
 };
 
@@ -178,13 +183,17 @@ export const getPlatformContextController = async (req: Request, res: Response) 
   if (!userId) return fail(res, 401, "Authentication required");
   try {
     await connectToDatabase();
-    const [ownedAgencies, ownedWorkspaces, workspaceMemberships, userAccount] =
+    const [ownedAgencies, directOwnedWorkspaces, workspaceMemberships, userAccount] =
       await Promise.all([
         Agency.find({ ownerUserId: userId, status: { $ne: "archived" } })
           .sort({ createdAt: 1, _id: 1 })
           .lean(),
         Workspace.find({
           $or: [{ ownerUserId: userId }, { legacyOwnerClerkId: userId }],
+          // An invited client owner is also stored in ownerUserId, but an
+          // agency-managed workspace must never turn that MEMBER into a
+          // direct BUSINESS account.
+          agencyId: null,
           status: { $ne: "archived" },
         })
           .sort({ createdAt: 1, _id: 1 })
@@ -193,39 +202,51 @@ export const getPlatformContextController = async (req: Request, res: Response) 
         User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
       ]);
 
-    const ownedWorkspaceIds = new Set(ownedWorkspaces.map((workspace) => String(workspace._id)));
+    const directOwnedWorkspaceIds = new Set(
+      directOwnedWorkspaces.map((workspace) => String(workspace._id)),
+    );
     const memberWorkspaceIds = workspaceMemberships
       .map((membership) => membership.workspaceId)
-      .filter((id) => !ownedWorkspaceIds.has(String(id)));
+      .filter((id) => !directOwnedWorkspaceIds.has(String(id)));
     const memberWorkspaces = memberWorkspaceIds.length
       ? await Workspace.find({ _id: { $in: memberWorkspaceIds }, status: { $ne: "archived" } }).lean()
       : [];
     const primaryOwnedAgencies = ownedAgencies.slice(0, 1);
-    const primaryOwnedWorkspaces = ownedWorkspaces.slice(0, 1);
-    const primaryAccountType = ownedAgencies.length
+    const primaryOwnedWorkspaces = directOwnedWorkspaces.slice(0, 1);
+    const inferredAccountType = ownedAgencies.length
       ? "AGENCY"
-      : ownedWorkspaces.length
+      : directOwnedWorkspaces.length
         ? "BUSINESS"
         : memberWorkspaces.length
           ? "MEMBER"
-          : userAccount?.platformAccountType || "MEMBER";
+          : undefined;
+    // The type chosen at onboarding is immutable for the lifetime of this
+    // Clerk user. Ownership inference only supports legacy records that have
+    // not yet been backfilled.
+    const primaryAccountType =
+      userAccount?.platformAccountType || inferredAccountType || null;
+
+    const agencies = primaryAccountType === "AGENCY" ? primaryOwnedAgencies : [];
+    const workspaces =
+      primaryAccountType === "BUSINESS"
+        ? primaryOwnedWorkspaces
+        : primaryAccountType === "MEMBER"
+          ? memberWorkspaces
+          : [];
 
     return ok(res, {
-      // Ownership and active membership are authoritative. This prevents a
-      // stale User.platformAccountType from classifying an invited client as
-      // both BUSINESS and MEMBER, which previously caused redirect loops.
       primaryAccountType,
       accountModes: {
-        business: ownedWorkspaces.length + memberWorkspaces.length > 0,
-        agency: ownedAgencies.length > 0,
+        business: primaryAccountType === "BUSINESS",
+        agency: primaryAccountType === "AGENCY",
       },
       canCreatePrimaryAccount:
         !userAccount?.platformAccountType &&
         ownedAgencies.length === 0 &&
-        ownedWorkspaces.length === 0 &&
+        directOwnedWorkspaces.length === 0 &&
         memberWorkspaces.length === 0,
-      agencies: primaryOwnedAgencies,
-      workspaces: [...primaryOwnedWorkspaces, ...memberWorkspaces],
+      agencies,
+      workspaces,
     });
   } catch (error) {
     return handleError(res, error, "Unable to load platform context");

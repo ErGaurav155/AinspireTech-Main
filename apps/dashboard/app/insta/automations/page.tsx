@@ -27,6 +27,7 @@ import {
 import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // Types
 interface ContentItem {
@@ -92,10 +93,12 @@ export default function AutomationsPage() {
     useInstaAccount();
   const [deletingTemplateName, setDeletingTemplateName] = useState<string>("");
   const [hasLoadedInitial, setHasLoadedInitial] = useState(false);
-  const [isSubscribed, setIsSubscribed] = useState(false);
+  const [individualSubscribed, setIndividualSubscribed] = useState(false);
   const loadMoreCountRef = useRef(0);
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
+  const { clientOnly } = usePlatformAccess();
+  const isSubscribed = clientOnly || individualSubscribed;
 
   const { styles, isDark } = useThemeStyles();
 
@@ -241,8 +244,8 @@ export default function AutomationsPage() {
   useEffect(() => {
     if (!userId) return;
     getSubscriptioninfo(apiRequest)
-      .then((result) => setIsSubscribed(!!result.subscriptions?.length))
-      .catch(() => setIsSubscribed(false));
+      .then((result) => setIndividualSubscribed(!!result.subscriptions?.length))
+      .catch(() => setIndividualSubscribed(false));
   }, [apiRequest, userId]);
 
   // Fetch templates - only when selectedAccount is available

@@ -39,6 +39,7 @@ import {
   useCallAssistantAdmin,
 } from "@/lib/call-access";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
+import SidebarAiTokenUsage from "@/components/platform/SidebarAiTokenUsage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -495,6 +496,8 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
             )}
           </div>
         )}
+
+        <SidebarAiTokenUsage />
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">

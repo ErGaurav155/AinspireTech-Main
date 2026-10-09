@@ -43,6 +43,7 @@ import {
   useCallAssistantAdmin,
 } from "@/lib/call-access";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
+import SidebarAiTokenUsage from "@/components/platform/SidebarAiTokenUsage";
 
 // Chatbot items
 const CHATBOT_ITEMS = [
@@ -308,7 +309,7 @@ export default function WebSidebar({
         </div>
 
         {/* Token Balance Badge */}
-        {tokenBalance > 0 && (
+        {!clientOnly && tokenBalance > 0 && (
           <div className="px-4 pt-4">
             <div className={styles.tokenCard}>
               <div className="flex items-center justify-between">
@@ -327,6 +328,8 @@ export default function WebSidebar({
             </div>
           </div>
         )}
+
+        <SidebarAiTokenUsage />
 
         {/* Chatbot Selector */}
         <div className="p-4 relative z-10">

@@ -30,6 +30,7 @@ import {
   useCallAssistantAdmin,
 } from "@/lib/call-access";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
+import SidebarAiTokenUsage from "@/components/platform/SidebarAiTokenUsage";
 import { useApi } from "@/lib/useApi";
 import { getWhatsAppDashboard } from "@/lib/services/whatsapp-actions.api";
 
@@ -315,6 +316,8 @@ export default function WhatsAppSidebar({
               </div>
             )}
           </div>
+
+          <SidebarAiTokenUsage />
 
           <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
             {NAV_ITEMS.filter((item) => !hideClientBilling || !["Pricing", "Packages"].includes(item.label)).map((item) => {

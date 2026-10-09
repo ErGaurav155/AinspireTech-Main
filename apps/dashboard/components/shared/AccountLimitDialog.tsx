@@ -14,6 +14,7 @@ import {
 
 import { Crown, AlertTriangle } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 interface AccountLimitDialogProps {
   open: boolean;
@@ -32,6 +33,7 @@ export function AccountLimitDialog({
 }: AccountLimitDialogProps) {
   const router = useRouter();
   const { styles, isDark } = useThemeStyles();
+  const { clientOnly } = usePlatformAccess();
   const isInsta = dashboardType === "insta";
 
   return (
@@ -59,7 +61,13 @@ export function AccountLimitDialog({
           <AlertDialogDescription className={styles.text.secondary}>
             Your current plan allows {accountLimit} account(s). You currently
             have {currentAccounts} account(s) connected.
-            {isInsta ? (
+            {clientOnly ? (
+              <>
+                {" "}
+                This allowance is controlled by your agency plan. Contact your
+                agency if you need more capacity.
+              </>
+            ) : isInsta ? (
               <>
                 {" "}
                 Upgrade to Pro to connect up to 3 Instagram accounts and unlock
@@ -84,15 +92,21 @@ export function AccountLimitDialog({
           >
             Cancel
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={() =>
-              router.push(isInsta ? "/insta/pricing" : "/web/pricing")
-            }
-            className={styles.button.primary}
-          >
-            <Crown className="h-4 w-4 mr-2" />
-            Upgrade Now
-          </AlertDialogAction>
+          {clientOnly ? (
+            <AlertDialogAction className={styles.button.primary}>
+              Got it
+            </AlertDialogAction>
+          ) : (
+            <AlertDialogAction
+              onClick={() =>
+                router.push(isInsta ? "/insta/pricing" : "/web/pricing")
+              }
+              className={styles.button.primary}
+            >
+              <Crown className="h-4 w-4 mr-2" />
+              Upgrade Now
+            </AlertDialogAction>
+          )}
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

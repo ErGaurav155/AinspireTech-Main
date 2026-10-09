@@ -49,6 +49,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { toast } from "sonner";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import WorkspaceAiTokenUsageCard from "@/components/platform/WorkspaceAiTokenUsageCard";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -235,6 +236,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { clientOnly } = usePlatformAccess();
 
   // Use context to get accounts
   const {
@@ -340,7 +342,7 @@ export default function Dashboard() {
   const transformContextAccountsToDashboard = useCallback(
     (accounts: any[]): DashboardAccount[] => {
       // Get subscription info to determine limits
-      const isPro = subscriptions.length > 0;
+      const isPro = clientOnly || subscriptions.length > 0;
       const accountLimit = isPro
         ? PRO_PLAN_ACCOUNT_LIMIT
         : FREE_PLAN_ACCOUNT_LIMIT;
@@ -384,7 +386,7 @@ export default function Dashboard() {
         tier: isPro ? "pro" : "free",
       }));
     },
-    [subscriptions],
+    [clientOnly, subscriptions],
   );
 
   const handleImageError = useCallback((id: string): void => {
@@ -566,7 +568,7 @@ export default function Dashboard() {
 
   // ── Derived values for stat cards ─────────────────────────────────────────────
 
-  const isPro = subscriptions.length > 0;
+  const isPro = clientOnly || subscriptions.length > 0;
   const hasConnectedAccounts = userAccounts.length > 0;
 
   // Contacts: Show locked for free users, show count with ∞ for pro

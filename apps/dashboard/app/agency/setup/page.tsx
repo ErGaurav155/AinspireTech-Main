@@ -48,7 +48,8 @@ export default function AgencySetupPage() {
     setBusy(true); setError("");
     try {
       const result = await createAgency(apiRequest, name.trim());
-      router.replace(`/agency/${result.agency._id}`);
+      // Reload the root access provider after permanently claiming AGENCY.
+      window.location.replace(`/agency/${result.agency._id}`);
     } catch (value: any) { setError(value.message || "Unable to create agency"); setBusy(false); }
   };
 

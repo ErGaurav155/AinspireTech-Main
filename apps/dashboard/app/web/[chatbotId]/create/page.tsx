@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import SharedBusinessKnowledgeForm, {
   type SharedKnowledgeData,
 } from "@/components/shared/SharedBusinessKnowledgeForm";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 type ChatbotTypeId = "chatbot-lead-generation";
 type BuildStep = "details" | "creating";
@@ -65,6 +66,7 @@ export default function BuildChatbotPage() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { clientOnly } = usePlatformAccess();
 
   const isValidId = VALID_IDS.includes(rawId as ChatbotTypeId);
   const chatbotType = isValidId ? (rawId as ChatbotTypeId) : null;
@@ -507,7 +509,7 @@ export default function BuildChatbotPage() {
           )}
         </div>
 
-        <div
+        {!clientOnly && <div
           className={`mt-6 ${
             isDark
               ? "bg-amber-500/10 border border-amber-500/20"
@@ -548,7 +550,7 @@ export default function BuildChatbotPage() {
               </p>
             </div>
           </div>
-        </div>
+        </div>}
       </div>
     </div>
   );
