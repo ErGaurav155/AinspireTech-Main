@@ -68,7 +68,13 @@ const PurchasedAddonSchema = new Schema<IPurchasedAddon>(
 PurchasedAddonSchema.index({ ownerType: 1, ownerId: 1, status: 1 });
 PurchasedAddonSchema.index(
   { provider: 1, providerReference: 1 },
-  { unique: true, sparse: true },
+  {
+    name: "uniq_addon_provider_reference_present",
+    unique: true,
+    partialFilterExpression: {
+      providerReference: { $type: "string" },
+    },
+  },
 );
 PurchasedAddonSchema.index(
   { checkoutIdempotencyKey: 1 },

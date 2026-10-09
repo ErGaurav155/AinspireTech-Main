@@ -72,6 +72,25 @@ async function connectServices() {
     console.log("✅ Database connected");
 
     try {
+      const { ensurePlatformBillingIndexes } = await import(
+        "@/services/billing/platform-billing-index.service.js"
+      );
+      const indexes = await ensurePlatformBillingIndexes();
+      console.log(
+        `✅ Platform billing indexes ready${
+          indexes.removedSubscriptionIndex || indexes.removedAddonIndex
+            ? " (legacy indexes replaced)"
+            : ""
+        }`,
+      );
+    } catch (indexError: any) {
+      console.error(
+        "⚠️ Platform billing index repair failed:",
+        indexError.message,
+      );
+    }
+
+    try {
       const { syncPlatformCatalog } = await import(
         "@/services/billing/platform-catalog-sync.service.js"
       );

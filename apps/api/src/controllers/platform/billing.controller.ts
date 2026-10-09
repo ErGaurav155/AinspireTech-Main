@@ -12,6 +12,7 @@ import {
   AGENCY_ADDONS_ENABLED,
   RETIRED_AGENCY_ADDON_CODES,
 } from "@/config/platform-catalog.config";
+import { ensurePlatformBillingIndexes } from "@/services/billing/platform-billing-index.service";
 
 const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
@@ -65,6 +66,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
   const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
 
   try {
+    await ensurePlatformBillingIndexes();
     const existingCheckout = await PlatformSubscription.findOne({ checkoutIdempotencyKey: key }).lean();
     if (existingCheckout) {
       return ok(res, {
@@ -182,6 +184,7 @@ export const createAgencyAddonCheckoutController = async (req: Request, res: Res
   if (!key) return fail(res, 400, "A valid X-Idempotency-Key header is required");
   const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
   try {
+    await ensurePlatformBillingIndexes();
     const existing = await PurchasedAddon.findOne({ checkoutIdempotencyKey: key }).lean();
     if (existing) return ok(res, { localAddonId: String(existing._id), subscriptionId: existing.providerReference, status: existing.status });
     const addon = await AddonDefinition.findOne({
@@ -331,6 +334,7 @@ export const createWorkspacePlanCheckoutController = async (req: Request, res: R
   const key = `plan:${context.workspaceId}:${rawKey}`;
   const ownerId = new Types.ObjectId(context.workspaceId);
   try {
+    await ensurePlatformBillingIndexes();
     const existing = await PlatformSubscription.findOne({ checkoutIdempotencyKey: key }).lean();
     if (existing) return ok(res, { localSubscriptionId: String(existing._id), subscriptionId: existing.providerSubscriptionId, status: existing.status });
     const plan = await PlanDefinition.findOne({

@@ -8,11 +8,12 @@
     "build": "npm run clean && tsc && tsc-alias",
     "start": "node dist/index.js",
     "type-check": "tsc --noEmit",
-    "test:platform": "node --import tsx --test src/config/platform-catalog.config.test.ts src/config/individual-ai-catalog.config.test.ts src/services/auth/permission.service.test.ts src/services/billing/entitlement-calculator.test.ts src/services/usage/agency-ai-usage.service.test.ts",
+    "test:platform": "node --import tsx --test src/config/platform-catalog.config.test.ts src/config/individual-ai-catalog.config.test.ts src/models/billing/platform-billing-indexes.test.ts src/services/auth/permission.service.test.ts src/services/billing/entitlement-calculator.test.ts src/services/usage/agency-ai-usage.service.test.ts",
     "migrate:platform": "tsx src/scripts/migrate-platform-workspaces.ts",
     "migrate:platform:apply": "tsx src/scripts/migrate-platform-workspaces.ts --apply",
     "migrate:platform:rollback": "tsx src/scripts/migrate-platform-workspaces.ts --rollback",
     "sync:platform-catalog": "tsx src/scripts/sync-platform-catalog.ts",
+    "repair:platform-billing-indexes": "tsx src/scripts/repair-platform-billing-indexes.ts",
     "clean": "node scripts/clean-dist.cjs"
   },
   "dependencies": {

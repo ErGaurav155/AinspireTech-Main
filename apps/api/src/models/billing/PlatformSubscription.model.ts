@@ -117,7 +117,13 @@ const PlatformSubscriptionSchema = new Schema<IPlatformSubscription>(
 PlatformSubscriptionSchema.index({ ownerType: 1, ownerId: 1, status: 1 });
 PlatformSubscriptionSchema.index(
   { provider: 1, providerSubscriptionId: 1 },
-  { unique: true, sparse: true },
+  {
+    name: "uniq_platform_provider_subscription_present",
+    unique: true,
+    partialFilterExpression: {
+      providerSubscriptionId: { $type: "string" },
+    },
+  },
 );
 PlatformSubscriptionSchema.index(
   { checkoutIdempotencyKey: 1 },
