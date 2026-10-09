@@ -43,7 +43,6 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import { formatDistanceToNow } from "date-fns";
-import WorkspaceAiTokenUsageCard from "@/components/platform/WorkspaceAiTokenUsageCard";
 
 interface ChatbotOverview {
   id: string;
@@ -480,7 +479,6 @@ export default function WebDashboardPage() {
           </div>
         </div>
 
-        <WorkspaceAiTokenUsageCard currentService="website" />
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

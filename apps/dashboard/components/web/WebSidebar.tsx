@@ -292,8 +292,7 @@ export default function WebSidebar({
     [isDark],
   );
 
-  const SidebarContent = useMemo(() => {
-    const Content = () => (
+  const SidebarContent = useMemo(() => (
       <div className="flex flex-col h-full relative z-10">
         {/* Logo */}
         <div className={styles.logoContainer}>
@@ -328,8 +327,6 @@ export default function WebSidebar({
             </div>
           </div>
         )}
-
-        <SidebarAiTokenUsage />
 
         {/* Chatbot Selector */}
         <div className="p-4 relative z-10">
@@ -404,6 +401,8 @@ export default function WebSidebar({
             </div>
           )}
         </div>
+
+        <SidebarAiTokenUsage />
 
         {/* Navigation */}
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto ">
@@ -756,9 +755,7 @@ export default function WebSidebar({
           </div>
         </div>
       </div>
-    );
-    return Content;
-  }, [
+    ), [
     selectedChatbot,
     isChatbotOpen,
     isSubscribed,
@@ -811,7 +808,7 @@ export default function WebSidebar({
         >
           <X className={styles.closeIcon} />
         </button>
-        <SidebarContent />
+        {SidebarContent}
       </div>
 
       {isOpen && <div className={styles.overlay} onClick={onToggle} />}

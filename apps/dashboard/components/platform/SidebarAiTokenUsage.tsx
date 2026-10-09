@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Coins } from "lucide-react";
+import { ChevronDown, Coins } from "lucide-react";
 import { useThemeStyles } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
@@ -15,17 +15,34 @@ const compactNumber = new Intl.NumberFormat("en", {
   maximumFractionDigits: 1,
 });
 
+const workspaceUsageCache = new Map<string, WorkspaceAiTokenUsage>();
+
+const SERVICE_USAGE = [
+  { key: "website", label: "Website chatbot", color: "bg-violet-500" },
+  { key: "instagram", label: "Instagram", color: "bg-pink-500" },
+  { key: "whatsapp", label: "WhatsApp", color: "bg-emerald-500" },
+  { key: "other", label: "Other AI usage", color: "bg-slate-400" },
+] as const;
+
 export default function SidebarAiTokenUsage() {
   const { isDark } = useThemeStyles();
   const { apiRequest } = useApi();
   const { primaryAccountType, clientWorkspaceId } = usePlatformAccess();
-  const [usage, setUsage] = useState<WorkspaceAiTokenUsage | null>(null);
+  const [usage, setUsage] = useState<WorkspaceAiTokenUsage | null>(() =>
+    clientWorkspaceId
+      ? workspaceUsageCache.get(clientWorkspaceId) || null
+      : null,
+  );
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (primaryAccountType !== "MEMBER" || !clientWorkspaceId) {
       setUsage(null);
       return;
     }
+
+    const cachedUsage = workspaceUsageCache.get(clientWorkspaceId);
+    if (cachedUsage) setUsage(cachedUsage);
 
     let cancelled = false;
     const load = async () => {
@@ -34,7 +51,10 @@ export default function SidebarAiTokenUsage() {
           apiRequest,
           clientWorkspaceId,
         );
-        if (!cancelled) setUsage(nextUsage);
+        if (!cancelled) {
+          workspaceUsageCache.set(clientWorkspaceId, nextUsage);
+          setUsage(nextUsage);
+        }
       } catch {
         if (!cancelled) setUsage(null);
       }
@@ -63,7 +83,12 @@ export default function SidebarAiTokenUsage() {
             : "border-violet-100 bg-violet-50/80"
         }`}
       >
-        <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-2 text-left"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+        >
           <div className="flex min-w-0 items-center gap-2">
             <Coins className="h-4 w-4 flex-shrink-0 text-violet-500" />
             <span
@@ -74,18 +99,25 @@ export default function SidebarAiTokenUsage() {
               Shared agency AI tokens
             </span>
           </div>
-          <span
-            className={`flex-shrink-0 text-xs font-bold ${
-              usage.exhausted
-                ? "text-red-500"
-                : isDark
-                  ? "text-violet-300"
-                  : "text-violet-700"
-            }`}
-          >
-            {compactNumber.format(usage.remaining)} left
-          </span>
-        </div>
+          <div className="flex flex-shrink-0 items-center gap-1.5">
+            <span
+              className={`text-xs font-bold ${
+                usage.exhausted
+                  ? "text-red-500"
+                  : isDark
+                    ? "text-violet-300"
+                    : "text-violet-700"
+              }`}
+            >
+              {compactNumber.format(usage.remaining)} left
+            </span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${
+                expanded ? "rotate-180" : ""
+              } ${isDark ? "text-white/40" : "text-slate-400"}`}
+            />
+          </div>
+        </button>
         <div
           className={`mt-2 h-1.5 overflow-hidden rounded-full ${
             isDark ? "bg-white/10" : "bg-violet-100"
@@ -107,6 +139,36 @@ export default function SidebarAiTokenUsage() {
         >
           {compactNumber.format(usage.used)} of {compactNumber.format(usage.limit)} used across all services
         </p>
+        {expanded && (
+          <div
+            className={`mt-3 space-y-2 border-t pt-3 ${
+              isDark ? "border-white/[0.08]" : "border-violet-100"
+            }`}
+          >
+            {SERVICE_USAGE.map((service) => (
+              <div
+                key={service.key}
+                className="flex items-center justify-between gap-3 text-[11px]"
+              >
+                <span
+                  className={`flex min-w-0 items-center gap-2 ${
+                    isDark ? "text-white/55" : "text-slate-600"
+                  }`}
+                >
+                  <span className={`h-1.5 w-1.5 flex-shrink-0 rounded-full ${service.color}`} />
+                  <span className="truncate">{service.label}</span>
+                </span>
+                <span
+                  className={`font-semibold ${
+                    isDark ? "text-white/80" : "text-slate-800"
+                  }`}
+                >
+                  {usage.byService[service.key].toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

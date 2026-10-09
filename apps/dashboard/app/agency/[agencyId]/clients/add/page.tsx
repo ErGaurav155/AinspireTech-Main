@@ -18,7 +18,7 @@ export default function AddAgencyClientPage() {
   const toggle = (service: PlatformService) => setForm((value) => ({ ...value, services: value.services.includes(service) ? value.services.filter((item) => item !== service) : [...value.services, service] }));
   const submit = async () => {
     setBusy(true); setError("");
-    try { const result = await createAgencyClient(apiRequest, agencyId, form); router.push(`/workspace/${result.workspace._id}?agency=${agencyId}`); }
+    try { const result = await createAgencyClient(apiRequest, agencyId, form); router.push(`/workspace/${result.workspace._id}`); }
     catch (value: any) { setError(value.message || "Unable to create client"); setBusy(false); }
   };
 

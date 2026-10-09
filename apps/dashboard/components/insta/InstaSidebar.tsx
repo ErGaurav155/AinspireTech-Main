@@ -272,8 +272,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
 
   // ─── Sidebar content ───────────────────────────────────────────────────────
 
-  const SidebarContent = useMemo(() => {
-    const Content = () => (
+  const SidebarContent = useMemo(() => (
       <div className="flex flex-col h-full relative z-10">
         {/* Logo */}
         <div className={localStyles.logoContainer}>
@@ -685,9 +684,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
           </div>
         </div>
       </div>
-    );
-    return Content;
-  }, [
+    ), [
     accounts,
     accountLimit,
     clientOnly,
@@ -740,7 +737,7 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
           <X className={localStyles.closeIcon} />
         </button>
 
-        <SidebarContent />
+        {SidebarContent}
       </div>
 
       {/* Mobile overlay */}

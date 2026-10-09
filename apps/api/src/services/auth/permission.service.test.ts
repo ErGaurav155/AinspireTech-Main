@@ -5,7 +5,14 @@ import { getEffectivePermissions, hasPermission } from "./permission.service";
 test("client members cannot access agency billing", () => {
   const permissions = getEffectivePermissions({ role: "CLIENT_MEMBER" });
   assert.equal(hasPermission(permissions, "agency.billing.manage"), false);
+  assert.equal(hasPermission(permissions, "clients.archive"), false);
   assert.equal(hasPermission(permissions, "conversations.view"), true);
+});
+
+test("client owners cannot delete their agency workspace", () => {
+  const permissions = getEffectivePermissions({ role: "CLIENT_OWNER" });
+  assert.equal(hasPermission(permissions, "clients.archive"), false);
+  assert.equal(hasPermission(permissions, "workspace.manage"), true);
 });
 
 test("agency staff do not inherit destructive or billing permissions", () => {

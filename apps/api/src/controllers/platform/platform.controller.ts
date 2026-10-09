@@ -448,6 +448,10 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
         role: req.platformContext!.role,
         permissions: req.platformContext!.permissions,
         accessKind: req.platformContext!.accessKind,
+        ...(req.platformContext!.accessKind === "agency_management" &&
+        req.platformContext!.agencyId
+          ? { agencyId: req.platformContext!.agencyId }
+          : {}),
       },
       managedBy,
       ...(clientFacing ? {} : { entitlements }),
