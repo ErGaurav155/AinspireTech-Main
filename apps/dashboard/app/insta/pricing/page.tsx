@@ -646,9 +646,13 @@ function PricingWithSearchParams() {
 
         savePendingRazorpayCheckout(result.subscriptionId, plan, cycle, price);
 
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        if (!apiUrl) {
+          throw new Error("NEXT_PUBLIC_API_URL is required for Razorpay checkout");
+        }
         const callbackUrl = new URL(
           "/api/razorpay/checkout-callback",
-          process.env.NEXT_PUBLIC_API_URL || window.location.origin,
+          apiUrl,
         );
         callbackUrl.searchParams.set(
           "returnTo",

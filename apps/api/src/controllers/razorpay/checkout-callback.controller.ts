@@ -2,6 +2,20 @@ import { Request, Response } from "express";
 
 const DASHBOARD_URL = process.env.APP_URL || "https://app.rocketreplai.com";
 
+const safeDashboardReturnUrl = (value: unknown) => {
+  const dashboardUrl = new URL(DASHBOARD_URL);
+  if (typeof value !== "string" || !value) return dashboardUrl;
+
+  try {
+    const requestedUrl = new URL(value, dashboardUrl);
+    return requestedUrl.origin === dashboardUrl.origin
+      ? requestedUrl
+      : dashboardUrl;
+  } catch {
+    return dashboardUrl;
+  }
+};
+
 const appendParam = (
   params: URLSearchParams,
   key: string,
@@ -16,11 +30,7 @@ export const razorpayCheckoutCallbackController = (
   req: Request,
   res: Response,
 ) => {
-  const returnTo =
-    typeof req.query.returnTo === "string" && req.query.returnTo
-      ? req.query.returnTo
-      : "/";
-  const redirectUrl = new URL(returnTo, DASHBOARD_URL);
+  const redirectUrl = safeDashboardReturnUrl(req.query.returnTo);
   const callbackParams = new URLSearchParams(redirectUrl.search);
 
   callbackParams.set("razorpay_checkout", "1");
