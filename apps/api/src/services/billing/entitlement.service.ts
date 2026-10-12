@@ -137,10 +137,10 @@ export class EntitlementService {
     for (const subscription of subscriptions) {
       const plan = plansById.get(String(subscription.planId));
       const planFeatures = toRecord<boolean>(
-        subscription.entitlementSnapshot?.features || plan?.features,
+        plan?.features || subscription.entitlementSnapshot?.features,
       );
       const planLimits = toRecord<number>(
-        subscription.entitlementSnapshot?.limits || plan?.limits,
+        plan?.limits || subscription.entitlementSnapshot?.limits,
       );
       sourcePlanCodes.add(subscription.planCode);
       baseSources.push({

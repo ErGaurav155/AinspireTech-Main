@@ -51,8 +51,8 @@ export const AGENCY_PLAN_TIERS = [
     features: {},
     limits: {
       clientWorkspaces: 5,
-      aiTokens: 1_000_000,
-      aiTokensPerWorkspace: 200_000,
+      aiTokens: 10_000_000,
+      aiTokensPerWorkspace: 2_000_000,
       conversations: -1,
       instagramAccounts: 15,
       whatsappAccounts: 5,
@@ -70,8 +70,8 @@ export const AGENCY_PLAN_TIERS = [
     features: { advancedReporting: true, customBranding: true },
     limits: {
       clientWorkspaces: 20,
-      aiTokens: 5_000_000,
-      aiTokensPerWorkspace: 250_000,
+      aiTokens: 50_000_000,
+      aiTokensPerWorkspace: 2_500_000,
       conversations: -1,
       instagramAccounts: 60,
       whatsappAccounts: 20,
@@ -93,8 +93,8 @@ export const AGENCY_PLAN_TIERS = [
     },
     limits: {
       clientWorkspaces: 50,
-      aiTokens: 15_000_000,
-      aiTokensPerWorkspace: 300_000,
+      aiTokens: 150_000_000,
+      aiTokensPerWorkspace: 3_000_000,
       conversations: -1,
       instagramAccounts: 150,
       whatsappAccounts: 50,

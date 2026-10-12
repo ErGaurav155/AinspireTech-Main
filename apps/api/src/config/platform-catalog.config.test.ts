@@ -25,9 +25,12 @@ test("agency plans use the approved client-member limits without team seats", ()
   assert.equal(monthly.get("Partner")?.limits.clientWorkspaces, 5);
   assert.equal(monthly.get("Growth Partner")?.limits.clientWorkspaces, 20);
   assert.equal(monthly.get("Agency Pro Partner")?.limits.clientWorkspaces, 50);
-  assert.equal(monthly.get("Partner")?.limits.aiTokensPerWorkspace, 200_000);
-  assert.equal(monthly.get("Growth Partner")?.limits.aiTokensPerWorkspace, 250_000);
-  assert.equal(monthly.get("Agency Pro Partner")?.limits.aiTokensPerWorkspace, 300_000);
+  assert.equal(monthly.get("Partner")?.limits.aiTokensPerWorkspace, 2_000_000);
+  assert.equal(monthly.get("Partner")?.limits.aiTokens, 10_000_000);
+  assert.equal(monthly.get("Growth Partner")?.limits.aiTokensPerWorkspace, 2_500_000);
+  assert.equal(monthly.get("Growth Partner")?.limits.aiTokens, 50_000_000);
+  assert.equal(monthly.get("Agency Pro Partner")?.limits.aiTokensPerWorkspace, 3_000_000);
+  assert.equal(monthly.get("Agency Pro Partner")?.limits.aiTokens, 150_000_000);
   for (const plan of monthly.values()) {
     assert.equal(plan.limits.teamMembers, undefined);
     assert.equal(plan.limits.conversations, -1);

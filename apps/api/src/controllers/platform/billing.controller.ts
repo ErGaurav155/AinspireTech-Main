@@ -13,6 +13,7 @@ import {
   RETIRED_AGENCY_ADDON_CODES,
 } from "@/config/platform-catalog.config";
 import { ensurePlatformBillingIndexes } from "@/services/billing/platform-billing-index.service";
+import { getPlanChangePolicy } from "@/services/billing/plan-change-policy.service";
 
 const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
@@ -36,6 +37,7 @@ const checkoutKey = (req: Request, type: string) => {
 
 export const listAgencyPlansController = async (req: Request, res: Response) => {
   try {
+    const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
     let plans = await PlanDefinition.find({ accountType: "AGENCY", active: true })
       .select("code revision name description billingInterval price currency features limits kind")
       .sort({ price: 1 })
@@ -51,7 +53,40 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
         .lean();
     }
 
-    return ok(res, { plans, addons: [] });
+    const currentSubscription = await PlatformSubscription.findOne({
+      ownerType: "AGENCY",
+      ownerId: agencyId,
+      kind: "base",
+      status: { $in: ["pending", "active", "trialing", "past_due", "paused"] },
+    })
+      .sort({ createdAt: -1 })
+      .select(
+        "planCode status billingInterval currentPeriodStart currentPeriodEnd pendingChange createdAt updatedAt",
+      )
+      .lean();
+
+    return ok(res, {
+      plans,
+      addons: [],
+      currentSubscription: currentSubscription
+        ? {
+            id: String(currentSubscription._id),
+            planCode: currentSubscription.planCode,
+            status: currentSubscription.status,
+            billingInterval: currentSubscription.billingInterval,
+            currentPeriodStart: currentSubscription.currentPeriodStart,
+            currentPeriodEnd: currentSubscription.currentPeriodEnd,
+            pendingChange:
+              currentSubscription.pendingChange?.status === "pending"
+                ? {
+                    planCode: currentSubscription.pendingChange.planCode,
+                    effectiveAt: currentSubscription.pendingChange.effectiveAt,
+                    status: currentSubscription.pendingChange.status,
+                  }
+                : null,
+          }
+        : null,
+    });
   } catch (error) {
     console.error("Unable to list agency plans:", error);
     return fail(res, 500, "Unable to list plans");
@@ -92,33 +127,81 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
 
     if (current?.provider === "razorpay" && current.providerSubscriptionId) {
       const currentPlan = await PlanDefinition.findById(current.planId).lean();
-      const isDowngrade = Number(plan.price) < Number(currentPlan?.price || 0);
+      if (!currentPlan) return fail(res, 409, "Current plan configuration is unavailable");
+      if (current.pendingChange?.status === "pending") {
+        return fail(
+          res,
+          409,
+          `A change to ${current.pendingChange.planCode} is already pending`,
+          { code: "PLAN_CHANGE_PENDING" },
+        );
+      }
+
+      const policy = getPlanChangePolicy(
+        {
+          code: currentPlan.code,
+          billingInterval: currentPlan.billingInterval,
+          price: currentPlan.price,
+          limits: currentPlan.limits as Record<string, unknown>,
+        },
+        {
+          code: plan.code,
+          billingInterval: plan.billingInterval,
+          price: plan.price,
+          limits: plan.limits as Record<string, unknown>,
+        },
+      );
+      if (policy.type === "same") {
+        return fail(res, 409, "This is already your current plan", {
+          code: "PLAN_ALREADY_ACTIVE",
+        });
+      }
+
       const providerSubscription = await getRazorpay().subscriptions.update(
         current.providerSubscriptionId,
         {
           plan_id: plan.razorpay.planId,
-          schedule_change_at: isDowngrade ? "cycle_end" : "now",
+          schedule_change_at: policy.scheduleChangeAt,
         },
       );
+      const providerPeriodEnd = Number((providerSubscription as any).current_end);
+      const cycleEnd =
+        current.currentPeriodEnd ||
+        (Number.isFinite(providerPeriodEnd) && providerPeriodEnd > 0
+          ? new Date(providerPeriodEnd * 1000)
+          : new Date());
       current.pendingChange = {
         planId: plan._id,
         planCode: plan.code,
-        effectiveAt: isDowngrade && current.currentPeriodEnd ? current.currentPeriodEnd : new Date(),
+        effectiveAt:
+          policy.scheduleChangeAt === "cycle_end" ? cycleEnd : new Date(),
         status: "pending",
       };
       current.checkoutIdempotencyKey = key;
       await current.save();
       await writePlatformAuditLog({
         req,
-        action: isDowngrade ? "plan.downgrade_requested" : "plan.upgrade_requested",
+        action:
+          policy.type === "upgrade"
+            ? "plan.upgrade_requested"
+            : policy.type === "downgrade"
+              ? "plan.downgrade_requested"
+              : "plan.billing_interval_change_requested",
         targetType: "subscription",
         targetId: String(current._id),
-        metadata: { fromPlan: current.planCode, toPlan: plan.code, effective: isDowngrade ? "cycle_end" : "provider_confirmation" },
+        metadata: {
+          fromPlan: current.planCode,
+          toPlan: plan.code,
+          changeType: policy.type,
+          effective: policy.scheduleChangeAt,
+        },
       });
       return ok(res, {
         subscriptionId: providerSubscription.id,
         localSubscriptionId: String(current._id),
         status: "pending_provider_confirmation",
+        changeType: policy.type,
+        scheduleChangeAt: policy.scheduleChangeAt,
         effectiveAt: current.pendingChange.effectiveAt,
       });
     }

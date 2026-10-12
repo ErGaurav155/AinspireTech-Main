@@ -2,6 +2,40 @@ import type { ApiRequestFn } from "../useApi";
 
 export type PlatformService = "WHATSAPP" | "INSTAGRAM" | "WEBSITE" | "CALL";
 
+export type AgencyBillingPlan = {
+  _id: string;
+  code: string;
+  revision: number;
+  name: string;
+  description?: string;
+  billingInterval: "monthly" | "yearly";
+  price: number;
+  currency: string;
+  features: Record<string, boolean>;
+  limits: Record<string, number>;
+  kind: string;
+};
+
+export type AgencyBillingSubscription = {
+  id: string;
+  planCode: string;
+  status: "pending" | "trialing" | "active" | "past_due" | "paused";
+  billingInterval: "monthly" | "yearly";
+  currentPeriodStart?: string;
+  currentPeriodEnd?: string;
+  pendingChange?: {
+    planCode: string;
+    effectiveAt?: string;
+    status: "pending";
+  } | null;
+};
+
+export type AgencyBillingCatalog = {
+  plans: AgencyBillingPlan[];
+  addons: any[];
+  currentSubscription: AgencyBillingSubscription | null;
+};
+
 export const getPlatformContext = (apiRequest: ApiRequestFn) =>
   apiRequest<{
     primaryAccountType: "AGENCY" | "BUSINESS" | "MEMBER" | null;
@@ -85,7 +119,7 @@ export const deleteAgencyClient = (
   });
 
 export const getAgencyPlans = (apiRequest: ApiRequestFn, agencyId: string) =>
-  apiRequest<{ plans: any[]; addons: any[] }>(
+  apiRequest<AgencyBillingCatalog>(
     `/platform/agencies/${agencyId}/billing/plans`,
   );
 

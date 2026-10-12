@@ -6,6 +6,7 @@ import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import { connectToDatabase } from "@/config/database.config";
 import { purgeAgencyClients } from "@/services/tenant/agency-termination.service";
+import { syncAgencyUsageLimitSnapshots } from "@/services/usage/agency-entitlement-sync.service";
 
 const dateFromSeconds = (value: unknown) => {
   const seconds = Number(value);
@@ -20,6 +21,7 @@ const safeEqual = (expected: string, actual: string) => {
 
 const localStatus = (event: string, providerStatus: string) => {
   if (["subscription.activated", "subscription.charged", "subscription.resumed"].includes(event)) return "active";
+  if (event === "subscription.updated" && providerStatus === "active") return "active";
   if (event === "subscription.pending" || providerStatus === "pending") return "past_due";
   if (event === "subscription.halted" || providerStatus === "halted") return "past_due";
   if (event === "subscription.paused" || providerStatus === "paused") return "paused";
@@ -129,6 +131,16 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       platformSubscription.cancelledAt = status === "cancelled" ? new Date() : undefined;
       platformSubscription.lastProviderEventAt = new Date();
       await platformSubscription.save();
+      if (
+        confirmedPlan &&
+        platformSubscription.ownerType === "AGENCY" &&
+        ["active", "trialing"].includes(platformSubscription.status)
+      ) {
+        await syncAgencyUsageLimitSnapshots({
+          agencyId: String(platformSubscription.ownerId),
+          limits: confirmedPlan.limits as Record<string, number>,
+        });
+      }
       if (
         platformSubscription.ownerType === "AGENCY" &&
         platformSubscription.kind === "base" &&
