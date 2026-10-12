@@ -24,6 +24,8 @@ import {
   renewCallPaidSubscription,
   renewWhatsAppPaidSubscription,
 } from "@/services/billing/paid-subscription.service";
+import { isManagedPlatformSubscription } from "@/services/billing/platform-webhook-routing.service";
+import { platformRazorpayWebhookController } from "./platform-billing.controller";
 
 const NON_CORE_SUBSCRIPTION_TYPES = new Set([
   "package",
@@ -493,6 +495,14 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
     const subscriptionId = subscription?.id;
 
     await connectToDatabase();
+
+    if (await isManagedPlatformSubscription(subscription)) {
+      console.info("Routing managed platform subscription to platform billing", {
+        event,
+        subscriptionId,
+      });
+      return platformRazorpayWebhookController(req, res);
+    }
 
     switch (event) {
       case "subscription.activated":

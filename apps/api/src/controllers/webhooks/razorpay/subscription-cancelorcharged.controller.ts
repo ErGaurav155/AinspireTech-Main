@@ -15,6 +15,8 @@ import User from "@/models/user.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 import { downgradeWhatsAppSubscriptionToFree } from "@/services/billing/paid-subscription.service";
+import { isManagedPlatformSubscription } from "@/services/billing/platform-webhook-routing.service";
+import { platformRazorpayWebhookController } from "./platform-billing.controller";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -274,7 +276,8 @@ export const razorpaySubsCancelWebhookController = async (
     }
 
     const body = typeof rawBody === "string" ? JSON.parse(rawBody) : rawBody;
-    const subscriptionId = body.payload?.subscription?.entity?.id;
+    const subscriptionEntity = body.payload?.subscription?.entity;
+    const subscriptionId = subscriptionEntity?.id;
     const event = body.event;
 
     if (!subscriptionId) {
@@ -286,6 +289,14 @@ export const razorpaySubsCancelWebhookController = async (
     }
 
     await connectToDatabase();
+
+    if (await isManagedPlatformSubscription(subscriptionEntity)) {
+      console.info("Routing managed platform subscription cancellation to platform billing", {
+        event,
+        subscriptionId,
+      });
+      return platformRazorpayWebhookController(req, res);
+    }
 
     // Handle subscription ended events (cancelled, halted, expired)
     // All have the same behavior: downgrade the user to the free plan.
