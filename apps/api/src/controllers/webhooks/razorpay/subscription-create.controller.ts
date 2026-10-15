@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import CallSubscription from "@/models/call/CallSubscription.model";
+import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import ContentCreationSubscription from "@/models/packages/ContentCreationSubscription.model";
 import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
@@ -12,7 +13,6 @@ import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import User from "@/models/user.model";
-import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import {
   sendSubscriptionEmailToOwner,
   sendSubscriptionEmailToUser,
@@ -20,12 +20,16 @@ import {
 import {
   activateCallPaidSubscription,
   activateWhatsAppPaidSubscription,
-  downgradeWhatsAppSubscriptionToFree,
   renewCallPaidSubscription,
   renewWhatsAppPaidSubscription,
 } from "@/services/billing/paid-subscription.service";
 import { isManagedPlatformSubscription } from "@/services/billing/platform-webhook-routing.service";
 import { platformRazorpayWebhookController } from "./platform-billing.controller";
+import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
+import {
+  pauseDashboardPackageLocally,
+  resumeDashboardPackageLocally,
+} from "@/services/packages/package-subscription.service";
 
 const NON_CORE_SUBSCRIPTION_TYPES = new Set([
   "package",
@@ -33,91 +37,6 @@ const NON_CORE_SUBSCRIPTION_TYPES = new Set([
   "website-maintenance",
   "content-creation",
 ]);
-
-async function finalizeSubscriptionReplacementFromNotes(notes: any) {
-  const previousSubscriptionId = notes.previousSubscriptionId;
-  const previousSubscriptionType = notes.previousSubscriptionType;
-  const clerkId = notes.buyerId;
-
-  if (!previousSubscriptionId || !previousSubscriptionType || !clerkId) return;
-
-  const previousSubscription =
-    previousSubscriptionType === "insta"
-      ? await InstaSubscription.findOne({
-          subscriptionId: previousSubscriptionId,
-          clerkId,
-          status: "active",
-        })
-      : previousSubscriptionType === "call"
-        ? await CallSubscription.findOne({
-            subscriptionId: previousSubscriptionId,
-            clerkId,
-            status: "active",
-          })
-        : previousSubscriptionType === "whatsapp"
-          ? await WhatsAppWorkspace.findOne({
-              clerkId,
-              "subscription.subscriptionId": previousSubscriptionId,
-              "subscription.status": "active",
-            })
-          : await WebSubscription.findOne({
-              subscriptionId: previousSubscriptionId,
-              clerkId,
-              chatbotType: "chatbot-lead-generation",
-              status: "active",
-            });
-
-  if (!previousSubscription) return;
-
-  try {
-    await cancelRazorPaySubscription(
-      previousSubscriptionId,
-      "Changed billing cycle after successful payment",
-      "Immediate",
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/invalid|cancel|status/i.test(message)) {
-      console.error("Failed to cancel previous Razorpay subscription:", error);
-      throw error;
-    }
-    console.warn("Previous Razorpay subscription appears already inactive:", {
-      previousSubscriptionId,
-      message,
-    });
-  }
-
-  const cancellationUpdate = {
-    $set: {
-      status: "cancelled",
-      cancelledAt: new Date(),
-      updatedAt: new Date(),
-    },
-  };
-
-  if (previousSubscriptionType === "insta") {
-    await InstaSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
-      cancellationUpdate,
-    );
-  } else if (previousSubscriptionType === "call") {
-    await CallSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
-      cancellationUpdate,
-    );
-  } else if (previousSubscriptionType === "whatsapp") {
-    await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
-  } else {
-    await WebSubscription.findOneAndUpdate(
-      {
-        subscriptionId: previousSubscriptionId,
-        clerkId,
-        chatbotType: "chatbot-lead-generation",
-      },
-      cancellationUpdate,
-    );
-  }
-}
 
 async function handleWebhookSubscriptionCreate(payload: any) {
   const subscriptionData = payload.subscription?.entity;
@@ -321,8 +240,6 @@ async function handleWebhookSubscriptionCreate(payload: any) {
     }
   }
 
-  await finalizeSubscriptionReplacementFromNotes(notes);
-
   const email = notes.email || user.email;
   if (email) {
     void Promise.allSettled([
@@ -394,17 +311,7 @@ async function handleSubscriptionCharged(
       subscriptionId,
       expiresAt: nextBillingDate,
     }),
-    PackageSubscription.findOneAndUpdate(
-      { subscriptionId },
-      {
-        $set: {
-          status: "active",
-          expiresAt: nextBillingDate,
-          updatedAt: new Date(),
-        },
-      },
-      { new: true },
-    ),
+    resumeDashboardPackageLocally({ subscriptionId, expiresAt: nextBillingDate }),
     MetaAdsSubscription.findOneAndUpdate(
       { subscriptionId },
       {
@@ -452,6 +359,64 @@ async function handleSubscriptionCharged(
 
   if (!subscription) {
     console.warn(`Subscription ${subscriptionId} not found`);
+  }
+}
+
+async function handleSubscriptionPaused(subscriptionId: string) {
+  const now = new Date();
+  const [insta, web, call, whatsapp, packageSubscription] = await Promise.all([
+    InstaSubscription.findOneAndUpdate(
+      { subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+    WebSubscription.findOneAndUpdate(
+      { subscriptionId, chatbotType: "chatbot-lead-generation" },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+    CallSubscription.findOneAndUpdate(
+      { subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+    WhatsAppWorkspace.findOneAndUpdate(
+      { "subscription.subscriptionId": subscriptionId },
+      { $set: { "subscription.status": "paused", updatedAt: now } },
+      { new: true },
+    ),
+    PackageSubscription.findOne({ subscriptionId }).lean(),
+    MetaAdsSubscription.findOneAndUpdate(
+      { subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+    WebsiteMaintenanceSubscription.findOneAndUpdate(
+      { subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+    ContentCreationSubscription.findOneAndUpdate(
+      { subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+      { new: true },
+    ),
+  ]);
+
+  if (call) {
+    await CallAssistantWorkspace.updateOne(
+      { clerkId: call.clerkId },
+      { $set: { "subscription.status": "paused", updatedAt: now } },
+    );
+  }
+  if (packageSubscription) {
+    await pauseDashboardPackageLocally({
+      clerkId: packageSubscription.clerkId,
+      subscriptionId,
+    });
+  }
+  if (!insta && !web && !call && !whatsapp && !packageSubscription) {
+    console.warn(`Paused subscription ${subscriptionId} was not found locally`);
   }
 }
 
@@ -505,8 +470,38 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
     }
 
     switch (event) {
+      case "subscription.authenticated":
+        // Authentication only confirms the mandate. Paid access is still
+        // granted by subscription.activated/subscription.charged.
+        break;
+      case "subscription.pending":
+        // Keep access during Razorpay's retry window. subscription.halted is
+        // the terminal non-payment event handled by the termination webhook.
+        break;
+      case "subscription.paused":
+        await handleSubscriptionPaused(subscriptionId);
+        break;
+      case "subscription.resumed": {
+        const nextBillingDate = subscription?.current_end
+          ? new Date(subscription.current_end * 1000)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+        await handleSubscriptionCharged(subscriptionId, nextBillingDate);
+        break;
+      }
       case "subscription.activated":
-      case "subscription.charged": {
+      case "subscription.charged":
+      case "subscription.updated": {
+        const appliedChange =
+          await applyConfirmedIndividualSubscriptionChange(subscription);
+        if (event === "subscription.updated") {
+          if (!appliedChange) {
+            console.info("No pending individual plan change matched subscription.updated", {
+              subscriptionId,
+              providerPlanId: subscription?.plan_id,
+            });
+          }
+          break;
+        }
         const instaExists = await InstaSubscription.findOne({ subscriptionId });
         const webExists = await WebSubscription.findOne({
           subscriptionId,

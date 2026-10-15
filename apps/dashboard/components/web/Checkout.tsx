@@ -20,9 +20,14 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import {
+  changeRazorpaySubscription,
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
+import {
+  SubscriptionTimingDialog,
+  type SubscriptionChangeTiming,
+} from "@/components/shared/SubscriptionTimingDialog";
 import {
   checkAndPrepareScrape,
   getUserById,
@@ -41,7 +46,6 @@ interface CheckoutProps {
   billingCycle: "monthly" | "yearly";
   chatbotCreated?: boolean;
   previousSubscriptionId?: string;
-  previousSubscriptionType?: "web" | "insta";
   buttonText?: string;
   isConfirmingPayment?: boolean;
 }
@@ -98,7 +102,6 @@ export const Checkout = ({
   billingCycle,
   chatbotCreated = false,
   previousSubscriptionId,
-  previousSubscriptionType,
   buttonText,
   isConfirmingPayment = false,
 }: CheckoutProps) => {
@@ -107,6 +110,7 @@ export const Checkout = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [currentStep, setCurrentStep] = useState<CheckoutStep>("weblink");
   const [showModal, setShowModal] = useState(false);
+  const [showTimingDialog, setShowTimingDialog] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [razorpayScriptReady, setRazorpayScriptReady] = useState(false);
   const [scrapingStatus, setScrapingStatus] = useState("");
@@ -511,6 +515,11 @@ export const Checkout = ({
       return;
     }
 
+    if (previousSubscriptionId) {
+      setShowTimingDialog(true);
+      return;
+    }
+
     if (chatbotCreated) {
       // If chatbot is already created, go directly to payment without showing modal
       setCurrentStep("payment");
@@ -519,6 +528,40 @@ export const Checkout = ({
       // For new lead chatbot purchases, show the pricing-page modal with website form
       setShowModal(true);
       setCurrentStep("weblink");
+    }
+  };
+
+  const changeExistingSubscription = async (
+    scheduleChangeAt: SubscriptionChangeTiming,
+  ) => {
+    if (!previousSubscriptionId) return;
+    setShowTimingDialog(false);
+    setIsSubmitting(true);
+    setProcessing(true);
+    try {
+      const result = await changeRazorpaySubscription(apiRequest, {
+        subscriptionId: previousSubscriptionId,
+        subscriptionKind: "web",
+        targetProductId: productId,
+        targetBillingCycle: billingCycle,
+        scheduleChangeAt,
+      });
+      toast({
+        title:
+          scheduleChangeAt === "now"
+            ? "Plan change requested"
+            : "Plan change scheduled",
+        description:
+          scheduleChangeAt === "now"
+            ? "Razorpay is confirming the immediate change. Your subscription ID remains the same."
+            : `Your current billing continues until ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+      });
+      router.refresh();
+    } catch (error: any) {
+      showErrorToast(error.message || "Unable to change subscription");
+    } finally {
+      setIsSubmitting(false);
+      setProcessing(false);
     }
   };
 
@@ -600,8 +643,6 @@ export const Checkout = ({
           productId: productId,
           subscriptionType: "web",
           billingCycle: billingCycle,
-          previousSubscriptionId,
-          previousSubscriptionType,
           email: userEmailRef.current,
           chatbotId: createdChatbotId,
           chatbotName: chatbotNameRef.current,
@@ -631,20 +672,6 @@ export const Checkout = ({
 
       if (createdChatbotId) {
         callbackUrl.searchParams.set("chatbotId", createdChatbotId);
-      }
-
-      if (previousSubscriptionId) {
-        callbackUrl.searchParams.set(
-          "previousSubscriptionId",
-          previousSubscriptionId,
-        );
-      }
-
-      if (previousSubscriptionType) {
-        callbackUrl.searchParams.set(
-          "previousSubscriptionType",
-          previousSubscriptionType,
-        );
       }
 
       const paymentOptions = {
@@ -1011,6 +1038,14 @@ export const Checkout = ({
 
   return (
     <>
+      <SubscriptionTimingDialog
+        open={showTimingDialog}
+        currentName="Current website plan"
+        targetName={`${billingCycle} website plan`}
+        busy={processing}
+        onClose={() => setShowTimingDialog(false)}
+        onConfirm={(timing) => void changeExistingSubscription(timing)}
+      />
       <form onSubmit={handleCheckout} className="w-full">
         <Button
           type="submit"

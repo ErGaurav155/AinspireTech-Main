@@ -1805,7 +1805,6 @@ function WhatsAppCheckoutButton({
         throw new Error("Razorpay monthly plan is not configured for WhatsApp");
       }
 
-      const previousSubscriptionId = currentSubscription?.subscriptionId || "";
       const result = await createRazorpaySubscription(apiRequest, {
         amount,
         razorpayplanId: razorpayPlanId,
@@ -1814,10 +1813,6 @@ function WhatsAppCheckoutButton({
           productId: WHATSAPP_PRODUCT_ID,
           subscriptionType: "whatsapp",
           billingCycle: "monthly",
-          previousSubscriptionId: previousSubscriptionId || undefined,
-          previousSubscriptionType: previousSubscriptionId
-            ? "whatsapp"
-            : undefined,
           email,
           offerId: WHATSAPP_FIRST_MONTH_OFFER_ID || undefined,
         },

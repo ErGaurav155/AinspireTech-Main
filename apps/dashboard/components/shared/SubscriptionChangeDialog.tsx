@@ -74,8 +74,8 @@ export function SubscriptionChangeDialog({
           </div>
 
           <p className={`text-sm mt-4 ${styles.text.secondary}`}>
-            Your current subscription will be cancelled immediately and you will
-            be charged for the new plan.
+            Your existing Razorpay subscription and payment mandate will be
+            updated; a separate subscription is not created.
             {newPlan.account > currentPlan.account && (
               <span className="block mt-2 text-amber-600 dark:text-amber-400">
                 Note: The new plan allows {newPlan.account} accounts (currently{" "}

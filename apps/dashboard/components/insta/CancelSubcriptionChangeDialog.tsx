@@ -18,7 +18,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 interface ConfirmSubscriptionChangeDialogProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (timing: "now" | "cycle_end") => void;
   currentPlan: PricingPlan | null;
   newPlan: PricingPlan | null;
   isLoading?: boolean;
@@ -68,15 +68,35 @@ export function ConfirmSubscriptionChangeDialog({
               Confirm Subscription Change
             </DialogTitle>
             <DialogDescription className={themeStyles.dialogDesc}>
-              Are you sure you want to change your subscription from{" "}
-              {currentPlan?.name} to {newPlan?.name}?
+              Choose when to change your subscription from {currentPlan?.name}{" "}
+              to {newPlan?.name}. Your Razorpay subscription ID and mandate stay the same.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <p className={`text-sm ${themeStyles.dialogText}`}>
-              Your current subscription will be cancelled immediately and you
-              will be charged for the new plan.
-            </p>
+            <div className="grid gap-3">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => onConfirm("now")}
+                className={`rounded-xl border p-4 text-left ${themeStyles.buttonOutline}`}
+              >
+                <span className="block font-semibold">Immediately</span>
+                <span className={`mt-1 block text-xs ${themeStyles.dialogText}`}>
+                  Razorpay applies the plan now; proration or an immediate charge may apply.
+                </span>
+              </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => onConfirm("cycle_end")}
+                className={`rounded-xl border p-4 text-left ${themeStyles.buttonOutline}`}
+              >
+                <span className="block font-semibold">At billing-cycle end</span>
+                <span className={`mt-1 block text-xs ${themeStyles.dialogText}`}>
+                  Keep the current plan until renewal, then switch automatically.
+                </span>
+              </button>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -86,13 +106,6 @@ export function ConfirmSubscriptionChangeDialog({
               className={themeStyles.buttonOutline}
             >
               Cancel
-            </Button>
-            <Button
-              onClick={onConfirm}
-              disabled={isLoading}
-              className={themeStyles.buttonConfirm}
-            >
-              {isLoading ? "Processing..." : "Confirm Change"}
             </Button>
           </DialogFooter>
         </DialogContent>

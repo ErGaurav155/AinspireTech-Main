@@ -17,7 +17,12 @@ import { getPlanChangePolicy } from "@/services/billing/plan-change-policy.servi
 
 const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
-const planCheckoutSchema = z.object({ planCode: z.string().trim().min(2).max(100) }).strict();
+const planCheckoutSchema = z
+  .object({
+    planCode: z.string().trim().min(2).max(100),
+    scheduleChangeAt: z.enum(["now", "cycle_end"]).optional(),
+  })
+  .strict();
 const addonCheckoutSchema = z
   .object({ addonCode: z.string().trim().min(2).max(100), quantity: z.number().int().min(1).max(100) })
   .strict();
@@ -157,11 +162,20 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         });
       }
 
+      const scheduleChangeAt = parsed.data.scheduleChangeAt;
+      if (!scheduleChangeAt) {
+        return fail(
+          res,
+          400,
+          "Choose whether the plan change should happen immediately or at the end of the billing cycle",
+        );
+      }
+
       const providerSubscription = await getRazorpay().subscriptions.update(
         current.providerSubscriptionId,
         {
           plan_id: plan.razorpay.planId,
-          schedule_change_at: policy.scheduleChangeAt,
+          schedule_change_at: scheduleChangeAt,
         },
       );
       const providerPeriodEnd = Number((providerSubscription as any).current_end);
@@ -174,7 +188,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         planId: plan._id,
         planCode: plan.code,
         effectiveAt:
-          policy.scheduleChangeAt === "cycle_end" ? cycleEnd : new Date(),
+          scheduleChangeAt === "cycle_end" ? cycleEnd : new Date(),
         status: "pending",
       };
       current.checkoutIdempotencyKey = key;
@@ -193,7 +207,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
           fromPlan: current.planCode,
           toPlan: plan.code,
           changeType: policy.type,
-          effective: policy.scheduleChangeAt,
+          effective: scheduleChangeAt,
         },
       });
       return ok(res, {
@@ -201,7 +215,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         localSubscriptionId: String(current._id),
         status: "pending_provider_confirmation",
         changeType: policy.type,
-        scheduleChangeAt: policy.scheduleChangeAt,
+        scheduleChangeAt,
         effectiveAt: current.pendingChange.effectiveAt,
       });
     }
@@ -436,16 +450,25 @@ export const createWorkspacePlanCheckoutController = async (req: Request, res: R
       providerSubscriptionId: { $exists: true },
     }).sort({ createdAt: -1 });
     if (current?.providerSubscriptionId) {
-      const currentPlan = await PlanDefinition.findById(current.planId).lean();
-      const isDowngrade = Number(plan.price) < Number(currentPlan?.price || 0);
+      const scheduleChangeAt = parsed.data.scheduleChangeAt;
+      if (!scheduleChangeAt) {
+        return fail(
+          res,
+          400,
+          "Choose whether the plan change should happen immediately or at the end of the billing cycle",
+        );
+      }
       await getRazorpay().subscriptions.update(current.providerSubscriptionId, {
         plan_id: plan.razorpay.planId,
-        schedule_change_at: isDowngrade ? "cycle_end" : "now",
+        schedule_change_at: scheduleChangeAt,
       });
       current.pendingChange = {
         planId: plan._id,
         planCode: plan.code,
-        effectiveAt: isDowngrade && current.currentPeriodEnd ? current.currentPeriodEnd : new Date(),
+        effectiveAt:
+          scheduleChangeAt === "cycle_end" && current.currentPeriodEnd
+            ? current.currentPeriodEnd
+            : new Date(),
         status: "pending",
       };
       current.checkoutIdempotencyKey = key;

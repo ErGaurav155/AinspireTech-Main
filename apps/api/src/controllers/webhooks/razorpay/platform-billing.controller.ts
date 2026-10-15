@@ -7,6 +7,7 @@ import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
 import { connectToDatabase } from "@/config/database.config";
 import { purgeAgencyClients } from "@/services/tenant/agency-termination.service";
 import { syncAgencyUsageLimitSnapshots } from "@/services/usage/agency-entitlement-sync.service";
+import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
 
 const dateFromSeconds = (value: unknown) => {
   const seconds = Number(value);
@@ -171,6 +172,21 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       purchasedAddon.currentPeriodEnd = dateFromSeconds(entity.current_end);
       await purchasedAddon.save();
     } else {
+      const individualChange =
+        await applyConfirmedIndividualSubscriptionChange(entity);
+      if (individualChange) {
+        eventRecord.status = "processed";
+        eventRecord.processedAt = new Date();
+        eventRecord.metadata = {
+          platformType: "individual_subscription_change",
+          localId: String(individualChange._id),
+        };
+        await eventRecord.save();
+        return res.status(200).json({
+          success: true,
+          message: "Individual subscription change synchronized",
+        });
+      }
       eventRecord.status = "ignored";
       eventRecord.processedAt = new Date();
       eventRecord.metadata = { reason: "legacy_or_unmanaged_subscription" };

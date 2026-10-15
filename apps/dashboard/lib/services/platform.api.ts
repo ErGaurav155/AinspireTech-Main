@@ -127,11 +127,12 @@ export const createAgencyPlanCheckout = (
   apiRequest: ApiRequestFn,
   agencyId: string,
   planCode: string,
+  scheduleChangeAt?: "now" | "cycle_end",
 ) =>
   apiRequest<any>(`/platform/agencies/${agencyId}/billing/checkout`, {
     method: "POST",
     headers: { "X-Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({ planCode }),
+    body: JSON.stringify({ planCode, scheduleChangeAt }),
   });
 
 export const getWorkspace = (apiRequest: ApiRequestFn, workspaceId: string) =>

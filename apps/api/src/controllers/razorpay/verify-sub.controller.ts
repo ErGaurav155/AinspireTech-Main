@@ -5,21 +5,16 @@ import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
-import CallSubscription from "@/models/call/CallSubscription.model";
-import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import {
   activateContentCreationSubscription,
   activateDashboardPackageSubscription,
   activateMetaAdsSubscription,
   activateWebsiteMaintenanceSubscription,
 } from "@/services/packages/package-subscription.service";
-import { cancelRazorPaySubscription } from "@/services/subscription.service";
 import { getRazorpay } from "@/utils/util";
 import {
   activateCallPaidSubscription,
   activateWhatsAppPaidSubscription,
-  downgradeCallWorkspaceToFree,
-  downgradeWhatsAppSubscriptionToFree,
 } from "@/services/billing/paid-subscription.service";
 
 export interface VerifyBody {
@@ -39,8 +34,6 @@ export interface VerifyBody {
     | "website-maintenance"
     | "content-creation";
   billingCycle?: "monthly" | "yearly";
-  previousSubscriptionId?: string;
-  previousSubscriptionType?: "web" | "insta" | "call" | "whatsapp";
 }
 
 const PAID_PAYMENT_STATUSES = new Set(["captured"]);
@@ -54,8 +47,6 @@ const activateVerifiedSubscription = async ({
   subscriptionType,
   subscriptionKind,
   billingCycle,
-  previousSubscriptionId,
-  previousSubscriptionType,
   razorpaySubscription,
 }: VerifyBody & {
   userId: string;
@@ -201,14 +192,6 @@ const activateVerifiedSubscription = async ({
   }
 
   if (currentSubscriptionKind === "call") {
-    await cancelPreviousSubscriptionAfterPayment({
-      clerkId: userId,
-      previousSubscriptionId:
-        previousSubscriptionId || notes.previousSubscriptionId,
-      previousSubscriptionType:
-        previousSubscriptionType || notes.previousSubscriptionType,
-    });
-
     const subscription = await activateCallPaidSubscription({
       clerkId: userId,
       planType: productId || notes.productId || targetChatbotType,
@@ -233,14 +216,6 @@ const activateVerifiedSubscription = async ({
   }
 
   if (currentSubscriptionKind === "whatsapp") {
-    await cancelPreviousSubscriptionAfterPayment({
-      clerkId: userId,
-      previousSubscriptionId:
-        previousSubscriptionId || notes.previousSubscriptionId,
-      previousSubscriptionType:
-        previousSubscriptionType || notes.previousSubscriptionType,
-    });
-
     const workspace = await activateWhatsAppPaidSubscription({
       clerkId: userId,
       productId: productId || notes.productId || targetChatbotType,
@@ -259,14 +234,6 @@ const activateVerifiedSubscription = async ({
       paymentId: razorpay_payment_id,
     };
   }
-
-  await cancelPreviousSubscriptionAfterPayment({
-    clerkId: userId,
-    previousSubscriptionId:
-      previousSubscriptionId || notes.previousSubscriptionId,
-    previousSubscriptionType:
-      previousSubscriptionType || notes.previousSubscriptionType,
-  });
 
   if (currentSubscriptionKind === "insta") {
     await InstaSubscription.findOneAndUpdate(
@@ -322,103 +289,6 @@ const activateVerifiedSubscription = async ({
   };
 };
 
-const cancelPreviousSubscriptionAfterPayment = async ({
-  clerkId,
-  previousSubscriptionId,
-  previousSubscriptionType,
-}: {
-  clerkId: string;
-  previousSubscriptionId?: string;
-  previousSubscriptionType?: "web" | "insta" | "call" | "whatsapp";
-}) => {
-  if (!previousSubscriptionId || !previousSubscriptionType) return;
-
-  const previousSubscription =
-    previousSubscriptionType === "insta"
-      ? await InstaSubscription.findOne({
-          subscriptionId: previousSubscriptionId,
-          clerkId,
-          status: "active",
-        })
-      : previousSubscriptionType === "call"
-        ? await CallSubscription.findOne({
-            subscriptionId: previousSubscriptionId,
-            clerkId,
-            status: "active",
-          })
-        : previousSubscriptionType === "whatsapp"
-          ? await WhatsAppWorkspace.findOne({
-              clerkId,
-              "subscription.subscriptionId": previousSubscriptionId,
-              "subscription.status": "active",
-            })
-          : await WebSubscription.findOne({
-              subscriptionId: previousSubscriptionId,
-              clerkId,
-              chatbotType: "chatbot-lead-generation",
-              status: "active",
-            });
-
-  if (!previousSubscription) {
-    console.warn("Previous subscription not found or already inactive", {
-      previousSubscriptionId,
-      previousSubscriptionType,
-      clerkId,
-    });
-    return;
-  }
-
-  try {
-    await cancelRazorPaySubscription(
-      previousSubscriptionId,
-      "Changed billing cycle after successful payment",
-      "Immediate",
-    );
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (!/invalid|cancel|status/i.test(message)) {
-      console.error("Failed to cancel previous Razorpay subscription:", error);
-      throw error;
-    }
-    console.warn("Previous Razorpay subscription appears already inactive:", {
-      previousSubscriptionId,
-      message,
-    });
-  }
-
-  const cancellationUpdate = {
-    $set: {
-      status: "cancelled",
-      cancelledAt: new Date(),
-      updatedAt: new Date(),
-    },
-  };
-
-  if (previousSubscriptionType === "insta") {
-    await InstaSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
-      cancellationUpdate,
-    );
-  } else if (previousSubscriptionType === "call") {
-    await CallSubscription.findOneAndUpdate(
-      { subscriptionId: previousSubscriptionId, clerkId },
-      cancellationUpdate,
-    );
-    await downgradeCallWorkspaceToFree(clerkId);
-  } else if (previousSubscriptionType === "whatsapp") {
-    await downgradeWhatsAppSubscriptionToFree(previousSubscriptionId);
-  } else {
-    await WebSubscription.findOneAndUpdate(
-      {
-        subscriptionId: previousSubscriptionId,
-        clerkId,
-        chatbotType: "chatbot-lead-generation",
-      },
-      cancellationUpdate,
-    );
-  }
-};
-
 // POST /api/razorpay/subscription/verify - Verify Razorpay payment
 export const verifyRazorpayPaymentController = async (
   req: Request,
@@ -443,8 +313,6 @@ export const verifyRazorpayPaymentController = async (
       subscriptionType,
       subscriptionKind,
       billingCycle,
-      previousSubscriptionId,
-      previousSubscriptionType,
     }: VerifyBody = req.body;
 
     if (!subscription_id) {
@@ -515,8 +383,6 @@ export const verifyRazorpayPaymentController = async (
         subscriptionType,
         subscriptionKind,
         billingCycle,
-        previousSubscriptionId,
-        previousSubscriptionType,
         razorpaySubscription: subscription,
         razorpay_payment_id: paidPayment?.id,
       });
@@ -564,8 +430,6 @@ export const verifyRazorpayPaymentController = async (
         subscriptionType,
         subscriptionKind,
         billingCycle,
-        previousSubscriptionId,
-        previousSubscriptionType,
         razorpaySubscription: signedSubscription,
       });
 

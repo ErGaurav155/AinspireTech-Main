@@ -3,6 +3,9 @@ import { getAuth } from "@clerk/express";
 import { Request, Response } from "express";
 import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
+import WebSubscription from "@/models/web/Websubcription.model";
+import CallSubscription from "@/models/call/CallSubscription.model";
+import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import {
   getActiveContentCreationSubscription,
   getActiveMetaAdsSubscription,
@@ -185,13 +188,16 @@ export const createRazorpaySubscriptionController = async (
       subscriptionType,
       productId,
       billingCycle,
-      previousSubscriptionId,
-      previousSubscriptionType,
       offerId: requestedOfferId,
     } = metadata;
     const extraNotes = Object.fromEntries(
       Object.entries(metadata).filter(
-        ([, value]) => value !== undefined && value !== null,
+        ([key, value]) =>
+          !["previousSubscriptionId", "previousSubscriptionType"].includes(
+            key,
+          ) &&
+          value !== undefined &&
+          value !== null,
       ),
     );
     if (!subscriptionType || !productId || !billingCycle) {
@@ -398,6 +404,18 @@ export const createRazorpaySubscriptionController = async (
           timestamp: new Date().toISOString(),
         });
       }
+      const activeWebSubscription = await WebSubscription.exists({
+        clerkId: buyerId,
+        chatbotType: "chatbot-lead-generation",
+        status: "active",
+      });
+      if (activeWebSubscription) {
+        return res.status(409).json({
+          success: false,
+          error: "Use the plan-change option for an active website subscription.",
+          timestamp: new Date().toISOString(),
+        });
+      }
     } else if (subscriptionType === "whatsapp") {
       const { userId } = getAuth(req);
       if (userId && userId !== buyerId) {
@@ -501,6 +519,17 @@ export const createRazorpaySubscriptionController = async (
           timestamp: new Date().toISOString(),
         });
       }
+      const activeCallSubscription = await CallSubscription.exists({
+        clerkId: buyerId,
+        status: "active",
+      });
+      if (activeCallSubscription) {
+        return res.status(409).json({
+          success: false,
+          error: "Use the plan-change option for an active AI Call subscription.",
+          timestamp: new Date().toISOString(),
+        });
+      }
     } else {
       const activePackage = await getActivePackageSubscription(buyerId);
       if (activePackage) {
@@ -509,6 +538,17 @@ export const createRazorpaySubscriptionController = async (
           error:
             "Cancel the active common package before buying a standalone service subscription.",
           data: { activePackage },
+          timestamp: new Date().toISOString(),
+        });
+      }
+      const activeInstaSubscription = await InstaSubscription.exists({
+        clerkId: buyerId,
+        status: "active",
+      });
+      if (subscriptionType === "insta" && activeInstaSubscription) {
+        return res.status(409).json({
+          success: false,
+          error: "Use the plan-change option for an active Instagram subscription.",
           timestamp: new Date().toISOString(),
         });
       }
@@ -539,8 +579,6 @@ export const createRazorpaySubscriptionController = async (
           productId: productId,
           amount: amount.toString(),
           billingCycle,
-          previousSubscriptionId: previousSubscriptionId || "",
-          previousSubscriptionType: previousSubscriptionType || "",
           offerId: offerId || "",
         },
         ...(offerId ? { offer_id: offerId } : {}),

@@ -13,10 +13,20 @@ import ReplyLog from "@/models/insta/ReplyLog.model";
 import InstaLeadCollection from "@/models/insta/LeadCollection.model";
 import User from "@/models/user.model";
 import UserRateLimit from "@/models/Rate/UserRateLimit.model";
+import PackageSubscription from "@/models/packages/PackageSubscription.model";
+import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
+import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
+import ContentCreationSubscription from "@/models/packages/ContentCreationSubscription.model";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 import { downgradeWhatsAppSubscriptionToFree } from "@/services/billing/paid-subscription.service";
 import { isManagedPlatformSubscription } from "@/services/billing/platform-webhook-routing.service";
 import { platformRazorpayWebhookController } from "./platform-billing.controller";
+import {
+  cancelContentCreationSubscriptionLocally,
+  cancelDashboardPackageLocally,
+  cancelMetaAdsSubscriptionLocally,
+  cancelWebsiteMaintenanceSubscriptionLocally,
+} from "@/services/packages/package-subscription.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -233,6 +243,52 @@ async function handleSubscriptionEnded(subscriptionId: string) {
           subscriptionId,
         );
         if (!whatsAppUpdated) {
+          const packageSubscription = await PackageSubscription.findOne({
+            subscriptionId,
+          }).lean();
+          if (packageSubscription) {
+            await cancelDashboardPackageLocally({
+              clerkId: packageSubscription.clerkId,
+              subscriptionId,
+            });
+            return;
+          }
+
+          const metaAdsSubscription = await MetaAdsSubscription.findOne({
+            subscriptionId,
+          }).lean();
+          if (metaAdsSubscription) {
+            await cancelMetaAdsSubscriptionLocally({
+              clerkId: metaAdsSubscription.clerkId,
+              subscriptionId,
+            });
+            return;
+          }
+
+          const maintenanceSubscription =
+            await WebsiteMaintenanceSubscription.findOne({
+              subscriptionId,
+            }).lean();
+          if (maintenanceSubscription) {
+            await cancelWebsiteMaintenanceSubscriptionLocally({
+              clerkId: maintenanceSubscription.clerkId,
+              subscriptionId,
+            });
+            return;
+          }
+
+          const contentSubscription =
+            await ContentCreationSubscription.findOne({
+              subscriptionId,
+            }).lean();
+          if (contentSubscription) {
+            await cancelContentCreationSubscriptionLocally({
+              clerkId: contentSubscription.clerkId,
+              subscriptionId,
+            });
+            return;
+          }
+
           console.warn(`Subscription ${subscriptionId} not found in any model`);
         }
       }
@@ -298,11 +354,12 @@ export const razorpaySubsCancelWebhookController = async (
       return platformRazorpayWebhookController(req, res);
     }
 
-    // Handle subscription ended events (cancelled, halted, expired)
+    // Handle subscription ended events (cancelled, halted, completed/expired)
     // All have the same behavior: downgrade the user to the free plan.
     if (
       event === "subscription.cancelled" ||
       event === "subscription.halted" ||
+      event === "subscription.completed" ||
       event === "subscription.expired"
     ) {
       await handleSubscriptionEnded(subscriptionId);

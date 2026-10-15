@@ -1170,7 +1170,6 @@ const PricingContent = () => {
                       previousSubscriptionId={
                         subscriptionToManage.subscriptionId
                       }
-                      previousSubscriptionType="web"
                       buttonText="Switch Plan"
                       isConfirmingPayment={
                         isConfirmingPayment &&

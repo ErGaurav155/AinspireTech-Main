@@ -11,6 +11,10 @@ import {
   type AgencyBillingCatalog,
   type AgencyBillingPlan,
 } from "@/lib/services/platform.api";
+import {
+  SubscriptionTimingDialog,
+  type SubscriptionChangeTiming,
+} from "@/components/shared/SubscriptionTimingDialog";
 
 const emptyCatalog: AgencyBillingCatalog = {
   plans: [],
@@ -42,6 +46,7 @@ export default function AgencyBillingPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [changeTarget, setChangeTarget] = useState<AgencyBillingPlan | null>(null);
 
   const refreshCatalog = useCallback(async () => {
     const next = await getAgencyPlans(apiRequest, agencyId);
@@ -97,21 +102,15 @@ export default function AgencyBillingPage() {
     [refreshCatalog],
   );
 
-  const describeChange = (target: AgencyBillingPlan) => {
-    if (!subscription || !currentPlan) return null;
-    if (target.billingInterval !== currentPlan.billingInterval) {
-      return `Switch billing interval at ${formatDate(subscription.currentPeriodEnd)}? Your current plan remains active until then.`;
-    }
-    if (clientCapacity(target) > clientCapacity(currentPlan)) {
-      return `Upgrade from ${currentPlan.name} to ${target.name} immediately? Razorpay will apply the plan change and any applicable proration.`;
-    }
-    return `Schedule the change from ${currentPlan.name} to ${target.name} for ${formatDate(subscription.currentPeriodEnd)}? No client data will be deleted.`;
-  };
-
-  const choose = async (plan: AgencyBillingPlan) => {
+  const choose = async (
+    plan: AgencyBillingPlan,
+    scheduleChangeAt?: SubscriptionChangeTiming,
+  ) => {
     if (subscription?.planCode === plan.code) return;
-    const confirmation = describeChange(plan);
-    if (confirmation && !window.confirm(confirmation)) return;
+    if (subscription && !scheduleChangeAt) {
+      setChangeTarget(plan);
+      return;
+    }
 
     setBusy(plan.code);
     setMessage("");
@@ -120,13 +119,14 @@ export default function AgencyBillingPage() {
         apiRequest,
         agencyId,
         plan.code,
+        scheduleChangeAt,
       );
       if (checkout.status === "pending_provider_confirmation") {
         await refreshCatalog();
         setMessage(
           checkout.scheduleChangeAt === "cycle_end"
             ? `Plan change scheduled for ${formatDate(checkout.effectiveAt)}. Your current plan remains active until then.`
-            : "Upgrade requested. Access will update after Razorpay confirms the change.",
+            : "Immediate plan change requested. Access will update after Razorpay confirms it.",
         );
         return;
       }
@@ -179,8 +179,8 @@ export default function AgencyBillingPage() {
         </p>
         <h1 className="mt-1 text-3xl font-bold">Plans and billing</h1>
         <p className="mt-2 text-slate-500 dark:text-slate-400">
-          Upgrades are immediate. Downgrades and billing-cycle changes take
-          effect at the end of the current period.
+          Choose whether an upgrade, downgrade, or billing-cycle change happens
+          immediately or at the end of the current period.
         </p>
       </div>
 
@@ -306,10 +306,10 @@ export default function AgencyBillingPage() {
                     : !subscription
                       ? `Choose ${plan.name}`
                       : intervalChange
-                        ? "Switch at cycle end"
+                        ? "Change billing interval"
                         : upgrade
-                          ? "Upgrade now"
-                          : "Downgrade at cycle end";
+                          ? "Upgrade plan"
+                          : "Downgrade plan";
 
             return (
               <article
@@ -381,6 +381,20 @@ export default function AgencyBillingPage() {
           })}
         </div>
       )}
+      <SubscriptionTimingDialog
+        open={Boolean(changeTarget && currentPlan)}
+        currentName={currentPlan?.name || "Current plan"}
+        targetName={changeTarget?.name || "New plan"}
+        periodEnd={subscription?.currentPeriodEnd}
+        busy={Boolean(changeTarget && busy === changeTarget.code)}
+        onClose={() => setChangeTarget(null)}
+        onConfirm={(timing) => {
+          if (!changeTarget) return;
+          const target = changeTarget;
+          setChangeTarget(null);
+          void choose(target, timing);
+        }}
+      />
     </div>
   );
 }

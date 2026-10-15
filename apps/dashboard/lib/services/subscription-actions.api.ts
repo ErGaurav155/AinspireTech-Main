@@ -30,8 +30,6 @@ export const createRazorpaySubscription = (
         | "website-maintenance"
         | "content-creation";
       billingCycle: "monthly" | "yearly" | "one-time";
-      previousSubscriptionId?: string;
-      previousSubscriptionType?: "web" | "insta" | "whatsapp" | "call" | "package";
       email?: string;
       packageId?: string;
       packageName?: string;
@@ -67,3 +65,32 @@ export const verifyRazorpayPayment = (
     body: JSON.stringify(data),
   });
 };
+
+export const changeRazorpaySubscription = (
+  apiRequest: ApiRequestFn,
+  data: {
+    subscriptionId: string;
+    subscriptionKind:
+      | "web"
+      | "insta"
+      | "whatsapp"
+      | "call"
+      | "package"
+      | "meta-ads"
+      | "website-maintenance"
+      | "content-creation";
+    targetProductId: string;
+    targetBillingCycle: "monthly" | "yearly";
+    scheduleChangeAt: "now" | "cycle_end";
+    metadata?: Record<string, unknown>;
+  },
+): Promise<{
+  subscriptionId: string;
+  status: "pending_provider_confirmation";
+  scheduleChangeAt: "now" | "cycle_end";
+  effectiveAt: string;
+}> =>
+  apiRequest("/razorpay/subscription/change", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });

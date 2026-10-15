@@ -51,6 +51,7 @@ import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcri
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
   createRazorpaySubscription,
+  changeRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
@@ -593,7 +594,6 @@ function PricingWithSearchParams() {
       cycle: "monthly" | "yearly",
       checkoutEmail = email,
       hasConnectedAccount = isInstaAccount,
-      previousSubscriptionId?: string,
     ) => {
       setIsUpgrading(true);
 
@@ -634,10 +634,6 @@ function PricingWithSearchParams() {
             productId: plan.id,
             subscriptionType: "insta",
             billingCycle: cycle,
-            previousSubscriptionId,
-            previousSubscriptionType: previousSubscriptionId
-              ? "insta"
-              : undefined,
             email: checkoutEmail,
             planLimit: plan.limit,
             accountLimit: plan.account,
@@ -665,14 +661,6 @@ function PricingWithSearchParams() {
         callbackUrl.searchParams.set("planLimit", String(plan.limit));
         callbackUrl.searchParams.set("accountLimit", String(plan.account));
         callbackUrl.searchParams.set("razorpay_checkout", "1");
-
-        if (previousSubscriptionId) {
-          callbackUrl.searchParams.set(
-            "previousSubscriptionId",
-            previousSubscriptionId,
-          );
-          callbackUrl.searchParams.set("previousSubscriptionType", "insta");
-        }
 
         const razorpay = new window.Razorpay({
           key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
@@ -1143,25 +1131,32 @@ function PricingWithSearchParams() {
   }, [clientOnly]);
 
   // Handle confirmed subscription change
-  const handleConfirmedChange = async () => {
-    if (!pendingPlan) return;
+  const handleConfirmedChange = async (timing: "now" | "cycle_end") => {
+    if (!pendingPlan || !currentSubscription?.subscriptionId) return;
 
     setIsProcessingChange(true);
     setShowConfirmDialog(false);
 
     try {
-      // Check account limit for new plan
-      if (userAccounts.length > pendingPlan.account) {
-        setShowAccountDialog(true);
-      } else {
-        await openRazorpayCheckout(
-          pendingPlan,
-          pendingBillingCycle,
-          email,
-          isInstaAccount,
-          currentSubscription?.subscriptionId,
-        );
-      }
+      const result = await changeRazorpaySubscription(apiRequest, {
+        subscriptionId: currentSubscription.subscriptionId,
+        subscriptionKind: "insta",
+        targetProductId: pendingPlan.id,
+        targetBillingCycle: pendingBillingCycle,
+        scheduleChangeAt: timing,
+        metadata: {
+          planLimit: pendingPlan.limit,
+          accountLimit: pendingPlan.account,
+        },
+      });
+      showToast(
+        timing === "now" ? "Plan change requested" : "Plan change scheduled",
+        timing === "now"
+          ? "Razorpay is confirming the immediate change. Refresh shortly to see the new plan."
+          : `Your current plan remains active until ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+        false,
+      );
+      setPendingPlan(null);
     } catch (error) {
       console.error("Error changing subscription:", error);
       showToast("Failed!", "Failed to change subscription", true);
@@ -1191,15 +1186,6 @@ function PricingWithSearchParams() {
 
       await refreshUserAccounts();
 
-      if (pendingPlan) {
-        await openRazorpayCheckout(
-          pendingPlan,
-          pendingBillingCycle,
-          email,
-          isInstaAccount,
-          currentSubscription?.subscriptionId,
-        );
-      }
     } catch (error) {
       console.error("Error deleting accounts:", error);
       showToast("Failed!", "Failed to delete accounts", true);

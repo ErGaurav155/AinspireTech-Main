@@ -20,7 +20,10 @@ import WebChatbot from "@/models/web/WebChatbot.model";
 import WebSubscription from "@/models/web/Websubcription.model";
 import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import { getPlanById } from "@/services/whatsapp/whatsapp.service";
-import { syncCallWorkspaceFromSubscription } from "@/services/billing/paid-subscription.service";
+import {
+  downgradeCallWorkspaceToFree,
+  syncCallWorkspaceFromSubscription,
+} from "@/services/billing/paid-subscription.service";
 
 export interface DashboardPackagePlan {
   id: DashboardPackageId;
@@ -567,7 +570,7 @@ export async function cancelMetaAdsSubscriptionLocally({
 
   const now = new Date();
   return MetaAdsSubscription.findOneAndUpdate(
-    { clerkId, subscriptionId, status: "active" },
+    { clerkId, subscriptionId, status: { $in: ["active", "paused"] } },
     {
       $set: {
         status: "cancelled",
@@ -648,7 +651,7 @@ export async function cancelWebsiteMaintenanceSubscriptionLocally({
 
   const now = new Date();
   return WebsiteMaintenanceSubscription.findOneAndUpdate(
-    { clerkId, subscriptionId, status: "active" },
+    { clerkId, subscriptionId, status: { $in: ["active", "paused"] } },
     {
       $set: {
         status: "cancelled",
@@ -729,7 +732,7 @@ export async function cancelContentCreationSubscriptionLocally({
 
   const now = new Date();
   return ContentCreationSubscription.findOneAndUpdate(
-    { clerkId, subscriptionId, status: "active" },
+    { clerkId, subscriptionId, status: { $in: ["active", "paused"] } },
     {
       $set: {
         status: "cancelled",
@@ -810,6 +813,11 @@ export async function activateDashboardPackageSubscription({
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
+  await revokePackageServicesNotIncluded({
+    clerkId,
+    subscriptionId,
+    includedServices: plan.includedServices,
+  });
   await grantPackageServices({
     clerkId,
     subscriptionId,
@@ -820,6 +828,87 @@ export async function activateDashboardPackageSubscription({
   });
 
   return packageSubscription;
+}
+
+async function revokePackageServicesNotIncluded({
+  clerkId,
+  subscriptionId,
+  includedServices,
+}: {
+  clerkId: string;
+  subscriptionId: string;
+  includedServices: DashboardPackageServiceKey[];
+}) {
+  const now = new Date();
+  const tasks: Promise<unknown>[] = [];
+  if (!includedServices.includes("web")) {
+    tasks.push(
+      WebSubscription.updateMany(
+        {
+          clerkId,
+          subscriptionId: packageGrantId(subscriptionId, "web"),
+        },
+        { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } },
+      ),
+    );
+  }
+  if (!includedServices.includes("insta")) {
+    tasks.push(
+      InstaSubscription.updateMany(
+        {
+          clerkId,
+          subscriptionId: packageGrantId(subscriptionId, "insta"),
+        },
+        { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } },
+      ),
+    );
+  }
+  if (!includedServices.includes("call")) {
+    tasks.push(
+      CallSubscription.updateMany(
+        {
+          clerkId,
+          subscriptionId: packageGrantId(subscriptionId, "call"),
+        },
+        { $set: { status: "cancelled", cancelledAt: now, updatedAt: now } },
+      ),
+      downgradeCallWorkspaceToFree(clerkId),
+    );
+  }
+  if (!includedServices.includes("whatsapp")) {
+    const freePlan = getPlanById("free");
+    tasks.push(
+      WhatsAppWorkspace.findOneAndUpdate(
+        {
+          clerkId,
+          "subscription.subscriptionId": packageGrantId(
+            subscriptionId,
+            "whatsapp",
+          ),
+        },
+        {
+          $set: {
+            "subscription.plan": freePlan.id,
+            "subscription.status": "trial",
+            "subscription.messageLimit": freePlan.messageLimit,
+            "subscription.messagesUsed": 0,
+            "subscription.numbersLimit": freePlan.numbersLimit,
+            "subscription.seatsLimit": freePlan.seatsLimit,
+            "subscription.agentsLimit": freePlan.agentsLimit,
+            "subscription.nextBillingDate": new Date(
+              now.getTime() + 30 * 24 * 60 * 60 * 1000,
+            ),
+          },
+          $unset: {
+            "subscription.subscriptionId": "",
+            "subscription.razorpayPaymentId": "",
+            "subscription.offerId": "",
+          },
+        },
+      ),
+    );
+  }
+  await Promise.all(tasks);
 }
 
 async function grantPackageServices({
@@ -1013,4 +1102,64 @@ export async function cancelDashboardPackageLocally({
       },
     ),
   ]);
+}
+
+export async function pauseDashboardPackageLocally({
+  clerkId,
+  subscriptionId,
+}: {
+  clerkId: string;
+  subscriptionId: string;
+}) {
+  await connectToDatabase();
+  const now = new Date();
+  await Promise.all([
+    PackageSubscription.findOneAndUpdate(
+      { clerkId, subscriptionId },
+      { $set: { status: "paused", updatedAt: now } },
+    ),
+    WebSubscription.updateMany(
+      { clerkId, subscriptionId: packageGrantId(subscriptionId, "web") },
+      { $set: { status: "paused", updatedAt: now } },
+    ),
+    InstaSubscription.updateMany(
+      { clerkId, subscriptionId: packageGrantId(subscriptionId, "insta") },
+      { $set: { status: "paused", updatedAt: now } },
+    ),
+    CallSubscription.updateMany(
+      { clerkId, subscriptionId: packageGrantId(subscriptionId, "call") },
+      { $set: { status: "paused", updatedAt: now } },
+    ),
+    WhatsAppWorkspace.findOneAndUpdate(
+      {
+        clerkId,
+        "subscription.subscriptionId": packageGrantId(
+          subscriptionId,
+          "whatsapp",
+        ),
+      },
+      { $set: { "subscription.status": "paused", updatedAt: now } },
+    ),
+  ]);
+}
+
+export async function resumeDashboardPackageLocally({
+  subscriptionId,
+  expiresAt,
+}: {
+  subscriptionId: string;
+  expiresAt: Date;
+}) {
+  await connectToDatabase();
+  const subscription = await PackageSubscription.findOne({ subscriptionId });
+  if (!subscription) return null;
+  return activateDashboardPackageSubscription({
+    clerkId: subscription.clerkId,
+    packageId: subscription.packageId,
+    subscriptionId,
+    billingCycle: "monthly",
+    expiresAt,
+    razorpayPaymentId: subscription.razorpayPaymentId,
+    offerId: subscription.offerId,
+  });
 }

@@ -35,10 +35,15 @@ import {
   WebsiteMaintenancePlan,
 } from "@/lib/services/package-actions.api";
 import {
+  changeRazorpaySubscription,
   createRazorpaySubscription,
   getRazerpayPlanInfo,
   verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
+import {
+  SubscriptionTimingDialog,
+  type SubscriptionChangeTiming,
+} from "@/components/shared/SubscriptionTimingDialog";
 import {
   CALL_ASSISTANT_COMING_SOON_TEXT,
   useCallAssistantAdmin,
@@ -148,6 +153,8 @@ export function DashboardPackagesPage() {
   const [isCancellingContentCreation, setIsCancellingContentCreation] =
     useState(false);
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+  const [packageChangeTarget, setPackageChangeTarget] =
+    useState<DashboardPackagePlan | null>(null);
 
   const loadStatus = useCallback(async () => {
     const data = await getDashboardPackageStatus(apiRequest);
@@ -662,13 +669,12 @@ export function DashboardPackagesPage() {
       return;
     }
 
+    if (activePackage?.packageId === plan.id) {
+      return;
+    }
+
     if (activePackage) {
-      toast({
-        title: "One package is already active",
-        description:
-          "Cancel the current package before subscribing to another package.",
-        variant: "destructive",
-      });
+      setPackageChangeTarget(plan);
       return;
     }
 
@@ -737,6 +743,39 @@ export function DashboardPackagesPage() {
       await startCheckout(latestPlan);
     } finally {
       setCheckingPackageId(null);
+    }
+  };
+
+  const changePackage = async (timing: SubscriptionChangeTiming) => {
+    if (!activePackage || !packageChangeTarget) return;
+    const target = packageChangeTarget;
+    setPackageChangeTarget(null);
+    setPayingPackageId(target.id);
+    try {
+      const result = await changeRazorpaySubscription(apiRequest, {
+        subscriptionId: activePackage.subscriptionId,
+        subscriptionKind: "package",
+        targetProductId: target.id,
+        targetBillingCycle: "monthly",
+        scheduleChangeAt: timing,
+      });
+      toast({
+        title: timing === "now" ? "Package change requested" : "Package change scheduled",
+        description:
+          timing === "now"
+            ? "Razorpay is confirming the immediate package change."
+            : `Your current package remains active until ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+      });
+      await loadStatus();
+      router.refresh();
+    } catch (error: any) {
+      toast({
+        title: "Package change failed",
+        description: error.message || "Could not change the package.",
+        variant: "destructive",
+      });
+    } finally {
+      setPayingPackageId(null);
     }
   };
 
@@ -1152,7 +1191,7 @@ export function DashboardPackagesPage() {
                   disabled={
                     checkingPackageId === plan.id ||
                     payingPackageId === plan.id ||
-                    Boolean(activePackage) ||
+                    isCurrent ||
                     hasSeparateServiceSubscriptions ||
                     isCallPackageLocked
                   }
@@ -1182,7 +1221,7 @@ export function DashboardPackagesPage() {
                     : hasSeparateServiceSubscriptions
                       ? "Cancel direct service first"
                     : activePackage
-                      ? "Cancel current package first"
+                      ? "Change package"
                       : "Check & Purchase"}
                 </Button>
               </article>
@@ -1902,6 +1941,17 @@ export function DashboardPackagesPage() {
             </section>
           </div>
         ) : null}
+        <SubscriptionTimingDialog
+          open={Boolean(packageChangeTarget && activePackage)}
+          currentName={activePackage?.packageName || "Current package"}
+          targetName={packageChangeTarget?.name || "New package"}
+          periodEnd={activePackage?.expiresAt}
+          busy={Boolean(
+            packageChangeTarget && payingPackageId === packageChangeTarget.id,
+          )}
+          onClose={() => setPackageChangeTarget(null)}
+          onConfirm={(timing) => void changePackage(timing)}
+        />
       </main>
     </div>
   );

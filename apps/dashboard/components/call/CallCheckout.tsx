@@ -7,10 +7,15 @@ import { Crown, Loader2, Phone } from "lucide-react";
 import { Button, toast } from "@rocketreplai/ui";
 import { useApi } from "@/lib/useApi";
 import {
+  changeRazorpaySubscription,
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
 import { getCallDashboard } from "@/lib/services/call-actions.api";
+import {
+  SubscriptionTimingDialog,
+  type SubscriptionChangeTiming,
+} from "@/components/shared/SubscriptionTimingDialog";
 
 const RAZORPAY_SCRIPT_ID = "razorpay-checkout-js";
 const RAZORPAY_SCRIPT_SRC = "https://checkout.razorpay.com/v1/checkout.js";
@@ -44,6 +49,7 @@ export function CallCheckout({
   const { user } = useUser();
   const { apiRequest } = useApi();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showTimingDialog, setShowTimingDialog] = useState(false);
 
   const loadRazorpayScript = useCallback((): Promise<void> => {
     if (typeof window === "undefined") {
@@ -79,6 +85,11 @@ export function CallCheckout({
 
   const handleCheckout = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (previousSubscriptionId) {
+      setShowTimingDialog(true);
+      return;
+    }
 
     try {
       setIsSubmitting(true);
@@ -120,8 +131,6 @@ export function CallCheckout({
           productId,
           subscriptionType: "call",
           billingCycle,
-          previousSubscriptionId,
-          previousSubscriptionType: previousSubscriptionId ? "call" : undefined,
           email: user?.primaryEmailAddress?.emailAddress || "",
           minutesLimit,
           numberLimit: concurrentCallLimit,
@@ -187,8 +196,60 @@ export function CallCheckout({
     }
   };
 
+  const changeExistingSubscription = async (
+    scheduleChangeAt: SubscriptionChangeTiming,
+  ) => {
+    if (!previousSubscriptionId) return;
+    setShowTimingDialog(false);
+    setIsSubmitting(true);
+    try {
+      const result = await changeRazorpaySubscription(apiRequest, {
+        subscriptionId: previousSubscriptionId,
+        subscriptionKind: "call",
+        targetProductId: productId,
+        targetBillingCycle: billingCycle,
+        scheduleChangeAt,
+        metadata: {
+          minutesLimit,
+          numberLimit: concurrentCallLimit,
+          concurrentCallLimit,
+          agentLimit,
+          overageRate,
+        },
+      });
+      toast({
+        title:
+          scheduleChangeAt === "now"
+            ? "Call plan change requested"
+            : "Call plan change scheduled",
+        description:
+          scheduleChangeAt === "now"
+            ? "Razorpay is confirming the immediate change."
+            : `Your current plan remains active until ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+      });
+      router.refresh();
+    } catch (error: any) {
+      toast({
+        title: "Plan change failed",
+        description: error.message || "Could not change the call plan.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleCheckout} className="w-full">
+    <>
+      <SubscriptionTimingDialog
+        open={showTimingDialog}
+        currentName="Current AI Call plan"
+        targetName={productId}
+        busy={isSubmitting}
+        onClose={() => setShowTimingDialog(false)}
+        onConfirm={(timing) => void changeExistingSubscription(timing)}
+      />
+      <form onSubmit={handleCheckout} className="w-full">
       <Button
         type="submit"
         disabled={isSubmitting}
@@ -203,6 +264,7 @@ export function CallCheckout({
         )}
         {isSubmitting ? "Processing..." : buttonText}
       </Button>
-    </form>
+      </form>
+    </>
   );
 }
