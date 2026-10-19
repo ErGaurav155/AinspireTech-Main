@@ -48,6 +48,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
   const workspaceSelectionPath = pathname === "/select-workspace";
   const callPath = pathname === "/call" || pathname.startsWith("/call/");
   const businessSetupPath = pathname === "/business/setup";
+  const businessKnowledgePath = pathname === "/business/knowledge";
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -83,7 +84,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
     if (
       access.primaryAccountType === "MEMBER" &&
       access.clientWorkspaceId &&
-      (agencyPath || workspaceSelectionPath || clientBlockedPath || outsideClientWorkspace || pathname === "/")
+      (agencyPath || businessKnowledgePath || workspaceSelectionPath || clientBlockedPath || outsideClientWorkspace || pathname === "/")
     ) {
       return clientWorkspacePath;
     }
@@ -91,7 +92,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
     if (
       access.primaryAccountType === "AGENCY" &&
       access.agencyId &&
-      (automationPath || workspaceSelectionPath || pathname === "/")
+      (automationPath || businessKnowledgePath || workspaceSelectionPath || pathname === "/")
     ) {
       return `/agency/${access.agencyId}`;
     }
@@ -106,14 +107,14 @@ export default function PlatformAccessProvider({ children }: { children: React.R
     if (
       !access.primaryAccountType &&
       !businessSetupPath &&
-      (automationPath || workspacePath || workspaceSelectionPath ||
+      (automationPath || businessKnowledgePath || workspacePath || workspaceSelectionPath ||
         (agencyPath && pathname !== "/agency/setup"))
     ) {
       return "/";
     }
 
     return null;
-  }, [access, agencyPath, automationPath, businessSetupPath, clientBlockedPath, pathname, workspacePath, workspaceSelectionPath]);
+  }, [access, agencyPath, automationPath, businessKnowledgePath, businessSetupPath, clientBlockedPath, pathname, workspacePath, workspaceSelectionPath]);
 
   useEffect(() => {
     if (redirectTarget) router.replace(redirectTarget);

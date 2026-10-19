@@ -16,6 +16,8 @@ import {
   AlertCircle,
   Loader2,
   ChevronDown,
+  MessageSquareText,
+  X,
 } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import {
@@ -392,6 +394,10 @@ export default function AppointmentQuestionsPage() {
     "checking" | "not-built" | "ready"
   >("checking");
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [quickReplies, setQuickReplies] = useState<string[]>([
+    "Book an appointment",
+  ]);
+  const [quickReplyInput, setQuickReplyInput] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -422,6 +428,11 @@ export default function AppointmentQuestionsPage() {
           );
           const qs: Question[] = data?.questions || [];
           setQuestions(qs.length > 0 ? qs : DEFAULT_QUESTIONS);
+          setQuickReplies(
+            Array.isArray(data?.quickReplies) && data.quickReplies.length > 0
+              ? data.quickReplies
+              : ["Book an appointment"],
+          );
         } catch {
           setQuestions(DEFAULT_QUESTIONS);
         }
@@ -443,6 +454,14 @@ export default function AppointmentQuestionsPage() {
     };
     setQuestions((prev) => [...prev, newQ]);
     setEditingId(newQ.id);
+  }
+
+  function addQuickReply() {
+    const value = quickReplyInput.trim().slice(0, 30);
+    if (!value || quickReplies.includes(value) || quickReplies.length >= 5)
+      return;
+    setQuickReplies((current) => [...current, value]);
+    setQuickReplyInput("");
   }
 
   function updateQuestion(id: string, field: keyof Question, value: any) {
@@ -467,6 +486,15 @@ export default function AppointmentQuestionsPage() {
 
   async function handleSave() {
     if (!userId) return;
+    if (quickReplies.length === 0) {
+      toast({
+        title: "Add a flow button",
+        description: "At least one quick reply button is required.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
     for (const q of questions) {
       if (!q.question.trim()) {
         toast({
@@ -493,6 +521,7 @@ export default function AppointmentQuestionsPage() {
         apiRequest,
         "chatbot-lead-generation",
         questions,
+        quickReplies,
       );
       setEditingId(null);
       toast({ title: "Questions saved!", duration: 2500 });
@@ -531,8 +560,8 @@ export default function AppointmentQuestionsPage() {
             Build your chatbot first
           </h2>
           <p className={`text-sm ${styles.text.secondary} mb-8 max-w-sm`}>
-            Create your Lead Generation chatbot before customising appointment
-            questions.
+            Create your Lead Generation chatbot before customising customer
+            flows.
           </p>
           <Link
             href="/web/chatbot-lead-generation/create"
@@ -560,7 +589,7 @@ export default function AppointmentQuestionsPage() {
             </div>
             <div>
               <h1 className={`text-xl font-bold ${styles.text.primary}`}>
-                Appointment Questions
+                Customer Flow Builder
               </h1>
               <p className={`text-sm ${styles.text.secondary}`}>
                 Lead Generation · {questions.length} question
@@ -605,21 +634,82 @@ export default function AppointmentQuestionsPage() {
         >
           <AlertCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-medium mb-0.5">How appointment booking works</p>
+            <p className="font-medium mb-0.5">How the no-AI flow works</p>
             <p
               className={`text-xs ${
                 isDark ? "text-purple-300/80" : "text-purple-600"
               }`}
             >
-              These questions appear in the <strong>Book Appointment</strong>{" "}
-              tab of your chat widget. The bot asks them one-by-one
-              conversationally, validates answers (email format, 10-digit
-              phone), then shows an inline calendar and time slot picker.
-              Bookings are saved to your Conversations page and you get an email
-              notification.
+              Your quick reply buttons appear below AI chat replies. When a
+              visitor clicks one, AI stops for that interaction and this flow
+              asks the configured questions one-by-one, validates the answers,
+              then shows the calendar and time slots. The completed appointment
+              is saved and the owner notification is sent.
             </p>
           </div>
         </div>
+
+        <section className={`${styles.card} rounded-2xl p-5`}>
+          <div className="flex items-start gap-3">
+            <MessageSquareText className="mt-0.5 h-5 w-5 text-purple-500" />
+            <div>
+              <h2 className={`font-semibold ${styles.text.primary}`}>
+                Flow quick reply buttons
+              </h2>
+              <p className={`mt-1 text-sm ${styles.text.secondary}`}>
+                These buttons appear under AI replies and all start this flow.
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {quickReplies.map((reply) => (
+              <span
+                key={reply}
+                className="inline-flex items-center gap-2 rounded-full border border-purple-500/25 bg-purple-500/10 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-300"
+              >
+                {reply}
+                <button
+                  type="button"
+                  aria-label={`Remove ${reply}`}
+                  onClick={() =>
+                    setQuickReplies((current) =>
+                      current.filter((item) => item !== reply),
+                    )
+                  }
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="mt-4 flex gap-2">
+            <input
+              value={quickReplyInput}
+              maxLength={30}
+              disabled={quickReplies.length >= 5}
+              onChange={(event) => setQuickReplyInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  addQuickReply();
+                }
+              }}
+              placeholder="Example: Get a free consultation"
+              className={`min-w-0 flex-1 rounded-xl border px-4 py-2.5 text-sm outline-none ${isDark ? "border-white/10 bg-white/5 text-white" : "border-gray-200 bg-white text-gray-900"}`}
+            />
+            <Button
+              type="button"
+              onClick={addQuickReply}
+              disabled={!quickReplyInput.trim() || quickReplies.length >= 5}
+              className="rounded-xl bg-purple-500 text-white"
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add
+            </Button>
+          </div>
+          <p className={`mt-2 text-xs ${styles.text.muted}`}>
+            {quickReplies.length}/5 buttons. At least one is required.
+          </p>
+        </section>
 
         {/* Questions list */}
         <div className="space-y-3">
@@ -634,7 +724,7 @@ export default function AppointmentQuestionsPage() {
                 No questions yet
               </h3>
               <p className={`text-sm ${styles.text.secondary} mb-6`}>
-                Add questions the bot will ask during appointment booking
+                Add questions the flow will ask without using AI
               </p>
               <Button
                 onClick={addQuestion}
@@ -679,7 +769,7 @@ export default function AppointmentQuestionsPage() {
         onOpenChange={() => setDeleteId(null)}
         onConfirm={() => deleteId && deleteQuestion(deleteId)}
         title="Delete question?"
-        description="This question will be permanently removed from the appointment form."
+        description="This question will be permanently removed from the customer flow."
         confirmText="Delete"
         isDestructive
       />

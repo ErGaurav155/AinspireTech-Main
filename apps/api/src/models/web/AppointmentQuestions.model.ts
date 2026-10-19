@@ -11,6 +11,7 @@ export interface IAppointmentQuestion {
 export interface IAppointmentQuestions extends Document {
   clerkId: string;
   chatbotType: "chatbot-lead-generation";
+  quickReplies: string[];
   questions: IAppointmentQuestion[];
   createdAt: Date;
   updatedAt: Date;
@@ -59,6 +60,14 @@ const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
       type: String,
       required: true,
       enum: ["chatbot-lead-generation"],
+    },
+    quickReplies: {
+      type: [String],
+      default: ["Book an appointment"],
+      validate: {
+        validator: (items: string[]) => items.length <= 5,
+        message: "A flow can have at most five quick reply buttons",
+      },
     },
     questions: {
       type: [AppointmentQuestionSchema],

@@ -8,6 +8,8 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatbot from "@/models/web/WebChatbot.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import User from "@/models/user.model";
+import { getActivePackageSubscription } from "@/services/packages/package-subscription.service";
 
 export const getEmbedConfigByTypeController = async (
   req: Request,
@@ -64,12 +66,21 @@ export const getEmbedConfigByTypeController = async (
     }
 
     const settings = (chatbot as any).settings || {};
-    const hasActiveSubscription = await WebSubscription.exists({
-      clerkId: userId,
-      chatbotType,
-      status: "active",
-      expiresAt: { $gt: new Date() },
-    });
+    const [hasActiveSubscription, activePackage, owner] = await Promise.all([
+      WebSubscription.exists({
+        clerkId: userId,
+        chatbotType,
+        status: "active",
+        expiresAt: { $gt: new Date() },
+      }),
+      getActivePackageSubscription(userId),
+      User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
+    ]);
+    const isAgencyClient = owner?.platformAccountType === "MEMBER";
+    const showBranding =
+      owner?.platformAccountType === "BUSINESS" &&
+      !hasActiveSubscription &&
+      !activePackage;
 
     return res.status(200).json({
       success: true,
@@ -86,7 +97,10 @@ export const getEmbedConfigByTypeController = async (
         // Additional safe settings
         position: settings.position || "bottom-right",
         bubbleIcon: settings.bubbleIcon || null,
-        showBranding: !hasActiveSubscription,
+        // Agency clients inherit paid access from the agency and must never be
+        // treated as a standalone free Website user merely because they do not
+        // own an individual WebSubscription document.
+        showBranding: isAgencyClient ? false : showBranding,
         customCSS: settings.customCSS || null,
       },
       timestamp: new Date().toISOString(),

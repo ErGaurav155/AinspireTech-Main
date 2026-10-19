@@ -9,6 +9,7 @@ import {
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
 import { getUserTier } from "@/services/rate-limit.service";
+import User from "@/models/user.model";
 
 const QUICK_REPLY_LIMITS = {
   free: 5,
@@ -82,6 +83,14 @@ const normalizeDMFlow = (value: any, userTier: string) => {
     mode: questions.length > 0 ? mode : "send_link",
     questions,
   };
+};
+
+const getAutomationTier = async (userId: string) => {
+  const [tier, user] = await Promise.all([
+    getUserTier(userId),
+    User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
+  ]);
+  return user?.platformAccountType === "MEMBER" ? "pro" : tier;
 };
 
 // GET /api/insta/templates/:templateId - Get single template by ID
@@ -329,7 +338,7 @@ export const updateInstaTemplateController = async (
     }
 
     if (updateData.dmFlow !== undefined) {
-      const userTier = await getUserTier(userId);
+      const userTier = await getAutomationTier(userId);
       updateFields.dmFlow = normalizeDMFlow(updateData.dmFlow, userTier);
     }
 
@@ -356,7 +365,7 @@ export const updateInstaTemplateController = async (
     }
 
     if (updateData.quickReplyTriggers !== undefined) {
-      const userTier = await getUserTier(userId);
+      const userTier = await getAutomationTier(userId);
       const quickReplyLimit =
         userTier === "pro" ? QUICK_REPLY_LIMITS.pro : QUICK_REPLY_LIMITS.free;
       const nextAutomationType =

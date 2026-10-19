@@ -8,7 +8,7 @@
 //   "landing" → always open, full-page layout for the shareable link
 //
 // Features:
-//   • 3 bottom tabs: Chat | Knowledge Base (FAQ) | Book Appointment
+//   • 3 bottom tabs: Chat | Knowledge Base (FAQ) | Customer Flow
 //   • Chat: AI conversation with full session history for memory
 //   • FAQ: searchable accordion matching BotPenguin Knowledge Base UX
 //   • Appointment: conversational Q→A flow → inline calendar → time slots
@@ -728,6 +728,9 @@ export default function ChatWidget({
 
   // ── Appointment ────────────────────────────────────────────────────────────
   const [apptQuestions, setApptQuestions] = useState<ApptQuestion[]>([]);
+  const [flowQuickReplies, setFlowQuickReplies] = useState<string[]>([
+    "Book an appointment",
+  ]);
   const [apptStarted, setApptStarted] = useState(false);
   const [apptStep, setApptStep] = useState(0);
   const [apptData, setApptData] = useState<Record<string, string>>({});
@@ -850,10 +853,18 @@ export default function ChatWidget({
           if (r.ok) {
             const d = await r.json();
             if (d.success) {
+              const configuredQuickReplies =
+                d.data?.appointmentQuestions?.quickReplies;
               setApptQuestions(
                 d.data?.appointmentQuestions?.questions ||
                   d.data?.questions ||
                   [],
+              );
+              setFlowQuickReplies(
+                Array.isArray(configuredQuickReplies) &&
+                  configuredQuickReplies.length > 0
+                  ? configuredQuickReplies.slice(0, 5)
+                  : ["Book an appointment"],
               );
             }
           }
@@ -1354,6 +1365,15 @@ export default function ChatWidget({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apptStarted, apptQuestions]);
 
+  const startFlowFromQuickReply = useCallback(
+    (label: string) => {
+      addUserMsg(label);
+      setTab("appointment");
+      startApptFlow();
+    },
+    [startApptFlow],
+  );
+
   // ─── Tab switch ────────────────────────────────────────────────────────────
 
   const handleTabChange = useCallback(
@@ -1650,6 +1670,43 @@ export default function ChatWidget({
             {messages.map((msg) => (
               <MessageBubble key={msg.id} msg={msg} primaryColor={pc} />
             ))}
+
+            {tab === "chat" &&
+              !isTyping &&
+              !apptStarted &&
+              messages[messages.length - 1]?.role === "bot" &&
+              flowQuickReplies.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexWrap: "wrap",
+                    gap: 7,
+                    paddingLeft: 40,
+                    animation: "fadeIn 0.25s ease",
+                  }}
+                >
+                  {flowQuickReplies.map((label) => (
+                    <button
+                      key={label}
+                      type="button"
+                      onClick={() => startFlowFromQuickReply(label)}
+                      style={{
+                        border: `1px solid ${pc}55`,
+                        background: "#fff",
+                        color: pc,
+                        borderRadius: 999,
+                        padding: "7px 11px",
+                        fontSize: 11.5,
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
             {isTyping && <TypingIndicator primaryColor={pc} />}
 
@@ -2048,7 +2105,7 @@ export default function ChatWidget({
             },
             {
               key: "appointment" as Tab,
-              label: "Appointment",
+              label: "Flow",
               icon: (
                 <svg
                   width={isMobile ? 21 : 19}

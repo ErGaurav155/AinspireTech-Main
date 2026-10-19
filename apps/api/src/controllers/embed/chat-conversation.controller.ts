@@ -3,6 +3,11 @@ import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebChatConversation from "@/models/web/WebChatConversation.model";
 import { getUserById } from "@/services/user.service";
+import WebChatbot from "@/models/web/WebChatbot.model";
+import {
+  formDataToAppointmentAlert,
+  sendAppointmentNotifications,
+} from "@/services/appointment-notification.service";
 
 // POST /api/embed/chat-conversation - Create or update a chat conversation
 export const handleChatConversationRequest = async (
@@ -89,6 +94,26 @@ export const handleChatConversationRequest = async (
         runValidators: true,
       },
     );
+
+    if (Array.isArray(formData) && formData.length > 0 && hasAppointment) {
+      const chatbot = await WebChatbot.findOne({
+        clerkId: userId,
+        type: "chatbot-lead-generation",
+      })
+        .select("phone")
+        .lean();
+      await sendAppointmentNotifications({
+        userId,
+        source: "web",
+        sourceRef: String(conversation._id),
+        appointment: formDataToAppointmentAlert(formData),
+        ownerEmail: user.email,
+        ownerWhatsAppNumber: chatbot?.phone,
+        dashboardPath: `/web/${chatbotType}/conversations`,
+      }).catch((notificationError) => {
+        console.error("Web flow notification error:", notificationError);
+      });
+    }
 
     return res.status(200).json({
       success: true,

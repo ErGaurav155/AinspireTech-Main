@@ -447,7 +447,7 @@ export default function WebSidebar({
                       )}
                     />
                     <span className="text-sm font-medium">
-                      Appointment Form
+                      Customer Flow
                     </span>
                   </div>
                 </div>

@@ -1,6 +1,12 @@
 import { Request, Response } from "express";
 
-const DASHBOARD_URL = process.env.APP_URL || "https://app.rocketreplai.com";
+// APP_URL is used by some deployments for the marketing site. Payment
+// callbacks must only return to the authenticated dashboard, otherwise a
+// perfectly valid /web/pricing or /insta/pricing return URL is discarded.
+const DASHBOARD_URL =
+  process.env.DASHBOARD_URL ||
+  process.env.DASHBOARD_APP_URL ||
+  "https://app.rocketreplai.com";
 
 const safeDashboardReturnUrl = (value: unknown) => {
   const dashboardUrl = new URL(DASHBOARD_URL);
@@ -59,6 +65,7 @@ export const razorpayCheckoutCallbackController = (
   );
   appendParam(callbackParams, "productId", req.query.productId);
   appendParam(callbackParams, "billingCycle", req.query.billingCycle);
+  appendParam(callbackParams, "scheduleChangeAt", req.query.scheduleChangeAt);
   appendParam(callbackParams, "planLimit", req.query.planLimit);
   appendParam(callbackParams, "accountLimit", req.query.accountLimit);
   appendParam(callbackParams, "chatbotId", req.query.chatbotId);

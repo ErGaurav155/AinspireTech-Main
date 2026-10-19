@@ -17,6 +17,92 @@ import { getPlanChangePolicy } from "@/services/billing/plan-change-policy.servi
 
 const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
+const isUpiSubscriptionUpdateError = (error: any) =>
+  Number(error?.statusCode) === 400 &&
+  /subscriptions cannot be updated when payment mode is upi/i.test(
+    String(error?.error?.description || error?.message || ""),
+  );
+
+const createAgencyReplacementSubscription = async ({
+  req,
+  agencyId,
+  current,
+  plan,
+  scheduleChangeAt,
+  checkoutKeyValue,
+}: {
+  req: Request;
+  agencyId: Types.ObjectId;
+  current: any;
+  plan: any;
+  scheduleChangeAt: "now" | "cycle_end";
+  checkoutKeyValue: string;
+}) => {
+  const replacement = await PlatformSubscription.create({
+    ownerType: "AGENCY",
+    ownerId: agencyId,
+    kind: "base",
+    planId: plan._id,
+    planCode: plan.code,
+    planRevision: plan.revision,
+    provider: "razorpay",
+    status: "pending",
+    billingInterval: plan.billingInterval,
+    cancelAtPeriodEnd: false,
+    checkoutIdempotencyKey: checkoutKeyValue,
+    replacementForSubscriptionId: current._id,
+    replacementTiming: scheduleChangeAt,
+  });
+
+  try {
+    const startAt =
+      scheduleChangeAt === "cycle_end" && current.currentPeriodEnd
+        ? Math.max(
+            Math.floor(new Date(current.currentPeriodEnd).getTime() / 1000),
+            Math.floor(Date.now() / 1000) + 60,
+          )
+        : undefined;
+    const providerSubscription = await getRazorpay().subscriptions.create({
+      plan_id: plan.razorpay.planId,
+      total_count: plan.billingInterval === "monthly" ? 120 : 10,
+      customer_notify: 1,
+      ...(startAt ? { start_at: startAt } : {}),
+      ...(plan.razorpay.offerId ? { offer_id: plan.razorpay.offerId } : {}),
+      notes: {
+        platformType: "plan",
+        platformSubscriptionId: String(replacement._id),
+        replacementForPlatformSubscriptionId: String(current._id),
+        replacementTiming: scheduleChangeAt,
+        ownerType: "AGENCY",
+        ownerId: String(agencyId),
+        planCode: plan.code,
+        planRevision: plan.revision,
+        requestedBy: req.agencyContext!.userId,
+      },
+    } as any);
+    replacement.providerSubscriptionId = providerSubscription.id;
+    await replacement.save();
+    current.replacedBySubscriptionId = replacement._id;
+    current.pendingChange = {
+      planId: plan._id,
+      planCode: plan.code,
+      effectiveAt:
+        scheduleChangeAt === "cycle_end" && current.currentPeriodEnd
+          ? current.currentPeriodEnd
+          : new Date(),
+      status: "pending",
+    };
+    await current.save();
+    return { replacement, providerSubscription };
+  } catch (error) {
+    await PlatformSubscription.updateOne(
+      { _id: replacement._id },
+      { $set: { status: "cancelled", cancelledAt: new Date() } },
+    );
+    throw error;
+  }
+};
+
 const planCheckoutSchema = z
   .object({
     planCode: z.string().trim().min(2).max(100),
@@ -58,17 +144,38 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
         .lean();
     }
 
-    const currentSubscription = await PlatformSubscription.findOne({
+    let currentSubscription = await PlatformSubscription.findOne({
       ownerType: "AGENCY",
       ownerId: agencyId,
       kind: "base",
-      status: { $in: ["pending", "active", "trialing", "past_due", "paused"] },
+      status: { $in: ["active", "trialing", "past_due", "paused"] },
     })
       .sort({ createdAt: -1 })
       .select(
         "planCode status billingInterval currentPeriodStart currentPeriodEnd pendingChange createdAt updatedAt",
       )
       .lean();
+    if (!currentSubscription) {
+      currentSubscription = await PlatformSubscription.findOne({
+        ownerType: "AGENCY",
+        ownerId: agencyId,
+        kind: "base",
+        status: "pending",
+      })
+        .sort({ createdAt: -1 })
+        .select(
+          "planCode status billingInterval currentPeriodStart currentPeriodEnd pendingChange createdAt updatedAt",
+        )
+        .lean();
+    }
+    const pendingReplacement = currentSubscription?.pendingChange
+      ? await PlatformSubscription.exists({
+          replacementForSubscriptionId: currentSubscription._id,
+          planCode: currentSubscription.pendingChange.planCode,
+          status: "pending",
+          providerSubscriptionId: { $type: "string" },
+        })
+      : null;
 
     return ok(res, {
       plans,
@@ -87,6 +194,7 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
                     planCode: currentSubscription.pendingChange.planCode,
                     effectiveAt: currentSubscription.pendingChange.effectiveAt,
                     status: currentSubscription.pendingChange.status,
+                    requiresCheckout: Boolean(pendingReplacement),
                   }
                 : null,
           }
@@ -134,6 +242,26 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
       const currentPlan = await PlanDefinition.findById(current.planId).lean();
       if (!currentPlan) return fail(res, 409, "Current plan configuration is unavailable");
       if (current.pendingChange?.status === "pending") {
+        const pendingReplacement = await PlatformSubscription.findOne({
+          replacementForSubscriptionId: current._id,
+          planCode: plan.code,
+          provider: "razorpay",
+          status: "pending",
+          providerSubscriptionId: { $type: "string" },
+        })
+          .sort({ createdAt: -1 })
+          .lean();
+        if (pendingReplacement?.providerSubscriptionId) {
+          return ok(res, {
+            subscriptionId: pendingReplacement.providerSubscriptionId,
+            localSubscriptionId: String(pendingReplacement._id),
+            status: "pending_payment",
+            replacementCheckout: true,
+            scheduleChangeAt: pendingReplacement.replacementTiming,
+            effectiveAt: current.pendingChange.effectiveAt,
+            keyId: process.env.RAZORPAY_KEY_ID,
+          });
+        }
         return fail(
           res,
           409,
@@ -171,13 +299,57 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         );
       }
 
-      const providerSubscription = await getRazorpay().subscriptions.update(
-        current.providerSubscriptionId,
-        {
-          plan_id: plan.razorpay.planId,
-          schedule_change_at: scheduleChangeAt,
-        },
-      );
+      let providerSubscription: any;
+      try {
+        providerSubscription = await getRazorpay().subscriptions.update(
+          current.providerSubscriptionId,
+          {
+            plan_id: plan.razorpay.planId,
+            schedule_change_at: scheduleChangeAt,
+          },
+        );
+      } catch (error) {
+        if (!isUpiSubscriptionUpdateError(error)) throw error;
+
+        // Razorpay cannot mutate UPI-backed subscriptions. Keep the paid
+        // subscription active and ask the customer to authorize a replacement
+        // mandate. Webhooks switch entitlements and retire the old mandate only
+        // after the replacement is authenticated/activated.
+        const { replacement, providerSubscription: created } =
+          await createAgencyReplacementSubscription({
+            req,
+            agencyId,
+            current,
+            plan,
+            scheduleChangeAt,
+            checkoutKeyValue: key,
+          });
+        await writePlatformAuditLog({
+          req,
+          action: "plan.replacement_checkout_created",
+          targetType: "subscription",
+          targetId: String(replacement._id),
+          metadata: {
+            fromPlan: current.planCode,
+            toPlan: plan.code,
+            effective: scheduleChangeAt,
+            reason: "razorpay_upi_update_not_supported",
+          },
+        });
+        return ok(
+          res,
+          {
+            subscriptionId: created.id,
+            localSubscriptionId: String(replacement._id),
+            status: "pending_payment",
+            replacementCheckout: true,
+            scheduleChangeAt,
+            effectiveAt: current.pendingChange?.effectiveAt,
+            keyId: process.env.RAZORPAY_KEY_ID,
+          },
+          201,
+        );
+      }
       const providerPeriodEnd = Number((providerSubscription as any).current_end);
       const cycleEnd =
         current.currentPeriodEnd ||

@@ -3,7 +3,7 @@
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Check } from "lucide-react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import {
   createAgencyPlanCheckout,
@@ -39,6 +39,8 @@ const clientCapacity = (plan?: AgencyBillingPlan) =>
 
 export default function AgencyBillingPage() {
   const { agencyId } = useParams<{ agencyId: string }>();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { apiRequest } = useApi();
   const [catalog, setCatalog] = useState<AgencyBillingCatalog>(emptyCatalog);
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
@@ -102,6 +104,38 @@ export default function AgencyBillingPage() {
     [refreshCatalog],
   );
 
+  useEffect(() => {
+    if (
+      searchParams.get("razorpay_checkout") !== "1" ||
+      searchParams.get("checkoutKind") !== "agency"
+    )
+      return;
+    const planCode = searchParams.get("productId") || "";
+    const timing = searchParams.get("scheduleChangeAt");
+    const paymentId = searchParams.get("razorpay_payment_id");
+    const signature = searchParams.get("razorpay_signature");
+    const finish = async () => {
+      if (!paymentId || !signature) {
+        setMessage("Payment was not completed. Your current plan is unchanged.");
+      } else if (timing === "cycle_end") {
+        await refreshCatalog().catch(() => undefined);
+        setMessage(
+          "New plan mandate authorized. The plan change will apply at the end of the current billing cycle.",
+        );
+      } else if (planCode) {
+        setMessage("Payment received. Confirming your plan with Razorpay…");
+        const activated = await waitForActivation(planCode).catch(() => false);
+        setMessage(
+          activated
+            ? "Your new agency plan is active."
+            : "Payment was received. Razorpay confirmation is still processing; refresh in a moment.",
+        );
+      }
+      router.replace(`/agency/${agencyId}/billing`, { scroll: false });
+    };
+    void finish();
+  }, [agencyId, refreshCatalog, router, searchParams, waitForActivation]);
+
   const choose = async (
     plan: AgencyBillingPlan,
     scheduleChangeAt?: SubscriptionChangeTiming,
@@ -133,12 +167,45 @@ export default function AgencyBillingPage() {
       if (!(window as any).Razorpay) {
         throw new Error("Razorpay checkout is still loading");
       }
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiUrl) throw new Error("NEXT_PUBLIC_API_URL is required for checkout");
+      const callbackUrl = new URL("/api/razorpay/checkout-callback", apiUrl);
+      callbackUrl.searchParams.set(
+        "returnTo",
+        `${window.location.origin}/agency/${agencyId}/billing`,
+      );
+      callbackUrl.searchParams.set("kind", "agency");
+      callbackUrl.searchParams.set("subscriptionId", checkout.subscriptionId);
+      callbackUrl.searchParams.set("productId", plan.code);
+      if (checkout.scheduleChangeAt) {
+        callbackUrl.searchParams.set(
+          "scheduleChangeAt",
+          checkout.scheduleChangeAt,
+        );
+      }
+      const mobileCheckout =
+        /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
+          navigator.userAgent,
+        );
       const instance = new (window as any).Razorpay({
         key: checkout.keyId,
         subscription_id: checkout.subscriptionId,
         name: "RocketReplAI",
         description: `${plan.name} agency plan`,
+        ...(mobileCheckout
+          ? { callback_url: callbackUrl.toString(), redirect: true }
+          : {}),
         handler: async () => {
+          if (
+            checkout.replacementCheckout &&
+            checkout.scheduleChangeAt === "cycle_end"
+          ) {
+            setMessage(
+              `New plan mandate authorized. ${plan.name} will start ${formatDate(checkout.effectiveAt)} and your current plan remains active until then.`,
+            );
+            await refreshCatalog().catch(() => undefined);
+            return;
+          }
           setMessage("Payment received. Confirming your plan with Razorpay…");
           try {
             const activated = await waitForActivation(plan.code);
@@ -279,6 +346,9 @@ export default function AgencyBillingPage() {
             const isCurrent = subscription?.planCode === plan.code;
             const isPendingTarget =
               subscription?.pendingChange?.planCode === plan.code;
+            const canResumePendingCheckout = Boolean(
+              isPendingTarget && subscription?.pendingChange?.requiresCheckout,
+            );
             const hasPendingChange = Boolean(subscription?.pendingChange);
             const unresolvedPayment = subscription?.status === "pending";
             const intervalChange =
@@ -289,8 +359,8 @@ export default function AgencyBillingPage() {
               clientCapacity(plan) > clientCapacity(currentPlan);
             const disabled =
               isCurrent ||
-              isPendingTarget ||
-              hasPendingChange ||
+              (isPendingTarget && !canResumePendingCheckout) ||
+              (hasPendingChange && !canResumePendingCheckout) ||
               unresolvedPayment ||
               busy === plan.code;
             const buttonLabel = isCurrent
@@ -298,7 +368,9 @@ export default function AgencyBillingPage() {
                 ? "Payment pending"
                 : "Current plan"
               : isPendingTarget
-                ? "Change pending"
+                ? canResumePendingCheckout
+                  ? "Continue plan checkout"
+                  : "Change pending"
                 : hasPendingChange
                   ? "Another change is pending"
                   : busy === plan.code

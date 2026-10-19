@@ -42,7 +42,10 @@ export const getAppointmentQuestionsController = async (
     return res.status(200).json({
       success: true,
       data: {
-        appointmentQuestions: doc || { questions: [] },
+        appointmentQuestions: doc || {
+          quickReplies: ["Book an appointment"],
+          questions: [],
+        },
       },
       timestamp: new Date().toISOString(),
     });
@@ -71,7 +74,7 @@ export const saveAppointmentQuestionsController = async (
       });
     }
 
-    const { chatbotType, questions } = req.body;
+    const { chatbotType, questions, quickReplies } = req.body;
 
     if (!chatbotType || !Array.isArray(questions)) {
       return res.status(400).json({
@@ -99,6 +102,21 @@ export const saveAppointmentQuestionsController = async (
     }
 
     const validTypes = ["text", "email", "tel", "date", "select", "textarea"];
+    const normalizedQuickReplies = Array.from(
+      new Set(
+        (Array.isArray(quickReplies) ? quickReplies : ["Book an appointment"])
+          .map((item: unknown) => String(item || "").trim().slice(0, 30))
+          .filter(Boolean),
+      ),
+    ).slice(0, 5);
+
+    if (normalizedQuickReplies.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: "Add at least one quick reply button to start the flow",
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     for (const q of questions) {
       if (!q.question?.trim()) {
@@ -132,6 +150,7 @@ export const saveAppointmentQuestionsController = async (
         $set: {
           clerkId: userId,
           chatbotType,
+          quickReplies: normalizedQuickReplies,
           questions: questions.map((q: any) => ({
             id: q.id,
             question: q.question.trim(),
@@ -147,7 +166,7 @@ export const saveAppointmentQuestionsController = async (
     return res.status(200).json({
       success: true,
       data: {
-        message: "Appointment questions saved successfully",
+        message: "Customer flow saved successfully",
         appointmentQuestions: updated,
       },
       timestamp: new Date().toISOString(),

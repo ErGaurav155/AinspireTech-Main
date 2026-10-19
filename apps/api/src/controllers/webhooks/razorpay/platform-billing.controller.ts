@@ -8,6 +8,7 @@ import { connectToDatabase } from "@/config/database.config";
 import { purgeAgencyClients } from "@/services/tenant/agency-termination.service";
 import { syncAgencyUsageLimitSnapshots } from "@/services/usage/agency-entitlement-sync.service";
 import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
+import { getRazorpay } from "@/utils/util";
 
 const dateFromSeconds = (value: unknown) => {
   const seconds = Number(value);
@@ -89,6 +90,41 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
     }
 
     const status = localStatus(eventType, String(entity.status || ""));
+    if (eventType === "subscription.authenticated") {
+      const authenticatedReplacement = await PlatformSubscription.findOne({
+        provider: "razorpay",
+        providerSubscriptionId: entity.id,
+        replacementForSubscriptionId: { $exists: true },
+      });
+      if (authenticatedReplacement?.replacementForSubscriptionId) {
+        const previous = await PlatformSubscription.findById(
+          authenticatedReplacement.replacementForSubscriptionId,
+        );
+        if (
+          previous?.providerSubscriptionId &&
+          authenticatedReplacement.replacementTiming === "cycle_end" &&
+          !previous.cancelAtPeriodEnd
+        ) {
+          await getRazorpay().subscriptions.cancel(
+            previous.providerSubscriptionId,
+            true,
+          );
+          previous.cancelAtPeriodEnd = true;
+          await previous.save();
+        }
+        eventRecord.status = "processed";
+        eventRecord.processedAt = new Date();
+        eventRecord.metadata = {
+          platformType: "plan_replacement_authenticated",
+          localId: String(authenticatedReplacement._id),
+        };
+        await eventRecord.save();
+        return res.status(200).json({
+          success: true,
+          message: "Replacement mandate authenticated",
+        });
+      }
+    }
     if (!status) {
       eventRecord.status = "ignored";
       eventRecord.processedAt = new Date();
@@ -133,6 +169,33 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       platformSubscription.lastProviderEventAt = new Date();
       await platformSubscription.save();
       if (
+        platformSubscription.replacementForSubscriptionId &&
+        status === "active"
+      ) {
+        const previous = await PlatformSubscription.findById(
+          platformSubscription.replacementForSubscriptionId,
+        );
+        if (previous) {
+          previous.replacedBySubscriptionId = platformSubscription._id;
+          if (previous.pendingChange) {
+            previous.pendingChange.status = "applied";
+          }
+          if (
+            platformSubscription.replacementTiming === "now" &&
+            previous.providerSubscriptionId &&
+            !previous.cancelledAt
+          ) {
+            await getRazorpay().subscriptions.cancel(
+              previous.providerSubscriptionId,
+              false,
+            );
+            previous.status = "cancelled";
+            previous.cancelledAt = new Date();
+          }
+          await previous.save();
+        }
+      }
+      if (
         confirmedPlan &&
         platformSubscription.ownerType === "AGENCY" &&
         ["active", "trialing"].includes(platformSubscription.status)
@@ -142,10 +205,17 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
           limits: confirmedPlan.limits as Record<string, number>,
         });
       }
+      const activeReplacement = platformSubscription.replacedBySubscriptionId
+        ? await PlatformSubscription.exists({
+            _id: platformSubscription.replacedBySubscriptionId,
+            status: { $in: ["pending", "trialing", "active"] },
+          })
+        : null;
       if (
         platformSubscription.ownerType === "AGENCY" &&
         platformSubscription.kind === "base" &&
-        ["cancelled", "expired"].includes(status)
+        ["cancelled", "expired"].includes(status) &&
+        !activeReplacement
       ) {
         await purgeAgencyClients({
           agencyId: String(platformSubscription.ownerId),

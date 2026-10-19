@@ -12,6 +12,9 @@ export interface IPlatformSubscription extends Document {
   providerSubscriptionId?: string;
   providerCustomerId?: string;
   checkoutIdempotencyKey?: string;
+  replacementForSubscriptionId?: Types.ObjectId;
+  replacedBySubscriptionId?: Types.ObjectId;
+  replacementTiming?: "now" | "cycle_end";
   status:
     | "pending"
     | "trialing"
@@ -71,6 +74,20 @@ const PlatformSubscriptionSchema = new Schema<IPlatformSubscription>(
     providerSubscriptionId: String,
     providerCustomerId: String,
     checkoutIdempotencyKey: String,
+    replacementForSubscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "PlatformSubscription",
+      index: true,
+    },
+    replacedBySubscriptionId: {
+      type: Schema.Types.ObjectId,
+      ref: "PlatformSubscription",
+      index: true,
+    },
+    replacementTiming: {
+      type: String,
+      enum: ["now", "cycle_end"],
+    },
     status: {
       type: String,
       enum: [

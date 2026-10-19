@@ -9,6 +9,7 @@ import {
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
 import { getUserTier } from "@/services/rate-limit.service";
+import User from "@/models/user.model";
 
 const QUICK_REPLY_LIMITS = {
   free: 5,
@@ -82,6 +83,14 @@ const normalizeDMFlow = (value: any, userTier: string) => {
     mode: questions.length > 0 ? mode : "send_link",
     questions,
   };
+};
+
+const getAutomationTier = async (userId: string) => {
+  const [tier, user] = await Promise.all([
+    getUserTier(userId),
+    User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
+  ]);
+  return user?.platformAccountType === "MEMBER" ? "pro" : tier;
 };
 
 // GET /api/insta/templates - Get Instagram templates
@@ -276,7 +285,7 @@ export const createInstaTemplateController = async (
 
     const quota = await getInstaQuotaStatus(userId, account);
     const forceInactiveForDMLimit = quota.dmLimitReached;
-    const userTier = await getUserTier(userId);
+    const userTier = await getAutomationTier(userId);
     const quickReplyLimit =
       userTier === "pro" ? QUICK_REPLY_LIMITS.pro : QUICK_REPLY_LIMITS.free;
     const normalizedQuickReplyTriggers =

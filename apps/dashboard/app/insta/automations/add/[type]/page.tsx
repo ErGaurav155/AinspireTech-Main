@@ -1287,7 +1287,6 @@ export default function CreateAutomationPage() {
           },
           askEmail: {
             enabled:
-              automationType === "dms" &&
               form.dmFlowMode === "send_link" &&
               form.askEmail &&
               isSubscribed,
@@ -1297,7 +1296,6 @@ export default function CreateAutomationPage() {
           },
           askPhone: {
             enabled:
-              automationType === "dms" &&
               form.dmFlowMode === "send_link" &&
               form.askPhone &&
               isSubscribed,
@@ -1307,28 +1305,24 @@ export default function CreateAutomationPage() {
           },
           dmFlow: {
             mode:
-              automationType === "dms" &&
               form.dmFlowMode === "collect_form" &&
               form.dmQuestions.length > 0
                 ? ("collect_form" as const)
                 : ("send_link" as const),
-            questions:
-              automationType === "dms"
-                ? form.dmQuestions
-                    .filter((question) => question.question.trim())
-                    .map((question) => ({
-                      id: question.id,
-                      label: question.label,
-                      question: question.question,
-                      type:
-                        !isSubscribed &&
-                        (question.type === "email" || question.type === "phone")
-                          ? "text"
-                          : question.type,
-                      required: question.required,
-                      retryMessage: question.retryMessage,
-                    }))
-                : [],
+            questions: form.dmQuestions
+              .filter((question) => question.question.trim())
+              .map((question) => ({
+                id: question.id,
+                label: question.label,
+                question: question.question,
+                type:
+                  !isSubscribed &&
+                  (question.type === "email" || question.type === "phone")
+                    ? "text"
+                    : question.type,
+                required: question.required,
+                retryMessage: question.retryMessage,
+              })),
           },
           followUpDMs: {
             enabled: form.followUpDMs && isSubscribed,
@@ -2121,14 +2115,14 @@ export default function CreateAutomationPage() {
             </div>
 
             {/* DM Flow */}
-            {automationType === "dms" && (
+            {(
               <div className={S.cardNoPadding}>
                 <div className={S.sectionToggle}>
                   <div>
-                    <span className={S.sectionLabel}>DM Flow</span>
+                    <span className={S.sectionLabel}>Customer Flow</span>
                     <p className={`text-xs mt-1 ${S.muted}`}>
-                      Choose whether this automation sends a link or collects
-                      form answers first.
+                      Send a link immediately or ask your questions one by one
+                      before completing the appointment request.
                     </p>
                   </div>
                 </div>
@@ -2440,8 +2434,8 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            {/* Ask Email — direct DMs only */}
-            {automationType === "dms" && (
+            {/* Ask Email — comments, stories and direct DMs */}
+            {(
               <div className={S.cardNoPadding}>
                 <div className={S.sectionToggle}>
                   <div className="flex items-center gap-2">
@@ -2584,8 +2578,8 @@ export default function CreateAutomationPage() {
               </div>
             )}
 
-            {/* Ask Phone — direct DMs only */}
-            {automationType === "dms" && (
+            {/* Ask Phone — comments, stories and direct DMs */}
+            {(
               <div className={S.cardNoPadding}>
                 <div className={S.sectionToggle}>
                   <div className="flex items-center gap-2">

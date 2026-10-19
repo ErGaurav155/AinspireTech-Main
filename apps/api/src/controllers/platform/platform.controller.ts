@@ -19,6 +19,12 @@ import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import { FREE_AGENCY_PLAN } from "@/config/platform-catalog.config";
 import { permanentlyDeleteAgencyClientWorkspace } from "@/services/tenant/client-workspace-deletion.service";
 import { getAgencyWorkspaceAiTokenSummary } from "@/services/usage/agency-ai-usage.service";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
+import InstagramAccount from "@/models/insta/InstagramAccount.model";
+import InstaReplyTemplate from "@/models/insta/ReplyTemplate.model";
+import WebAppointmentQuestions from "@/models/web/AppointmentQuestions.model";
+import WebChatbot from "@/models/web/WebChatbot.model";
+import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
 
 const serviceSchema = z.enum(["WHATSAPP", "INSTAGRAM", "WEBSITE", "CALL"]);
 const createAgencySchema = z.object({ name: z.string().trim().min(2).max(160) }).strict();
@@ -440,6 +446,83 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
       managedBy = { agencyName: agency?.name || "Your agency", planName: plan?.name || FREE_AGENCY_PLAN.name, planCode: plan?.code || FREE_AGENCY_PLAN.code };
     }
     const clientFacing = Boolean(workspace?.agencyId && req.platformContext!.accessKind !== "agency_management");
+    let clientConfiguration: Record<string, unknown> | undefined;
+    if (
+      workspace &&
+      req.platformContext!.accessKind === "agency_management"
+    ) {
+      const ownerIds = [workspace.ownerUserId, workspace.legacyOwnerClerkId].filter(
+        (value): value is string => Boolean(value),
+      );
+      const ownerFilter = ownerIds.length > 0 ? { $in: ownerIds } : { $in: [] };
+      const [whatsapp, instagramAccounts, instagramFlows, webFlow, chatbot, knowledge] =
+        await Promise.all([
+          WhatsAppWorkspace.findOne({
+            $or: [{ workspaceId }, { clerkId: ownerFilter }],
+          })
+            .select(
+              "organization onboarding.status onboarding.businessDisplayName appointmentConfig automationConfig",
+            )
+            .lean(),
+          InstagramAccount.find({
+            $or: [{ workspaceId }, { userId: ownerFilter }],
+          })
+            .select(
+              "username isActive autoReplyEnabled autoDMEnabled storyAutomationsEnabled appointmentAlerts",
+            )
+            .lean(),
+          InstaReplyTemplate.find({
+            $or: [{ workspaceId }, { userId: ownerFilter }],
+          })
+            .select(
+              "name automationType isActive triggers anyKeyword anyPostOrReel askEmail.enabled askPhone.enabled dmFlow.mode dmFlow.questions welcomeMessage.buttonTitle",
+            )
+            .sort({ updatedAt: -1 })
+            .lean(),
+          WebAppointmentQuestions.findOne({
+            clerkId: ownerFilter,
+            chatbotType: "chatbot-lead-generation",
+          })
+            .select("quickReplies questions")
+            .lean(),
+          WebChatbot.findOne({
+            clerkId: ownerFilter,
+            type: "chatbot-lead-generation",
+          })
+            .select("name websiteUrl isActive settings.welcomeMessage")
+            .lean(),
+          SharedBusinessKnowledge.findOne({ clerkId: ownerFilter })
+            .select("websiteUrl fileName knowledgeUpdatedAt knowledgeBaseUrl")
+            .lean(),
+        ]);
+
+      clientConfiguration = {
+        business: {
+          name: workspace.name,
+          ownerContactName: workspace.ownerContactName,
+          ownerEmail: workspace.ownerEmail,
+          phone: workspace.phone,
+          information: workspace.businessInformation || {},
+          knowledge: knowledge
+            ? {
+                websiteUrl: knowledge.websiteUrl,
+                fileName: knowledge.fileName,
+                updatedAt: knowledge.knowledgeUpdatedAt,
+                ready: Boolean(knowledge.knowledgeBaseUrl),
+              }
+            : null,
+        },
+        whatsapp: whatsapp || null,
+        instagram: {
+          accounts: instagramAccounts,
+          flows: instagramFlows,
+        },
+        website: {
+          chatbot: chatbot || null,
+          flow: webFlow || null,
+        },
+      };
+    }
     return ok(res, {
       workspace,
       services: effectiveServices,
@@ -454,6 +537,7 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
           : {}),
       },
       managedBy,
+      ...(clientConfiguration ? { clientConfiguration } : {}),
       ...(clientFacing ? {} : { entitlements }),
     });
   } catch (error) {

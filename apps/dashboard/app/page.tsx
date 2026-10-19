@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, Bot, Building2, Check, Instagram, MessageCircle, Phone, Sparkles, Store, Users } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen, Bot, Building2, Check, Instagram, MessageCircle, Phone, Sparkles, Store, Users } from "lucide-react";
 import { Orbs, useThemeStyles } from "@rocketreplai/ui";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
@@ -82,6 +82,26 @@ export default function HomePage() {
                 </motion.button>
               ); })}
             </div>
+            {individualAccountLocked && (
+              <button
+                type="button"
+                onClick={() => router.push("/business/knowledge")}
+                className={`${styles.innerCard} mx-auto mt-10 flex max-w-2xl items-center gap-4 rounded-2xl p-5 text-left`}
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/10 text-violet-500">
+                  <BookOpen className="h-5 w-5" />
+                </span>
+                <span>
+                  <span className={`block font-semibold ${styles.text.primary}`}>
+                    Manage one shared business knowledge base
+                  </span>
+                  <span className={`mt-1 block text-sm ${styles.text.secondary}`}>
+                    Update the information used by Website, Instagram and WhatsApp in one place.
+                  </span>
+                </span>
+                <ArrowRight className="ml-auto h-5 w-5 shrink-0 text-violet-500" />
+              </button>
+            )}
             {!individualAccountLocked && <div className={`mx-auto mt-10 flex max-w-2xl items-center justify-center gap-2 rounded-2xl p-4 text-sm ${styles.innerCard} ${styles.text.secondary}`}><Users className="h-4 w-4 text-violet-400" /> Need to manage client businesses? Return and choose Agency.</div>}
           </>
         )}
