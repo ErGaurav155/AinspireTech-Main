@@ -34,6 +34,9 @@ export interface IPlatformSubscription extends Document {
     planCode: string;
     effectiveAt: Date;
     status: "pending" | "applied" | "cancelled";
+    retainedWorkspaceIds?: Types.ObjectId[];
+    targetClientLimit?: number;
+    clientCleanupStatus?: "pending" | "processing" | "complete";
   };
   entitlementSnapshot?: {
     features: Record<string, boolean>;
@@ -117,6 +120,12 @@ const PlatformSubscriptionSchema = new Schema<IPlatformSubscription>(
       planCode: String,
       effectiveAt: Date,
       status: { type: String, enum: ["pending", "applied", "cancelled"] },
+      retainedWorkspaceIds: [{ type: Schema.Types.ObjectId, ref: "Workspace" }],
+      targetClientLimit: Number,
+      clientCleanupStatus: {
+        type: String,
+        enum: ["pending", "processing", "complete"],
+      },
     },
     entitlementSnapshot: {
       features: { type: Schema.Types.Mixed, default: {} },

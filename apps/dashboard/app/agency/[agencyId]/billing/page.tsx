@@ -2,11 +2,13 @@
 
 import Script from "next/script";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import {
   createAgencyPlanCheckout,
+  cancelAgencyPlan,
+  getAgencyClients,
   getAgencyPlans,
   type AgencyBillingCatalog,
   type AgencyBillingPlan,
@@ -15,6 +17,8 @@ import {
   SubscriptionTimingDialog,
   type SubscriptionChangeTiming,
 } from "@/components/shared/SubscriptionTimingDialog";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { AgencyDowngradeClientDialog } from "@/components/platform/AgencyDowngradeClientDialog";
 
 const emptyCatalog: AgencyBillingCatalog = {
   plans: [],
@@ -49,6 +53,13 @@ export default function AgencyBillingPage() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [changeTarget, setChangeTarget] = useState<AgencyBillingPlan | null>(null);
+  const [clients, setClients] = useState<any[]>([]);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [downgradeSelection, setDowngradeSelection] = useState<{
+    plan: AgencyBillingPlan;
+    timing: SubscriptionChangeTiming;
+  } | null>(null);
 
   const refreshCatalog = useCallback(async () => {
     const next = await getAgencyPlans(apiRequest, agencyId);
@@ -60,13 +71,17 @@ export default function AgencyBillingPage() {
     setLoading(true);
     setLoadError("");
     try {
-      await refreshCatalog();
+      const [, agencyClients] = await Promise.all([
+        refreshCatalog(),
+        getAgencyClients(apiRequest, agencyId),
+      ]);
+      setClients(agencyClients);
     } catch (value: any) {
       setLoadError(value.message || "Unable to load agency plans");
     } finally {
       setLoading(false);
     }
-  }, [refreshCatalog]);
+  }, [agencyId, apiRequest, refreshCatalog]);
 
   useEffect(() => void load(), [load]);
 
@@ -139,6 +154,7 @@ export default function AgencyBillingPage() {
   const choose = async (
     plan: AgencyBillingPlan,
     scheduleChangeAt?: SubscriptionChangeTiming,
+    retainedWorkspaceIds?: string[],
   ) => {
     if (subscription?.planCode === plan.code) return;
     if (subscription && !scheduleChangeAt) {
@@ -154,6 +170,7 @@ export default function AgencyBillingPage() {
         agencyId,
         plan.code,
         scheduleChangeAt,
+        retainedWorkspaceIds,
       );
       if (checkout.status === "pending_provider_confirmation") {
         await refreshCatalog();
@@ -233,6 +250,23 @@ export default function AgencyBillingPage() {
     }
   };
 
+  const cancelCurrentPlan = async () => {
+    setCancelBusy(true);
+    setMessage("");
+    try {
+      const result = await cancelAgencyPlan(apiRequest, agencyId);
+      await refreshCatalog();
+      setCancelOpen(false);
+      setMessage(
+        `Cancellation scheduled for ${formatDate(result.effectiveAt)}. Your current access remains available until then; client deletion starts only after Razorpay confirms the final cancellation.`,
+      );
+    } catch (value: any) {
+      setMessage(value.message || "Unable to cancel the agency plan");
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-6xl">
       <Script
@@ -251,14 +285,16 @@ export default function AgencyBillingPage() {
         </p>
       </div>
 
-      {subscription && currentPlan && (
+      {subscription && (
         <section className="mt-6 rounded-2xl border border-violet-200 bg-violet-50 p-5 dark:border-violet-500/30 dark:bg-violet-500/10">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-violet-600 dark:text-violet-300">
                 Current plan
               </p>
-              <h2 className="mt-1 text-xl font-bold">{currentPlan.name}</h2>
+              <h2 className="mt-1 text-xl font-bold">
+                {currentPlan?.name || subscription.planCode}
+              </h2>
               <p className="mt-1 text-sm capitalize text-slate-600 dark:text-slate-300">
                 {subscription.billingInterval} · {subscription.status.replace("_", " ")}
                 {subscription.currentPeriodEnd
@@ -279,6 +315,26 @@ export default function AgencyBillingPage() {
               . Another change cannot be requested until this one is applied.
             </div>
           )}
+          {subscription.cancelAtPeriodEnd && (
+            <div className="mt-4 rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-100">
+              Cancellation is scheduled for {formatDate(subscription.currentPeriodEnd)}. Client access and data remain available until Razorpay confirms the cancellation at period end.
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setCancelOpen(true)}
+            disabled={
+              Boolean(subscription.pendingChange) ||
+              Boolean(subscription.cancelAtPeriodEnd) ||
+              cancelBusy
+            }
+            className="mt-4 inline-flex items-center rounded-xl border border-red-300 px-4 py-2 text-sm font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            {subscription.cancelAtPeriodEnd
+              ? "Cancellation scheduled"
+              : "Cancel plan"}
+          </button>
         </section>
       )}
 
@@ -361,6 +417,7 @@ export default function AgencyBillingPage() {
               isCurrent ||
               (isPendingTarget && !canResumePendingCheckout) ||
               (hasPendingChange && !canResumePendingCheckout) ||
+              Boolean(subscription?.cancelAtPeriodEnd) ||
               unresolvedPayment ||
               busy === plan.code;
             const buttonLabel = isCurrent
@@ -464,8 +521,66 @@ export default function AgencyBillingPage() {
           if (!changeTarget) return;
           const target = changeTarget;
           setChangeTarget(null);
+          const targetLimit = clientCapacity(target);
+          const activeClients = clients.filter(
+            (client) => client.workspace?._id || client.relationship?.workspaceId,
+          );
+          const reducesClientCapacity =
+            targetLimit >= 0 && targetLimit < clientCapacity(currentPlan);
+          if (reducesClientCapacity && activeClients.length > targetLimit) {
+            setDowngradeSelection({ plan: target, timing });
+            return;
+          }
           void choose(target, timing);
         }}
+      />
+      {downgradeSelection && currentPlan && (
+        <AgencyDowngradeClientDialog
+          open
+          clients={clients}
+          currentPlan={currentPlan}
+          targetPlan={downgradeSelection.plan}
+          targetLimit={clientCapacity(downgradeSelection.plan)}
+          timing={downgradeSelection.timing}
+          busy={busy === downgradeSelection.plan.code}
+          onClose={() => setDowngradeSelection(null)}
+          onConfirm={(retainedWorkspaceIds) => {
+            const request = downgradeSelection;
+            setDowngradeSelection(null);
+            void choose(request.plan, request.timing, retainedWorkspaceIds);
+          }}
+        />
+      )}
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        onConfirm={() => void cancelCurrentPlan()}
+        title="Cancel your agency plan?"
+        description={`Cancellation is scheduled for ${formatDate(subscription?.currentPeriodEnd)}. Paid access remains active until then. After Razorpay confirms the final cancellation, the cleanup is permanent.`}
+        confirmText="Cancel at period end"
+        isDestructive
+        isLoading={cancelBusy}
+        acknowledgements={[
+          {
+            id: "cancel-client-access",
+            label:
+              "I understand every client member will lose access when the plan ends.",
+          },
+          {
+            id: "cancel-organizations",
+            label:
+              "I understand all client Clerk organizations and invitations will be removed.",
+          },
+          {
+            id: "cancel-automation-data",
+            label:
+              "I understand all client WhatsApp, Instagram, chatbot, leads, appointments, conversations, integrations, and setup data will be deleted.",
+          },
+          {
+            id: "cancel-irreversible",
+            label: "I understand this deletion cannot be undone after cancellation takes effect.",
+          },
+        ]}
       />
     </div>
   );

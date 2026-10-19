@@ -15,6 +15,7 @@ import WorkspaceService from "@/models/tenant/WorkspaceService.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import UsageCounter from "@/models/usage/UsageCounter.model";
 import User from "@/models/user.model";
+import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import { entitlementService } from "@/services/billing/entitlement.service";
 import { PLATFORM_URLS } from "@/config/platform-catalog.config";
 
@@ -472,14 +473,30 @@ export class ProvisioningService {
       throw error;
     }
 
-    const [agency, entitlements] = await Promise.all([
+    const [agency, entitlements, pendingCapacityReduction] = await Promise.all([
       Agency.findOne({ _id: agencyId, status: "active" }).lean(),
       entitlementService.getEffectiveEntitlements({
         ownerType: "AGENCY",
         ownerId: input.agencyId,
       }),
+      PlatformSubscription.findOne({
+        ownerType: "AGENCY",
+        ownerId: agencyId,
+        kind: "base",
+        "pendingChange.status": "pending",
+        "pendingChange.targetClientLimit": { $type: "number" },
+      })
+        .select("pendingChange.planCode pendingChange.effectiveAt")
+        .lean(),
     ]);
     if (!agency) throw new Error("Agency is not active");
+    if (pendingCapacityReduction) {
+      const error = new Error(
+        "New clients cannot be added while a lower-capacity plan change is pending",
+      ) as Error & { code?: string };
+      error.code = "PLAN_DOWNGRADE_PENDING";
+      throw error;
+    }
     if (!entitlements.features.agencyDashboard) {
       throw new Error("The agency plan does not include client workspaces");
     }

@@ -5,6 +5,7 @@ import AddonDefinition from "@/models/billing/AddonDefinition.model";
 import PlanDefinition from "@/models/billing/PlanDefinition.model";
 import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import PurchasedAddon from "@/models/billing/PurchasedAddon.model";
+import AgencyClient from "@/models/tenant/AgencyClient.model";
 import { writePlatformAuditLog } from "@/services/audit/platform-audit.service";
 import { syncPlatformCatalog } from "@/services/billing/platform-catalog-sync.service";
 import { getRazorpay } from "@/utils/util";
@@ -30,6 +31,8 @@ const createAgencyReplacementSubscription = async ({
   plan,
   scheduleChangeAt,
   checkoutKeyValue,
+  retainedWorkspaceIds,
+  targetClientLimit,
 }: {
   req: Request;
   agencyId: Types.ObjectId;
@@ -37,6 +40,8 @@ const createAgencyReplacementSubscription = async ({
   plan: any;
   scheduleChangeAt: "now" | "cycle_end";
   checkoutKeyValue: string;
+  retainedWorkspaceIds?: Types.ObjectId[];
+  targetClientLimit?: number;
 }) => {
   const replacement = await PlatformSubscription.create({
     ownerType: "AGENCY",
@@ -91,6 +96,13 @@ const createAgencyReplacementSubscription = async ({
           ? current.currentPeriodEnd
           : new Date(),
       status: "pending",
+      ...(retainedWorkspaceIds
+        ? {
+            retainedWorkspaceIds,
+            targetClientLimit,
+            clientCleanupStatus: "pending" as const,
+          }
+        : {}),
     };
     await current.save();
     return { replacement, providerSubscription };
@@ -107,6 +119,34 @@ const planCheckoutSchema = z
   .object({
     planCode: z.string().trim().min(2).max(100),
     scheduleChangeAt: z.enum(["now", "cycle_end"]).optional(),
+    retainedWorkspaceIds: z
+      .array(
+        z.string().refine((value) => Types.ObjectId.isValid(value), {
+          message: "Invalid workspace id",
+        }),
+      )
+      .max(500)
+      .optional(),
+    downgradeConfirmations: z
+      .object({
+        deleteNonSelectedClientData: z.literal(true),
+        removeNonSelectedClerkOrganizations: z.literal(true),
+        permanentAndIrreversible: z.literal(true),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict();
+const cancelAgencyPlanSchema = z
+  .object({
+    confirmations: z
+      .object({
+        removeClientAccess: z.literal(true),
+        deleteAutomationData: z.literal(true),
+        deleteLeadsAndAppointments: z.literal(true),
+        permanentAndIrreversible: z.literal(true),
+      })
+      .strict(),
   })
   .strict();
 const addonCheckoutSchema = z
@@ -152,7 +192,7 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
     })
       .sort({ createdAt: -1 })
       .select(
-        "planCode status billingInterval currentPeriodStart currentPeriodEnd pendingChange createdAt updatedAt",
+        "planCode status billingInterval currentPeriodStart currentPeriodEnd cancelAtPeriodEnd pendingChange createdAt updatedAt",
       )
       .lean();
     if (!currentSubscription) {
@@ -164,7 +204,7 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
       })
         .sort({ createdAt: -1 })
         .select(
-          "planCode status billingInterval currentPeriodStart currentPeriodEnd pendingChange createdAt updatedAt",
+          "planCode status billingInterval currentPeriodStart currentPeriodEnd cancelAtPeriodEnd pendingChange createdAt updatedAt",
         )
         .lean();
     }
@@ -188,6 +228,7 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
             billingInterval: currentSubscription.billingInterval,
             currentPeriodStart: currentSubscription.currentPeriodStart,
             currentPeriodEnd: currentSubscription.currentPeriodEnd,
+            cancelAtPeriodEnd: currentSubscription.cancelAtPeriodEnd,
             pendingChange:
               currentSubscription.pendingChange?.status === "pending"
                 ? {
@@ -239,6 +280,11 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
     }).sort({ createdAt: -1 });
 
     if (current?.provider === "razorpay" && current.providerSubscriptionId) {
+      if (current.cancelAtPeriodEnd) {
+        return fail(res, 409, "This subscription is already scheduled for cancellation", {
+          code: "PLAN_CANCELLATION_PENDING",
+        });
+      }
       const currentPlan = await PlanDefinition.findById(current.planId).lean();
       if (!currentPlan) return fail(res, 409, "Current plan configuration is unavailable");
       if (current.pendingChange?.status === "pending") {
@@ -299,6 +345,79 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         );
       }
 
+      const targetClientLimit = Number(plan.limits?.clientWorkspaces ?? 0);
+      let retainedWorkspaceIds: Types.ObjectId[] | undefined;
+      const currentClientLimit = Number(currentPlan.limits?.clientWorkspaces ?? 0);
+      const reducesClientCapacity =
+        Number.isFinite(targetClientLimit) &&
+        targetClientLimit >= 0 &&
+        (currentClientLimit < 0 || targetClientLimit < currentClientLimit);
+      if (reducesClientCapacity) {
+        const activeRelationships = await AgencyClient.find({
+          agencyId,
+          status: { $in: ["provisioning", "active", "suspended"] },
+        })
+          .select("workspaceId")
+          .lean();
+        if (activeRelationships.length > targetClientLimit) {
+          const requested = parsed.data.retainedWorkspaceIds;
+          const uniqueRequested = requested ? [...new Set(requested)] : [];
+          if (
+            !requested ||
+            !parsed.data.downgradeConfirmations ||
+            uniqueRequested.length !== targetClientLimit
+          ) {
+            return fail(
+              res,
+              409,
+              `Select exactly ${targetClientLimit} client${targetClientLimit === 1 ? "" : "s"} to keep before downgrading`,
+              {
+                code: "DOWNGRADE_CLIENT_SELECTION_REQUIRED",
+                activeClientCount: activeRelationships.length,
+                targetClientLimit,
+              },
+            );
+          }
+          const allowedWorkspaceIds = new Set(
+            activeRelationships.map((item) => String(item.workspaceId)),
+          );
+          if (uniqueRequested.some((workspaceId) => !allowedWorkspaceIds.has(workspaceId))) {
+            return fail(res, 403, "One or more selected clients do not belong to this agency", {
+              code: "INVALID_RETAINED_CLIENT",
+            });
+          }
+          retainedWorkspaceIds = uniqueRequested.map(
+            (workspaceId) => new Types.ObjectId(workspaceId),
+          );
+        } else {
+          retainedWorkspaceIds = activeRelationships.map(
+            (item) => new Types.ObjectId(String(item.workspaceId)),
+          );
+        }
+      }
+
+      const provisionalEffectiveAt =
+        scheduleChangeAt === "cycle_end" && current.currentPeriodEnd
+          ? current.currentPeriodEnd
+          : new Date();
+      current.pendingChange = {
+        planId: plan._id,
+        planCode: plan.code,
+        effectiveAt: provisionalEffectiveAt,
+        status: "pending",
+        ...(retainedWorkspaceIds
+          ? {
+              retainedWorkspaceIds,
+              targetClientLimit,
+              clientCleanupStatus: "pending" as const,
+            }
+          : {}),
+      };
+      // Reserve the change before calling Razorpay. A fast webhook can now
+      // always find the retention decision and cannot apply a destructive
+      // downgrade without it.
+      await current.save();
+
       let providerSubscription: any;
       try {
         providerSubscription = await getRazorpay().subscriptions.update(
@@ -309,21 +428,36 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
           },
         );
       } catch (error) {
-        if (!isUpiSubscriptionUpdateError(error)) throw error;
+        if (!isUpiSubscriptionUpdateError(error)) {
+          current.pendingChange = undefined;
+          await current.save();
+          throw error;
+        }
 
         // Razorpay cannot mutate UPI-backed subscriptions. Keep the paid
         // subscription active and ask the customer to authorize a replacement
         // mandate. Webhooks switch entitlements and retire the old mandate only
         // after the replacement is authenticated/activated.
-        const { replacement, providerSubscription: created } =
-          await createAgencyReplacementSubscription({
-            req,
-            agencyId,
-            current,
-            plan,
-            scheduleChangeAt,
-            checkoutKeyValue: key,
-          });
+        let replacement: any;
+        let created: any;
+        try {
+          const replacementResult = await createAgencyReplacementSubscription({
+              req,
+              agencyId,
+              current,
+              plan,
+              scheduleChangeAt,
+              checkoutKeyValue: key,
+              retainedWorkspaceIds,
+              targetClientLimit,
+            });
+          replacement = replacementResult.replacement;
+          created = replacementResult.providerSubscription;
+        } catch (replacementError) {
+          current.pendingChange = undefined;
+          await current.save().catch(() => undefined);
+          throw replacementError;
+        }
         await writePlatformAuditLog({
           req,
           action: "plan.replacement_checkout_created",
@@ -356,15 +490,16 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         (Number.isFinite(providerPeriodEnd) && providerPeriodEnd > 0
           ? new Date(providerPeriodEnd * 1000)
           : new Date());
-      current.pendingChange = {
-        planId: plan._id,
-        planCode: plan.code,
-        effectiveAt:
-          scheduleChangeAt === "cycle_end" ? cycleEnd : new Date(),
-        status: "pending",
-      };
-      current.checkoutIdempotencyKey = key;
-      await current.save();
+      const effectiveAt = scheduleChangeAt === "cycle_end" ? cycleEnd : new Date();
+      await PlatformSubscription.updateOne(
+        { _id: current._id, "pendingChange.status": "pending" },
+        {
+          $set: {
+            "pendingChange.effectiveAt": effectiveAt,
+            checkoutIdempotencyKey: key,
+          },
+        },
+      );
       await writePlatformAuditLog({
         req,
         action:
@@ -388,7 +523,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         status: "pending_provider_confirmation",
         changeType: policy.type,
         scheduleChangeAt,
-        effectiveAt: current.pendingChange.effectiveAt,
+        effectiveAt,
       });
     }
 
@@ -439,6 +574,66 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
   } catch (error) {
     console.error("Unable to create plan checkout:", error);
     return fail(res, 500, "Unable to create plan checkout");
+  }
+};
+
+export const cancelAgencyPlanController = async (req: Request, res: Response) => {
+  const parsed = cancelAgencyPlanSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return fail(
+      res,
+      400,
+      "All cancellation confirmations are required",
+      parsed.error.flatten(),
+    );
+  }
+  const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
+  try {
+    const subscription = await PlatformSubscription.findOne({
+      ownerType: "AGENCY",
+      ownerId: agencyId,
+      kind: "base",
+      status: { $in: ["active", "trialing", "past_due", "paused"] },
+    }).sort({ createdAt: -1 });
+    if (!subscription?.providerSubscriptionId || subscription.provider !== "razorpay") {
+      return fail(res, 404, "No cancellable agency subscription was found");
+    }
+    if (subscription.pendingChange?.status === "pending") {
+      return fail(res, 409, "Wait for the pending plan change before cancelling", {
+        code: "PLAN_CHANGE_PENDING",
+      });
+    }
+    if (subscription.cancelAtPeriodEnd) {
+      return ok(res, {
+        status: "cancellation_scheduled",
+        effectiveAt: subscription.currentPeriodEnd,
+      });
+    }
+
+    await getRazorpay().subscriptions.cancel(
+      subscription.providerSubscriptionId,
+      true,
+    );
+    subscription.cancelAtPeriodEnd = true;
+    await subscription.save();
+    await writePlatformAuditLog({
+      req,
+      action: "plan.cancellation_scheduled",
+      targetType: "subscription",
+      targetId: String(subscription._id),
+      metadata: {
+        planCode: subscription.planCode,
+        effectiveAt: subscription.currentPeriodEnd,
+        providerSubscriptionId: subscription.providerSubscriptionId,
+      },
+    });
+    return ok(res, {
+      status: "cancellation_scheduled",
+      effectiveAt: subscription.currentPeriodEnd,
+    });
+  } catch (error) {
+    console.error("Unable to cancel agency plan:", error);
+    return fail(res, 500, "Unable to schedule agency plan cancellation");
   }
 };
 

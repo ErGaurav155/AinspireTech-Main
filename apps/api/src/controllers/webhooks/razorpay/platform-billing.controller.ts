@@ -8,6 +8,7 @@ import { connectToDatabase } from "@/config/database.config";
 import { purgeAgencyClients } from "@/services/tenant/agency-termination.service";
 import { syncAgencyUsageLimitSnapshots } from "@/services/usage/agency-entitlement-sync.service";
 import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
+import { reconcileAgencyClientsForConfirmedPlan } from "@/services/billing/agency-plan-retention.service";
 import { getRazorpay } from "@/utils/util";
 
 const dateFromSeconds = (value: unknown) => {
@@ -140,16 +141,33 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
     const purchasedAddon = platformSubscription
       ? null
       : await PurchasedAddon.findOne({ provider: "razorpay", providerReference: entity.id });
+    let clientCleanupResult:
+      | {
+          targetLimit: number;
+          retainedWorkspaceIds: string[];
+          deletedWorkspaceIds: string[];
+        }
+      | undefined;
 
     if (platformSubscription) {
+      let clientRetentionSource: any = null;
+      let retainedWorkspaceIds: string[] = [];
+      let targetClientLimit: number | undefined;
       const providerPlanId = String(entity.plan_id || "");
       const confirmedPlan = providerPlanId
         ? await PlanDefinition.findOne({ "razorpay.planId": providerPlanId }).sort({ revision: -1 })
         : null;
+      const scheduledPlanChangeIsNotEffective = Boolean(
+        eventType === "subscription.updated" &&
+          entity.has_scheduled_changes === true &&
+          platformSubscription.pendingChange?.status === "pending" &&
+          platformSubscription.pendingChange.effectiveAt &&
+          new Date(platformSubscription.pendingChange.effectiveAt).getTime() > Date.now(),
+      );
       if (["active", "past_due"].includes(status) && !confirmedPlan) {
         throw new Error("Razorpay plan does not map to a configured platform plan");
       }
-      if (confirmedPlan) {
+      if (confirmedPlan && !scheduledPlanChangeIsNotEffective) {
         platformSubscription.planId = confirmedPlan._id;
         platformSubscription.planCode = confirmedPlan.code;
         platformSubscription.planRevision = confirmedPlan.revision;
@@ -159,6 +177,16 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
           limits: confirmedPlan.limits as Record<string, number>,
         };
         if (platformSubscription.pendingChange?.planCode === confirmedPlan.code) {
+          if (
+            platformSubscription.pendingChange.targetClientLimit !== undefined &&
+            platformSubscription.pendingChange.clientCleanupStatus !== "complete"
+          ) {
+            clientRetentionSource = platformSubscription;
+            targetClientLimit = platformSubscription.pendingChange.targetClientLimit;
+            retainedWorkspaceIds = (
+              platformSubscription.pendingChange.retainedWorkspaceIds || []
+            ).map((workspaceId) => String(workspaceId));
+          }
           platformSubscription.pendingChange.status = "applied";
         }
       }
@@ -178,6 +206,17 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
         if (previous) {
           previous.replacedBySubscriptionId = platformSubscription._id;
           if (previous.pendingChange) {
+            if (
+              previous.pendingChange.planCode === confirmedPlan?.code &&
+              previous.pendingChange.targetClientLimit !== undefined &&
+              previous.pendingChange.clientCleanupStatus !== "complete"
+            ) {
+              clientRetentionSource = previous;
+              targetClientLimit = previous.pendingChange.targetClientLimit;
+              retainedWorkspaceIds = (
+                previous.pendingChange.retainedWorkspaceIds || []
+              ).map((workspaceId) => String(workspaceId));
+            }
             previous.pendingChange.status = "applied";
           }
           if (
@@ -197,6 +236,7 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       }
       if (
         confirmedPlan &&
+        !scheduledPlanChangeIsNotEffective &&
         platformSubscription.ownerType === "AGENCY" &&
         ["active", "trialing"].includes(platformSubscription.status)
       ) {
@@ -204,6 +244,22 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
           agencyId: String(platformSubscription.ownerId),
           limits: confirmedPlan.limits as Record<string, number>,
         });
+      }
+      if (
+        clientRetentionSource?.pendingChange &&
+        targetClientLimit !== undefined &&
+        platformSubscription.ownerType === "AGENCY" &&
+        ["active", "trialing"].includes(platformSubscription.status)
+      ) {
+        clientRetentionSource.pendingChange.clientCleanupStatus = "processing";
+        await clientRetentionSource.save();
+        clientCleanupResult = await reconcileAgencyClientsForConfirmedPlan({
+          agencyId: String(platformSubscription.ownerId),
+          retainedWorkspaceIds,
+          targetLimit: targetClientLimit,
+        });
+        clientRetentionSource.pendingChange.clientCleanupStatus = "complete";
+        await clientRetentionSource.save();
       }
       const activeReplacement = platformSubscription.replacedBySubscriptionId
         ? await PlatformSubscription.exists({
@@ -269,6 +325,15 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
     eventRecord.metadata = {
       platformType: platformSubscription ? "plan" : "addon",
       localId: String(platformSubscription?._id || purchasedAddon?._id),
+      ...(typeof clientCleanupResult === "undefined"
+        ? {}
+        : {
+            downgradeClientCleanup: {
+              targetLimit: clientCleanupResult.targetLimit,
+              retainedWorkspaceIds: clientCleanupResult.retainedWorkspaceIds,
+              deletedWorkspaceIds: clientCleanupResult.deletedWorkspaceIds,
+            },
+          }),
     };
     await eventRecord.save();
     return res.status(200).json({ success: true, message: "Platform billing state synchronized" });

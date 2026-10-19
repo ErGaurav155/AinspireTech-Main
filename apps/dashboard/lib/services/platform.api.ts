@@ -23,6 +23,7 @@ export type AgencyBillingSubscription = {
   billingInterval: "monthly" | "yearly";
   currentPeriodStart?: string;
   currentPeriodEnd?: string;
+  cancelAtPeriodEnd?: boolean;
   pendingChange?: {
     planCode: string;
     effectiveAt?: string;
@@ -129,12 +130,45 @@ export const createAgencyPlanCheckout = (
   agencyId: string,
   planCode: string,
   scheduleChangeAt?: "now" | "cycle_end",
+  retainedWorkspaceIds?: string[],
 ) =>
   apiRequest<any>(`/platform/agencies/${agencyId}/billing/checkout`, {
     method: "POST",
     headers: { "X-Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({ planCode, scheduleChangeAt }),
+    body: JSON.stringify({
+      planCode,
+      scheduleChangeAt,
+      retainedWorkspaceIds,
+      ...(retainedWorkspaceIds
+        ? {
+            downgradeConfirmations: {
+              deleteNonSelectedClientData: true,
+              removeNonSelectedClerkOrganizations: true,
+              permanentAndIrreversible: true,
+            },
+          }
+        : {}),
+    }),
   });
+
+export const cancelAgencyPlan = (
+  apiRequest: ApiRequestFn,
+  agencyId: string,
+) =>
+  apiRequest<{ status: "cancellation_scheduled"; effectiveAt?: string }>(
+    `/platform/agencies/${agencyId}/billing/cancel`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        confirmations: {
+          removeClientAccess: true,
+          deleteAutomationData: true,
+          deleteLeadsAndAppointments: true,
+          permanentAndIrreversible: true,
+        },
+      }),
+    },
+  );
 
 export const getWorkspace = (apiRequest: ApiRequestFn, workspaceId: string) =>
   apiRequest<any>(`/platform/workspaces/${workspaceId}`);

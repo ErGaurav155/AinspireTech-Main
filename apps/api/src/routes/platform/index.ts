@@ -24,6 +24,7 @@ import {
 import {
   createAgencyAddonCheckoutController,
   createAgencyPlanCheckoutController,
+  cancelAgencyPlanController,
   listAgencyPlansController,
   createWorkspacePlanCheckoutController,
   updateAgencyAddonController,
@@ -89,6 +90,12 @@ router.post(
   requireAgencyContext,
   requireAgencyPermission("agency.billing.manage"),
   createAgencyPlanCheckoutController,
+);
+router.post(
+  "/agencies/:agencyId/billing/cancel",
+  requireAgencyContext,
+  requireAgencyPermission("agency.billing.manage"),
+  cancelAgencyPlanController,
 );
 router.post(
   "/agencies/:agencyId/billing/addons/checkout",
