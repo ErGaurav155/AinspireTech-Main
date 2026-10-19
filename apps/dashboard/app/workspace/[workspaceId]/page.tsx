@@ -22,6 +22,7 @@ function ClientConfigurationSummary({ data }: { data: any }) {
   if (!config) return null;
   const whatsappQuestions =
     config.whatsapp?.automationConfig?.appointmentQuestions || [];
+  const whatsappFaqs = config.whatsapp?.faqs || [];
   const instagramFlows = config.instagram?.flows || [];
   const webQuestions = config.website?.flow?.questions || [];
   const factEntries = Object.entries(config.business?.information || {}).filter(
@@ -58,7 +59,20 @@ function ClientConfigurationSummary({ data }: { data: any }) {
         <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">
           <div className="flex items-center gap-2 font-semibold"><MessageCircle className="h-4 w-4 text-emerald-500" /> WhatsApp setup</div>
           <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">Automation: {config.whatsapp?.automationConfig?.enabled ? "Enabled" : "Not enabled"} · Appointment flow: {config.whatsapp?.appointmentConfig?.enabled ? "Enabled" : "Not enabled"}</p>
-          <ul className="mt-3 space-y-2 text-sm">{whatsappQuestions.length ? whatsappQuestions.map((question: any) => <li key={question.id || question.question} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/5">{question.question}</li>) : <li className="text-slate-400">No appointment questions configured.</li>}</ul>
+          <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-slate-400">Appointment questions</p>
+          <ul className="mt-2 space-y-2 text-sm">{whatsappQuestions.length ? whatsappQuestions.map((question: any) => <li key={question.id || question.question} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/5">{question.question}</li>) : <li className="text-slate-400">No appointment questions configured.</li>}</ul>
+          <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">Frequently asked questions</p>
+          <div className="mt-2 space-y-2 text-sm">
+            {whatsappFaqs.length ? whatsappFaqs.map((faq: any) => (
+              <div key={faq.id || faq.question} className="rounded-lg bg-slate-50 px-3 py-2 dark:bg-white/5">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-medium text-slate-800 dark:text-slate-100">{faq.question}</p>
+                  {!faq.isActive && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] text-slate-500 dark:bg-white/10 dark:text-slate-400">Inactive</span>}
+                </div>
+                <p className="mt-1 whitespace-pre-wrap text-slate-500 dark:text-slate-400">{faq.answer}</p>
+              </div>
+            )) : <p className="text-slate-400">No WhatsApp FAQs configured.</p>}
+          </div>
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-white/5">

@@ -96,6 +96,7 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
         provider: "razorpay",
         providerSubscriptionId: entity.id,
         replacementForSubscriptionId: { $exists: true },
+        status: "pending",
       });
       if (authenticatedReplacement?.replacementForSubscriptionId) {
         const previous = await PlatformSubscription.findById(
@@ -148,6 +149,24 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
           deletedWorkspaceIds: string[];
         }
       | undefined;
+
+    if (
+      platformSubscription?.replacementForSubscriptionId &&
+      platformSubscription.status === "cancelled" &&
+      !["subscription.cancelled", "subscription.completed"].includes(eventType)
+    ) {
+      eventRecord.status = "ignored";
+      eventRecord.processedAt = new Date();
+      eventRecord.metadata = {
+        reason: "abandoned_plan_replacement",
+        localId: String(platformSubscription._id),
+      };
+      await eventRecord.save();
+      return res.status(200).json({
+        success: true,
+        message: "Abandoned replacement event ignored",
+      });
+    }
 
     if (platformSubscription) {
       let clientRetentionSource: any = null;
@@ -270,6 +289,7 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       if (
         platformSubscription.ownerType === "AGENCY" &&
         platformSubscription.kind === "base" &&
+        !platformSubscription.replacementForSubscriptionId &&
         ["cancelled", "expired"].includes(status) &&
         !activeReplacement
       ) {

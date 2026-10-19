@@ -66,6 +66,7 @@ export const razorpayCheckoutCallbackController = (
   appendParam(callbackParams, "productId", req.query.productId);
   appendParam(callbackParams, "billingCycle", req.query.billingCycle);
   appendParam(callbackParams, "scheduleChangeAt", req.query.scheduleChangeAt);
+  appendParam(callbackParams, "localSubscriptionId", req.query.localSubscriptionId);
   appendParam(callbackParams, "planLimit", req.query.planLimit);
   appendParam(callbackParams, "accountLimit", req.query.accountLimit);
   appendParam(callbackParams, "chatbotId", req.query.chatbotId);

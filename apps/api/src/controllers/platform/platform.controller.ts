@@ -60,6 +60,51 @@ const deleteClientSchema = z
       .strict(),
   })
   .strict();
+const optionalEmailSchema = z.union([
+  z.literal(""),
+  z.string().trim().email().max(320),
+]);
+const optionalUrlSchema = z.union([
+  z.literal(""),
+  z.string().trim().url().max(500),
+]);
+const updateAgencySettingsSchema = z
+  .object({
+    name: z.string().trim().min(2).max(160).optional(),
+    profile: z
+      .object({
+        contactEmail: optionalEmailSchema,
+        contactPhone: z.string().trim().max(40),
+        websiteUrl: optionalUrlSchema,
+        timezone: z.string().trim().min(2).max(80),
+      })
+      .strict()
+      .optional(),
+    branding: z
+      .object({
+        displayName: z.string().trim().max(160),
+        logoUrl: optionalUrlSchema,
+        primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+        hideRocketReplAI: z.boolean(),
+      })
+      .strict()
+      .optional(),
+    reporting: z
+      .object({
+        weeklyEmailEnabled: z.boolean(),
+        reportEmail: optionalEmailSchema,
+        defaultRangeDays: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+        includeUsage: z.boolean(),
+        includeLeads: z.boolean(),
+        includeAppointments: z.boolean(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+  .refine((value) => Object.keys(value).length > 0, {
+    message: "At least one agency setting is required",
+  });
 
 const ok = (res: Response, data: unknown, status = 200) =>
   res.status(status).json({ success: true, data, timestamp: new Date().toISOString() });
@@ -273,6 +318,59 @@ export const getAgencyController = async (req: Request, res: Response) => {
   }
 };
 
+export const updateAgencySettingsController = async (
+  req: Request,
+  res: Response,
+) => {
+  const parsed = updateAgencySettingsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return fail(res, 400, "Invalid agency settings", parsed.error.flatten());
+  }
+
+  try {
+    const agencyId = req.agencyContext!.agencyId;
+    const entitlements = await entitlementService.getEffectiveEntitlements({
+      ownerType: "AGENCY",
+      ownerId: agencyId,
+    });
+    if (parsed.data.branding && !entitlements.features.customBranding) {
+      return fail(res, 403, "Custom branding is not included in the current plan");
+    }
+    if (parsed.data.reporting && !entitlements.features.advancedReporting) {
+      return fail(res, 403, "Advanced reporting is not included in the current plan");
+    }
+
+    const changes: Record<string, unknown> = {};
+    if (parsed.data.name !== undefined) changes.name = parsed.data.name;
+    if (parsed.data.profile !== undefined) {
+      changes["settings.profile"] = parsed.data.profile;
+    }
+    if (parsed.data.reporting !== undefined) {
+      changes["settings.reporting"] = parsed.data.reporting;
+    }
+    if (parsed.data.branding !== undefined) {
+      changes.branding = parsed.data.branding;
+    }
+    const agency = await Agency.findByIdAndUpdate(
+      agencyId,
+      { $set: changes },
+      { new: true, runValidators: true },
+    ).lean();
+    if (!agency) return fail(res, 404, "Agency not found");
+
+    await writePlatformAuditLog({
+      req,
+      action: "agency.settings_updated",
+      targetType: "agency",
+      targetId: agencyId,
+      metadata: { sections: Object.keys(parsed.data) },
+    });
+    return ok(res, { agency });
+  } catch (error) {
+    return handleError(res, error, "Unable to update agency settings");
+  }
+};
+
 export const listAgencyClientsController = async (req: Request, res: Response) => {
   try {
     const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
@@ -461,7 +559,7 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
             $or: [{ workspaceId }, { clerkId: ownerFilter }],
           })
             .select(
-              "organization onboarding.status onboarding.businessDisplayName appointmentConfig automationConfig",
+              "organization onboarding.status onboarding.businessDisplayName appointmentConfig automationConfig faqs",
             )
             .lean(),
           InstagramAccount.find({
@@ -483,7 +581,7 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
             clerkId: ownerFilter,
             chatbotType: "chatbot-lead-generation",
           })
-            .select("quickReplies questions")
+            .select("quickReplies questions flows")
             .lean(),
           WebChatbot.findOne({
             clerkId: ownerFilter,

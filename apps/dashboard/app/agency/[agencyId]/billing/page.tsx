@@ -6,6 +6,7 @@ import { Check, Trash2 } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/useApi";
 import {
+  abandonAgencyPlanCheckout,
   createAgencyPlanCheckout,
   cancelAgencyPlan,
   getAgencyClients,
@@ -56,6 +57,7 @@ export default function AgencyBillingPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [cancelBusy, setCancelBusy] = useState(false);
+  const [discardingPending, setDiscardingPending] = useState(false);
   const [downgradeSelection, setDowngradeSelection] = useState<{
     plan: AgencyBillingPlan;
     timing: SubscriptionChangeTiming;
@@ -119,6 +121,28 @@ export default function AgencyBillingPage() {
     [refreshCatalog],
   );
 
+  const discardPendingCheckout = useCallback(
+    async (localSubscriptionId: string) => {
+      setDiscardingPending(true);
+      try {
+        await abandonAgencyPlanCheckout(
+          apiRequest,
+          agencyId,
+          localSubscriptionId,
+        );
+        await refreshCatalog();
+        setMessage(
+          "The unapproved plan checkout was discarded. Your current plan is unchanged, and you can choose another plan.",
+        );
+      } catch (value: any) {
+        setMessage(value.message || "Unable to discard the pending checkout");
+      } finally {
+        setDiscardingPending(false);
+      }
+    },
+    [agencyId, apiRequest, refreshCatalog],
+  );
+
   useEffect(() => {
     if (
       searchParams.get("razorpay_checkout") !== "1" ||
@@ -129,9 +153,14 @@ export default function AgencyBillingPage() {
     const timing = searchParams.get("scheduleChangeAt");
     const paymentId = searchParams.get("razorpay_payment_id");
     const signature = searchParams.get("razorpay_signature");
+    const localSubscriptionId = searchParams.get("localSubscriptionId");
     const finish = async () => {
       if (!paymentId || !signature) {
-        setMessage("Payment was not completed. Your current plan is unchanged.");
+        if (localSubscriptionId) {
+          await discardPendingCheckout(localSubscriptionId);
+        } else {
+          setMessage("Payment was not completed. Your current plan is unchanged.");
+        }
       } else if (timing === "cycle_end") {
         await refreshCatalog().catch(() => undefined);
         setMessage(
@@ -149,7 +178,14 @@ export default function AgencyBillingPage() {
       router.replace(`/agency/${agencyId}/billing`, { scroll: false });
     };
     void finish();
-  }, [agencyId, refreshCatalog, router, searchParams, waitForActivation]);
+  }, [
+    agencyId,
+    discardPendingCheckout,
+    refreshCatalog,
+    router,
+    searchParams,
+    waitForActivation,
+  ]);
 
   const choose = async (
     plan: AgencyBillingPlan,
@@ -164,6 +200,7 @@ export default function AgencyBillingPage() {
 
     setBusy(plan.code);
     setMessage("");
+    let replacementCheckoutId = "";
     try {
       const checkout = await createAgencyPlanCheckout(
         apiRequest,
@@ -172,6 +209,9 @@ export default function AgencyBillingPage() {
         scheduleChangeAt,
         retainedWorkspaceIds,
       );
+      replacementCheckoutId = checkout.replacementCheckout
+        ? String(checkout.localSubscriptionId || "")
+        : "";
       if (checkout.status === "pending_provider_confirmation") {
         await refreshCatalog();
         setMessage(
@@ -200,10 +240,30 @@ export default function AgencyBillingPage() {
           checkout.scheduleChangeAt,
         );
       }
+      if (checkout.replacementCheckout && checkout.localSubscriptionId) {
+        callbackUrl.searchParams.set(
+          "localSubscriptionId",
+          checkout.localSubscriptionId,
+        );
+      }
       const mobileCheckout =
         /Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(
           navigator.userAgent,
         );
+      let checkoutCompleted = false;
+      let abandonmentStarted = false;
+      const abandonReplacement = async () => {
+        if (
+          checkoutCompleted ||
+          abandonmentStarted ||
+          !checkout.replacementCheckout ||
+          !checkout.localSubscriptionId
+        ) {
+          return;
+        }
+        abandonmentStarted = true;
+        await discardPendingCheckout(checkout.localSubscriptionId);
+      };
       const instance = new (window as any).Razorpay({
         key: checkout.keyId,
         subscription_id: checkout.subscriptionId,
@@ -213,6 +273,7 @@ export default function AgencyBillingPage() {
           ? { callback_url: callbackUrl.toString(), redirect: true }
           : {}),
         handler: async () => {
+          checkoutCompleted = true;
           if (
             checkout.replacementCheckout &&
             checkout.scheduleChangeAt === "cycle_end"
@@ -237,14 +298,22 @@ export default function AgencyBillingPage() {
             );
           }
         },
+        modal: {
+          ondismiss: () => void abandonReplacement(),
+        },
         theme: { color: "#8b5cf6" },
       });
-      instance.on("payment.failed", () =>
-        setMessage("Payment failed. No paid access was granted."),
-      );
+      instance.on("payment.failed", () => {
+        setMessage("Payment failed. No paid access was granted.");
+        void abandonReplacement();
+      });
       instance.open();
     } catch (value: any) {
-      setMessage(value.message || "Unable to start checkout");
+      if (replacementCheckoutId) {
+        await discardPendingCheckout(replacementCheckoutId);
+      } else {
+        setMessage(value.message || "Unable to start checkout");
+      }
     } finally {
       setBusy("");
     }
@@ -308,11 +377,32 @@ export default function AgencyBillingPage() {
           </div>
           {subscription.pendingChange && (
             <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100">
-              Change to {pendingPlan?.name || subscription.pendingChange.planCode} is pending
-              {subscription.pendingChange.effectiveAt
-                ? ` for ${formatDate(subscription.pendingChange.effectiveAt)}`
-                : " provider confirmation"}
-              . Another change cannot be requested until this one is applied.
+              <p>
+                {subscription.pendingChange.requiresCheckout
+                  ? `Checkout for ${pendingPlan?.name || subscription.pendingChange.planCode} has not been approved. Continue it or discard it; your current plan is unchanged.`
+                  : `Change to ${pendingPlan?.name || subscription.pendingChange.planCode} is pending${
+                      subscription.pendingChange.effectiveAt
+                        ? ` for ${formatDate(subscription.pendingChange.effectiveAt)}`
+                        : " provider confirmation"
+                    }. Another change cannot be requested until it is applied.`}
+              </p>
+              {subscription.pendingChange.requiresCheckout &&
+                subscription.pendingChange.pendingCheckoutId && (
+                  <button
+                    type="button"
+                    disabled={discardingPending}
+                    onClick={() =>
+                      void discardPendingCheckout(
+                        subscription.pendingChange!.pendingCheckoutId!,
+                      )
+                    }
+                    className="mt-3 rounded-lg border border-amber-500/40 px-3 py-1.5 text-xs font-semibold transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-amber-500/20"
+                  >
+                    {discardingPending
+                      ? "Discarding checkout…"
+                      : "Discard pending checkout"}
+                  </button>
+                )}
             </div>
           )}
           {subscription.cancelAtPeriodEnd && (

@@ -52,22 +52,33 @@ export default function PlatformShell({
           type="button"
           onClick={close}
           className={`absolute right-4 top-4 rounded-lg p-2 md:hidden ${
-            isDark ? "text-white/60 hover:bg-white/10" : "text-slate-500 hover:bg-slate-100"
+            isDark
+              ? "text-white/60 hover:bg-white/10"
+              : "text-slate-500 hover:bg-slate-100"
           }`}
           aria-label="Close agency navigation"
         >
           <X className="h-5 w-5" />
         </button>
-        <Link href="/select-workspace" className="block pr-10 text-xl font-bold tracking-tight">
+        <Link
+          href="/select-workspace"
+          className="block pr-10 text-xl font-bold tracking-tight"
+        >
           RocketReplAI
         </Link>
         <div className={`mt-8 rounded-2xl border p-4 ${cardClass}`}>
-          <p className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">Agency</p>
-          <p className="mt-1 truncate font-semibold">{agencyName || "Agency workspace"}</p>
+          <p className="text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">
+            Agency
+          </p>
+          <p className="mt-1 truncate font-semibold">
+            {agencyName || "Agency workspace"}
+          </p>
         </div>
         <nav className="mt-8 space-y-2">
           {links.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href || (href.endsWith("/clients") && pathname.startsWith(`${href}/`));
+            const active =
+              pathname === href ||
+              (href.endsWith("/clients") && pathname.startsWith(`${href}/`));
             return (
               <Link
                 key={href}
@@ -109,18 +120,14 @@ export default function PlatformShell({
             type="button"
             onClick={toggle}
             className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 transition hover:bg-slate-100 dark:border-white/10 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
-            aria-label={isOpen ? "Close agency navigation" : "Open agency navigation"}
+            aria-label={
+              isOpen ? "Close agency navigation" : "Open agency navigation"
+            }
           >
             {isOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
           <span className="font-semibold md:hidden">RocketReplAI</span>
           <div className="ml-auto flex items-center gap-2">
-            <Link
-              href="/select-workspace"
-              className="hidden text-sm text-slate-500 transition hover:text-slate-950 dark:text-slate-400 dark:hover:text-white sm:block"
-            >
-              Switch workspace
-            </Link>
             <ThemeToggle />
             <UserButton />
           </div>

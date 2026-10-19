@@ -29,6 +29,7 @@ export type AgencyBillingSubscription = {
     effectiveAt?: string;
     status: "pending";
     requiresCheckout?: boolean;
+    pendingCheckoutId?: string;
   } | null;
 };
 
@@ -69,6 +70,16 @@ export const createBusinessWorkspace = (
 
 export const getAgency = (apiRequest: ApiRequestFn, agencyId: string) =>
   apiRequest<any>(`/platform/agencies/${agencyId}`);
+
+export const updateAgencySettings = (
+  apiRequest: ApiRequestFn,
+  agencyId: string,
+  data: Record<string, unknown>,
+) =>
+  apiRequest<{ agency: any }>(`/platform/agencies/${agencyId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
 
 export const getAgencyClients = (apiRequest: ApiRequestFn, agencyId: string) =>
   apiRequest<any[]>(`/platform/agencies/${agencyId}/clients`);
@@ -150,6 +161,16 @@ export const createAgencyPlanCheckout = (
         : {}),
     }),
   });
+
+export const abandonAgencyPlanCheckout = (
+  apiRequest: ApiRequestFn,
+  agencyId: string,
+  localSubscriptionId: string,
+) =>
+  apiRequest<{ status: "cancelled" }>(
+    `/platform/agencies/${agencyId}/billing/checkout/${localSubscriptionId}/abandon`,
+    { method: "POST" },
+  );
 
 export const cancelAgencyPlan = (
   apiRequest: ApiRequestFn,

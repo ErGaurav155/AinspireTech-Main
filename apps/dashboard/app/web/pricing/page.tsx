@@ -41,6 +41,7 @@ import { Checkout } from "@/components/web/Checkout";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
+import { verifyRazorpayPayment } from "@/lib/services/subscription-actions.api";
 
 // Types
 interface Subscription {
@@ -286,22 +287,55 @@ const PricingContent = () => {
   };
 
   const activeProductId = searchParams.get("id");
-  const waitForWebSubscriptionActivation = useCallback(
-    async (subscriptionId: string) => {
-      for (let attempt = 0; attempt < 20; attempt += 1) {
-        const subscriptionsResponse = await getSubscriptions(apiRequest);
-        const activeSubscription = subscriptionsResponse?.find(
-          (subscription: any) =>
-            subscription.subscriptionId === subscriptionId &&
-            subscription.status === "active",
-        );
+  const confirmWebPaymentWithRazorpay = useCallback(
+    async ({
+      subscriptionId,
+      paymentId,
+      signature,
+      productId = "chatbot-lead-generation",
+      billingCycle = "monthly",
+      maxAttempts = 8,
+    }: {
+      subscriptionId: string;
+      paymentId?: string | null;
+      signature?: string | null;
+      productId?: string;
+      billingCycle?: BillingMode;
+      maxAttempts?: number;
+    }) => {
+      let lastError: unknown;
 
-        if (activeSubscription) return activeSubscription;
-
-        await new Promise((resolve) => window.setTimeout(resolve, 3000));
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
+          return await verifyRazorpayPayment(apiRequest, {
+            subscription_id: subscriptionId,
+            razorpay_payment_id: paymentId || undefined,
+            razorpay_signature: signature || undefined,
+            chatbotType: productId,
+            productId,
+            subscriptionType: "web",
+            subscriptionKind: "web",
+            billingCycle,
+          });
+        } catch (confirmationError) {
+          lastError = confirmationError;
+          if (
+            confirmationError instanceof Error &&
+            !confirmationError.message
+              .toLowerCase()
+              .includes("not confirmed yet")
+          ) {
+            throw confirmationError;
+          }
+          if (attempt < maxAttempts - 1) {
+            await new Promise((resolve) => window.setTimeout(resolve, 2000));
+          }
+        }
       }
 
-      return null;
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Razorpay has not confirmed the payment yet");
     },
     [apiRequest],
   );
@@ -320,7 +354,10 @@ const PricingContent = () => {
       const subscriptionId = searchParams.get("subscription_id");
       const razorpayPaymentId = searchParams.get("razorpay_payment_id");
       const razorpaySignature = searchParams.get("razorpay_signature");
-      const callbackProductId = searchParams.get("productId");
+      const callbackProductId =
+        searchParams.get("productId") || "chatbot-lead-generation";
+      const callbackBillingCycle =
+        searchParams.get("billingCycle") === "yearly" ? "yearly" : "monthly";
 
       if (!subscriptionId) return;
 
@@ -334,18 +371,15 @@ const PricingContent = () => {
           throw new Error("Payment was not completed");
         }
 
-        const activeSubscription =
-          await waitForWebSubscriptionActivation(subscriptionId);
+        await confirmWebPaymentWithRazorpay({
+          subscriptionId,
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+          productId: callbackProductId,
+          billingCycle: callbackBillingCycle,
+        });
 
-        if (!activeSubscription) {
-          toast({
-            title: "Payment Processing",
-            description:
-              "Payment was received. We are waiting for Razorpay confirmation, please refresh in a moment.",
-            variant: "destructive",
-          });
-          return;
-        }
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
 
         toast({
           title: "Payment Successful!",
@@ -368,7 +402,12 @@ const PricingContent = () => {
     };
 
     void processRazorpayRedirectCallback();
-  }, [router, searchParams, userId, waitForWebSubscriptionActivation]);
+  }, [
+    confirmWebPaymentWithRazorpay,
+    router,
+    searchParams,
+    userId,
+  ]);
 
   useEffect(() => {
     const recoverPendingRazorpayCheckout = async () => {
@@ -381,7 +420,14 @@ const PricingContent = () => {
 
       if (!pendingCheckout) return;
 
-      let parsedCheckout: { subscriptionId?: string; createdAt?: number };
+      let parsedCheckout: {
+        subscriptionId?: string;
+        productId?: string;
+        billingCycle?: BillingMode;
+        paymentId?: string;
+        signature?: string;
+        createdAt?: number;
+      };
 
       try {
         parsedCheckout = JSON.parse(pendingCheckout);
@@ -402,38 +448,37 @@ const PricingContent = () => {
       }
 
       try {
-        const subscriptionsResponse = await getSubscriptions(apiRequest);
-        const activeSubscription = subscriptionsResponse?.find(
-          (subscription: any) =>
-            subscription.subscriptionId === subscriptionId &&
-            subscription.status === "active",
-        );
+        await confirmWebPaymentWithRazorpay({
+          subscriptionId,
+          productId:
+            parsedCheckout.productId || "chatbot-lead-generation",
+          billingCycle: parsedCheckout.billingCycle || "monthly",
+          paymentId: parsedCheckout.paymentId,
+          signature: parsedCheckout.signature,
+          maxAttempts: 4,
+        });
 
-        if (activeSubscription) {
-          sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
-          toast({
-            title: "Payment Successful!",
-            description: "Subscription activated successfully",
-          });
-          router.replace("/web");
-          router.refresh();
-          return;
-        }
-
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
+        toast({
+          title: "Payment Successful!",
+          description: "Subscription activated successfully",
+        });
+        router.replace("/web");
+        router.refresh();
+      } catch (error) {
+        console.error("Pending Razorpay checkout recovery error:", error);
+        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
         toast({
           title: "Payment Not Completed",
           description:
-            "We could not confirm a successful payment for the last checkout.",
+            "We could not confirm a captured payment for the last checkout.",
           variant: "destructive",
         });
-        sessionStorage.removeItem(PENDING_WEB_RAZORPAY_CHECKOUT_KEY);
-      } catch (error) {
-        console.error("Pending Razorpay checkout recovery error:", error);
       }
     };
 
     void recoverPendingRazorpayCheckout();
-  }, [apiRequest, router, searchParams, userId]);
+  }, [confirmWebPaymentWithRazorpay, router, searchParams, userId]);
 
   const TAB_LABELS: Record<
     PlanType,

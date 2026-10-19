@@ -27,6 +27,8 @@ export interface IChatConversation extends Document {
   visitorId?: string; // For anonymous users
   customerEmail?: string;
   customerName?: string;
+  flowId?: string;
+  flowName?: string;
   messages: IChatMessage[];
   formData?: IFormField[]; // Appointment/form submission data
   totalTokensUsed: number;
@@ -130,6 +132,16 @@ const ChatConversationSchema = new Schema<IChatConversation>(
     customerName: {
       type: String,
       trim: true,
+    },
+    flowId: {
+      type: String,
+      trim: true,
+      maxlength: 80,
+    },
+    flowName: {
+      type: String,
+      trim: true,
+      maxlength: 30,
     },
     messages: [ChatMessageSchema],
     formData: [FormFieldSchema],

@@ -5,6 +5,7 @@ import { getAuth } from "@clerk/express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
+import User from "@/models/user.model";
 import {
   activateContentCreationSubscription,
   activateDashboardPackageSubscription,
@@ -252,6 +253,21 @@ const activateVerifiedSubscription = async ({
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
+
+    const replyLimit = Number(notes.planLimit);
+    const accountLimit = Number(notes.accountLimit);
+    if (Number.isFinite(replyLimit) && Number.isFinite(accountLimit)) {
+      await User.findOneAndUpdate(
+        { clerkId: userId },
+        {
+          $set: {
+            replyLimit,
+            accountLimit,
+            updatedAt: new Date(),
+          },
+        },
+      );
+    }
   } else {
     await WebSubscription.findOneAndUpdate(
       {
@@ -347,10 +363,7 @@ export const verifyRazorpayPaymentController = async (
       const razorpay = getRazorpay();
       const subscription = await razorpay.subscriptions.fetch(subscription_id);
 
-      if (
-        subscription.notes?.buyerId &&
-        subscription.notes.buyerId !== userId
-      ) {
+      if (subscription.notes?.buyerId !== userId) {
         return res.status(403).json({
           success: false,
           error: "Subscription does not belong to this user",
@@ -363,8 +376,10 @@ export const verifyRazorpayPaymentController = async (
         count: 10,
       } as any);
 
-      const paidPayment = payments.items?.find((payment: any) =>
-        PAID_PAYMENT_STATUSES.has(payment.status),
+      const paidPayment = payments.items?.find(
+        (payment: any) =>
+          PAID_PAYMENT_STATUSES.has(payment.status) &&
+          payment.subscription_id === subscription_id,
       );
 
       if (!paidPayment) {
@@ -415,6 +430,21 @@ export const verifyRazorpayPaymentController = async (
       return res.status(403).json({
         success: false,
         error: "Subscription does not belong to this user",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const signedPayment: any = await getRazorpay().payments.fetch(
+      razorpay_payment_id,
+    );
+    if (
+      !PAID_PAYMENT_STATUSES.has(signedPayment.status) ||
+      (signedPayment.subscription_id &&
+        signedPayment.subscription_id !== subscription_id)
+    ) {
+      return res.status(409).json({
+        success: false,
+        error: `Payment is not confirmed yet. Current status: ${signedPayment.status}`,
         timestamp: new Date().toISOString(),
       });
     }

@@ -8,11 +8,20 @@ export interface IAppointmentQuestion {
   options?: string[];
 }
 
+export interface ICustomerFlow {
+  id: string;
+  label: string;
+  introMessage: string;
+  completionAction: "book_appointment" | "submit_details";
+  questions: IAppointmentQuestion[];
+}
+
 export interface IAppointmentQuestions extends Document {
   clerkId: string;
   chatbotType: "chatbot-lead-generation";
   quickReplies: string[];
   questions: IAppointmentQuestion[];
+  flows: ICustomerFlow[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +62,28 @@ const AppointmentQuestionSchema = new Schema<IAppointmentQuestion>(
   { _id: false },
 );
 
+const CustomerFlowSchema = new Schema<ICustomerFlow>(
+  {
+    id: { type: String, required: true },
+    label: { type: String, required: true, trim: true, maxlength: 30 },
+    introMessage: { type: String, trim: true, maxlength: 300, default: "" },
+    completionAction: {
+      type: String,
+      enum: ["book_appointment", "submit_details"],
+      default: "submit_details",
+    },
+    questions: {
+      type: [AppointmentQuestionSchema],
+      required: true,
+      validate: {
+        validator: (questions: IAppointmentQuestion[]) => questions.length > 0,
+        message: "Each customer flow requires at least one question",
+      },
+    },
+  },
+  { _id: false },
+);
+
 const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
   {
     clerkId: { type: String, required: true },
@@ -75,6 +106,14 @@ const AppointmentQuestionsSchema = new Schema<IAppointmentQuestions>(
       validate: {
         validator: (q: IAppointmentQuestion[]) => q.length > 0,
         message: "At least one question is required",
+      },
+    },
+    flows: {
+      type: [CustomerFlowSchema],
+      default: [],
+      validate: {
+        validator: (items: ICustomerFlow[]) => items.length <= 5,
+        message: "A chatbot can have at most five customer flows",
       },
     },
   },

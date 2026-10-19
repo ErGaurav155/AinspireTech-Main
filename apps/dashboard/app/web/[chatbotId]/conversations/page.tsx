@@ -55,6 +55,7 @@ interface Conversation {
   _id: string;
   customerName?: string;
   customerEmail?: string;
+  flowName?: string;
   messages: Message[];
   formData?: FormField[]; // This should be an array, not an object
   status: Status;
@@ -179,6 +180,7 @@ function exportToCSV(conversations: Conversation[], chatbotType: string) {
       "ID",
       "Customer Name",
       "Email",
+      "Customer Flow",
       "Status",
       "Messages",
       "Duration",
@@ -200,6 +202,7 @@ function exportToCSV(conversations: Conversation[], chatbotType: string) {
       c._id,
       c.customerName || "Anonymous",
       c.customerEmail || "",
+      c.flowName || "",
       c.status,
       String(c.messages.length),
       getDuration(c),
@@ -302,6 +305,11 @@ function ConversationDetail({
             <p className={`text-xs ${styles.text.muted}`}>
               {formatTimestamp(conv.createdAt)}
             </p>
+            {conv.flowName && (
+              <p className="mt-0.5 text-xs font-medium text-purple-500">
+                {conv.flowName}
+              </p>
+            )}
           </div>
         </div>
         <button

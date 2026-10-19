@@ -236,6 +236,9 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
                     effectiveAt: currentSubscription.pendingChange.effectiveAt,
                     status: currentSubscription.pendingChange.status,
                     requiresCheckout: Boolean(pendingReplacement),
+                    pendingCheckoutId: pendingReplacement
+                      ? String(pendingReplacement._id)
+                      : undefined,
                   }
                 : null,
           }
@@ -574,6 +577,90 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
   } catch (error) {
     console.error("Unable to create plan checkout:", error);
     return fail(res, 500, "Unable to create plan checkout");
+  }
+};
+
+export const abandonAgencyPlanCheckoutController = async (
+  req: Request,
+  res: Response,
+) => {
+  const agencyId = new Types.ObjectId(req.agencyContext!.agencyId);
+  const subscriptionId = String(req.params.subscriptionId || "");
+  if (!Types.ObjectId.isValid(subscriptionId)) {
+    return fail(res, 400, "Invalid pending checkout id");
+  }
+
+  try {
+    const replacement = await PlatformSubscription.findOne({
+      _id: new Types.ObjectId(subscriptionId),
+      ownerType: "AGENCY",
+      ownerId: agencyId,
+      kind: "base",
+      status: "pending",
+      replacementForSubscriptionId: { $exists: true },
+    });
+    if (!replacement) {
+      return fail(res, 404, "Pending plan checkout was not found");
+    }
+
+    if (replacement.providerSubscriptionId) {
+      const providerSubscription = await getRazorpay().subscriptions.fetch(
+        replacement.providerSubscriptionId,
+      );
+      const providerStatus = String((providerSubscription as any).status || "");
+      if (!["created", "cancelled", "expired"].includes(providerStatus)) {
+        return fail(
+          res,
+          409,
+          "This checkout has already been authorized and can no longer be discarded",
+          { code: "PLAN_CHECKOUT_ALREADY_AUTHORIZED" },
+        );
+      }
+      if (providerStatus === "created") {
+        await getRazorpay().subscriptions.cancel(
+          replacement.providerSubscriptionId,
+          false,
+        );
+      }
+    }
+
+    const cancelledAt = new Date();
+    const cancelled = await PlatformSubscription.findOneAndUpdate(
+      { _id: replacement._id, status: { $in: ["pending", "cancelled"] } },
+      { $set: { status: "cancelled", cancelledAt } },
+      { new: true },
+    );
+    if (!cancelled) {
+      return fail(res, 409, "This checkout is no longer pending");
+    }
+
+    const previous = await PlatformSubscription.findOne({
+      _id: replacement.replacementForSubscriptionId,
+      ownerType: "AGENCY",
+      ownerId: agencyId,
+      "pendingChange.status": "pending",
+      "pendingChange.planCode": replacement.planCode,
+    });
+    if (previous) {
+      previous.pendingChange = undefined;
+      previous.replacedBySubscriptionId = undefined;
+      await previous.save();
+    }
+
+    await writePlatformAuditLog({
+      req,
+      action: "plan.replacement_checkout_abandoned",
+      targetType: "subscription",
+      targetId: String(replacement._id),
+      metadata: {
+        planCode: replacement.planCode,
+        providerSubscriptionId: replacement.providerSubscriptionId,
+      },
+    });
+    return ok(res, { status: "cancelled" });
+  } catch (error) {
+    console.error("Unable to discard pending agency plan checkout:", error);
+    return fail(res, 500, "Unable to discard pending plan checkout");
   }
 };
 

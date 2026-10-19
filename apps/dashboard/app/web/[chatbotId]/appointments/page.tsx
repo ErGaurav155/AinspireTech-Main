@@ -1,7 +1,7 @@
 "use client";
 // apps/dashboard/app/web/[chatbotId]/appointments/page.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
@@ -36,6 +36,14 @@ interface Question {
   type: FieldType;
   required: boolean;
   options?: string[];
+}
+
+interface CustomerFlow {
+  id: string;
+  label: string;
+  introMessage: string;
+  completionAction: "book_appointment" | "submit_details";
+  questions: Question[];
 }
 
 const FIELD_TYPES: { value: FieldType; label: string; icon: string }[] = [
@@ -78,6 +86,22 @@ const DEFAULT_QUESTIONS: Question[] = [
 function uid() {
   return `q_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
+
+function flowUid() {
+  return `flow_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+}
+
+const createDefaultFlow = (label = "Book an appointment"): CustomerFlow => ({
+  id: flowUid(),
+  label,
+  introMessage:
+    label === "Book an appointment"
+      ? "I'd love to help you book an appointment. Let me gather some details."
+      : `Let's get started with ${label}.`,
+  completionAction:
+    label === "Book an appointment" ? "book_appointment" : "submit_details",
+  questions: DEFAULT_QUESTIONS.map((question) => ({ ...question, id: uid() })),
+});
 
 // ─── Question card ────────────────────────────────────────────────────────────
 
@@ -393,15 +417,40 @@ export default function AppointmentQuestionsPage() {
   const [pageStatus, setPageStatus] = useState<
     "checking" | "not-built" | "ready"
   >("checking");
-  const [questions, setQuestions] = useState<Question[]>([]);
-  const [quickReplies, setQuickReplies] = useState<string[]>([
-    "Book an appointment",
+  const [flows, setFlows] = useState<CustomerFlow[]>([
+    createDefaultFlow(),
   ]);
+  const [activeFlowId, setActiveFlowId] = useState("");
   const [quickReplyInput, setQuickReplyInput] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const activeFlow = useMemo(
+    () => flows.find((flow) => flow.id === activeFlowId) || flows[0],
+    [activeFlowId, flows],
+  );
+  const questions = activeFlow?.questions || [];
+  const quickReplies = flows.map((flow) => flow.label);
+
+  const updateActiveFlow = (
+    update: (flow: CustomerFlow) => CustomerFlow,
+  ) => {
+    if (!activeFlow) return;
+    setFlows((current) =>
+      current.map((flow) => (flow.id === activeFlow.id ? update(flow) : flow)),
+    );
+  };
+
+  const setQuestions = (
+    update: Question[] | ((current: Question[]) => Question[]),
+  ) => {
+    updateActiveFlow((flow) => ({
+      ...flow,
+      questions:
+        typeof update === "function" ? update(flow.questions) : update,
+    }));
+  };
 
   useEffect(() => {
     if (!isValid) router.replace("/web");
@@ -427,14 +476,31 @@ export default function AppointmentQuestionsPage() {
             "chatbot-lead-generation",
           );
           const qs: Question[] = data?.questions || [];
-          setQuestions(qs.length > 0 ? qs : DEFAULT_QUESTIONS);
-          setQuickReplies(
-            Array.isArray(data?.quickReplies) && data.quickReplies.length > 0
-              ? data.quickReplies
-              : ["Book an appointment"],
-          );
+          const savedFlows: CustomerFlow[] = Array.isArray(data?.flows)
+            ? data.flows.filter(
+                (flow: CustomerFlow) => flow?.id && flow?.label,
+              )
+            : [];
+          const nextFlows =
+            savedFlows.length > 0
+              ? savedFlows
+              : (
+                  Array.isArray(data?.quickReplies) &&
+                  data.quickReplies.length > 0
+                    ? data.quickReplies
+                    : ["Book an appointment"]
+                ).map((label: string) => ({
+                  ...createDefaultFlow(label),
+                  questions: (qs.length > 0 ? qs : DEFAULT_QUESTIONS).map(
+                    (question) => ({ ...question, id: uid() }),
+                  ),
+                }));
+          setFlows(nextFlows);
+          setActiveFlowId(nextFlows[0].id);
         } catch {
-          setQuestions(DEFAULT_QUESTIONS);
+          const fallback = createDefaultFlow();
+          setFlows([fallback]);
+          setActiveFlowId(fallback.id);
         }
       } catch {
         setPageStatus("not-built");
@@ -460,7 +526,9 @@ export default function AppointmentQuestionsPage() {
     const value = quickReplyInput.trim().slice(0, 30);
     if (!value || quickReplies.includes(value) || quickReplies.length >= 5)
       return;
-    setQuickReplies((current) => [...current, value]);
+    const newFlow = createDefaultFlow(value);
+    setFlows((current) => [...current, newFlow]);
+    setActiveFlowId(newFlow.id);
     setQuickReplyInput("");
   }
 
@@ -486,7 +554,7 @@ export default function AppointmentQuestionsPage() {
 
   async function handleSave() {
     if (!userId) return;
-    if (quickReplies.length === 0) {
+    if (flows.length === 0) {
       toast({
         title: "Add a flow button",
         description: "At least one quick reply button is required.",
@@ -495,24 +563,47 @@ export default function AppointmentQuestionsPage() {
       });
       return;
     }
-    for (const q of questions) {
-      if (!q.question.trim()) {
+    if (
+      new Set(flows.map((flow) => flow.label.trim().toLowerCase())).size !==
+      flows.length
+    ) {
+      toast({
+        title: "Use unique button names",
+        description: "Each customer flow needs a different quick reply label.",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    for (const flow of flows) {
+      if (!flow.label.trim() || flow.questions.length === 0) {
         toast({
-          title: "Validation error",
-          description: "All questions must have text.",
+          title: "Complete every flow",
+          description: "Every customer flow needs a name and at least one question.",
           variant: "destructive",
           duration: 3000,
         });
         return;
       }
-      if (q.type === "select" && (!q.options || q.options.length === 0)) {
-        toast({
-          title: "Validation error",
-          description: `"${q.question}" needs at least one dropdown option.`,
-          variant: "destructive",
-          duration: 3000,
-        });
-        return;
+      for (const q of flow.questions) {
+        if (!q.question.trim()) {
+          toast({
+            title: "Validation error",
+            description: "All questions must have text.",
+            variant: "destructive",
+            duration: 3000,
+          });
+          return;
+        }
+        if (q.type === "select" && (!q.options || q.options.length === 0)) {
+          toast({
+            title: "Validation error",
+            description: `"${q.question}" needs at least one dropdown option.`,
+            variant: "destructive",
+            duration: 3000,
+          });
+          return;
+        }
       }
     }
     setIsSaving(true);
@@ -520,8 +611,9 @@ export default function AppointmentQuestionsPage() {
       await saveAppointmentQuestions(
         apiRequest,
         "chatbot-lead-generation",
-        questions,
+        flows[0].questions,
         quickReplies,
+        flows,
       );
       setEditingId(null);
       toast({ title: "Questions saved!", duration: 2500 });
@@ -643,8 +735,8 @@ export default function AppointmentQuestionsPage() {
               Your quick reply buttons appear below AI chat replies. When a
               visitor clicks one, AI stops for that interaction and this flow
               asks the configured questions one-by-one, validates the answers,
-              then shows the calendar and time slots. The completed appointment
-              is saved and the owner notification is sent.
+              then either submits the details or shows appointment date and
+              time selection, depending on that flow's completion action.
             </p>
           </div>
         </div>
@@ -654,32 +746,52 @@ export default function AppointmentQuestionsPage() {
             <MessageSquareText className="mt-0.5 h-5 w-5 text-purple-500" />
             <div>
               <h2 className={`font-semibold ${styles.text.primary}`}>
-                Flow quick reply buttons
+                Customer flow quick replies
               </h2>
               <p className={`mt-1 text-sm ${styles.text.secondary}`}>
-                These buttons appear under AI replies and all start this flow.
+                Create up to five buttons. Each button can run its own questions
+                and completion action without using AI.
               </p>
             </div>
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
-            {quickReplies.map((reply) => (
-              <span
-                key={reply}
-                className="inline-flex items-center gap-2 rounded-full border border-purple-500/25 bg-purple-500/10 px-3 py-1.5 text-sm text-purple-600 dark:text-purple-300"
+            {flows.map((flow) => (
+              <div
+                key={flow.id}
+                className={`inline-flex items-center overflow-hidden rounded-full border text-sm transition ${
+                  activeFlow?.id === flow.id
+                    ? "border-purple-500 bg-purple-500 text-white"
+                    : "border-purple-500/25 bg-purple-500/10 text-purple-600 dark:text-purple-300"
+                }`}
               >
-                {reply}
                 <button
                   type="button"
-                  aria-label={`Remove ${reply}`}
-                  onClick={() =>
-                    setQuickReplies((current) =>
-                      current.filter((item) => item !== reply),
-                    )
-                  }
+                  onClick={() => {
+                    setActiveFlowId(flow.id);
+                    setEditingId(null);
+                  }}
+                  className="px-3 py-1.5"
+                >
+                  {flow.label}
+                </button>
+                <button
+                  type="button"
+                  aria-label={`Remove ${flow.label}`}
+                  disabled={flows.length === 1}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (flows.length === 1) return;
+                    const remaining = flows.filter((item) => item.id !== flow.id);
+                    setFlows(remaining);
+                    if (activeFlow?.id === flow.id) {
+                      setActiveFlowId(remaining[0]?.id || "");
+                    }
+                  }}
+                  className="py-1.5 pl-1 pr-2.5 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
-              </span>
+              </div>
             ))}
           </div>
           <div className="mt-4 flex gap-2">
@@ -707,9 +819,65 @@ export default function AppointmentQuestionsPage() {
             </Button>
           </div>
           <p className={`mt-2 text-xs ${styles.text.muted}`}>
-            {quickReplies.length}/5 buttons. At least one is required.
+            {quickReplies.length}/5 flows. Select a button above to edit its
+            own setup. At least one is required.
           </p>
         </section>
+
+        {activeFlow && (
+          <section className={`${styles.card} rounded-2xl p-5`}>
+            <h2 className={`font-semibold ${styles.text.primary}`}>
+              {activeFlow.label} setup
+            </h2>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <label className={`text-sm ${styles.text.secondary}`}>
+                Quick reply button
+                <input
+                  value={activeFlow.label}
+                  maxLength={30}
+                  onChange={(event) =>
+                    updateActiveFlow((flow) => ({
+                      ...flow,
+                      label: event.target.value,
+                    }))
+                  }
+                  className={`mt-1.5 w-full rounded-xl border px-4 py-2.5 text-sm outline-none ${styles.input}`}
+                />
+              </label>
+              <label className={`text-sm ${styles.text.secondary}`}>
+                When questions finish
+                <select
+                  value={activeFlow.completionAction}
+                  onChange={(event) =>
+                    updateActiveFlow((flow) => ({
+                      ...flow,
+                      completionAction: event.target.value as CustomerFlow["completionAction"],
+                    }))
+                  }
+                  className={`mt-1.5 w-full rounded-xl border px-4 py-2.5 text-sm outline-none ${styles.input}`}
+                >
+                  <option value="submit_details">Submit details</option>
+                  <option value="book_appointment">Book an appointment</option>
+                </select>
+              </label>
+            </div>
+            <label className={`mt-4 block text-sm ${styles.text.secondary}`}>
+              Opening message
+              <textarea
+                value={activeFlow.introMessage}
+                maxLength={300}
+                rows={2}
+                onChange={(event) =>
+                  updateActiveFlow((flow) => ({
+                    ...flow,
+                    introMessage: event.target.value,
+                  }))
+                }
+                className={`mt-1.5 w-full rounded-xl border px-4 py-2.5 text-sm outline-none ${styles.input}`}
+              />
+            </label>
+          </section>
+        )}
 
         {/* Questions list */}
         <div className="space-y-3">

@@ -11,6 +11,7 @@ import {
   getWorkspaceAiTokenUsageController,
   listAgencyClientsController,
   updateClientServiceController,
+  updateAgencySettingsController,
   deleteClientWorkspaceController,
 } from "@/controllers/platform/platform.controller";
 import {
@@ -24,6 +25,7 @@ import {
 import {
   createAgencyAddonCheckoutController,
   createAgencyPlanCheckoutController,
+  abandonAgencyPlanCheckoutController,
   cancelAgencyPlanController,
   listAgencyPlansController,
   createWorkspacePlanCheckoutController,
@@ -42,6 +44,12 @@ router.get(
   requireAgencyContext,
   requireAgencyPermission("agency.view"),
   getAgencyController,
+);
+router.patch(
+  "/agencies/:agencyId",
+  requireAgencyContext,
+  requireAgencyPermission("agency.manage"),
+  updateAgencySettingsController,
 );
 router.post(
   "/workspaces/:workspaceId/billing/checkout",
@@ -90,6 +98,12 @@ router.post(
   requireAgencyContext,
   requireAgencyPermission("agency.billing.manage"),
   createAgencyPlanCheckoutController,
+);
+router.post(
+  "/agencies/:agencyId/billing/checkout/:subscriptionId/abandon",
+  requireAgencyContext,
+  requireAgencyPermission("agency.billing.manage"),
+  abandonAgencyPlanCheckoutController,
 );
 router.post(
   "/agencies/:agencyId/billing/cancel",

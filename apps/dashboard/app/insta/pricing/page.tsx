@@ -53,6 +53,7 @@ import {
   createRazorpaySubscription,
   changeRazorpaySubscription,
   getRazerpayPlanInfo,
+  verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
 import { PackageSubscriptionNotice } from "@/components/packages/PackageSubscriptionNotice";
 import { trackMetaEvent } from "@/lib/meta-pixel";
@@ -329,6 +330,7 @@ function PricingWithSearchParams() {
       plan: PricingPlan,
       cycle: "monthly" | "yearly",
       price: number,
+      razorpayResponse?: any,
     ) => {
       sessionStorage.setItem(
         PENDING_INSTA_RAZORPAY_CHECKOUT_KEY,
@@ -338,6 +340,8 @@ function PricingWithSearchParams() {
           billingCycle: cycle,
           planName: plan.name,
           price,
+          paymentId: razorpayResponse?.razorpay_payment_id,
+          signature: razorpayResponse?.razorpay_signature,
           createdAt: Date.now(),
         }),
       );
@@ -529,6 +533,59 @@ function PricingWithSearchParams() {
     [apiRequest],
   );
 
+  const confirmInstaPaymentWithRazorpay = useCallback(
+    async ({
+      subscriptionId,
+      productId,
+      billingCycle,
+      paymentId,
+      signature,
+      maxAttempts = 8,
+    }: {
+      subscriptionId: string;
+      productId: string;
+      billingCycle: "monthly" | "yearly";
+      paymentId?: string | null;
+      signature?: string | null;
+      maxAttempts?: number;
+    }) => {
+      let lastError: unknown;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        try {
+          return await verifyRazorpayPayment(apiRequest, {
+            subscription_id: subscriptionId,
+            razorpay_payment_id: paymentId || undefined,
+            razorpay_signature: signature || undefined,
+            chatbotType: productId,
+            productId,
+            subscriptionType: "insta",
+            subscriptionKind: "insta",
+            billingCycle,
+          });
+        } catch (confirmationError) {
+          lastError = confirmationError;
+          if (
+            confirmationError instanceof Error &&
+            !confirmationError.message
+              .toLowerCase()
+              .includes("not confirmed yet")
+          ) {
+            throw confirmationError;
+          }
+          if (attempt < maxAttempts - 1) {
+            await new Promise((resolve) => window.setTimeout(resolve, 2000));
+          }
+        }
+      }
+
+      throw lastError instanceof Error
+        ? lastError
+        : new Error("Razorpay has not confirmed the payment yet");
+    },
+    [apiRequest],
+  );
+
   const finishWebhookActivatedInstaPayment = useCallback(
     async ({
       subscriptionId,
@@ -685,6 +742,20 @@ function PricingWithSearchParams() {
               }
 
               setIsUpgrading(true);
+              savePendingRazorpayCheckout(
+                result.subscriptionId,
+                plan,
+                cycle,
+                price,
+                response,
+              );
+              await confirmInstaPaymentWithRazorpay({
+                subscriptionId: result.subscriptionId,
+                productId: plan.id,
+                billingCycle: cycle,
+                paymentId: response.razorpay_payment_id,
+                signature: response.razorpay_signature,
+              });
               await finishWebhookActivatedInstaPayment({
                 subscriptionId: result.subscriptionId,
                 productId: plan.id,
@@ -773,6 +844,7 @@ function PricingWithSearchParams() {
     [
       apiRequest,
       clearPendingCheckout,
+      confirmInstaPaymentWithRazorpay,
       email,
       finishWebhookActivatedInstaPayment,
       isInstaAccount,
@@ -797,6 +869,8 @@ function PricingWithSearchParams() {
 
       const subscriptionId = searchParams.get("subscription_id");
       const productId = searchParams.get("productId") || "";
+      const razorpayPaymentId = searchParams.get("razorpay_payment_id");
+      const razorpaySignature = searchParams.get("razorpay_signature");
       const callbackBillingCycle = searchParams.get("billingCycle") as
         | "monthly"
         | "yearly"
@@ -808,8 +882,8 @@ function PricingWithSearchParams() {
 
       try {
         if (
-          !searchParams.get("razorpay_payment_id") ||
-          !searchParams.get("razorpay_signature")
+          !razorpayPaymentId ||
+          !razorpaySignature
         ) {
           throw new Error("Payment was not completed");
         }
@@ -817,6 +891,14 @@ function PricingWithSearchParams() {
         const plan = instagramPricingPlans.find(
           (pricingPlan) => pricingPlan.id === productId,
         );
+
+        await confirmInstaPaymentWithRazorpay({
+          subscriptionId,
+          productId,
+          billingCycle: callbackBillingCycle || "yearly",
+          paymentId: razorpayPaymentId,
+          signature: razorpaySignature,
+        });
 
         await finishWebhookActivatedInstaPayment({
           subscriptionId,
@@ -862,6 +944,7 @@ function PricingWithSearchParams() {
 
     void processRazorpayRedirectCallback();
   }, [
+    confirmInstaPaymentWithRazorpay,
     finishWebhookActivatedInstaPayment,
     clientOnly,
     router,
@@ -892,6 +975,8 @@ function PricingWithSearchParams() {
         billingCycle?: "monthly" | "yearly";
         planName?: string;
         price?: number;
+        paymentId?: string;
+        signature?: string;
         createdAt?: number;
       };
 
@@ -916,28 +1001,31 @@ function PricingWithSearchParams() {
       setIsUpgrading(true);
 
       try {
-        const activeSubscription =
-          await waitForInstaSubscriptionActivation(subscriptionId);
-
-        if (activeSubscription) {
-          await finishWebhookActivatedInstaPayment({
-            subscriptionId,
-            productId: parsedCheckout.productId || "",
-            billingCycle: parsedCheckout.billingCycle || "yearly",
-            planName: parsedCheckout.planName || parsedCheckout.productId || "",
-            price: parsedCheckout.price || 0,
-          });
-          return;
-        }
-
-        showToast(
-          "Payment Not Completed",
-          "We could not confirm a successful payment for the last checkout.",
-          true,
-        );
-        clearPendingRazorpayCheckout();
+        const productId = parsedCheckout.productId || "Insta-Automation-Pro";
+        const billingCycle = parsedCheckout.billingCycle || "yearly";
+        await confirmInstaPaymentWithRazorpay({
+          subscriptionId,
+          productId,
+          billingCycle,
+          paymentId: parsedCheckout.paymentId,
+          signature: parsedCheckout.signature,
+          maxAttempts: 4,
+        });
+        await finishWebhookActivatedInstaPayment({
+          subscriptionId,
+          productId,
+          billingCycle,
+          planName: parsedCheckout.planName || productId,
+          price: parsedCheckout.price || 0,
+        });
       } catch (error) {
         console.error("Pending Razorpay checkout recovery error:", error);
+        clearPendingRazorpayCheckout();
+        showToast(
+          "Payment Not Completed",
+          "We could not confirm a captured payment for the last checkout.",
+          true,
+        );
       } finally {
         setIsUpgrading(false);
       }
@@ -947,6 +1035,7 @@ function PricingWithSearchParams() {
   }, [
     clearPendingRazorpayCheckout,
     clientOnly,
+    confirmInstaPaymentWithRazorpay,
     finishWebhookActivatedInstaPayment,
     searchParams,
     showToast,

@@ -74,12 +74,15 @@ export const saveAppointmentQuestionsController = async (
       });
     }
 
-    const { chatbotType, questions, quickReplies } = req.body;
+    const { chatbotType, questions, quickReplies, flows } = req.body;
 
-    if (!chatbotType || !Array.isArray(questions)) {
+    if (
+      !chatbotType ||
+      (!Array.isArray(questions) && !Array.isArray(flows))
+    ) {
       return res.status(400).json({
         success: false,
-        error: "chatbotType and questions array are required",
+        error: "chatbotType and customer flow questions are required",
         timestamp: new Date().toISOString(),
       });
     }
@@ -89,14 +92,6 @@ export const saveAppointmentQuestionsController = async (
         success: false,
         error:
           "Appointment questions are only available for chatbot-lead-generation",
-        timestamp: new Date().toISOString(),
-      });
-    }
-
-    if (questions.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: "At least one question is required",
         timestamp: new Date().toISOString(),
       });
     }
@@ -118,7 +113,76 @@ export const saveAppointmentQuestionsController = async (
       });
     }
 
-    for (const q of questions) {
+    const normalizeQuestions = (items: any[]) =>
+      items.map((q: any) => ({
+        id: String(
+          q.id ||
+            `q-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        ),
+        question: String(q.question || "").trim(),
+        type: q.type,
+        required: Boolean(q.required),
+        options: Array.isArray(q.options)
+          ? q.options.map((option: unknown) => String(option).trim()).filter(Boolean)
+          : [],
+      }));
+    const normalizedLegacyQuestions = normalizeQuestions(
+      Array.isArray(questions) ? questions : [],
+    );
+    const normalizedFlows = (
+      Array.isArray(flows) && flows.length > 0
+        ? flows
+        : normalizedQuickReplies.map((label: string, index: number) => ({
+            id: `legacy-flow-${index + 1}`,
+            label,
+            introMessage:
+              label === "Book an appointment"
+                ? "I'd love to help you book an appointment. Let me gather some details."
+                : `Let's get started with ${label}.`,
+            completionAction:
+              label === "Book an appointment"
+                ? "book_appointment"
+                : "submit_details",
+            questions: normalizedLegacyQuestions,
+          }))
+    )
+      .slice(0, 5)
+      .map((flow: any, index: number) => ({
+        id: String(flow.id || `flow-${index + 1}`).slice(0, 80),
+        label: String(flow.label || "").trim().slice(0, 30),
+        introMessage: String(flow.introMessage || "").trim().slice(0, 300),
+        completionAction:
+          flow.completionAction === "book_appointment"
+            ? "book_appointment"
+            : "submit_details",
+        questions: normalizeQuestions(Array.isArray(flow.questions) ? flow.questions : []),
+      }));
+
+    if (normalizedFlows.length === 0 || normalizedFlows.some((flow) => !flow.label)) {
+      return res.status(400).json({
+        success: false,
+        error: "Add at least one named customer flow",
+        timestamp: new Date().toISOString(),
+      });
+    }
+    if (new Set(normalizedFlows.map((flow) => flow.label.toLowerCase())).size !== normalizedFlows.length) {
+      return res.status(400).json({
+        success: false,
+        error: "Customer flow button names must be unique",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    const allQuestions = normalizedFlows.flatMap((flow) => flow.questions);
+    if (normalizedFlows.some((flow) => flow.questions.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        error: "Each customer flow requires at least one question",
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    for (const q of allQuestions) {
       if (!q.question?.trim()) {
         return res.status(400).json({
           success: false,
@@ -150,14 +214,9 @@ export const saveAppointmentQuestionsController = async (
         $set: {
           clerkId: userId,
           chatbotType,
-          quickReplies: normalizedQuickReplies,
-          questions: questions.map((q: any) => ({
-            id: q.id,
-            question: q.question.trim(),
-            type: q.type,
-            required: Boolean(q.required),
-            options: Array.isArray(q.options) ? q.options : [],
-          })),
+          quickReplies: normalizedFlows.map((flow) => flow.label),
+          questions: normalizedFlows[0].questions,
+          flows: normalizedFlows,
         },
       },
       { upsert: true, new: true },

@@ -1,3 +1,5 @@
+import { shouldShowInstagramBranding } from "@/services/billing/instagram-branding.service";
+
 export async function sendInstagramCommentReply(
   accountId: string,
   accessToken: string,
@@ -65,12 +67,16 @@ export async function sendInstagramDM(
       return originalMessage;
     };
 
-    // Add watermark for free plan users ONLY on welcome messages (DMs or comment replies)
+    // Add the watermark only when the actual billing owner is on free access.
+    // Agency clients inherit the agency plan; direct businesses use their own
+    // Instagram, package, or workspace subscription.
     let messageWithWatermark = message;
     if (isWelcomeDM && clerkId) {
-      const { getUserTier } = await import("@/services/rate-limit.service.js");
-      const userTier = await getUserTier(clerkId);
-      if (userTier === "free") {
+      const showBranding = await shouldShowInstagramBranding({
+        instagramAccountId: accountId,
+        clerkId,
+      });
+      if (showBranding) {
         messageWithWatermark = appendWatermark(message);
       }
     }

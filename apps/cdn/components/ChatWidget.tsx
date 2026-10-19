@@ -61,6 +61,14 @@ interface ApptQuestion {
   options?: string[];
 }
 
+interface CustomerFlow {
+  id: string;
+  label: string;
+  introMessage: string;
+  completionAction: "book_appointment" | "submit_details";
+  questions: ApptQuestion[];
+}
+
 interface BotConfig {
   name: string;
   welcomeMessage: string;
@@ -728,9 +736,15 @@ export default function ChatWidget({
 
   // ── Appointment ────────────────────────────────────────────────────────────
   const [apptQuestions, setApptQuestions] = useState<ApptQuestion[]>([]);
+  const [customerFlows, setCustomerFlows] = useState<CustomerFlow[]>([]);
   const [flowQuickReplies, setFlowQuickReplies] = useState<string[]>([
     "Book an appointment",
   ]);
+  const [activeFlowId, setActiveFlowId] = useState("");
+  const [activeFlowLabel, setActiveFlowLabel] = useState("");
+  const [activeCompletionAction, setActiveCompletionAction] = useState<
+    CustomerFlow["completionAction"]
+  >("book_appointment");
   const [apptStarted, setApptStarted] = useState(false);
   const [apptStep, setApptStep] = useState(0);
   const [apptData, setApptData] = useState<Record<string, string>>({});
@@ -853,19 +867,56 @@ export default function ChatWidget({
           if (r.ok) {
             const d = await r.json();
             if (d.success) {
+              const appointmentQuestions = d.data?.appointmentQuestions;
               const configuredQuickReplies =
-                d.data?.appointmentQuestions?.quickReplies;
-              setApptQuestions(
-                d.data?.appointmentQuestions?.questions ||
-                  d.data?.questions ||
-                  [],
-              );
-              setFlowQuickReplies(
-                Array.isArray(configuredQuickReplies) &&
-                  configuredQuickReplies.length > 0
-                  ? configuredQuickReplies.slice(0, 5)
-                  : ["Book an appointment"],
-              );
+                appointmentQuestions?.quickReplies;
+              const legacyQuestions =
+                appointmentQuestions?.questions || d.data?.questions || [];
+              const configuredFlows = Array.isArray(appointmentQuestions?.flows)
+                ? appointmentQuestions.flows.slice(0, 5)
+                : [];
+              const normalizedFlows: CustomerFlow[] =
+                configuredFlows.length > 0
+                  ? configuredFlows.map(
+                      (flow: Partial<CustomerFlow>, index: number) => ({
+                        id: String(flow.id || `flow-${index + 1}`),
+                        label: String(flow.label || `Flow ${index + 1}`),
+                        introMessage: String(flow.introMessage || ""),
+                        completionAction:
+                          flow.completionAction === "book_appointment"
+                            ? "book_appointment"
+                            : "submit_details",
+                        questions: Array.isArray(flow.questions)
+                          ? flow.questions
+                          : [],
+                      }),
+                    )
+                  : (Array.isArray(configuredQuickReplies) &&
+                        configuredQuickReplies.length > 0
+                      ? configuredQuickReplies.slice(0, 5)
+                      : ["Book an appointment"]
+                    ).map((label: string, index: number) => ({
+                      id: `legacy-flow-${index + 1}`,
+                      label,
+                      introMessage:
+                        label === "Book an appointment"
+                          ? "I'd love to help you book an appointment. Let me gather some details."
+                          : `Let's get started with ${label}.`,
+                      completionAction:
+                        label === "Book an appointment"
+                          ? "book_appointment"
+                          : "submit_details",
+                      questions: legacyQuestions,
+                    }));
+
+              setCustomerFlows(normalizedFlows);
+              setFlowQuickReplies(normalizedFlows.map((flow) => flow.label));
+              if (normalizedFlows[0]) {
+                setApptQuestions(normalizedFlows[0].questions);
+                setActiveFlowId(normalizedFlows[0].id);
+                setActiveFlowLabel(normalizedFlows[0].label);
+                setActiveCompletionAction(normalizedFlows[0].completionAction);
+              }
             }
           }
         }
@@ -1041,6 +1092,8 @@ export default function ChatWidget({
     setConvHistory([]);
     setInput("");
     setApptStarted(false);
+    setActiveFlowId("");
+    setActiveFlowLabel("");
     setApptStep(0);
     setApptData({});
     setApptPhase("questions");
@@ -1229,18 +1282,101 @@ export default function ChatWidget({
           );
         }
       } else {
-        setApptPhase("date");
-        setTimeout(
-          () =>
+        if (activeCompletionAction === "book_appointment") {
+          setApptPhase("date");
+          setTimeout(
+            () =>
+              addBotMsg(
+                "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
+              ),
+            400,
+          );
+        } else {
+          setApptPhase("done");
+          setIsTyping(true);
+
+          try {
+            const formData = apptQuestions.map((question) => ({
+              question: question.question,
+              answer: updatedData[question.id] || "",
+            }));
+            let customerName = "Anonymous";
+            let customerEmail = "";
+
+            apptQuestions.forEach((question, index) => {
+              const value = updatedData[question.id] || "";
+              if (index === 0 && value) customerName = value;
+              if (question.type === "email" && value) customerEmail = value;
+            });
+
+            const saveResponse = await fetch(
+              `${API_BASE}/api/embed/chat-conversation`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-api-key": API_KEY,
+                },
+                body: JSON.stringify({
+                  chatbotType: config?.chatbotType || chatbotType,
+                  userId: config?.userId || userId,
+                  sessionId,
+                  visitorId,
+                  customerName,
+                  customerEmail,
+                  flowId: activeFlowId,
+                  flowName: activeFlowLabel,
+                  messages: messages.map((message) => ({
+                    id: message.id,
+                    role: message.role,
+                    content: message.content,
+                    timestamp: message.timestamp,
+                  })),
+                  formData,
+                  totalTokensUsed: messages.reduce(
+                    (sum, message) => sum + (message.tokensUsed || 0),
+                    0,
+                  ),
+                  hasAppointment: false,
+                  status: "completed",
+                }),
+              },
+            );
+            if (!saveResponse.ok) {
+              throw new Error("Customer flow submission was not saved");
+            }
+            setConversationSaved(true);
+          } catch (saveError) {
+            console.error(
+              "[RocketReplAI] save customer flow error:",
+              saveError,
+            );
+          }
+
+          setTimeout(() => {
+            setIsTyping(false);
             addBotMsg(
-              "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
-            ),
-          400,
-        );
+              "Thanks! Your details have been submitted. Our team will get back to you soon.",
+            );
+          }, 700);
+        }
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [apptQuestions, apptStep, apptData],
+    [
+      apptQuestions,
+      apptStep,
+      apptData,
+      activeCompletionAction,
+      activeFlowId,
+      activeFlowLabel,
+      config,
+      chatbotType,
+      userId,
+      sessionId,
+      visitorId,
+      messages,
+    ],
   );
 
   // ─── Appointment: user picks a date ───────────────────────────────────────
@@ -1299,6 +1435,8 @@ export default function ChatWidget({
             visitorId,
             customerName,
             customerEmail,
+            flowId: activeFlowId,
+            flowName: activeFlowLabel,
             messages: messages.map((m) => ({
               id: m.id,
               role: m.role,
@@ -1328,50 +1466,86 @@ export default function ChatWidget({
       }, 1200);
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedDate, apptQuestions, apptData, messages, chatbotType, userId],
+    [
+      selectedDate,
+      apptQuestions,
+      apptData,
+      messages,
+      chatbotType,
+      userId,
+      activeFlowId,
+      activeFlowLabel,
+    ],
   );
 
   // ─── Start appointment flow ────────────────────────────────────────────────
 
-  const startApptFlow = useCallback(() => {
-    if (apptStarted) return;
-    setApptStarted(true);
-    setApptStep(0);
-    setApptPhase("questions");
+  const startApptFlow = useCallback(
+    (flow?: CustomerFlow) => {
+      if (apptStarted) return;
+      const selectedFlow = flow || customerFlows[0];
+      const selectedQuestions = selectedFlow?.questions || apptQuestions;
+      const completionAction =
+        selectedFlow?.completionAction || activeCompletionAction;
 
-    setTimeout(() => {
-      addBotMsg(
-        "I'd love to help you book an appointment! Let me gather some details. 📋",
-      );
+      if (selectedFlow) {
+        setApptQuestions(selectedQuestions);
+        setActiveFlowId(selectedFlow.id);
+        setActiveFlowLabel(selectedFlow.label);
+        setActiveCompletionAction(selectedFlow.completionAction);
+      }
+      setApptStarted(true);
+      setApptStep(0);
+      setApptData({});
+      setSelectedDate("");
+      setSelectedTime("");
+      setConversationSaved(false);
+      setApptPhase("questions");
+
       setTimeout(() => {
-        if (apptQuestions.length > 0) {
-          const q = apptQuestions[0];
-          if (q.type === "date") {
+        addBotMsg(
+          selectedFlow?.introMessage ||
+            (completionAction === "book_appointment"
+              ? "I'd love to help you book an appointment! Let me gather some details. 📋"
+              : "Please share a few details so our team can help you."),
+        );
+        setTimeout(() => {
+          if (selectedQuestions.length > 0) {
+            const question = selectedQuestions[0];
+            if (question.type === "date") {
+              setApptPhase("date");
+              addBotMsg(
+                "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
+              );
+            } else {
+              addBotMsg(
+                question.question + (question.required ? " ✦" : ""),
+              );
+            }
+          } else if (completionAction === "book_appointment") {
             setApptPhase("date");
             addBotMsg(
               "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
             );
           } else {
-            addBotMsg(q.question + (q.required ? " ✦" : ""));
+            setApptPhase("done");
+            addBotMsg("Thanks! Our team will get back to you soon.");
           }
-        } else {
-          setApptPhase("date");
-          addBotMsg(
-            "Got it! 📅 When would you like to schedule your appointment? Please select a date and time.",
-          );
-        }
-      }, 900);
-    }, 300);
+        }, 900);
+      }, 300);
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apptStarted, apptQuestions]);
+    [apptStarted, customerFlows, apptQuestions, activeCompletionAction],
+  );
 
   const startFlowFromQuickReply = useCallback(
     (label: string) => {
+      const flow = customerFlows.find((item) => item.label === label);
       addUserMsg(label);
       setTab("appointment");
-      startApptFlow();
+      startApptFlow(flow);
     },
-    [startApptFlow],
+    [customerFlows, startApptFlow],
   );
 
   // ─── Tab switch ────────────────────────────────────────────────────────────

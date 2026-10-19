@@ -23,6 +23,7 @@ import {
   changeRazorpaySubscription,
   createRazorpaySubscription,
   getRazerpayPlanInfo,
+  verifyRazorpayPayment,
 } from "@/lib/services/subscription-actions.api";
 import {
   SubscriptionTimingDialog,
@@ -330,7 +331,7 @@ export const Checkout = ({
   }, []);
 
   const savePendingRazorpayCheckout = useCallback(
-    (subscriptionId: string) => {
+    (subscriptionId: string, razorpayResponse?: any) => {
       if (typeof window === "undefined") return;
 
       sessionStorage.setItem(
@@ -339,6 +340,8 @@ export const Checkout = ({
           subscriptionId,
           productId,
           billingCycle,
+          paymentId: razorpayResponse?.razorpay_payment_id,
+          signature: razorpayResponse?.razorpay_signature,
           createdAt: Date.now(),
         }),
       );
@@ -483,6 +486,44 @@ export const Checkout = ({
     }
 
     return null;
+  };
+
+  const confirmWebPaymentWithRazorpay = async (
+    razorpayResponse: any,
+    subscriptionId: string,
+    maxAttempts = 8,
+  ) => {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      try {
+        return await verifyRazorpayPayment(apiRequest, {
+          subscription_id: subscriptionId,
+          razorpay_payment_id: razorpayResponse?.razorpay_payment_id,
+          razorpay_signature: razorpayResponse?.razorpay_signature,
+          chatbotType: productId,
+          productId,
+          subscriptionType: "web",
+          subscriptionKind: "web",
+          billingCycle,
+        });
+      } catch (error) {
+        lastError = error;
+        if (
+          error instanceof Error &&
+          !error.message.toLowerCase().includes("not confirmed yet")
+        ) {
+          throw error;
+        }
+        if (attempt < maxAttempts - 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        }
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error("Razorpay has not confirmed the payment yet");
   };
 
   const handleWebsiteFormSubmit = async (data: WebsiteFormData) => {
@@ -693,6 +734,7 @@ export const Checkout = ({
           chatbotId: createdChatbotId,
         },
         handler: async (response: any) => {
+          savePendingRazorpayCheckout(result.subscriptionId, response);
           await handleChatbotPaymentSuccess(response, result.subscriptionId);
         },
         ...(isMobileCheckoutDevice()
@@ -764,15 +806,7 @@ export const Checkout = ({
       setShowModal(true);
       setScrapingStatus("Waiting for Razorpay confirmation...");
 
-      const activeSubscription =
-        await waitForWebSubscriptionActivation(subscriptionId);
-
-      if (!activeSubscription) {
-        showErrorToast(
-          "Payment received. We are waiting for Razorpay confirmation, please refresh in a moment.",
-        );
-        return false;
-      }
+      await confirmWebPaymentWithRazorpay(razorpayResponse, subscriptionId);
 
       clearPendingRazorpayCheckout();
       showSuccessToast("Subscription activated successfully!");
@@ -784,7 +818,13 @@ export const Checkout = ({
       return true;
     } catch (error) {
       console.error("Chatbot payment confirmation error:", error);
-      showErrorToast("Payment confirmation failed");
+      setShowModal(false);
+      setCurrentStep("payment");
+      showErrorToast(
+        error instanceof Error
+          ? error.message
+          : "Payment confirmation failed. Please reopen this page shortly.",
+      );
       return false;
     }
   };

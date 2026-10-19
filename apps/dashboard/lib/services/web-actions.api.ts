@@ -212,10 +212,17 @@ export const saveAppointmentQuestions = (
   chatbotType: string,
   questions: any[],
   quickReplies: string[] = ["Book an appointment"],
+  flows?: Array<{
+    id: string;
+    label: string;
+    introMessage: string;
+    completionAction: "book_appointment" | "submit_details";
+    questions: any[];
+  }>,
 ) =>
   apiRequest("/web/appointment-question", {
     method: "POST",
-    body: JSON.stringify({ chatbotType, questions, quickReplies }),
+    body: JSON.stringify({ chatbotType, questions, quickReplies, flows }),
   });
 
 /* =========================

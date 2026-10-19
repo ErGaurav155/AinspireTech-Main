@@ -38,7 +38,6 @@ import { Button, Orbs, toast, useThemeStyles } from "@rocketreplai/ui";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 import Link from "next/link";
-import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 
 const FREE_DM_LIMIT = 1000;
 const FREE_FOLLOW_CHECK_LIMIT = 50;
@@ -1566,25 +1565,6 @@ export default function CreateAutomationPage() {
                     </p>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {automationType === "dms" && (
-              <div className={S.card}>
-                <div className="mb-4 flex items-start gap-3">
-                  <FileText className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
-                  <div>
-                    <h2 className={S.stepTitle}>
-                      Business knowledge for unmatched DMs
-                    </h2>
-                    <p className={`mt-1 text-sm ${S.muted}`}>
-                      Keyword and quick-reply flows run first. Instagram Pro AI
-                      uses this shared knowledge only when no active trigger
-                      matches.
-                    </p>
-                  </div>
-                </div>
-                <SharedBusinessKnowledgeForm embedded />
               </div>
             )}
 
