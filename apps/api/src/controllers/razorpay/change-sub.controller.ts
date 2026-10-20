@@ -7,6 +7,11 @@ import {
   findOwnedIndividualSubscription,
 } from "@/services/billing/individual-subscription-change.service";
 import {
+  canUpdateRazorpaySubscription,
+  shouldUseIndividualReplacementCheckout,
+  supportsIndividualReplacementCheckout,
+} from "@/services/billing/individual-subscription-provider-policy.service";
+import {
   getContentCreationPlan,
   getDashboardPackagePlan,
   getMetaAdsPlan,
@@ -44,6 +49,18 @@ const validProductForKind = (kind: string, productId: string) => {
   if (kind === "website-maintenance") return Boolean(getWebsiteMaintenancePlan(productId));
   return Boolean(getContentCreationPlan(productId));
 };
+
+const noteValue = (value: unknown) => {
+  if (value === undefined || value === null) return undefined;
+  if (["string", "number", "boolean"].includes(typeof value)) {
+    return String(value);
+  }
+  return undefined;
+};
+
+const abandonSchema = z
+  .object({ changeId: z.string().trim().regex(/^[a-f\d]{24}$/i) })
+  .strict();
 
 export const changeRazorpaySubscriptionController = async (
   req: Request,
@@ -97,6 +114,28 @@ export const changeRazorpaySubscriptionController = async (
       status: "pending",
     });
     if (pending) {
+      if (
+        pending.replacementSubscriptionId &&
+        pending.targetProviderPlanId === targetProviderPlanId
+      ) {
+        const replacement = await getRazorpay().subscriptions.fetch(
+          pending.replacementSubscriptionId,
+        );
+        if (String(replacement.status) === "created") {
+          return res.status(200).json({
+            success: true,
+            data: {
+              changeId: String(pending._id),
+              subscriptionId: pending.replacementSubscriptionId,
+              previousSubscriptionId: pending.subscriptionId,
+              status: "replacement_checkout_required",
+              scheduleChangeAt: pending.scheduleChangeAt,
+              effectiveAt: pending.effectiveAt,
+              keyId: process.env.RAZORPAY_KEY_ID,
+            },
+          });
+        }
+      }
       return res.status(409).json({ success: false, error: "Another subscription change is already pending" });
     }
 
@@ -121,6 +160,84 @@ export const changeRazorpaySubscriptionController = async (
       metadata: request.metadata || {},
     });
 
+    const createReplacementCheckout = async () => {
+      if (!supportsIndividualReplacementCheckout(request.subscriptionKind)) {
+        throw new Error(
+          `The current Razorpay subscription is ${providerSubscription.status} and cannot be changed`,
+        );
+      }
+
+      const providerPlan = await getRazorpay().plans.fetch(targetProviderPlanId);
+      const providerAmount = Number((providerPlan as any)?.item?.amount);
+      const amountInRupees =
+        Number.isFinite(providerAmount) && providerAmount > 0
+          ? providerAmount / 100
+          : 0;
+      if (amountInRupees <= 0) {
+        throw new Error("Unable to resolve the target Razorpay plan amount");
+      }
+
+      const startAt =
+        request.scheduleChangeAt === "cycle_end" &&
+        Number(providerSubscription.current_end) > 0
+          ? Math.max(
+              Number(providerSubscription.current_end),
+              Math.floor(Date.now() / 1000) + 60,
+            )
+          : undefined;
+      const metadataNotes = Object.fromEntries(
+        Object.entries(request.metadata || {})
+          .map(([key, value]) => [key, noteValue(value)] as const)
+          .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+      );
+      const replacement = await getRazorpay().subscriptions.create({
+        plan_id: targetProviderPlanId,
+        total_count: request.targetBillingCycle === "monthly" ? 120 : 10,
+        customer_notify: 1,
+        ...(startAt ? { start_at: startAt } : {}),
+        notes: {
+          ...metadataNotes,
+          subscriptionType: request.subscriptionKind,
+          buyerId: userId,
+          productId: request.targetProductId,
+          amount: String(amountInRupees),
+          billingCycle: request.targetBillingCycle,
+          replacementForSubscriptionId: request.subscriptionId,
+          replacementTiming: request.scheduleChangeAt,
+          individualChangeId: String(change._id),
+        },
+      } as any);
+      const effectiveAt = startAt ? new Date(startAt * 1000) : new Date();
+      change.replacementSubscriptionId = replacement.id;
+      change.effectiveAt = effectiveAt;
+      await change.save();
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          changeId: String(change._id),
+          subscriptionId: replacement.id,
+          previousSubscriptionId: request.subscriptionId,
+          status: "replacement_checkout_required",
+          scheduleChangeAt: request.scheduleChangeAt,
+          effectiveAt,
+          keyId: process.env.RAZORPAY_KEY_ID,
+        },
+      });
+    };
+
+    if (!canUpdateRazorpaySubscription(providerSubscription.status)) {
+      try {
+        return await createReplacementCheckout();
+      } catch (error) {
+        await IndividualSubscriptionChange.updateOne(
+          { _id: change._id, status: "pending" },
+          { $set: { status: "failed" } },
+        );
+        throw error;
+      }
+    }
+
     let updated: any;
     try {
       updated = await getRazorpay().subscriptions.update(request.subscriptionId, {
@@ -128,6 +245,17 @@ export const changeRazorpaySubscriptionController = async (
         schedule_change_at: request.scheduleChangeAt,
       });
     } catch (error) {
+      if (shouldUseIndividualReplacementCheckout(error)) {
+        try {
+          return await createReplacementCheckout();
+        } catch (replacementError) {
+          await IndividualSubscriptionChange.updateOne(
+            { _id: change._id, status: "pending" },
+            { $set: { status: "failed" } },
+          );
+          throw replacementError;
+        }
+      }
       await IndividualSubscriptionChange.updateOne(
         { _id: change._id, status: "pending" },
         { $set: { status: "failed" } },
@@ -159,6 +287,58 @@ export const changeRazorpaySubscriptionController = async (
     return res.status(500).json({
       success: false,
       error: error?.error?.description || error?.message || "Unable to change subscription",
+    });
+  }
+};
+
+export const abandonIndividualSubscriptionChangeController = async (
+  req: Request,
+  res: Response,
+) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ success: false, error: "Unauthorized" });
+  const parsed = abandonSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ success: false, error: "Invalid change checkout" });
+  }
+
+  try {
+    const change = await IndividualSubscriptionChange.findOne({
+      _id: parsed.data.changeId,
+      clerkId: userId,
+      status: "pending",
+      replacementSubscriptionId: { $exists: true },
+    });
+    if (!change?.replacementSubscriptionId) {
+      return res.status(404).json({ success: false, error: "Pending replacement checkout not found" });
+    }
+    const replacement = await getRazorpay().subscriptions.fetch(
+      change.replacementSubscriptionId,
+    );
+    const status = String(replacement.status || "");
+    if (!["created", "cancelled", "expired"].includes(status)) {
+      return res.status(409).json({
+        success: false,
+        error: "This replacement has already been authorized and cannot be discarded",
+      });
+    }
+    if (status === "created") {
+      await getRazorpay().subscriptions.cancel(
+        change.replacementSubscriptionId,
+        false,
+      );
+    }
+    change.status = "cancelled";
+    await change.save();
+    return res.status(200).json({
+      success: true,
+      data: { status: "cancelled" },
+    });
+  } catch (error: any) {
+    console.error("Unable to abandon individual subscription change:", error);
+    return res.status(500).json({
+      success: false,
+      error: error?.error?.description || error?.message || "Unable to discard checkout",
     });
   }
 };

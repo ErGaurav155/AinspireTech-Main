@@ -18,6 +18,7 @@ import {
   activateCallPaidSubscription,
   activateWhatsAppPaidSubscription,
 } from "@/services/billing/paid-subscription.service";
+import { getRazorpay } from "@/utils/util";
 
 const asPositiveNumber = (value: unknown, fallback: number) => {
   const number = Number(value);
@@ -30,9 +31,12 @@ export async function applyConfirmedIndividualSubscriptionChange(entity: any) {
   if (!subscriptionId || !providerPlanId) return null;
 
   const change = await IndividualSubscriptionChange.findOne({
-    subscriptionId,
     targetProviderPlanId: providerPlanId,
     status: "pending",
+    $or: [
+      { subscriptionId },
+      { replacementSubscriptionId: subscriptionId },
+    ],
   }).sort({ createdAt: -1 });
   if (!change) return null;
 
@@ -131,6 +135,64 @@ export async function applyConfirmedIndividualSubscriptionChange(entity: any) {
         },
       },
     );
+  }
+
+  if (
+    change.replacementSubscriptionId === subscriptionId &&
+    change.subscriptionId !== subscriptionId
+  ) {
+    const claimedChange = await IndividualSubscriptionChange.findOneAndUpdate(
+      { _id: change._id, status: "pending" },
+      { $set: { status: "applied", appliedAt: new Date() } },
+      { new: true },
+    );
+    if (!claimedChange) return change;
+
+    try {
+      const previousProviderSubscription = await getRazorpay().subscriptions.fetch(
+        change.subscriptionId,
+      );
+      const previousStatus = String(previousProviderSubscription.status || "");
+      if (!["cancelled", "completed", "expired"].includes(previousStatus)) {
+        try {
+          await getRazorpay().subscriptions.cancel(change.subscriptionId, false);
+        } catch (cancelError) {
+          const refreshed = await getRazorpay().subscriptions.fetch(
+            change.subscriptionId,
+          );
+          if (
+            !["cancelled", "completed", "expired"].includes(
+              String(refreshed.status || ""),
+            )
+          ) {
+            throw cancelError;
+          }
+        }
+      }
+    } catch (error) {
+      await IndividualSubscriptionChange.updateOne(
+        { _id: change._id, status: "applied" },
+        { $set: { status: "pending" }, $unset: { appliedAt: 1 } },
+      );
+      throw error;
+    }
+    const cancelledAt = new Date();
+    if (change.subscriptionKind === "insta") {
+      await InstaSubscription.updateOne(
+        { subscriptionId: change.subscriptionId, clerkId: change.clerkId },
+        { $set: { status: "cancelled", cancelledAt, updatedAt: cancelledAt } },
+      );
+    } else if (change.subscriptionKind === "web") {
+      await WebSubscription.updateOne(
+        {
+          subscriptionId: change.subscriptionId,
+          clerkId: change.clerkId,
+          chatbotType: "chatbot-lead-generation",
+        },
+        { $set: { status: "cancelled", cancelledAt, updatedAt: cancelledAt } },
+      );
+    }
+    return claimedChange;
   }
 
   change.status = "applied";

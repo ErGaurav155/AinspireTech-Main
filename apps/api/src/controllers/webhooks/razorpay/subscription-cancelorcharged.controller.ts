@@ -17,6 +17,7 @@ import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import MetaAdsSubscription from "@/models/packages/MetaAdsSubscription.model";
 import WebsiteMaintenanceSubscription from "@/models/packages/WebsiteMaintenanceSubscription.model";
 import ContentCreationSubscription from "@/models/packages/ContentCreationSubscription.model";
+import IndividualSubscriptionChange from "@/models/billing/IndividualSubscriptionChange.model";
 import { getCurrentWindow } from "@/services/rate-limit.service";
 import { downgradeWhatsAppSubscriptionToFree } from "@/services/billing/paid-subscription.service";
 import { isManagedPlatformSubscription } from "@/services/billing/platform-webhook-routing.service";
@@ -362,7 +363,26 @@ export const razorpaySubsCancelWebhookController = async (
       event === "subscription.completed" ||
       event === "subscription.expired"
     ) {
-      await handleSubscriptionEnded(subscriptionId);
+      const replacedSubscription = await IndividualSubscriptionChange.exists({
+        subscriptionId,
+        replacementSubscriptionId: { $exists: true },
+        status: "applied",
+      });
+      if (replacedSubscription) {
+        const cancelledAt = new Date();
+        await Promise.all([
+          InstaSubscription.updateOne(
+            { subscriptionId },
+            { $set: { status: "cancelled", cancelledAt, updatedAt: cancelledAt } },
+          ),
+          WebSubscription.updateOne(
+            { subscriptionId, chatbotType: "chatbot-lead-generation" },
+            { $set: { status: "cancelled", cancelledAt, updatedAt: cancelledAt } },
+          ),
+        ]);
+      } else {
+        await handleSubscriptionEnded(subscriptionId);
+      }
     } else {
       // Return 200 for unhandled events to avoid retries
       return res.status(200).json({

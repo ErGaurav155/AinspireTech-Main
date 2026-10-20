@@ -491,9 +491,9 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
       case "subscription.activated":
       case "subscription.charged":
       case "subscription.updated": {
-        const appliedChange =
-          await applyConfirmedIndividualSubscriptionChange(subscription);
         if (event === "subscription.updated") {
+          const appliedChange =
+            await applyConfirmedIndividualSubscriptionChange(subscription);
           if (!appliedChange) {
             console.info("No pending individual plan change matched subscription.updated", {
               subscriptionId,
@@ -540,6 +540,10 @@ export const razorpaySubsCreateOrChargeWebhookController = async (
           await handleWebhookSubscriptionCreate(payload);
           createdFromWebhook = true;
         }
+
+        // Replacement subscriptions must exist locally before the change is
+        // applied. Only then is the previous mandate retired.
+        await applyConfirmedIndividualSubscriptionChange(subscription);
 
         if (!createdFromWebhook) {
           const nextBillingDate = subscription?.current_end

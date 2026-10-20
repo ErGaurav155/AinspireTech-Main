@@ -13,6 +13,7 @@ export type IndividualSubscriptionKind =
 export interface IIndividualSubscriptionChange extends Document {
   clerkId: string;
   subscriptionId: string;
+  replacementSubscriptionId?: string;
   subscriptionKind: IndividualSubscriptionKind;
   fromProviderPlanId: string;
   targetProviderPlanId: string;
@@ -32,6 +33,7 @@ const IndividualSubscriptionChangeSchema =
     {
       clerkId: { type: String, required: true, index: true },
       subscriptionId: { type: String, required: true, index: true },
+      replacementSubscriptionId: { type: String, trim: true, index: true },
       subscriptionKind: {
         type: String,
         required: true,

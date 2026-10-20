@@ -17,6 +17,7 @@ import {
   activateCallPaidSubscription,
   activateWhatsAppPaidSubscription,
 } from "@/services/billing/paid-subscription.service";
+import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
 
 export interface VerifyBody {
   subscription_id: string;
@@ -401,6 +402,7 @@ export const verifyRazorpayPaymentController = async (
         razorpaySubscription: subscription,
         razorpay_payment_id: paidPayment?.id,
       });
+      await applyConfirmedIndividualSubscriptionChange(subscription);
 
       return res.status(200).json({
         success: true,
@@ -462,6 +464,7 @@ export const verifyRazorpayPaymentController = async (
         billingCycle,
         razorpaySubscription: signedSubscription,
       });
+      await applyConfirmedIndividualSubscriptionChange(signedSubscription);
 
       return res.status(200).json({
         success: true,

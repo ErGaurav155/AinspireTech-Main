@@ -50,6 +50,7 @@ import { ConfirmSubscriptionChangeDialog } from "@/components/insta/CancelSubcri
 
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import {
+  abandonRazorpaySubscriptionChange,
   createRazorpaySubscription,
   changeRazorpaySubscription,
   getRazerpayPlanInfo,
@@ -1238,6 +1239,87 @@ function PricingWithSearchParams() {
           accountLimit: pendingPlan.account,
         },
       });
+      if (result.status === "replacement_checkout_required") {
+        await loadRazorpayScript();
+        let completed = false;
+        const razorpay = new window.Razorpay({
+          key: result.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          subscription_id: result.subscriptionId,
+          name: "RocketReplai",
+          description: `${pendingPlan.name} Plan - ${pendingBillingCycle}`,
+          prefill: { email },
+          handler: async (response: any) => {
+            completed = true;
+            try {
+              if (timing === "cycle_end") {
+                showToast(
+                  "Plan change scheduled",
+                  `The new mandate is authorized and will start on ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+                  false,
+                );
+              } else {
+                await verifyRazorpayPayment(apiRequest, {
+                  subscription_id: result.subscriptionId,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  chatbotType: pendingPlan.id,
+                  productId: pendingPlan.id,
+                  subscriptionType: "insta",
+                  subscriptionKind: "insta",
+                  billingCycle: pendingBillingCycle,
+                });
+                showToast(
+                  "Plan changed",
+                  `Your ${pendingBillingCycle} Instagram plan is now active.`,
+                  false,
+                );
+                window.setTimeout(() => window.location.reload(), 700);
+              }
+            } catch (error: any) {
+              showToast(
+                "Confirmation pending",
+                error.message || "Razorpay is still confirming this change.",
+                true,
+              );
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              if (!completed && result.changeId) {
+                void abandonRazorpaySubscriptionChange(
+                  apiRequest,
+                  result.changeId,
+                )
+                  .then(() =>
+                    showToast(
+                      "Plan change cancelled",
+                      "Your current Instagram plan is unchanged.",
+                      false,
+                    ),
+                  )
+                  .catch((error: any) =>
+                    showToast(
+                      "Unable to discard checkout",
+                      error.message || "Refresh and try again.",
+                      true,
+                    ),
+                  );
+              }
+            },
+          },
+          theme: { color: "#EC4899" },
+        });
+        razorpay.on("payment.failed", () => {
+          showToast(
+            "Payment failed",
+            "No plan change was applied.",
+            true,
+          );
+        });
+        razorpay.open();
+        setPendingPlan(null);
+        return;
+      }
       showToast(
         timing === "now" ? "Plan change requested" : "Plan change scheduled",
         timing === "now"

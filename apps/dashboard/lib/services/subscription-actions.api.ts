@@ -85,12 +85,27 @@ export const changeRazorpaySubscription = (
     metadata?: Record<string, unknown>;
   },
 ): Promise<{
+  changeId?: string;
   subscriptionId: string;
-  status: "pending_provider_confirmation";
+  previousSubscriptionId?: string;
+  status: "pending_provider_confirmation" | "replacement_checkout_required";
   scheduleChangeAt: "now" | "cycle_end";
   effectiveAt: string;
+  keyId?: string;
 }> =>
   apiRequest("/razorpay/subscription/change", {
     method: "POST",
     body: JSON.stringify(data),
   });
+
+export const abandonRazorpaySubscriptionChange = (
+  apiRequest: ApiRequestFn,
+  changeId: string,
+) =>
+  apiRequest<{ status: "cancelled" }>(
+    "/razorpay/subscription/change/abandon",
+    {
+      method: "POST",
+      body: JSON.stringify({ changeId }),
+    },
+  );

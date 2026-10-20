@@ -5,7 +5,10 @@ import { verifyRazorpayPaymentController } from "@/controllers/razorpay/verify-s
 import { cancelInstaSubscriptionController } from "@/controllers/razorpay/cancel-sub.controller";
 import { getRazerpayPlanInfoController } from "@/controllers/razorpay/get-planInfo.controller";
 import { razorpayCheckoutCallbackController } from "@/controllers/razorpay/checkout-callback.controller";
-import { changeRazorpaySubscriptionController } from "@/controllers/razorpay/change-sub.controller";
+import {
+  abandonIndividualSubscriptionChangeController,
+  changeRazorpaySubscriptionController,
+} from "@/controllers/razorpay/change-sub.controller";
 import {
   requireAutomationAccountAccess,
   requireIndividualBillingAccess,
@@ -28,6 +31,10 @@ router.post("/subscription/create", createRazorpaySubscriptionController);
 
 // POST /api/razorpay/subscription/change - Update an owned Razorpay subscription
 router.post("/subscription/change", changeRazorpaySubscriptionController);
+router.post(
+  "/subscription/change/abandon",
+  abandonIndividualSubscriptionChangeController,
+);
 
 // POST /api/razorpay/subscription/verify - Verify Razorpay payment
 router.post("/subscription/verify", verifyRazorpayPaymentController);

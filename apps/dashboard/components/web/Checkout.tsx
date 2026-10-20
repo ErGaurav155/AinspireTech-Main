@@ -20,6 +20,7 @@ import {
   useThemeStyles,
 } from "@rocketreplai/ui";
 import {
+  abandonRazorpaySubscriptionChange,
   changeRazorpaySubscription,
   createRazorpaySubscription,
   getRazerpayPlanInfo,
@@ -580,6 +581,7 @@ export const Checkout = ({
     setIsSubmitting(true);
     setProcessing(true);
     try {
+      await loadRazorpayScript();
       const result = await changeRazorpaySubscription(apiRequest, {
         subscriptionId: previousSubscriptionId,
         subscriptionKind: "web",
@@ -587,6 +589,74 @@ export const Checkout = ({
         targetBillingCycle: billingCycle,
         scheduleChangeAt,
       });
+      if (result.status === "replacement_checkout_required") {
+        let completed = false;
+        const razorpay = new (window as any).Razorpay({
+          key: result.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID!,
+          subscription_id: result.subscriptionId,
+          name: "RocketReplai",
+          description: `${productId} - ${billingCycle}`,
+          prefill: { email: userEmailRef.current || "" },
+          handler: async (response: any) => {
+            completed = true;
+            try {
+              if (scheduleChangeAt === "cycle_end") {
+                toast({
+                  title: "Plan change scheduled",
+                  description: `The new mandate will start on ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
+                });
+              } else {
+                await verifyRazorpayPayment(apiRequest, {
+                  subscription_id: result.subscriptionId,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  chatbotType: productId,
+                  productId,
+                  subscriptionType: "web",
+                  subscriptionKind: "web",
+                  billingCycle,
+                });
+                toast({
+                  title: "Plan changed",
+                  description: `Your ${billingCycle} website plan is now active.`,
+                });
+                window.setTimeout(() => window.location.reload(), 700);
+              }
+            } catch (error: any) {
+              showErrorToast(
+                error.message || "Razorpay is still confirming this change.",
+              );
+            }
+          },
+          modal: {
+            ondismiss: () => {
+              if (!completed && result.changeId) {
+                void abandonRazorpaySubscriptionChange(
+                  apiRequest,
+                  result.changeId,
+                )
+                  .then(() =>
+                    toast({
+                      title: "Plan change cancelled",
+                      description: "Your current website plan is unchanged.",
+                    }),
+                  )
+                  .catch((error: any) =>
+                    showErrorToast(
+                      error.message || "Unable to discard the checkout.",
+                    ),
+                  );
+              }
+            },
+          },
+          theme: { color: "#EC4899" },
+        });
+        razorpay.on("payment.failed", () =>
+          showErrorToast("Payment failed. No plan change was applied."),
+        );
+        razorpay.open();
+        return;
+      }
       toast({
         title:
           scheduleChangeAt === "now"
