@@ -1,4 +1,5 @@
 import { getRazorpay } from "@/utils/util";
+import { resolvePromotionCode } from "@/services/billing/promotion.service";
 import { getAuth } from "@clerk/express";
 import { Request, Response } from "express";
 import CallAssistantWorkspace from "@/models/call/CallAssistantWorkspace.model";
@@ -189,6 +190,7 @@ export const createRazorpaySubscriptionController = async (
       productId,
       billingCycle,
       offerId: requestedOfferId,
+      promoCode,
     } = metadata;
     const extraNotes = Object.fromEntries(
       Object.entries(metadata).filter(
@@ -555,15 +557,25 @@ export const createRazorpaySubscriptionController = async (
     }
 
     const razorpay = getRazorpay();
+    const promotion = promoCode
+      ? await resolvePromotionCode({
+          code: promoCode,
+          accountType: "BUSINESS",
+          productId,
+          billingInterval:
+            billingCycle === "yearly" ? "yearly" : "monthly",
+        })
+      : null;
     const offerId =
-      subscriptionType === "meta-ads" || billingCycle !== "monthly"
+      promotion?.razorpayOfferId ||
+      (subscriptionType === "meta-ads" || billingCycle !== "monthly"
         ? undefined
         : requestedOfferId ||
           getMonthlyFirstCycleOfferId(
             subscriptionType,
             productId,
             billingCycle,
-          );
+          ));
 
     // Create Razorpay subscription
     let subscription;
@@ -580,6 +592,7 @@ export const createRazorpaySubscriptionController = async (
           amount: amount.toString(),
           billingCycle,
           offerId: offerId || "",
+          promotionCode: promotion?.code || "",
         },
         ...(offerId ? { offer_id: offerId } : {}),
       });
@@ -619,6 +632,14 @@ export const createRazorpaySubscriptionController = async (
     });
   } catch (error: any) {
     console.error("Error creating Razorpay subscription:", error);
+    if (String(error?.message || "").startsWith("Coupon is")) {
+      return res.status(400).json({
+        success: false,
+        error: error.message,
+        code: "INVALID_PROMOTION_CODE",
+        timestamp: new Date().toISOString(),
+      });
+    }
     return res.status(500).json({
       success: false,
       error: error.message || "Failed to create subscription",

@@ -97,8 +97,8 @@ export default function AutomationsPage() {
   const loadMoreCountRef = useRef(0);
   const { userId, isLoaded } = useAuth();
   const { apiRequest } = useApi();
-  const { clientOnly } = usePlatformAccess();
-  const isSubscribed = clientOnly || individualSubscribed;
+  const { instagramAccess } = usePlatformAccess();
+  const isSubscribed = instagramAccess?.paid ?? individualSubscribed;
 
   const { styles, isDark } = useThemeStyles();
 

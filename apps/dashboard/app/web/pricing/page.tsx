@@ -117,6 +117,7 @@ const PricingContent = () => {
     string | null
   >(null);
   const [billingMode, setBillingMode] = useState<BillingMode>("monthly");
+  const [promoCode, setPromoCode] = useState("");
   const [activeTab, setActiveTab] = useState<PlanType>("chatbot");
   const [error, setError] = useState<string | null>(null);
   const [userChatbots, setUserChatbots] = useState<any[]>([]);
@@ -616,6 +617,23 @@ const PricingContent = () => {
                   Save 10%
                 </span>
               </div>
+              {subscriptions.length === 0 && (
+                <div className="mx-auto -mt-4 mb-8 max-w-sm text-left">
+                  <label className={`mb-1 block text-xs font-semibold ${styles.text.secondary}`}>
+                    Coupon code (optional)
+                  </label>
+                  <input
+                    value={promoCode}
+                    onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                    placeholder="Enter coupon code"
+                    className={`${styles.input} w-full uppercase`}
+                    maxLength={40}
+                  />
+                  <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                    Coupon discounts apply for the billing cycles configured in Razorpay.
+                  </p>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
                 {/* Free Tier Card - Outside tabs but after Tabs */}
@@ -946,6 +964,7 @@ const PricingContent = () => {
                               amount={displayPrice}
                               chatbotCreated={hasCreated}
                               isConfirmingPayment={isConfirmingThisProduct}
+                              promoCode={promoCode}
                             />
                           )}
                         </SignedIn>

@@ -1,11 +1,11 @@
 // services/rate-limit.service.ts
 import { connectToDatabase } from "@/config/database.config";
 import InstagramAccount from "@/models/insta/InstagramAccount.model";
-import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import RateLimitQueue from "@/models/Rate/RateLimitQueue.model";
 import RateLimitWindow from "@/models/Rate/RateLimitWindow.model";
 import { redisHelpers } from "@/config/redis.config";
 import RateUserRateLimit from "@/models/Rate/UserRateLimit.model";
+import { getEffectiveInstagramAccess } from "@/services/billing/instagram-access.service";
 
 const APP_HOURLY_GLOBAL_LIMIT = parseInt(
   process.env.APP_HOURLY_GLOBAL_LIMIT || "20000",
@@ -56,13 +56,7 @@ export async function getUserTier(clerkId: string): Promise<TierType> {
   }
   try {
     await connectToDatabase();
-    const subscription = await InstaSubscription.findOne({
-      clerkId,
-      chatbotType: "Insta-Automation-Pro",
-      status: "active",
-      expiresAt: { $gt: new Date() },
-    });
-    const tier = subscription ? "pro" : "free";
+    const tier = (await getEffectiveInstagramAccess(clerkId)).tier;
     try {
       await redisHelpers.set(cacheKey, tier, 600);
     } catch {

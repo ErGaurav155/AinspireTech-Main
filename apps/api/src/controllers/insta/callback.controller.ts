@@ -5,6 +5,7 @@ import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import { getAuth } from "@clerk/express";
 import { getCurrentWindow, getUserTier } from "@/services/rate-limit.service";
 import RateUserRateLimit from "@/models/Rate/UserRateLimit.model";
+import { getEffectiveInstagramAccess } from "@/services/billing/instagram-access.service";
 
 // ─── Instagram API Response Types ───────────────────────────────────────────
 
@@ -336,24 +337,12 @@ export const handleInstaCallbackController = async (
     );
 
     // Check existing accounts and subscriptions
-    const [existingAccounts, subscriptions] = await Promise.all([
+    const [existingAccounts, instagramAccess] = await Promise.all([
       InstagramAccount.find({ userId: clerkId }),
-      InstaSubscription.find({
-        clerkId: clerkId,
-        chatbotType: "Insta-Automation-Pro",
-        status: "active",
-      }),
+      getEffectiveInstagramAccess(clerkId),
     ]);
 
-    // Determine account limit based on subscription
-    let accountLimit = 1; // Default free plan limit
-
-    if (subscriptions.length > 0) {
-      const subscription = subscriptions[0];
-      if (subscription.chatbotType === "Insta-Automation-Pro") {
-        accountLimit = 3;
-      }
-    }
+    const accountLimit = instagramAccess.accountLimit;
 
     // Check if account already exists for this user
     const existingAccountWithUser = await InstagramAccount.findOne({

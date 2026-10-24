@@ -166,6 +166,39 @@ is a configured owner/admin user.
 
 The new Razorpay flow never trusts a browser-provided amount or plan ID. A checkout selects a database plan by code. Entitlements change only after the signed, idempotently processed webhook confirms provider state.
 
+### Coupons and Razorpay Offers
+
+Create the discount as a Razorpay Offer first, including whether it applies for
+one billing cycle or multiple cycles. In the owner admin, open **Coupons** and
+map a customer-facing code to that Razorpay Offer ID. Coupons can be restricted
+by account type, plan/product, and monthly/yearly billing. Checkout sends only
+the server-resolved Offer ID to Razorpay; a browser-provided Offer ID is never
+accepted as a coupon definition.
+
+### Agency free-trial expiry
+
+The free agency tier is a one-time 14-day trial. Its identity claim is stored as
+an HMAC of the normalized owner email, so the raw email is not duplicated and a
+new Clerk account using the same email cannot claim another trial. Set a stable
+`AGENCY_TRIAL_HASH_SECRET` in every API environment (it falls back to
+`CLERK_SECRET_KEY`, but a dedicated secret is recommended and must not be
+rotated without migrating the hashes).
+
+Configure a Railway cron to call this endpoint at least daily:
+
+```text
+POST https://api.rocketreplai.com/api/cron/agency-trials
+X-Cron-Secret: <CRON_SECRET>
+```
+
+The job first backfills legacy agencies, then rechecks Razorpay-backed local
+subscription state before expiry. A paid agency is retained. An unpaid expired
+trial is suspended and then its client automation data, exclusive invited Clerk
+users, client organizations, agency organization, and owner Clerk user are
+permanently removed. Cleanup is retryable after a transient Clerk/database
+failure. Test this job against a staging database before enabling production
+deletion.
+
 ## Migration
 
 The migration is dry-run by default:

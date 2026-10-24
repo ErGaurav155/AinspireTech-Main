@@ -261,3 +261,34 @@ export const updateWorkspace = (
     method: "PATCH",
     body: JSON.stringify(input),
   });
+
+export type AdminPromotion = {
+  _id: string;
+  code: string;
+  name: string;
+  razorpayOfferId: string;
+  accountTypes: Array<"BUSINESS" | "AGENCY">;
+  planCodes: string[];
+  productIds: string[];
+  billingIntervals: Array<"monthly" | "yearly">;
+  durationCycles?: number;
+  validFrom?: string;
+  validUntil?: string;
+  active: boolean;
+};
+
+export const getAdminPromotions = (apiRequest: ApiRequestFn) =>
+  apiRequest<AdminPromotion[]>("/admin/promotions", { method: "GET" });
+
+export const saveAdminPromotion = (
+  apiRequest: ApiRequestFn,
+  promotion: Omit<AdminPromotion, "_id">,
+  promotionId?: string,
+) =>
+  apiRequest<AdminPromotion>(
+    promotionId ? `/admin/promotions/${promotionId}` : "/admin/promotions",
+    {
+      method: promotionId ? "PUT" : "POST",
+      body: JSON.stringify(promotion),
+    },
+  );

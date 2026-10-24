@@ -9,7 +9,6 @@ import {
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
 import { getUserTier } from "@/services/rate-limit.service";
-import User from "@/models/user.model";
 
 const QUICK_REPLY_LIMITS = {
   free: 5,
@@ -85,13 +84,7 @@ const normalizeDMFlow = (value: any, userTier: string) => {
   };
 };
 
-const getAutomationTier = async (userId: string) => {
-  const [tier, user] = await Promise.all([
-    getUserTier(userId),
-    User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
-  ]);
-  return user?.platformAccountType === "MEMBER" ? "pro" : tier;
-};
+const getAutomationTier = (userId: string) => getUserTier(userId);
 
 // GET /api/insta/templates - Get Instagram templates
 export const getInstaTemplatesController = async (
@@ -293,6 +286,19 @@ export const createInstaTemplateController = async (
         ? normalizeKeywordList(quickReplyTriggers, quickReplyLimit)
         : [];
     const normalizedDMFlow = normalizeDMFlow(dmFlow, userTier);
+    const normalizedContent = (Array.isArray(content) ? content : []).map(
+      (item: any) => ({
+        ...item,
+        link:
+          normalizedDMFlow.mode === "collect_form"
+            ? ""
+            : String(item?.link || "").trim(),
+        buttonTitle:
+          normalizedDMFlow.mode === "collect_form"
+            ? ""
+            : String(item?.buttonTitle || "Get Access").trim(),
+      }),
+    );
 
     if (forceInactiveForDMLimit) {
       await stopInstaAutomationForDMLimit(account);
@@ -325,7 +331,10 @@ export const createInstaTemplateController = async (
       mediaType: mediaType || "",
 
       // Core DM content
-      content: content || [{ text: "", link: "", buttonTitle: "Get Access" }],
+      content:
+        normalizedContent.length > 0
+          ? normalizedContent
+          : [{ text: "", link: "", buttonTitle: "" }],
 
       // Comment replies
       reply: reply || [],

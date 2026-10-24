@@ -6,6 +6,10 @@ export interface IAgency extends Document {
   slug: string;
   ownerUserId: string;
   status: "pending" | "active" | "suspended" | "archived";
+  trialStatus?: "active" | "converted" | "expired" | "ineligible";
+  trialStartedAt?: Date;
+  trialEndsAt?: Date;
+  trialIdentityHash?: string;
   branding: Record<string, unknown>;
   settings: Record<string, unknown>;
   createdAt: Date;
@@ -24,6 +28,14 @@ const AgencySchema = new Schema<IAgency>(
       default: "pending",
       index: true,
     },
+    trialStatus: {
+      type: String,
+      enum: ["active", "converted", "expired", "ineligible"],
+      index: true,
+    },
+    trialStartedAt: Date,
+    trialEndsAt: { type: Date, index: true },
+    trialIdentityHash: { type: String, select: false },
     branding: { type: Schema.Types.Mixed, default: {} },
     settings: { type: Schema.Types.Mixed, default: {} },
   },
@@ -36,6 +48,7 @@ AgencySchema.index(
 );
 AgencySchema.index({ slug: 1 }, { unique: true });
 AgencySchema.index({ ownerUserId: 1, status: 1 });
+AgencySchema.index({ trialStatus: 1, trialEndsAt: 1 });
 
 const Agency = (mongoose.models?.Agency ||
   mongoose.model<IAgency>("Agency", AgencySchema)) as Model<IAgency>;

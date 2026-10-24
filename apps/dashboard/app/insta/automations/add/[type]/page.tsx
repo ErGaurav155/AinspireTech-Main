@@ -563,8 +563,8 @@ export default function CreateAutomationPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const { clientOnly } = usePlatformAccess();
-  const isSubscribed = clientOnly || individualSubscribed;
+  const { instagramAccess } = usePlatformAccess();
+  const isSubscribed = instagramAccess?.paid ?? individualSubscribed;
 
   // ─── Styles ───────────────────────────────────────────────────────────────
 
@@ -1220,12 +1220,18 @@ export default function CreateAutomationPage() {
             ? [
                 {
                   text: form.dmMessage || "",
-                  link: form.dmLinks[0]?.url || "",
-                  buttonTitle: form.dmLinks[0]?.buttonTitle || "Get Access",
+                  link:
+                    form.dmFlowMode === "send_link"
+                      ? form.dmLinks[0]?.url || ""
+                      : "",
+                  buttonTitle:
+                    form.dmFlowMode === "send_link"
+                      ? form.dmLinks[0]?.buttonTitle || "Get Access"
+                      : "",
                   mediaUrl: form.dmMediaUrl || "",
                   mediaType: form.dmMediaType || "",
                 },
-                ...form.dmLinks.slice(1).map((l) => ({
+                ...(form.dmFlowMode === "send_link" ? form.dmLinks.slice(1) : []).map((l) => ({
                   text: "",
                   link: l.url,
                   buttonTitle: l.buttonTitle,
@@ -1902,7 +1908,11 @@ export default function CreateAutomationPage() {
                 <div className={S.stepNumber}>
                   {automationType === "dms" ? "2" : "3"}
                 </div>
-                <h3 className={S.stepTitle}>Final DM Message & Link</h3>
+                <h3 className={S.stepTitle}>
+                  {form.dmFlowMode === "send_link"
+                    ? "Final DM Message & Link"
+                    : "Final DM Message"}
+                </h3>
               </div>
 
               {/* Media upload */}
@@ -2021,8 +2031,8 @@ export default function CreateAutomationPage() {
                 </div>
               </div>
 
-              {/* Links */}
-              {form.dmLinks.map((link, i) => (
+              {/* Link actions are deliberately unavailable in form mode. */}
+              {form.dmFlowMode === "send_link" && form.dmLinks.map((link, i) => (
                 <div key={i} className={S.linkItem}>
                   <LinkIcon className={`h-4 w-4 flex-shrink-0 ${S.muted}`} />
                   <div className="flex-1 min-w-0">
@@ -2048,7 +2058,7 @@ export default function CreateAutomationPage() {
                 </div>
               ))}
 
-              {showLinkForm ? (
+              {form.dmFlowMode === "send_link" && (showLinkForm ? (
                 <div
                   className={`border rounded-xl p-3 mb-2 ${isDark ? "border-white/[0.08]" : "border-gray-200"}`}
                 >
@@ -2091,7 +2101,7 @@ export default function CreateAutomationPage() {
                   <Plus className="h-4 w-4" />
                   Add Link Button
                 </button>
-              )}
+              ))}
             </div>
 
             {/* DM Flow */}
@@ -2121,6 +2131,8 @@ export default function CreateAutomationPage() {
                             dmFlowMode: mode.value as
                               | "send_link"
                               | "collect_form",
+                            dmLinks:
+                              mode.value === "collect_form" ? [] : f.dmLinks,
                           }))
                         }
                         className={S.tagButton(form.dmFlowMode === mode.value)}

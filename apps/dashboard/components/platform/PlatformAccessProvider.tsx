@@ -6,6 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { Phone } from "lucide-react";
 import { useApi } from "@/lib/useApi";
 import { getPlatformContext } from "@/lib/services/platform.api";
+import {
+  getInstagramAccess,
+  type InstagramAccess,
+} from "@/lib/services/insta-actions.api";
 
 type PlatformAccess = {
   primaryAccountType?: "AGENCY" | "BUSINESS" | "MEMBER";
@@ -13,6 +17,7 @@ type PlatformAccess = {
   clientWorkspaceId?: string;
   agencyOnly: boolean;
   agencyId?: string;
+  instagramAccess?: InstagramAccess;
   loading: boolean;
 };
 const PlatformAccessContext = createContext<PlatformAccess>({ clientOnly: false, agencyOnly: false, loading: false });
@@ -54,8 +59,11 @@ export default function PlatformAccessProvider({ children }: { children: React.R
     if (!isLoaded) return;
     if (!isSignedIn) { setAccess({ clientOnly: false, agencyOnly: false, loading: false }); return; }
     let cancelled = false;
-    getPlatformContext(apiRequest)
-      .then((context) => {
+    Promise.all([
+      getPlatformContext(apiRequest),
+      getInstagramAccess(apiRequest).catch(() => undefined),
+    ])
+      .then(([context, instagramAccess]) => {
         if (cancelled) return;
         const clientOnly = context.primaryAccountType === "MEMBER";
         const agencyOnly = context.primaryAccountType === "AGENCY";
@@ -63,7 +71,7 @@ export default function PlatformAccessProvider({ children }: { children: React.R
           ? context.workspaces.find((workspace: any) => Boolean(workspace.agencyId)) ||
             context.workspaces[0]
           : undefined;
-        setAccess({ primaryAccountType: context.primaryAccountType || undefined, clientOnly, clientWorkspaceId: clientWorkspace?._id, agencyOnly, agencyId: agencyOnly ? context.agencies[0]?._id : undefined, loading: false });
+        setAccess({ primaryAccountType: context.primaryAccountType || undefined, clientOnly, clientWorkspaceId: clientWorkspace?._id, agencyOnly, agencyId: agencyOnly ? context.agencies[0]?._id : undefined, instagramAccess, loading: false });
       })
       .catch(() => { if (!cancelled) setAccess({ clientOnly: false, agencyOnly: false, loading: false }); });
     return () => { cancelled = true; };

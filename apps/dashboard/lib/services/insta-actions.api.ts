@@ -3,6 +3,20 @@
 import { getInstagramAuthUrl } from "@/lib/instagram-auth";
 import { ApiRequestFn } from "../useApi";
 
+export type InstagramAccess = {
+  paid: boolean;
+  tier: "free" | "pro";
+  accountLimit: number;
+  hourlyApiLimit: number;
+  displayHourlyApiLimit: "200" | "Unlimited";
+  source: "individual" | "package" | "agency" | "free";
+};
+
+export const getInstagramAccess = (
+  apiRequest: ApiRequestFn,
+): Promise<InstagramAccess> =>
+  apiRequest("/insta/access", { method: "GET" });
+
 // ==================== ACCOUNT FUNCTIONS ====================
 
 export const getInstaAccount = (apiRequest: ApiRequestFn): Promise<any> => {

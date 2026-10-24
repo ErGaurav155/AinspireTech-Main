@@ -43,6 +43,7 @@ import {
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import { getUserById } from "@/lib/services/user-actions.api";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // Types
 interface AccountDetails {
@@ -80,6 +81,7 @@ export default function AccountDetailsPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { instagramAccess } = usePlatformAccess();
 
   // Use context to get selected account
   const { selectedAccount, isAccLoading, refreshAccounts, accounts } =
@@ -483,12 +485,12 @@ export default function AccountDetailsPage() {
               }
             >
               {account.metaCallsThisHour} /
-              {userInfo?.accountLimit > 1 ? "∞" : 200}
+              {instagramAccess?.paid || userInfo?.accountLimit > 1 ? "∞" : 200}
             </p>
             {
               <p className={`${pageStyles.statLabel} flex items-center gap-1`}>
                 <span className="flex items-center mt-1">
-                  {userInfo?.accountLimit > 1
+                  {instagramAccess?.paid || userInfo?.accountLimit > 1
                     ? "∞"
                     : 200 - account.metaCallsThisHour}
                 </span>

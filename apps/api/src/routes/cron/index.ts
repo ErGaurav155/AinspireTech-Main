@@ -6,6 +6,7 @@ import { resetWebTokensController } from "@/controllers/cron/web-token.controlle
 import { hourlyWindowResetController } from "@/controllers/cron/hourly-window-reset.controller";
 import { followupCronController } from "@/controllers/cron/followup.controller";
 import { resetInstaController } from "@/controllers/cron/insta-reset.controller";
+import { expireAgencyTrialsController } from "@/controllers/cron/agency-trial.controller";
 
 const router = Router();
 
@@ -34,5 +35,8 @@ router.get("/insta", resetInstaController);
 
 // GET /api/cron/followup - Process followups
 router.get("/followup", followupCronController);
+
+// POST /api/cron/agency-trials - Expire unpaid 14-day agency trials.
+router.post("/agency-trials", expireAgencyTrialsController);
 
 export default router;

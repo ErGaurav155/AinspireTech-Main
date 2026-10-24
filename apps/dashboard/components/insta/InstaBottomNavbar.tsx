@@ -46,7 +46,7 @@ export default function InstaBottomNavbar() {
   const { userId } = useAuth();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const { clientOnly } = usePlatformAccess();
+  const { clientOnly, instagramAccess } = usePlatformAccess();
 
   // ✅ All account data from context
   const { accounts, selectedAccount, selectAccount } = useInstaAccount();
@@ -74,7 +74,7 @@ export default function InstaBottomNavbar() {
     fetch();
   }, [userId, apiRequest]);
 
-  const effectiveAccountLimit = clientOnly ? 3 : accountLimit;
+  const effectiveAccountLimit = instagramAccess?.accountLimit ?? accountLimit;
   const BOTTOM_NAV_ITEMS = useMemo(() => {
     if (effectiveAccountLimit > 1) {
       return [

@@ -15,6 +15,7 @@ import {
 } from "@/config/platform-catalog.config";
 import { ensurePlatformBillingIndexes } from "@/services/billing/platform-billing-index.service";
 import { getPlanChangePolicy } from "@/services/billing/plan-change-policy.service";
+import { resolvePromotionCode } from "@/services/billing/promotion.service";
 
 const retiredAgencyAddonCodes = new Set<string>(RETIRED_AGENCY_ADDON_CODES);
 
@@ -33,6 +34,8 @@ const createAgencyReplacementSubscription = async ({
   checkoutKeyValue,
   retainedWorkspaceIds,
   targetClientLimit,
+  offerId,
+  promotionCode,
 }: {
   req: Request;
   agencyId: Types.ObjectId;
@@ -42,6 +45,8 @@ const createAgencyReplacementSubscription = async ({
   checkoutKeyValue: string;
   retainedWorkspaceIds?: Types.ObjectId[];
   targetClientLimit?: number;
+  offerId?: string;
+  promotionCode?: string;
 }) => {
   const replacement = await PlatformSubscription.create({
     ownerType: "AGENCY",
@@ -72,7 +77,7 @@ const createAgencyReplacementSubscription = async ({
       total_count: plan.billingInterval === "monthly" ? 120 : 10,
       customer_notify: 1,
       ...(startAt ? { start_at: startAt } : {}),
-      ...(plan.razorpay.offerId ? { offer_id: plan.razorpay.offerId } : {}),
+      ...(offerId ? { offer_id: offerId } : {}),
       notes: {
         platformType: "plan",
         platformSubscriptionId: String(replacement._id),
@@ -83,6 +88,7 @@ const createAgencyReplacementSubscription = async ({
         planCode: plan.code,
         planRevision: plan.revision,
         requestedBy: req.agencyContext!.userId,
+        promotionCode: promotionCode || "",
       },
     } as any);
     replacement.providerSubscriptionId = providerSubscription.id;
@@ -127,6 +133,7 @@ const planCheckoutSchema = z
       )
       .max(500)
       .optional(),
+    promoCode: z.string().trim().min(2).max(40).optional(),
     downgradeConfirmations: z
       .object({
         deleteNonSelectedClientData: z.literal(true),
@@ -274,6 +281,14 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
       active: true,
     }).sort({ revision: -1 });
     if (!plan || !plan.razorpay?.planId) return fail(res, 404, "Plan is not available");
+    const promotion = await resolvePromotionCode({
+      code: parsed.data.promoCode,
+      accountType: "AGENCY",
+      planCode: plan.code,
+      productId: plan.razorpay.productId,
+      billingInterval: plan.billingInterval,
+    });
+    const checkoutOfferId = promotion?.razorpayOfferId || plan.razorpay.offerId;
 
     const current = await PlatformSubscription.findOne({
       ownerType: "AGENCY",
@@ -412,6 +427,8 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
           ? {
               retainedWorkspaceIds,
               targetClientLimit,
+              offerId: checkoutOfferId,
+              promotionCode: promotion?.code,
               clientCleanupStatus: "pending" as const,
             }
           : {}),
@@ -420,6 +437,57 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
       // always find the retention decision and cannot apply a destructive
       // downgrade without it.
       await current.save();
+
+      if (promotion) {
+        try {
+          const replacementResult = await createAgencyReplacementSubscription({
+            req,
+            agencyId,
+            current,
+            plan,
+            scheduleChangeAt,
+            checkoutKeyValue: key,
+            retainedWorkspaceIds,
+            targetClientLimit,
+            offerId: checkoutOfferId,
+            promotionCode: promotion.code,
+          });
+          await writePlatformAuditLog({
+            req,
+            action: "plan.promotion_checkout_created",
+            targetType: "subscription",
+            targetId: String(replacementResult.replacement._id),
+            metadata: {
+              fromPlan: current.planCode,
+              toPlan: plan.code,
+              promotionCode: promotion.code,
+              effective: scheduleChangeAt,
+            },
+          });
+          return ok(
+            res,
+            {
+              subscriptionId: replacementResult.providerSubscription.id,
+              localSubscriptionId: String(replacementResult.replacement._id),
+              status: "pending_payment",
+              replacementCheckout: true,
+              scheduleChangeAt,
+              effectiveAt: current.pendingChange?.effectiveAt,
+              promotion: {
+                code: promotion.code,
+                name: promotion.name,
+                durationCycles: promotion.durationCycles,
+              },
+              keyId: process.env.RAZORPAY_KEY_ID,
+            },
+            201,
+          );
+        } catch (promotionError) {
+          current.pendingChange = undefined;
+          await current.save().catch(() => undefined);
+          throw promotionError;
+        }
+      }
 
       let providerSubscription: any;
       try {
@@ -548,7 +616,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         plan_id: plan.razorpay.planId,
         total_count: plan.billingInterval === "monthly" ? 120 : 10,
         customer_notify: 1,
-        ...(plan.razorpay.offerId ? { offer_id: plan.razorpay.offerId } : {}),
+        ...(checkoutOfferId ? { offer_id: checkoutOfferId } : {}),
         notes: {
           platformType: "plan",
           platformSubscriptionId: String(local._id),
@@ -557,6 +625,7 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
           planCode: plan.code,
           planRevision: plan.revision,
           requestedBy: req.agencyContext!.userId,
+          promotionCode: promotion?.code || "",
         },
       });
       local.providerSubscriptionId = providerSubscription.id;
@@ -565,6 +634,13 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
         subscriptionId: providerSubscription.id,
         localSubscriptionId: String(local._id),
         status: "pending_payment",
+        promotion: promotion
+          ? {
+              code: promotion.code,
+              name: promotion.name,
+              durationCycles: promotion.durationCycles,
+            }
+          : undefined,
         keyId: process.env.RAZORPAY_KEY_ID,
       }, 201);
     } catch (error) {
@@ -576,6 +652,9 @@ export const createAgencyPlanCheckoutController = async (req: Request, res: Resp
     }
   } catch (error) {
     console.error("Unable to create plan checkout:", error);
+    if (error instanceof Error && error.message.startsWith("Coupon is")) {
+      return fail(res, 400, error.message, { code: "INVALID_PROMOTION_CODE" });
+    }
     return fail(res, 500, "Unable to create plan checkout");
   }
 };

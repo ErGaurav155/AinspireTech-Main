@@ -28,6 +28,7 @@ import { Button, Orbs, Spinner, toast, useThemeStyles } from "@rocketreplai/ui";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 import Link from "next/link";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -260,6 +261,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { instagramAccess } = usePlatformAccess();
 
   const pageStyles = useMemo(
     () => ({
@@ -697,7 +699,8 @@ export default function SettingsPage() {
                     </p>
                     {account.metaCallsThisHour !== undefined && (
                       <p className={pageStyles.accountStats}>
-                        API Calls: {account.metaCallsThisHour}/200
+                        API Calls: {account.metaCallsThisHour}/
+                        {instagramAccess?.displayHourlyApiLimit || "200"}
                       </p>
                     )}
                   </div>

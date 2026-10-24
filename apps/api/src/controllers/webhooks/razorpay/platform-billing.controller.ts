@@ -10,6 +10,8 @@ import { syncAgencyUsageLimitSnapshots } from "@/services/usage/agency-entitleme
 import { applyConfirmedIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
 import { reconcileAgencyClientsForConfirmedPlan } from "@/services/billing/agency-plan-retention.service";
 import { getRazorpay } from "@/utils/util";
+import { markAgencyTrialConverted } from "@/services/tenant/agency-trial.service";
+import { invalidateAgencyInstagramAccessCache } from "@/services/billing/instagram-access.service";
 
 const dateFromSeconds = (value: unknown) => {
   const seconds = Number(value);
@@ -215,6 +217,11 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
       platformSubscription.cancelledAt = status === "cancelled" ? new Date() : undefined;
       platformSubscription.lastProviderEventAt = new Date();
       await platformSubscription.save();
+      if (platformSubscription.ownerType === "AGENCY") {
+        await invalidateAgencyInstagramAccessCache(
+          String(platformSubscription.ownerId),
+        );
+      }
       if (
         platformSubscription.replacementForSubscriptionId &&
         status === "active"
@@ -263,6 +270,7 @@ export const platformRazorpayWebhookController = async (req: Request, res: Respo
           agencyId: String(platformSubscription.ownerId),
           limits: confirmedPlan.limits as Record<string, number>,
         });
+        await markAgencyTrialConverted(String(platformSubscription.ownerId));
       }
       if (
         clientRetentionSource?.pendingChange &&

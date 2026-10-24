@@ -18,6 +18,11 @@ import User from "@/models/user.model";
 import PlatformSubscription from "@/models/billing/PlatformSubscription.model";
 import { entitlementService } from "@/services/billing/entitlement.service";
 import { PLATFORM_URLS } from "@/config/platform-catalog.config";
+import {
+  AGENCY_FREE_TRIAL_DAYS,
+  attachAgencyToTrialClaim,
+  claimAgencyFreeTrial,
+} from "@/services/tenant/agency-trial.service";
 
 const SERVICE_FEATURE: Record<PlatformService, EntitlementFeature> = {
   WHATSAPP: "whatsapp",
@@ -327,6 +332,11 @@ export class ProvisioningService {
     if (!user?.email) throw new Error("User profile must exist before creating an agency");
     if (ownedBusiness || memberElsewhere) throw accountConflict();
 
+    const trial = await claimAgencyFreeTrial({
+      email: user.email,
+      userId,
+    });
+
     const idempotencyKey = operationKey(
       "CREATE_AGENCY",
       userId,
@@ -343,6 +353,10 @@ export class ProvisioningService {
 
     const agencyId = new Types.ObjectId();
     const slug = `${safeSlug(input.name)}-${agencyId.toString().slice(-6)}`;
+    const trialStartedAt = new Date();
+    const trialEndsAt = new Date(
+      trialStartedAt.getTime() + AGENCY_FREE_TRIAL_DAYS * 24 * 60 * 60 * 1000,
+    );
     const session = await mongoose.startSession();
     try {
       await session.withTransaction(async () => {
@@ -365,7 +379,17 @@ export class ProvisioningService {
         if (!claimedUser) throw accountConflict();
 
         await Agency.create(
-          [{ _id: agencyId, name: input.name, slug, ownerUserId: userId, status: "pending" }],
+          [{
+            _id: agencyId,
+            name: input.name,
+            slug,
+            ownerUserId: userId,
+            status: "pending",
+            trialStatus: trial.eligible ? "active" : "ineligible",
+            trialStartedAt: trial.eligible ? trialStartedAt : undefined,
+            trialEndsAt: trial.eligible ? trialEndsAt : undefined,
+            trialIdentityHash: trial.identityHash,
+          }],
           { session },
         );
         await AgencyMember.create(
@@ -387,6 +411,11 @@ export class ProvisioningService {
     } finally {
       await session.endSession();
     }
+
+    await attachAgencyToTrialClaim({
+      identityHash: trial.identityHash,
+      agencyId: String(agencyId),
+    });
 
     const operation = await ProvisioningOperation.findOne({ idempotencyKey }).orFail();
     return this.finishAgencyProvisioning(agencyId, operation._id, userId);

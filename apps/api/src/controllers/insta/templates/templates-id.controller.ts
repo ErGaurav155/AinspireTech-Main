@@ -9,7 +9,6 @@ import {
   stopInstaAutomationForDMLimit,
 } from "@/services/insta-quota.service";
 import { getUserTier } from "@/services/rate-limit.service";
-import User from "@/models/user.model";
 
 const QUICK_REPLY_LIMITS = {
   free: 5,
@@ -85,13 +84,7 @@ const normalizeDMFlow = (value: any, userTier: string) => {
   };
 };
 
-const getAutomationTier = async (userId: string) => {
-  const [tier, user] = await Promise.all([
-    getUserTier(userId),
-    User.findOne({ clerkId: userId }).select("platformAccountType").lean(),
-  ]);
-  return user?.platformAccountType === "MEMBER" ? "pro" : tier;
-};
+const getAutomationTier = (userId: string) => getUserTier(userId);
 
 // GET /api/insta/templates/:templateId - Get single template by ID
 export const getInstaTemplateByIdController = async (
@@ -340,6 +333,16 @@ export const updateInstaTemplateController = async (
     if (updateData.dmFlow !== undefined) {
       const userTier = await getAutomationTier(userId);
       updateFields.dmFlow = normalizeDMFlow(updateData.dmFlow, userTier);
+      if (
+        updateFields.dmFlow.mode === "collect_form" &&
+        Array.isArray(updateFields.content)
+      ) {
+        updateFields.content = updateFields.content.map((item: any) => ({
+          ...item,
+          link: "",
+          buttonTitle: "",
+        }));
+      }
     }
 
     // ── Follow-Up DMs ───────────────────────────────────────────────────────────

@@ -28,6 +28,7 @@ import {
   cancelMetaAdsSubscriptionLocally,
   cancelWebsiteMaintenanceSubscriptionLocally,
 } from "@/services/packages/package-subscription.service";
+import { invalidateInstagramAccessCache } from "@/services/billing/instagram-access.service";
 
 // Helper function to remove Instagram account from UserRateLimit tracking
 const removeInstagramAccountFromRateLimit = async (
@@ -191,6 +192,7 @@ async function handleSubscriptionEnded(subscriptionId: string) {
   if (updatedSub) {
     // Handle Instagram account cleanup (downgrade to free plan)
     await handleInstaAccountLimit(updatedSub.clerkId);
+    await invalidateInstagramAccessCache(updatedSub.clerkId);
   } else {
     // If not found, try WebSubscription
     updatedSub = await WebSubscription.findOneAndUpdate(

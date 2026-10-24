@@ -50,6 +50,7 @@ interface CheckoutProps {
   previousSubscriptionId?: string;
   buttonText?: string;
   isConfirmingPayment?: boolean;
+  promoCode?: string;
 }
 
 type CheckoutStep =
@@ -106,6 +107,7 @@ export const Checkout = ({
   previousSubscriptionId,
   buttonText,
   isConfirmingPayment = false,
+  promoCode,
 }: CheckoutProps) => {
   const router = useRouter();
   const { styles, isDark } = useThemeStyles();
@@ -758,6 +760,7 @@ export const Checkout = ({
           chatbotId: createdChatbotId,
           chatbotName: chatbotNameRef.current,
           websiteUrl: websiteUrlRef.current,
+          promoCode: promoCode?.trim().toUpperCase() || undefined,
         },
       });
 

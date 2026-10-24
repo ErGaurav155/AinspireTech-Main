@@ -123,14 +123,15 @@ export const FREE_AGENCY_PLAN = {
     prioritySupport: false,
   } satisfies FeatureEntitlements,
   limits: {
+      ...perClientLimits,
     clientWorkspaces: 1,
     aiTokens: 100_000,
     aiTokensPerWorkspace: 100_000,
     conversations: -1,
-    instagramAccounts: 3,
+      instagramAccounts: 1,
+      instagramAccountsPerWorkspace: 1,
     whatsappAccounts: 1,
     websiteChatbots: 1,
-    ...perClientLimits,
   } satisfies LimitEntitlements,
 } as const;
 

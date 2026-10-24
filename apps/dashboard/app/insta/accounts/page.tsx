@@ -34,6 +34,7 @@ import {
 import { useApi } from "@/lib/useApi";
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 // Types
 interface InstagramAccount {
@@ -71,6 +72,7 @@ export default function AccountsPage() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { instagramAccess } = usePlatformAccess();
 
   // Use the context to get accounts
   const {
@@ -261,8 +263,6 @@ export default function AccountsPage() {
 
   // Handle add account click
   const handleAddAccountClick = () => {
-    const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
-
     if (accounts.length >= accountLimit) {
       setShowAccountLimitDialog(true);
     } else {
@@ -310,8 +310,11 @@ export default function AccountsPage() {
   }, [accounts]);
 
   // Get account limits
-  const accountLimit = userInfo?.accountLimit || FREE_PLAN_ACCOUNT_LIMIT;
-  const replyLimit = userInfo?.replyLimit || FREE_PLAN_REPLY_LIMIT;
+  const accountLimit =
+    instagramAccess?.accountLimit ||
+    userInfo?.accountLimit ||
+    FREE_PLAN_ACCOUNT_LIMIT;
+  const replyLimit = instagramAccess?.hourlyApiLimit || FREE_PLAN_REPLY_LIMIT;
 
   // Loading state
   if (!isLoaded || isLoading || isAccLoading) {
@@ -485,7 +488,7 @@ export default function AccountsPage() {
               className={`text-2xl font-bold ${isDark ? "text-purple-400" : "text-purple-600"}`}
             >
               {stats.totalReplies} /
-              {userInfo?.accountLimit > 1 ? "∞" : replyLimit}
+              {instagramAccess?.paid || accountLimit > 1 ? "∞" : replyLimit}
             </p>
           </div>
           <div className={`${styles.card} rounded-xl p-4`}>
@@ -536,7 +539,7 @@ export default function AccountsPage() {
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
         currentAccounts={accounts.length}
-        accountLimit={subscriptions.length === 0 ? 1 : 3}
+        accountLimit={accountLimit}
         dashboardType="insta"
       />
     </div>

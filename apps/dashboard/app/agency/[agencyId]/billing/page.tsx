@@ -51,6 +51,7 @@ export default function AgencyBillingPage() {
   const [interval, setInterval] = useState<"monthly" | "yearly">("monthly");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [changeTarget, setChangeTarget] = useState<AgencyBillingPlan | null>(null);
@@ -208,6 +209,7 @@ export default function AgencyBillingPage() {
         plan.code,
         scheduleChangeAt,
         retainedWorkspaceIds,
+        promoCode,
       );
       replacementCheckoutId = checkout.replacementCheckout
         ? String(checkout.localSubscriptionId || "")
@@ -443,6 +445,23 @@ export default function AgencyBillingPage() {
             {value === "yearly" ? " · 2 months free" : ""}
           </button>
         ))}
+      </div>
+
+      <div className="mt-4 max-w-md rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+        <label htmlFor="agency-promo-code" className="text-sm font-semibold">
+          Coupon code
+        </label>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          The discount and number of discounted billing cycles are configured in the linked Razorpay Offer.
+        </p>
+        <input
+          id="agency-promo-code"
+          value={promoCode}
+          onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+          maxLength={40}
+          placeholder="Enter coupon (optional)"
+          className="mt-3 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm uppercase outline-none focus:border-violet-500 dark:border-white/10 dark:bg-slate-900"
+        />
       </div>
 
       {message && (

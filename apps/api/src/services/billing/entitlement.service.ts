@@ -113,7 +113,7 @@ export class EntitlementService {
     // than stacking on top of it.
     if (ownerType === "AGENCY" && subscriptions.length === 0) {
       const agency = await Agency.findById(ownerObjectId)
-        .select("ownerUserId status")
+        .select("ownerUserId status trialStatus trialEndsAt")
         .lean();
       const primaryAgency = agency
         ? await Agency.findOne({
@@ -124,7 +124,18 @@ export class EntitlementService {
             .select("_id")
             .lean()
         : null;
-      if (primaryAgency && String(primaryAgency._id) === ownerId) {
+      const freeTrialAvailable = Boolean(
+        agency &&
+          (!agency.trialStatus ||
+            (agency.trialStatus === "active" &&
+              agency.trialEndsAt &&
+              agency.trialEndsAt > now)),
+      );
+      if (
+        freeTrialAvailable &&
+        primaryAgency &&
+        String(primaryAgency._id) === ownerId
+      ) {
         sourcePlanCodes.add(FREE_AGENCY_PLAN.code);
         baseSources.push({
           code: FREE_AGENCY_PLAN.code,

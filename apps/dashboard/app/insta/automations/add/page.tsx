@@ -139,8 +139,8 @@ export default function AddAutomationPage() {
   const { apiRequest } = useApi();
   const { selectedAccount } = useInstaAccount();
   const [individualSubscribed, setIndividualSubscribed] = useState(false);
-  const { clientOnly } = usePlatformAccess();
-  const isSubscribed = clientOnly || individualSubscribed;
+  const { instagramAccess } = usePlatformAccess();
+  const isSubscribed = instagramAccess?.paid ?? individualSubscribed;
 
   const dmSent = selectedAccount?.accountDMSent || 0;
   const followChecks = selectedAccount?.accountFollowCheck || 0;

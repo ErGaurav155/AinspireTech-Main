@@ -27,10 +27,13 @@ import {
   exportLeadsController,
   getLeadsController,
 } from "@/controllers/insta/leads.controller";
+import { getInstagramAccessController } from "@/controllers/insta/access.controller";
 
 const router = Router();
 
 router.use(requireAuth());
+
+router.get("/access", getInstagramAccessController);
 
 // GET /api/insta/callback - Handle Instagram OAuth callback
 router.get("/callback", handleInstaCallbackController);

@@ -235,7 +235,7 @@ export default function Dashboard() {
   const router = useRouter();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
-  const { clientOnly } = usePlatformAccess();
+  const { instagramAccess } = usePlatformAccess();
 
   // Use context to get accounts
   const {
@@ -341,10 +341,10 @@ export default function Dashboard() {
   const transformContextAccountsToDashboard = useCallback(
     (accounts: any[]): DashboardAccount[] => {
       // Get subscription info to determine limits
-      const isPro = clientOnly || subscriptions.length > 0;
-      const accountLimit = isPro
-        ? PRO_PLAN_ACCOUNT_LIMIT
-        : FREE_PLAN_ACCOUNT_LIMIT;
+      const isPro = instagramAccess?.paid ?? subscriptions.length > 0;
+      const accountLimit =
+        instagramAccess?.accountLimit ??
+        (isPro ? PRO_PLAN_ACCOUNT_LIMIT : FREE_PLAN_ACCOUNT_LIMIT);
 
       return accounts.map((acc) => ({
         id: acc._id || acc.instagramId,
@@ -385,7 +385,7 @@ export default function Dashboard() {
         tier: isPro ? "pro" : "free",
       }));
     },
-    [clientOnly, subscriptions],
+    [instagramAccess, subscriptions],
   );
 
   const handleImageError = useCallback((id: string): void => {
@@ -518,9 +518,10 @@ export default function Dashboard() {
 
   const handleAddAccountClick = useCallback(() => {
     const accountLimit =
-      subscriptions.length > 0
+      instagramAccess?.accountLimit ??
+      (subscriptions.length > 0
         ? PRO_PLAN_ACCOUNT_LIMIT
-        : FREE_PLAN_ACCOUNT_LIMIT;
+        : FREE_PLAN_ACCOUNT_LIMIT);
     const currentAccounts = userAccounts.length;
 
     if (currentAccounts >= accountLimit) {
@@ -528,7 +529,7 @@ export default function Dashboard() {
     } else {
       router.push("/insta/accounts/add");
     }
-  }, [userAccounts.length, subscriptions.length, router]);
+  }, [userAccounts.length, subscriptions.length, instagramAccess?.accountLimit, router]);
 
   const handleDeleteAccount = useCallback(
     async (accountId: string) => {
@@ -567,7 +568,7 @@ export default function Dashboard() {
 
   // ── Derived values for stat cards ─────────────────────────────────────────────
 
-  const isPro = clientOnly || subscriptions.length > 0;
+  const isPro = instagramAccess?.paid ?? subscriptions.length > 0;
   const hasConnectedAccounts = userAccounts.length > 0;
 
   // Contacts: Show locked for free users, show count with ∞ for pro
@@ -1349,7 +1350,10 @@ export default function Dashboard() {
         open={showAccountLimitDialog}
         onOpenChange={setShowAccountLimitDialog}
         currentAccounts={userAccounts.length}
-        accountLimit={isPro ? PRO_PLAN_ACCOUNT_LIMIT : FREE_PLAN_ACCOUNT_LIMIT}
+        accountLimit={
+          instagramAccess?.accountLimit ??
+          (isPro ? PRO_PLAN_ACCOUNT_LIMIT : FREE_PLAN_ACCOUNT_LIMIT)
+        }
         dashboardType="insta"
       />
 

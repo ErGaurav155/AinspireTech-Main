@@ -475,9 +475,10 @@ export default function AppointmentQuestionsPage() {
             apiRequest,
             "chatbot-lead-generation",
           );
-          const qs: Question[] = data?.questions || [];
-          const savedFlows: CustomerFlow[] = Array.isArray(data?.flows)
-            ? data.flows.filter(
+          const savedConfiguration = data?.appointmentQuestions || data;
+          const qs: Question[] = savedConfiguration?.questions || [];
+          const savedFlows: CustomerFlow[] = Array.isArray(savedConfiguration?.flows)
+            ? savedConfiguration.flows.filter(
                 (flow: CustomerFlow) => flow?.id && flow?.label,
               )
             : [];
@@ -485,9 +486,9 @@ export default function AppointmentQuestionsPage() {
             savedFlows.length > 0
               ? savedFlows
               : (
-                  Array.isArray(data?.quickReplies) &&
-                  data.quickReplies.length > 0
-                    ? data.quickReplies
+                  Array.isArray(savedConfiguration?.quickReplies) &&
+                  savedConfiguration.quickReplies.length > 0
+                    ? savedConfiguration.quickReplies
                     : ["Book an appointment"]
                 ).map((label: string) => ({
                   ...createDefaultFlow(label),

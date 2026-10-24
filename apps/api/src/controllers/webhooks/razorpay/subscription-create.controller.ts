@@ -30,6 +30,7 @@ import {
   pauseDashboardPackageLocally,
   resumeDashboardPackageLocally,
 } from "@/services/packages/package-subscription.service";
+import { invalidateInstagramAccessCache } from "@/services/billing/instagram-access.service";
 
 const NON_CORE_SUBSCRIPTION_TYPES = new Set([
   "package",
@@ -190,6 +191,7 @@ async function handleWebhookSubscriptionCreate(payload: any) {
         },
       );
     }
+    await invalidateInstagramAccessCache(clerkId);
   } else if (subscriptionType === "call") {
     newSubscription = await activateCallPaidSubscription({
       clerkId,
@@ -360,6 +362,10 @@ async function handleSubscriptionCharged(
   if (!subscription) {
     console.warn(`Subscription ${subscriptionId} not found`);
   }
+  const instagramUserId = instaUpdate?.clerkId || packageUpdate?.clerkId;
+  if (instagramUserId) {
+    await invalidateInstagramAccessCache(instagramUserId);
+  }
 }
 
 async function handleSubscriptionPaused(subscriptionId: string) {
@@ -414,6 +420,10 @@ async function handleSubscriptionPaused(subscriptionId: string) {
       clerkId: packageSubscription.clerkId,
       subscriptionId,
     });
+  }
+  const instagramUserId = insta?.clerkId || packageSubscription?.clerkId;
+  if (instagramUserId) {
+    await invalidateInstagramAccessCache(instagramUserId);
   }
   if (!insta && !web && !call && !whatsapp && !packageSubscription) {
     console.warn(`Paused subscription ${subscriptionId} was not found locally`);

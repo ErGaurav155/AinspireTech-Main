@@ -22,6 +22,11 @@ import {
   updateAdminSubscriptionController,
   updateAdminWorkspaceController,
 } from "@/controllers/admin/platform.controller";
+import {
+  createPromotionController,
+  listPromotionsController,
+  updatePromotionController,
+} from "@/controllers/admin/promotions.controller";
 
 const router = Router();
 
@@ -40,6 +45,9 @@ router.get("/subscriptions", getAdminSubscriptionsController);
 router.patch("/subscriptions/:product/:id", updateAdminSubscriptionController);
 router.get("/workspaces/:product", getAdminWorkspacesController);
 router.patch("/workspaces/:product/:id", updateAdminWorkspaceController);
+router.get("/promotions", listPromotionsController);
+router.post("/promotions", createPromotionController);
+router.put("/promotions/:promotionId", updatePromotionController);
 router.get("/insta-subscriptions", getInstaSubscriptionsController);
 // GET /api/admin/appointments - Get all appointments (admin only)
 router.get("/appointments", getAllAppointmentsController);

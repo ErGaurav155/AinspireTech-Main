@@ -190,6 +190,7 @@ function PricingWithSearchParams() {
     "monthly",
   );
   const [email, setEmail] = useState("");
+  const [promoCode, setPromoCode] = useState("");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isInstaAccount, setIsInstaAccount] = useState(false);
   const [currentSubscription, setCurrentSubscription] =
@@ -695,6 +696,7 @@ function PricingWithSearchParams() {
             email: checkoutEmail,
             planLimit: plan.limit,
             accountLimit: plan.account,
+            promoCode: promoCode.trim().toUpperCase() || undefined,
           },
         });
 
@@ -850,6 +852,7 @@ function PricingWithSearchParams() {
       finishWebhookActivatedInstaPayment,
       isInstaAccount,
       loadRazorpayScript,
+      promoCode,
       redirectToInstagramConnect,
       savePendingRazorpayCheckout,
       showToast,
@@ -1775,6 +1778,23 @@ function PricingWithSearchParams() {
               Save 20%
             </span>
           </div>
+          {!currentSubscription && (
+            <div className="mx-auto mt-5 max-w-sm text-left">
+              <label className={`mb-1 block text-xs font-semibold ${styles.text.secondary}`}>
+                Coupon code (optional)
+              </label>
+              <input
+                value={promoCode}
+                onChange={(event) => setPromoCode(event.target.value.toUpperCase())}
+                placeholder="Enter coupon code"
+                className={`${styles.input} w-full uppercase`}
+                maxLength={40}
+              />
+              <p className={`mt-1 text-xs ${styles.text.muted}`}>
+                Razorpay controls the discount and how many billing cycles receive it.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

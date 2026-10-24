@@ -30,9 +30,19 @@ export default function AgencyOverviewPage() {
   useEffect(() => void loadAnalytics(), [loadAnalytics]);
 
   const limit = agency?.entitlements?.limits?.clientWorkspaces || 0;
-  const planCode = agency?.entitlements?.sourcePlanCodes?.[0] || "agency-free";
+  const planCode = agency?.entitlements?.sourcePlanCodes?.[0] || "";
   const isFree = planCode === "agency-free";
-  const planName = isFree ? "Free Agency" : planCode.replace(/-(monthly|yearly)$/, "").replaceAll("-", " ");
+  const trialEndsAt = agency?.agency?.trialEndsAt
+    ? new Date(agency.agency.trialEndsAt)
+    : null;
+  const trialDaysRemaining = trialEndsAt
+    ? Math.max(0, Math.ceil((trialEndsAt.getTime() - Date.now()) / 86_400_000))
+    : 0;
+  const planName = isFree
+    ? "14-day Agency Trial"
+    : planCode
+      ? planCode.replace(/-(monthly|yearly)$/, "").replaceAll("-", " ")
+      : "No active plan";
   const perClientTokenLimit = Number(
     agency?.entitlements?.limits?.aiTokensPerWorkspace || 0,
   );
@@ -56,7 +66,8 @@ export default function AgencyOverviewPage() {
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         {[{ label: "Client members", value: `${clients.length} / ${limit || "—"}`, icon: Users }, { label: "Agency owner accounts", value: "1", icon: Building2 }, { label: "Current plan", value: planName, icon: CreditCard }].map(({ label, value, icon: Icon }) => <div key={label} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none"><Icon className="h-5 w-5 text-violet-500 dark:text-violet-400" /><p className="mt-5 text-2xl font-bold capitalize">{value}</p><p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{label}</p></div>)}
       </div>
-      {isFree && <div className="mt-8 flex flex-col justify-between gap-4 rounded-2xl border border-violet-300 bg-violet-50 p-6 dark:border-violet-500/30 dark:bg-violet-500/10 sm:flex-row sm:items-center"><div><h2 className="font-semibold text-violet-900 dark:text-violet-100">Your first client is included free</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Upgrade only when you need client number two or more usage capacity.</p></div><Link className="shrink-0 rounded-xl bg-violet-500 px-4 py-2 text-center text-sm font-semibold text-white" href={`/agency/${agencyId}/billing`}>Compare paid plans</Link></div>}
+      {isFree && <div className="mt-8 flex flex-col justify-between gap-4 rounded-2xl border border-violet-300 bg-violet-50 p-6 dark:border-violet-500/30 dark:bg-violet-500/10 sm:flex-row sm:items-center"><div><h2 className="font-semibold text-violet-900 dark:text-violet-100">Your one-time agency trial has {trialDaysRemaining} day{trialDaysRemaining === 1 ? "" : "s"} remaining</h2><p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Your first client is included during the trial. If no paid plan is active when it ends, the agency, client workspace, automation data and Clerk organizations are permanently removed.</p>{trialEndsAt && <p className="mt-2 text-xs font-medium text-violet-700 dark:text-violet-300">Trial ends {trialEndsAt.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</p>}</div><Link className="shrink-0 rounded-xl bg-violet-500 px-4 py-2 text-center text-sm font-semibold text-white" href={`/agency/${agencyId}/billing`}>Choose a paid plan</Link></div>}
+      {!isFree && !planCode && <div className="mt-8 flex flex-col justify-between gap-4 rounded-2xl border border-amber-300 bg-amber-50 p-6 dark:border-amber-500/30 dark:bg-amber-500/10 sm:flex-row sm:items-center"><div><h2 className="font-semibold text-amber-900 dark:text-amber-100">No free trial is available for this account</h2><p className="mt-1 text-sm text-amber-800/80 dark:text-amber-200/80">The one-time agency trial was already claimed by this email. Select a paid plan before inviting clients.</p></div><Link className="shrink-0 rounded-xl bg-amber-500 px-4 py-2 text-center text-sm font-semibold text-white" href={`/agency/${agencyId}/billing`}>Choose plan</Link></div>}
 
       <section className="mt-10">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm text-violet-500 dark:text-violet-400">Client performance</p><h2 className="mt-1 text-2xl font-bold">Activity and conversion</h2></div><div className="flex rounded-xl border border-slate-200 bg-white p-1 dark:border-white/10 dark:bg-white/5">{[7, 30, 90].map((value) => <button key={value} onClick={() => setDays(value)} className={`rounded-lg px-4 py-2 text-xs font-semibold ${days === value ? "bg-violet-500 text-white" : "text-slate-500 dark:text-slate-400"}`}>{value} days</button>)}</div></div>

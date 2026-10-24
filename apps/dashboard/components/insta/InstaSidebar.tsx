@@ -87,7 +87,11 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
   const isCallAdmin = useCallAssistantAdmin();
-  const { clientOnly, loading: platformAccessLoading } = usePlatformAccess();
+  const {
+    clientOnly,
+    loading: platformAccessLoading,
+    instagramAccess,
+  } = usePlatformAccess();
   const hideClientBilling = clientOnly || platformAccessLoading;
 
   // ✅ All account data comes from context — no local fetch needed
@@ -104,8 +108,8 @@ export default function InstaSidebar({ isOpen, onToggle }: InstaSidebarProps) {
   const [accountLimit, setAccountLimit] = useState(1);
   const [pricingClose, setPricingClose] = useState(false);
   const [subsLoading, setSubsLoading] = useState(true);
-  const managedServiceAccess = clientOnly || isSubscribed;
-  const effectiveAccountLimit = clientOnly ? 3 : accountLimit;
+  const managedServiceAccess = instagramAccess?.paid ?? isSubscribed;
+  const effectiveAccountLimit = instagramAccess?.accountLimit ?? accountLimit;
   const dmSent = selectedAccount?.accountDMSent || 0;
   const followChecks = selectedAccount?.accountFollowCheck || 0;
   const dmLimitReached = !managedServiceAccess && dmSent >= FREE_DM_LIMIT;

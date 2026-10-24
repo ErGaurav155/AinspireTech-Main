@@ -34,6 +34,7 @@ import { connectInstaAccount } from "@/lib/services/insta-actions.api";
 import { AccountLimitDialog } from "@/components/shared/AccountLimitDialog";
 import { useInstaAccount } from "@/context/Instaaccountcontext ";
 import { trackMetaEvent } from "@/lib/meta-pixel";
+import { usePlatformAccess } from "@/components/platform/PlatformAccessProvider";
 
 export default function AddAccountPage() {
   const { userId, isLoaded } = useAuth();
@@ -42,6 +43,7 @@ export default function AddAccountPage() {
   const searchParams = useSearchParams();
   const { apiRequest } = useApi();
   const { styles, isDark } = useThemeStyles();
+  const { instagramAccess } = usePlatformAccess();
 
   // Use context to get accounts and refresh function
   const {
@@ -116,7 +118,7 @@ export default function AddAccountPage() {
           return;
         }
 
-        setAccountLimit(user.accountLimit || 1);
+        setAccountLimit(instagramAccess?.accountLimit || user.accountLimit || 1);
       } catch (error: any) {
         console.error("Error fetching user data:", error.message);
       } finally {
@@ -127,7 +129,7 @@ export default function AddAccountPage() {
     if (isLoaded && userId) {
       fetchUserData();
     }
-  }, [userId, router, isLoaded, apiRequest]);
+  }, [userId, router, isLoaded, apiRequest, instagramAccess?.accountLimit]);
 
   // Update total accounts from context
   useEffect(() => {

@@ -35,6 +35,7 @@ export const createRazorpaySubscription = (
       packageName?: string;
       includedServices?: string;
       offerId?: string;
+      promoCode?: string;
       planLimit?: number;
       accountLimit?: number;
       minutesLimit?: number;

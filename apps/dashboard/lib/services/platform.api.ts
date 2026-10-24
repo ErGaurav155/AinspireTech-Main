@@ -142,6 +142,7 @@ export const createAgencyPlanCheckout = (
   planCode: string,
   scheduleChangeAt?: "now" | "cycle_end",
   retainedWorkspaceIds?: string[],
+  promoCode?: string,
 ) =>
   apiRequest<any>(`/platform/agencies/${agencyId}/billing/checkout`, {
     method: "POST",
@@ -150,6 +151,7 @@ export const createAgencyPlanCheckout = (
       planCode,
       scheduleChangeAt,
       retainedWorkspaceIds,
+      promoCode: promoCode?.trim() || undefined,
       ...(retainedWorkspaceIds
         ? {
             downgradeConfirmations: {
