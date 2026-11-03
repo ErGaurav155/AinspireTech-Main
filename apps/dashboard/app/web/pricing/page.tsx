@@ -50,6 +50,13 @@ interface Subscription {
   status: string;
   billingCycle: string;
   subscriptionId?: string;
+  pendingChange?: {
+    id: string;
+    targetProductId: string;
+    targetBillingCycle: BillingMode;
+    scheduleChangeAt: "now" | "cycle_end";
+    effectiveAt?: string;
+  } | null;
 }
 
 interface Product {
@@ -165,6 +172,7 @@ const PricingContent = () => {
             status: sub.status || "inactive",
             billingCycle: sub.billingCycle || "monthly",
             subscriptionId: sub.subscriptionId,
+            pendingChange: sub.pendingChange || null,
           }));
 
         setSubscriptions(formattedSubscriptions);
@@ -901,6 +909,21 @@ const PricingContent = () => {
                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                               Checking subscription...
                             </Button>
+                          ) : activeSubscription?.pendingChange ? (
+                            <div className="space-y-2">
+                              <Button
+                                disabled
+                                className="w-full bg-amber-500 text-white rounded-xl opacity-70 cursor-not-allowed"
+                              >
+                                <Calendar className="h-4 w-4 mr-2" />
+                                Starts {activeSubscription.pendingChange.effectiveAt
+                                  ? new Date(activeSubscription.pendingChange.effectiveAt).toLocaleDateString("en-IN")
+                                  : "at cycle end"}
+                              </Button>
+                              <p className={`text-center text-xs ${styles.text.secondary}`}>
+                                Your current website plan stays active until the scheduled change starts.
+                              </p>
+                            </div>
                           ) : isSubscribed && isSameBillingCycle ? (
                             <div className="space-y-2">
                               <Button
@@ -1234,6 +1257,7 @@ const PricingContent = () => {
                       previousSubscriptionId={
                         subscriptionToManage.subscriptionId
                       }
+                      pendingChange={subscriptionToManage.pendingChange}
                       buttonText="Switch Plan"
                       isConfirmingPayment={
                         isConfirmingPayment &&

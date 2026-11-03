@@ -2,6 +2,7 @@ import { connectToDatabase } from "@/config/database.config";
 import InstaSubscription from "@/models/insta/InstaSubscription.model";
 import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import WebSubscription from "@/models/web/Websubcription.model";
+import WhatsAppWorkspace from "@/models/whatsapp/WhatsAppWorkspace.model";
 import { getRazorpay } from "@/utils/util";
 
 // Get Instagram subscription info
@@ -114,7 +115,7 @@ export const updateSubscriptionStatus = async (
 // Get subscription by ID
 export const getSubscriptionById = async (
   subscriptionId: string,
-  subcriptionType: "insta" | "web" | "package",
+  subcriptionType: "insta" | "web" | "package" | "whatsapp",
 ) => {
   try {
     await connectToDatabase();
@@ -130,6 +131,11 @@ export const getSubscriptionById = async (
       subscription = await PackageSubscription.findOne({
         subscriptionId,
         status: "active",
+      });
+    } else if (subcriptionType === "whatsapp") {
+      subscription = await WhatsAppWorkspace.findOne({
+        "subscription.subscriptionId": subscriptionId,
+        "subscription.status": "active",
       });
     } else {
       subscription = await WebSubscription.findOne({

@@ -382,11 +382,11 @@ export default function AgencyBillingPage() {
               <p>
                 {subscription.pendingChange.requiresCheckout
                   ? `Checkout for ${pendingPlan?.name || subscription.pendingChange.planCode} has not been approved. Continue it or discard it; your current plan is unchanged.`
-                  : `Change to ${pendingPlan?.name || subscription.pendingChange.planCode} is pending${
+                  : `Change to ${pendingPlan?.name || subscription.pendingChange.planCode} is scheduled to start${
                       subscription.pendingChange.effectiveAt
-                        ? ` for ${formatDate(subscription.pendingChange.effectiveAt)}`
-                        : " provider confirmation"
-                    }. Another change cannot be requested until it is applied.`}
+                        ? ` on ${formatDate(subscription.pendingChange.effectiveAt)}`
+                        : " after Razorpay confirmation"
+                    }. Your current plan remains active until then, and plan changes are disabled to prevent duplicate requests.`}
               </p>
               {subscription.pendingChange.requiresCheckout &&
                 subscription.pendingChange.pendingCheckoutId && (

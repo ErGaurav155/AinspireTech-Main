@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { connectToDatabase } from "@/config/database.config";
 import WebSubscription from "@/models/web/Websubcription.model";
+import { getPendingIndividualSubscriptionChange } from "@/services/billing/individual-subscription-change.service";
 import { getAuth } from "@clerk/express";
 
 // GET /api/web/subscription/list - Get active subscriptions for user
@@ -35,9 +36,33 @@ export const listSubscriptionsController = async (
       });
     }
 
+    const decoratedSubscriptions = await Promise.all(
+      subscriptions.map(async (subscription) => {
+        const pendingChange = subscription.subscriptionId
+          ? await getPendingIndividualSubscriptionChange(
+              userId,
+              subscription.subscriptionId,
+              "web",
+            )
+          : null;
+        return {
+          ...subscription.toObject(),
+          pendingChange: pendingChange
+            ? {
+                id: String(pendingChange._id),
+                targetProductId: pendingChange.targetProductId,
+                targetBillingCycle: pendingChange.targetBillingCycle,
+                scheduleChangeAt: pendingChange.scheduleChangeAt,
+                effectiveAt: pendingChange.effectiveAt,
+                requiresCheckout: Boolean(pendingChange.replacementSubscriptionId),
+              }
+            : null,
+        };
+      }),
+    );
     return res.status(200).json({
       success: true,
-      data: subscriptions,
+      data: decoratedSubscriptions,
       timestamp: new Date().toISOString(),
     });
   } catch (error: any) {

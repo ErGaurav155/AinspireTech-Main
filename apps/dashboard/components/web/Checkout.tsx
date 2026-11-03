@@ -48,6 +48,10 @@ interface CheckoutProps {
   billingCycle: "monthly" | "yearly";
   chatbotCreated?: boolean;
   previousSubscriptionId?: string;
+  pendingChange?: {
+    effectiveAt?: string;
+    targetBillingCycle?: "monthly" | "yearly";
+  } | null;
   buttonText?: string;
   isConfirmingPayment?: boolean;
   promoCode?: string;
@@ -105,6 +109,7 @@ export const Checkout = ({
   billingCycle,
   chatbotCreated = false,
   previousSubscriptionId,
+  pendingChange,
   buttonText,
   isConfirmingPayment = false,
   promoCode,
@@ -164,6 +169,11 @@ export const Checkout = ({
   };
 
   const getButtonText = () => {
+    if (pendingChange) {
+      return pendingChange.effectiveAt
+        ? `Starts ${new Date(pendingChange.effectiveAt).toLocaleDateString("en-IN")}`
+        : "Plan change scheduled";
+    }
     if (isConfirmingPayment) {
       return "Checking Payment...";
     }
@@ -553,6 +563,8 @@ export const Checkout = ({
 
   const handleCheckout = async (event: React.FormEvent) => {
     event.preventDefault();
+
+    if (pendingChange) return;
 
     if (!userId) {
       redirectToSignIn();
@@ -1166,6 +1178,7 @@ export const Checkout = ({
             isSubmitting ||
             processing ||
             isConfirmingPayment ||
+            Boolean(pendingChange) ||
             productId === "free-tier"
           }
           className={`w-full py-3 rounded-xl font-medium hover:opacity-90 transition-opacity bg-gradient-to-r ${getButtonGradient()} text-white`}

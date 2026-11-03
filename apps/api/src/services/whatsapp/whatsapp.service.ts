@@ -1,6 +1,8 @@
 import crypto from "crypto";
 import { connectToDatabase } from "@/config/database.config";
 import SharedBusinessKnowledge from "@/models/SharedBusinessKnowledge.model";
+import Workspace from "@/models/tenant/Workspace.model";
+import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import WhatsAppWorkspace, {
   IWhatsAppWorkspace,
   WhatsAppPlanId,
@@ -306,9 +308,56 @@ export const pruneExpiredWhatsAppAppointments = (
   return originalCount - retained.length;
 };
 
+/**
+ * WhatsApp workspaces pre-date the platform tenant layer, so some existing
+ * records do not yet have a Workspace reference. Resolve it from a verified
+ * active membership (or direct-business ownership), never from request data.
+ */
+const resolvePlatformWorkspaceId = async (clerkId: string) => {
+  const membership = await WorkspaceMember.findOne({
+    userId: clerkId,
+    status: "active",
+  })
+    .sort({ createdAt: 1 })
+    .select("workspaceId")
+    .lean();
+
+  if (membership?.workspaceId) {
+    const workspace = await Workspace.findOne({
+      _id: membership.workspaceId,
+      status: { $in: ["pending", "active"] },
+    })
+      .select("_id")
+      .lean();
+    if (workspace) return workspace._id;
+  }
+
+  const directWorkspace = await Workspace.findOne({
+    $or: [{ ownerUserId: clerkId }, { legacyOwnerClerkId: clerkId }],
+    status: { $in: ["pending", "active"] },
+  })
+    .sort({ createdAt: 1 })
+    .select("_id")
+    .lean();
+  return directWorkspace?._id;
+};
+
+/** Backfill the tenant reference without changing any existing automation data. */
+const ensurePlatformWorkspaceLink = async (workspace: IWhatsAppWorkspace) => {
+  if (workspace.workspaceId) return;
+  const workspaceId = await resolvePlatformWorkspaceId(workspace.clerkId);
+  if (!workspaceId) return;
+  workspace.workspaceId = workspaceId;
+  await WhatsAppWorkspace.updateOne(
+    { _id: workspace._id, workspaceId: { $exists: false } },
+    { $set: { workspaceId } },
+  );
+};
+
 export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
   let workspace = await WhatsAppWorkspace.findOne({ clerkId });
   if (workspace) {
+    await ensurePlatformWorkspaceLink(workspace);
     const plan = getPlanById(workspace.subscription?.plan || "free");
     workspace.subscription.plan = plan.id;
     workspace.subscription.messageLimit = plan.messageLimit;
@@ -384,8 +433,10 @@ export async function getOrCreateWhatsAppWorkspace(clerkId: string) {
     return workspace;
   }
 
+  const platformWorkspaceId = await resolvePlatformWorkspaceId(clerkId);
   workspace = await WhatsAppWorkspace.create({
     clerkId,
+    ...(platformWorkspaceId ? { workspaceId: platformWorkspaceId } : {}),
     isConfigured: false,
     onboarding: {
       status: "not_started",
@@ -2058,6 +2109,11 @@ export async function processWhatsAppWebhook(payload: any) {
       }
       continue;
     }
+
+    // Webhooks do not pass through getOrCreateWhatsAppWorkspace. Backfill old
+    // records before entitlement checks so an agency client always consumes its
+    // agency workspace allowance instead of an unrelated individual allowance.
+    await ensurePlatformWorkspaceLink(workspace);
 
     pruneExpiredWhatsAppAppointments(workspace);
 

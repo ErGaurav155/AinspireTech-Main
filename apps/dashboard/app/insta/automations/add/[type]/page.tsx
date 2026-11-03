@@ -577,7 +577,7 @@ export default function CreateAutomationPage() {
       rightContent: "flex-1 overflow-y-auto w-full",
       actionBar:
         "flex items-center justify-end w-full gap-2 px-4 md:px-6 max-w-2xl mx-auto py-4",
-      formContainer: "p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-4",
+      formContainer: "p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-4 flex flex-col",
       input: isDark
         ? "w-full px-4 py-3 bg-white/[0.05] border border-white/[0.08] text-white placeholder:text-white/25 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-500/50 focus:border-pink-500"
         : "w-full px-4 py-3 bg-white border border-gray-200 text-gray-700 placeholder-gray-400 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-300",
@@ -1902,8 +1902,10 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
+            {/* Keep the final DM at the end: a flow/form, lead capture and
+                follow-ups must be configured before the closing message. */}
             {/* Step 3 / 2: Send DM (final link message) */}
-            <div className={S.card}>
+            <div className={`${S.card} order-50`}>
               <div className="flex items-center gap-3 mb-4">
                 <div className={S.stepNumber}>
                   {automationType === "dms" ? "2" : "3"}

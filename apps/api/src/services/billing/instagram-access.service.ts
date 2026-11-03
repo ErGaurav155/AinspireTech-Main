@@ -5,7 +5,6 @@ import PackageSubscription from "@/models/packages/PackageSubscription.model";
 import Workspace from "@/models/tenant/Workspace.model";
 import WorkspaceMember from "@/models/tenant/WorkspaceMember.model";
 import WorkspaceService from "@/models/tenant/WorkspaceService.model";
-import User from "@/models/user.model";
 import { entitlementService } from "@/services/billing/entitlement.service";
 import { redisHelpers } from "@/config/redis.config";
 
@@ -44,43 +43,44 @@ export async function getEffectiveInstagramAccess(
 ): Promise<InstagramAccess> {
   await connectToDatabase();
   const now = new Date();
-  const user = await User.findOne({ clerkId })
-    .select("platformAccountType")
+  // Membership is the authorization source of truth.  Do not rely solely on
+  // platformAccountType here: older invited users can have a missing/stale
+  // account-type value even though they are valid client members.
+  const memberships = await WorkspaceMember.find({
+    userId: clerkId,
+    status: "active",
+  })
+    .sort({ createdAt: 1 })
     .lean();
+  const workspaceIds = memberships.map((item) => item.workspaceId);
+  const workspace = workspaceIds.length
+    ? await Workspace.findOne({
+        _id: { $in: workspaceIds },
+        agencyId: { $ne: null },
+        status: { $in: ["pending", "active"] },
+      }).lean()
+    : await Workspace.findOne({
+        ownerUserId: clerkId,
+        agencyId: { $ne: null },
+        status: { $in: ["pending", "active"] },
+      }).lean();
 
-  if (user?.platformAccountType === "MEMBER") {
-    const memberships = await WorkspaceMember.find({
-      userId: clerkId,
-      status: "active",
-    })
-      .sort({ createdAt: 1 })
-      .lean();
-    const workspaceIds = memberships.map((item) => item.workspaceId);
-    const workspace = workspaceIds.length
-      ? await Workspace.findOne({
-          _id: { $in: workspaceIds },
-          agencyId: { $ne: null },
-          status: { $in: ["pending", "active"] },
-        }).lean()
-      : null;
-
-    if (workspace?.agencyId) {
-      const service = await WorkspaceService.exists({
-        workspaceId: workspace._id,
-        service: "INSTAGRAM",
-        enabled: true,
+  if (workspace?.agencyId) {
+    const service = await WorkspaceService.exists({
+      workspaceId: workspace._id,
+      service: "INSTAGRAM",
+      enabled: true,
+    });
+    if (service) {
+      const entitlements = await entitlementService.getEffectiveEntitlements({
+        ownerType: "AGENCY",
+        ownerId: String(workspace.agencyId),
       });
-      if (service) {
-        const entitlements = await entitlementService.getEffectiveEntitlements({
-          ownerType: "AGENCY",
-          ownerId: String(workspace.agencyId),
-        });
-        const hasPaidAgencyPlan = entitlements.sourcePlanCodes.some(
-          (code) => code !== FREE_AGENCY_PLAN.code,
-        );
-        if (hasPaidAgencyPlan && entitlements.features.instagram) {
-          return buildInstagramAccess(true, "agency");
-        }
+      const hasPaidAgencyPlan = entitlements.sourcePlanCodes.some(
+        (code) => code !== FREE_AGENCY_PLAN.code,
+      );
+      if (hasPaidAgencyPlan && entitlements.features.instagram) {
+        return buildInstagramAccess(true, "agency");
       }
     }
     return buildInstagramAccess(false, "free");

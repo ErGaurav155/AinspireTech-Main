@@ -68,6 +68,14 @@ interface Subscription {
   billingCycle: "monthly" | "yearly";
   subscriptionId?: string;
   chatbotType?: string;
+  pendingChange?: {
+    id: string;
+    targetProductId: string;
+    targetBillingCycle: "monthly" | "yearly";
+    scheduleChangeAt: "now" | "cycle_end";
+    effectiveAt?: string;
+    requiresCheckout?: boolean;
+  } | null;
 }
 
 // Constants
@@ -1135,6 +1143,7 @@ function PricingWithSearchParams() {
               billingCycle: activeSub.billingCycle,
               subscriptionId: activeSub.subscriptionId,
               chatbotType: activeSub.chatbotType,
+              pendingChange: activeSub.pendingChange || null,
             });
           } else {
             setIsSubscribed(false);
@@ -1329,6 +1338,21 @@ function PricingWithSearchParams() {
           ? "Razorpay is confirming the immediate change. Refresh shortly to see the new plan."
           : `Your current plan remains active until ${new Date(result.effectiveAt).toLocaleDateString("en-IN")}.`,
         false,
+      );
+      setCurrentSubscription((current) =>
+        current
+          ? {
+              ...current,
+              pendingChange: {
+                id: result.changeId || "scheduled",
+                targetProductId: pendingPlan.id,
+                targetBillingCycle: pendingBillingCycle,
+                scheduleChangeAt: timing,
+                effectiveAt: result.effectiveAt,
+                requiresCheckout: result.status === "replacement_checkout_required",
+              },
+            }
+          : current,
       );
       setPendingPlan(null);
     } catch (error) {
@@ -1878,6 +1902,10 @@ function PricingWithSearchParams() {
             const isDifferentBillingCycle =
               isSubscribedPlan &&
               currentSubscription?.billingCycle !== billingCycle;
+            const pendingChange = currentSubscription?.pendingChange;
+            const isScheduledTarget =
+              pendingChange?.targetProductId === plan.id &&
+              pendingChange?.targetBillingCycle === billingCycle;
             const price =
               billingCycle === "monthly"
                 ? plan.monthlyPrice
@@ -1970,6 +1998,16 @@ function PricingWithSearchParams() {
                         <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                         Checking subscription...
                       </Button>
+                    ) : isScheduledTarget ? (
+                      <div className="space-y-2">
+                        <Button disabled className={pageStyles.buttonCurrent}>
+                          <Calendar className="h-4 w-4 mr-2" />
+                          Starts {pendingChange?.effectiveAt ? new Date(pendingChange.effectiveAt).toLocaleDateString("en-IN") : "at cycle end"}
+                        </Button>
+                        <p className={`text-xs text-center ${styles.text.secondary}`}>
+                          Your current plan stays active until this scheduled change starts.
+                        </p>
+                      </div>
                     ) : isCurrentPlan ? (
                       <div className="space-y-2">
                         <Button disabled className={pageStyles.buttonCurrent}>
@@ -1988,7 +2026,7 @@ function PricingWithSearchParams() {
                     ) : isDifferentBillingCycle ? (
                       <Button
                         onClick={() => setShowCancelDialog(true)}
-                        disabled={isUpgrading || isProcessingChange}
+                        disabled={isUpgrading || isProcessingChange || Boolean(pendingChange)}
                         className={pageStyles.buttonPrimary(
                           isUpgrading || isProcessingChange,
                         )}
@@ -2005,7 +2043,7 @@ function PricingWithSearchParams() {
                     ) : (
                       <Button
                         onClick={() => handleSubscribe(plan, billingCycle)}
-                        disabled={isUpgrading || isProcessingChange}
+                        disabled={isUpgrading || isProcessingChange || Boolean(pendingChange)}
                         className={pageStyles.buttonPrimary(
                           isUpgrading || isProcessingChange,
                         )}
@@ -2015,6 +2053,8 @@ function PricingWithSearchParams() {
                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                             Processing...
                           </>
+                        ) : pendingChange ? (
+                          "Plan Change Scheduled"
                         ) : currentSubscription ? (
                           "Change Plan"
                         ) : (

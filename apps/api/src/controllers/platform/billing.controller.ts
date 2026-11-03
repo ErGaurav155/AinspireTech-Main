@@ -216,12 +216,14 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
         .lean();
     }
     const pendingReplacement = currentSubscription?.pendingChange
-      ? await PlatformSubscription.exists({
+      ? await PlatformSubscription.findOne({
           replacementForSubscriptionId: currentSubscription._id,
           planCode: currentSubscription.pendingChange.planCode,
           status: "pending",
           providerSubscriptionId: { $type: "string" },
         })
+          .select("_id replacementTiming")
+          .lean()
       : null;
 
     return ok(res, {
@@ -242,6 +244,7 @@ export const listAgencyPlansController = async (req: Request, res: Response) => 
                     planCode: currentSubscription.pendingChange.planCode,
                     effectiveAt: currentSubscription.pendingChange.effectiveAt,
                     status: currentSubscription.pendingChange.status,
+                    scheduleChangeAt: pendingReplacement?.replacementTiming || "cycle_end",
                     requiresCheckout: Boolean(pendingReplacement),
                     pendingCheckoutId: pendingReplacement
                       ? String(pendingReplacement._id)

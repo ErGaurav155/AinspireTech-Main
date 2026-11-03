@@ -28,6 +28,7 @@ export type AgencyBillingSubscription = {
     planCode: string;
     effectiveAt?: string;
     status: "pending";
+    scheduleChangeAt?: "now" | "cycle_end";
     requiresCheckout?: boolean;
     pendingCheckoutId?: string;
   } | null;

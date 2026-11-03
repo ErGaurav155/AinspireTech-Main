@@ -35,6 +35,7 @@ import {
   createRazorpaySubscription,
   getRazerpayPlanInfo,
 } from "@/lib/services/subscription-actions.api";
+import { cancelRazorPaySubscription } from "@/lib/services/insta-actions.api";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import SharedBusinessKnowledgeForm from "@/components/shared/SharedBusinessKnowledgeForm";
 import {
@@ -195,14 +196,17 @@ export default function WhatsAppAutomationDashboard({
   return (
     <div className={pageClass}>
       {isDark && <Orbs />}
-      <div className={`${styles.container} w-full min-w-0 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full`}>
+      <div
+        className={`${styles.container} w-full min-w-0 [\&_button]:max-w-full [\&_input]:min-w-0 [\&_input]:max-w-full [\&_select]:min-w-0 [\&_select]:max-w-full [\&_textarea]:min-w-0 [\&_textarea]:max-w-full`}
+      >
         {view === "overview" && (
-          <Header view={view} cardClass={cardClass} workspace={data?.workspace} />
+          <Header
+            view={view}
+            cardClass={cardClass}
+            workspace={data?.workspace}
+          />
         )}
-        {view === "overview" && (
-          <div className="mb-5 md:mb-6">
-          </div>
-        )}
+        {view === "overview" && <div className="mb-5 md:mb-6"></div>}
         {isLoading && (
           <div className={`rounded-2xl border ${cardClass} p-10`}>
             <Spinner label="Loading WhatsApp workspace..." />
@@ -276,11 +280,7 @@ export default function WhatsAppAutomationDashboard({
                 }}
               />
             )}
-            {view === "business-info" && (
-              <BusinessInfo
-                cardClass={cardClass}
-              />
-            )}
+            {view === "business-info" && <BusinessInfo cardClass={cardClass} />}
             {view === "pricing" && (
               <Pricing
                 cardClass={cardClass}
@@ -393,7 +393,9 @@ function StatusPill({
 
   return (
     <div className={`${styles.innerCard} p-3`}>
-      <p className={`text-[11px] font-semibold uppercase tracking-widest ${styles.text.muted}`}>
+      <p
+        className={`text-[11px] font-semibold uppercase tracking-widest ${styles.text.muted}`}
+      >
         {label}
       </p>
       <p
@@ -444,8 +446,7 @@ function Overview({
     },
     {
       label: "Business info",
-      value:
-        data.businessInfo?.hasKnowledge ? "Ready" : "Missing",
+      value: data.businessInfo?.hasKnowledge ? "Ready" : "Missing",
       change: data.businessInfo?.hasKnowledge
         ? "Knowledge ready"
         : data.businessInfo?.websiteUrl
@@ -606,7 +607,9 @@ function MetricCard({
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400">
           <Icon className="h-5 w-5" />
         </div>
-        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">{change}</span>
+        <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+          {change}
+        </span>
       </div>
       <p className="mt-4 text-sm text-gray-500 dark:text-white/50">{label}</p>
       <p className="mt-1 text-3xl font-black">{value}</p>
@@ -1433,11 +1436,7 @@ function Appointments({
   );
 }
 
-function BusinessInfo({
-  cardClass,
-}: {
-  cardClass: string;
-}) {
+function BusinessInfo({ cardClass }: { cardClass: string }) {
   return (
     <SharedBusinessKnowledgeForm
       className={cardClass}
@@ -1621,6 +1620,38 @@ function Pricing({
   email: string;
   onActivated: () => Promise<void>;
 }) {
+  const { apiRequest } = useApi();
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const cancelSubscription = async () => {
+    const subscriptionId = currentSubscription?.subscriptionId;
+    if (!subscriptionId) return;
+    setIsCancelling(true);
+    try {
+      await cancelRazorPaySubscription(apiRequest, {
+        subscriptionId,
+        subscriptionType: "whatsapp",
+        reason: "User requested WhatsApp plan cancellation",
+        mode: "EndOfCycle",
+      });
+      setCancelOpen(false);
+      toast({
+        title: "Cancellation scheduled",
+        description: "WhatsApp Automation stays active until the end of the current billing cycle.",
+      });
+      await onActivated();
+    } catch (error: any) {
+      toast({
+        title: "Unable to cancel subscription",
+        description: error?.message || "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCancelling(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
@@ -1716,6 +1747,31 @@ function Pricing({
           </div>
         </div>
       </div>
+      {currentPlan === "launch" && currentSubscription?.subscriptionId && (
+        <div className={`rounded-2xl border ${cardClass} p-4 sm:p-5`}>
+          <h3 className="text-lg font-black">Manage subscription</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-white/55">
+            You can cancel renewal at any time. Your WhatsApp automation remains available until the current paid period ends.
+          </p>
+          <Button
+            type="button"
+            onClick={() => setCancelOpen(true)}
+            className="mt-4 rounded-xl border border-red-400/40 bg-transparent text-red-500 hover:bg-red-500/10"
+          >
+            Cancel subscription
+          </Button>
+        </div>
+      )}
+      <ConfirmDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        onConfirm={cancelSubscription}
+        title="Cancel WhatsApp Automation?"
+        description="This stops automatic renewal. Your existing WhatsApp setup and data are kept, and automation remains active until the end of the current billing cycle."
+        confirmText="Cancel at cycle end"
+        isDestructive
+        isLoading={isCancelling}
+      />
     </div>
   );
 }
@@ -1878,7 +1934,7 @@ function WhatsAppCheckoutButton({
         ? "Current Plan"
         : isSubmitting
           ? "Opening checkout..."
-          : "Subscribe with Razorpay"}
+          : "Activate Subscription"}
     </Button>
   );
 }
@@ -1918,14 +1974,13 @@ function SettingsView({
   >({});
   const processedHostedSignupCodeRef = useRef("");
   const isWhatsAppConnected = Boolean(
-    workspace?.isConfigured ||
-      workspace?.meta?.status === "connected",
+    workspace?.isConfigured || workspace?.meta?.status === "connected",
   );
   const hasBusinessInfo = Boolean(
     businessInfo?.hasKnowledge ||
-      businessInfo?.websiteUrl?.trim() ||
-      businessInfo?.businessInfo?.trim() ||
-      businessInfo?.fileName?.trim(),
+    businessInfo?.websiteUrl?.trim() ||
+    businessInfo?.businessInfo?.trim() ||
+    businessInfo?.fileName?.trim(),
   );
 
   useEffect(() => {

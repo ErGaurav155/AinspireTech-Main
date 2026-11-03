@@ -251,3 +251,26 @@ export async function findOwnedIndividualSubscription(
     status: "active",
   }).lean();
 }
+
+/**
+ * A scheduled Razorpay plan update does not change the active subscription
+ * record until its effective date. Expose that separate, local state to the
+ * dashboard so a customer cannot submit the same change twice after reload.
+ */
+export async function getPendingIndividualSubscriptionChange(
+  clerkId: string,
+  subscriptionId: string,
+  subscriptionKind: string,
+) {
+  return IndividualSubscriptionChange.findOne({
+    clerkId,
+    subscriptionId,
+    subscriptionKind,
+    status: "pending",
+  })
+    .sort({ createdAt: -1 })
+    .select(
+      "_id targetProductId targetBillingCycle scheduleChangeAt effectiveAt replacementSubscriptionId createdAt",
+    )
+    .lean();
+}

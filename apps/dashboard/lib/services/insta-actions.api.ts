@@ -541,7 +541,7 @@ export const cancelRazorPaySubscription = (
   apiRequest: ApiRequestFn,
   data: {
     subscriptionId: string;
-    subscriptionType: "insta" | "web";
+    subscriptionType: "insta" | "web" | "whatsapp";
     reason: string;
     mode: string;
   },
