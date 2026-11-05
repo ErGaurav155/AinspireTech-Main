@@ -1905,7 +1905,7 @@ export default function CreateAutomationPage() {
             {/* Keep the final DM at the end: a flow/form, lead capture and
                 follow-ups must be configured before the closing message. */}
             {/* Step 3 / 2: Send DM (final link message) */}
-            <div className={`${S.card} order-50`}>
+            <div className={`${S.card} order-[50]`}>
               <div className="flex items-center gap-3 mb-4">
                 <div className={S.stepNumber}>
                   {automationType === "dms" ? "2" : "3"}
@@ -2997,7 +2997,7 @@ export default function CreateAutomationPage() {
               )}
             </div>
 
-            <div className={`${S.actionBar} flex-wrap gap-3 justify-end`}>
+            <div className={`${S.actionBar} order-[60] flex-wrap gap-3 justify-end`}>
               <button
                 onClick={() => handleSave(false)}
                 disabled={isSaving || isGoingLive}
