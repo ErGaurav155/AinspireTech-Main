@@ -64,6 +64,105 @@ const optionalEmailSchema = z.union([
   z.literal(""),
   z.string().trim().email().max(320),
 ]);
+
+type WorkspaceSetupStatus = "not_started" | "in_progress" | "connected" | "error";
+
+/**
+ * Product records existed before WorkspaceService. Resolve the setup state from
+ * the real integration records, with a Clerk-owner fallback for legacy data.
+ */
+const resolveLiveWorkspaceSetupStatuses = async (workspaces: any[]) => {
+  const workspaceIds = workspaces.map((workspace) => workspace._id);
+  const ownerIds = [...new Set(
+    workspaces.flatMap((workspace) =>
+      [workspace.ownerUserId, workspace.legacyOwnerClerkId].filter(Boolean),
+    ),
+  )];
+  const ownerFilter = { $in: ownerIds.length ? ownerIds : [] };
+  const [whatsappWorkspaces, instagramAccounts, webChatbots] = await Promise.all([
+    WhatsAppWorkspace.find({
+      $or: [{ workspaceId: { $in: workspaceIds } }, { clerkId: ownerFilter }],
+    })
+      .select("workspaceId clerkId isConfigured meta.phoneNumberId")
+      .lean(),
+    InstagramAccount.find({
+      $or: [{ workspaceId: { $in: workspaceIds } }, { userId: ownerFilter }],
+    })
+      .select("workspaceId userId isActive")
+      .lean(),
+    WebChatbot.find({
+      type: "chatbot-lead-generation",
+      $or: [{ workspaceId: { $in: workspaceIds } }, { clerkId: ownerFilter }],
+    })
+      .select("workspaceId clerkId isActive")
+      .lean(),
+  ]);
+
+  const statuses = new Map<string, Partial<Record<"WHATSAPP" | "INSTAGRAM" | "WEBSITE", WorkspaceSetupStatus>>>();
+  for (const workspace of workspaces) {
+    const workspaceKey = String(workspace._id);
+    const owners = new Set(
+      [workspace.ownerUserId, workspace.legacyOwnerClerkId].filter(Boolean),
+    );
+    const belongsToWorkspace = (record: any, ownerField: "clerkId" | "userId") =>
+      String(record.workspaceId || "") === workspaceKey || owners.has(record[ownerField]);
+    const whatsapp = whatsappWorkspaces.find((record) =>
+      belongsToWorkspace(record, "clerkId"),
+    );
+    const instagram = instagramAccounts.filter((record) =>
+      belongsToWorkspace(record, "userId"),
+    );
+    const chatbot = webChatbots.find((record) =>
+      belongsToWorkspace(record, "clerkId"),
+    );
+    statuses.set(workspaceKey, {
+      WHATSAPP: whatsapp
+        ? whatsapp.isConfigured || Boolean(whatsapp.meta?.phoneNumberId)
+          ? "connected"
+          : "in_progress"
+        : "not_started",
+      INSTAGRAM: instagram.some((account) => account.isActive)
+        ? "connected"
+        : instagram.length
+          ? "in_progress"
+          : "not_started",
+      WEBSITE: chatbot?.isActive
+        ? "connected"
+        : chatbot
+          ? "in_progress"
+          : "not_started",
+    });
+  }
+  return statuses;
+};
+
+const applyLiveWorkspaceSetupStatuses = async (
+  services: any[],
+  statuses: Map<string, Partial<Record<"WHATSAPP" | "INSTAGRAM" | "WEBSITE", WorkspaceSetupStatus>>>,
+) => {
+  const changed: Array<{ _id: Types.ObjectId; setupStatus: WorkspaceSetupStatus }> = [];
+  const decorated = services.map((service) => {
+    const liveStatus = statuses.get(String(service.workspaceId))?.[service.service as "WHATSAPP" | "INSTAGRAM" | "WEBSITE"];
+    if (!liveStatus || service.service === "CALL" || !service.enabled) return service;
+    if (service.setupStatus !== liveStatus) {
+      changed.push({ _id: service._id, setupStatus: liveStatus });
+      return { ...service, setupStatus: liveStatus };
+    }
+    return service;
+  });
+  if (changed.length) {
+    await WorkspaceService.bulkWrite(
+      changed.map((item) => ({
+        updateOne: {
+          filter: { _id: item._id },
+          update: { $set: { setupStatus: item.setupStatus, lastError: undefined } },
+        },
+      })),
+      { ordered: false },
+    );
+  }
+  return decorated;
+};
 const optionalUrlSchema = z.union([
   z.literal(""),
   z.string().trim().url().max(500),
@@ -385,9 +484,14 @@ export const listAgencyClientsController = async (req: Request, res: Response) =
       Workspace.find({ _id: { $in: workspaceIds } }).lean(),
       WorkspaceService.find({ workspaceId: { $in: workspaceIds } }).lean(),
     ]);
+    const liveStatuses = await resolveLiveWorkspaceSetupStatuses(workspaces);
+    const resolvedServices = await applyLiveWorkspaceSetupStatuses(
+      services,
+      liveStatuses,
+    );
     const workspaceById = new Map(workspaces.map((workspace) => [String(workspace._id), workspace]));
-    const servicesByWorkspace = new Map<string, typeof services>();
-    for (const service of services) {
+    const servicesByWorkspace = new Map<string, typeof resolvedServices>();
+    for (const service of resolvedServices) {
       const key = String(service.workspaceId);
       servicesByWorkspace.set(key, [...(servicesByWorkspace.get(key) || []), service]);
     }
@@ -519,19 +623,29 @@ export const getWorkspaceController = async (req: Request, res: Response) => {
         ownerId: req.platformContext!.billingOwnerId,
       }),
     ]);
+    const liveStatuses = workspace
+      ? await resolveLiveWorkspaceSetupStatuses([workspace])
+      : new Map();
+    const resolvedServices = await applyLiveWorkspaceSetupStatuses(
+      services,
+      liveStatuses,
+    );
     const serviceFeature = {
       WHATSAPP: "whatsapp",
       INSTAGRAM: "instagram",
       WEBSITE: "websiteChatbot",
       CALL: "callAssistant",
     } as const;
-    const effectiveServices = services.map((service) => ({
-      ...service,
-      effectiveEnabled: Boolean(
-        service.enabled && entitlements.features[serviceFeature[service.service]],
-      ),
-      comingSoon: service.service === "CALL",
-    }));
+    const effectiveServices = resolvedServices.map((service: any) => {
+      const serviceCode = service.service as keyof typeof serviceFeature;
+      return {
+        ...service,
+        effectiveEnabled: Boolean(
+          service.enabled && entitlements.features[serviceFeature[serviceCode]],
+        ),
+        comingSoon: serviceCode === "CALL",
+      };
+    });
     let managedBy: { agencyName: string; planName: string; planCode: string } | undefined;
     if (workspace?.agencyId) {
       const planCode = entitlements.sourcePlanCodes[0] || FREE_AGENCY_PLAN.code;
