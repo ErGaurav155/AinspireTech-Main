@@ -2106,9 +2106,10 @@ export default function CreateAutomationPage() {
               ))}
             </div>
 
+            {/* Customer Flow is configured immediately before the final DM. */}
             {/* DM Flow */}
             {(
-              <div className={S.cardNoPadding}>
+              <div className={`${S.cardNoPadding} order-[40]`}>
                 <div className={S.sectionToggle}>
                   <div>
                     <span className={S.sectionLabel}>Customer Flow</span>
