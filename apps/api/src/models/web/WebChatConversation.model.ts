@@ -25,6 +25,8 @@ export interface IChatConversation extends Document {
   clerkId: string;
   sessionId: string; // Unique identifier for the chat session
   visitorId?: string; // For anonymous users
+  /** Digits-only phone number collected by a customer flow. */
+  customerPhone?: string;
   customerEmail?: string;
   customerName?: string;
   flowId?: string;
@@ -120,6 +122,11 @@ const ChatConversationSchema = new Schema<IChatConversation>(
       type: String,
       trim: true,
     },
+    customerPhone: {
+      type: String,
+      trim: true,
+      maxlength: 20,
+    },
     customerEmail: {
       type: String,
       trim: true,
@@ -183,6 +190,14 @@ const ChatConversationSchema = new Schema<IChatConversation>(
 // Indexes for optimized queries
 ChatConversationSchema.index({ chatbotType: 1, status: 1 });
 ChatConversationSchema.index({ clerkId: 1, status: 1 });
+// A customer can return in a new browser session. This makes it inexpensive to
+// locate and continue their existing conversation once their phone is known.
+ChatConversationSchema.index({
+  clerkId: 1,
+  chatbotType: 1,
+  customerPhone: 1,
+  lastActivity: -1,
+});
 ChatConversationSchema.index({ workspaceId: 1, status: 1, lastActivity: -1 });
 ChatConversationSchema.index({ sessionId: 1 });
 ChatConversationSchema.index({ lastActivity: -1 });

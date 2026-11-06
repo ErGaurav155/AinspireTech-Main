@@ -60,6 +60,7 @@ interface Conversation {
   formData?: FormField[]; // This should be an array, not an object
   status: Status;
   createdAt: string;
+  lastActivity?: string;
   updatedAt: string;
   type?: "chat" | "appointment";
 }
@@ -303,7 +304,7 @@ function ConversationDetail({
               {conv.customerName || "Anonymous"}
             </p>
             <p className={`text-xs ${styles.text.muted}`}>
-              {formatTimestamp(conv.createdAt)}
+              {formatTimestamp(conv.lastActivity || conv.createdAt)}
             </p>
             {conv.flowName && (
               <p className="mt-0.5 text-xs font-medium text-purple-500">
@@ -606,10 +607,10 @@ function ConversationRow({
       <td className="px-4 py-3.5 whitespace-nowrap">
         <div>
           <p className={`text-xs font-medium ${styles.text.secondary}`}>
-            {relativeTime(conv.createdAt)}
+            {relativeTime(conv.lastActivity || conv.createdAt)}
           </p>
           <p className={`text-[10px] ${styles.text.muted}`}>
-            {new Date(conv.createdAt).toLocaleDateString("en-GB", {
+            {new Date(conv.lastActivity || conv.createdAt).toLocaleDateString("en-GB", {
               day: "2-digit",
               month: "short",
             })}

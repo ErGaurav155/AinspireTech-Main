@@ -84,6 +84,7 @@ export const getConversationsByTypeController = async (
         tags: conv.tags,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt,
+        lastActivity: conv.lastActivity,
         type: "appointment",
       })),
     ];

@@ -275,7 +275,7 @@ export default function DynamicOverviewPage() {
         const leads: LeadItem[] = conversations
           .filter((conv: any) => {
             // Only show leads from last 24 hours
-            const convDate = new Date(conv.createdAt);
+            const convDate = new Date(conv.lastActivity || conv.createdAt);
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
             return convDate >= oneDayAgo;
           })
@@ -289,7 +289,7 @@ export default function DynamicOverviewPage() {
               email: formData.email || conv.customerEmail,
               phone: formData.phone,
               service: formData.service,
-              date: conv.createdAt,
+              date: conv.lastActivity || conv.createdAt,
               hasAppointment,
             };
           })

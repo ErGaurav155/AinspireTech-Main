@@ -160,6 +160,26 @@ function validateField(type: string, value: string): string | null {
   return null;
 }
 
+function getCustomerIdentity(
+  questions: ApptQuestion[],
+  answers: Record<string, string>,
+) {
+  let customerName = "Anonymous";
+  let customerEmail = "";
+  let customerPhone = "";
+
+  questions.forEach((question, index) => {
+    const value = (answers[question.id] || "").trim();
+    if (index === 0 && value) customerName = value;
+    if (question.type === "email" && value) customerEmail = value;
+    if (question.type === "tel" && value) {
+      customerPhone = value.replace(/\D/g, "");
+    }
+  });
+
+  return { customerName, customerEmail, customerPhone };
+}
+
 function isMobileDevice(): boolean {
   return window.innerWidth <= 768;
 }
@@ -764,6 +784,27 @@ export default function ChatWidget({
   );
   const [pendingApptRedirectCount, setPendingApptRedirectCount] = useState(0);
 
+  // The API can merge a new browser session into the customer’s earlier
+  // phone-based conversation. Keep this browser on that canonical session so
+  // later messages continue in the same dashboard thread.
+  const adoptCanonicalSession = useCallback(
+    async (response: Response) => {
+      const result = await response
+        .clone()
+        .json()
+        .catch(() => null);
+      const canonicalSessionId = result?.data?.sessionId;
+      if (!canonicalSessionId || canonicalSessionId === sessionId) return;
+
+      localStorage.setItem(
+        `chat_session_${userId}_${chatbotType}`,
+        canonicalSessionId,
+      );
+      setSessionId(canonicalSessionId);
+    },
+    [chatbotType, sessionId, userId],
+  );
+
   // ── Check mobile on mount and resize ──────────────────────────────────────
   useEffect(() => {
     const checkMobile = () => {
@@ -1020,7 +1061,7 @@ export default function ChatWidget({
       return;
 
     try {
-      await fetch(`${API_BASE}/api/embed/chat-conversation`, {
+      const response = await fetch(`${API_BASE}/api/embed/chat-conversation`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -1046,10 +1087,19 @@ export default function ChatWidget({
           status: "active",
         }),
       });
+      if (response.ok) await adoptCanonicalSession(response);
     } catch (error) {
       console.error("[RocketReplAI] save conversation error:", error);
     }
-  }, [config, messages, sessionId, visitorId, conversationSaved, apptStarted]);
+  }, [
+    config,
+    messages,
+    sessionId,
+    visitorId,
+    conversationSaved,
+    apptStarted,
+    adoptCanonicalSession,
+  ]);
 
   // ─── Auto-save conversation when messages change ─────────────────────────
   useEffect(() => {
@@ -1300,14 +1350,8 @@ export default function ChatWidget({
               question: question.question,
               answer: updatedData[question.id] || "",
             }));
-            let customerName = "Anonymous";
-            let customerEmail = "";
-
-            apptQuestions.forEach((question, index) => {
-              const value = updatedData[question.id] || "";
-              if (index === 0 && value) customerName = value;
-              if (question.type === "email" && value) customerEmail = value;
-            });
+            const { customerName, customerEmail, customerPhone } =
+              getCustomerIdentity(apptQuestions, updatedData);
 
             const saveResponse = await fetch(
               `${API_BASE}/api/embed/chat-conversation`,
@@ -1324,6 +1368,7 @@ export default function ChatWidget({
                   visitorId,
                   customerName,
                   customerEmail,
+                  customerPhone,
                   flowId: activeFlowId,
                   flowName: activeFlowLabel,
                   messages: messages.map((message) => ({
@@ -1345,6 +1390,7 @@ export default function ChatWidget({
             if (!saveResponse.ok) {
               throw new Error("Customer flow submission was not saved");
             }
+            await adoptCanonicalSession(saveResponse);
             setConversationSaved(true);
           } catch (saveError) {
             console.error(
@@ -1376,6 +1422,7 @@ export default function ChatWidget({
       sessionId,
       visitorId,
       messages,
+      adoptCanonicalSession,
     ],
   );
 
@@ -1413,16 +1460,10 @@ export default function ChatWidget({
           answer: formattedDT,
         });
 
-        let customerName = "Anonymous";
-        let customerEmail = "";
+        const { customerName, customerEmail, customerPhone } =
+          getCustomerIdentity(apptQuestions, apptData);
 
-        apptQuestions.forEach((q, idx) => {
-          const ans = apptData[q.id] || "";
-          if (idx === 0 && ans) customerName = ans;
-          if (q.type === "email" && ans) customerEmail = ans;
-        });
-
-        await fetch(`${API_BASE}/api/embed/chat-conversation`, {
+        const saveResponse = await fetch(`${API_BASE}/api/embed/chat-conversation`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -1435,6 +1476,7 @@ export default function ChatWidget({
             visitorId,
             customerName,
             customerEmail,
+            customerPhone,
             flowId: activeFlowId,
             flowName: activeFlowLabel,
             messages: messages.map((m) => ({
@@ -1452,6 +1494,10 @@ export default function ChatWidget({
             status: "active",
           }),
         });
+        if (!saveResponse.ok) {
+          throw new Error("Appointment was not saved");
+        }
+        await adoptCanonicalSession(saveResponse);
 
         setConversationSaved(true);
       } catch (err) {
@@ -1475,6 +1521,7 @@ export default function ChatWidget({
       userId,
       activeFlowId,
       activeFlowLabel,
+      adoptCanonicalSession,
     ],
   );
 
@@ -1671,6 +1718,7 @@ export default function ChatWidget({
     flexDirection: "column",
     width: "100%",
     height: "100%",
+    minHeight: 0,
     background: "#fff",
     borderRadius: mode === "embed" && !isMobile ? 20 : 0,
     overflow: "hidden",
@@ -1824,6 +1872,7 @@ export default function ChatWidget({
       <div
         style={{
           flex: 1,
+          minHeight: 0,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
@@ -1833,7 +1882,11 @@ export default function ChatWidget({
           <div
             style={{
               flex: 1,
+              minHeight: 0,
               overflowY: "auto",
+              WebkitOverflowScrolling: "touch",
+              touchAction: "pan-y",
+              overscrollBehavior: "contain",
               padding: isMobile ? "16px 12px 8px" : "14px 12px 8px",
               background: "#f9fafb",
               display: "flex",
@@ -1915,6 +1968,7 @@ export default function ChatWidget({
           <div
             style={{
               flex: 1,
+              minHeight: 0,
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
@@ -1979,7 +2033,16 @@ export default function ChatWidget({
               </div>
             )}
 
-            <div style={{ flex: 1, overflowY: "auto", padding: "8px 12px" }}>
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                overflowY: "auto",
+                padding: "8px 12px",
+                WebkitOverflowScrolling: "touch",
+                touchAction: "pan-y",
+              }}
+            >
               {filteredFAQ.length === 0 ? (
                 <div
                   style={{
@@ -2331,9 +2394,9 @@ export default function ChatWidget({
   if (mode === "embed") {
     // For embed mode on mobile, full screen; on desktop, fixed size
     if (isMobile) {
-      return <div style={{ position: "fixed", inset: 0 }}>{chatWindow}</div>;
+      return <div style={{ position: "fixed", inset: 0, minHeight: 0 }}>{chatWindow}</div>;
     }
-    return <div style={{ position: "fixed", inset: 0 }}>{chatWindow}</div>;
+    return <div style={{ position: "fixed", inset: 0, minHeight: 0 }}>{chatWindow}</div>;
   }
 
   // Landing page mode — responsive centered card
@@ -2355,8 +2418,8 @@ export default function ChatWidget({
         style={{
           width: "100%",
           maxWidth: isMobile ? "100%" : 480,
-          minHeight: isMobile ? "100dvh" : undefined,
-          height: isMobile ? "auto" : "min(700px, 92vh)",
+          minHeight: 0,
+          height: isMobile ? "100dvh" : "min(700px, 92vh)",
           borderRadius: isMobile ? 0 : 24,
           overflow: "hidden",
           boxShadow: isMobile ? "none" : "0 25px 70px rgba(0,0,0,0.14)",
